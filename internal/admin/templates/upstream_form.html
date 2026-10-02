@@ -27,7 +27,7 @@
 <div class="field"><label>MCP source URL / package</label><input type="text" name="source" value="{{.Source}}" placeholder="https://host/org/repo, npm or PyPI package" autocomplete="off" spellcheck="false" data-suggest-source></div>
 {{if or .New (eq .U.Kind "git")}}<div class="field"><label>Access token (private repositories){{if .TokenMasked}} (<code>{{.TokenMasked}}</code>, empty keeps){{end}}</label><input type="password" name="git_token" autocomplete="off" data-suggest-token></div>
 {{if .TokenMasked}}<div class="row"><label class="check"><input type="checkbox" name="clear_token" value="1"> remove the stored token</label></div>{{end}}{{end}}
-<div class="row"><button type="button" class="act" data-suggest="/admin/upstreams/suggest" {{if not .Suggest.Enabled}}disabled title="{{.Suggest.Why}}"{{end}}>Suggest configuration</button></div>
+{{template "suggest_controls" .Suggest}}
 {{template "suggest_result"}}
 <details data-manual {{if not .New}}open{{end}}><summary class="muted">Manual configuration</summary>
 {{if or .New (eq .U.Kind "git")}}<div class="field"><label>Ref (branch or tag, empty = default branch)</label><input type="text" name="git_ref" placeholder="main" value="{{.U.GitRef}}" autocomplete="off"></div>{{end}}

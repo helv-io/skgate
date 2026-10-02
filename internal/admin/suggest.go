@@ -4,24 +4,41 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/suggest"
 )
 
-// suggestState reports whether "Suggest configuration" can run. The manual form never depends on it.
-func (a *Admin) suggestState() suggestState {
+// suggestState reports whether "Suggest configuration" can run, and what the page offers instead of
+// a dead button: the provider's MCP helper model picker. The manual form never depends on it.
+func (a *Admin) suggestState(r *http.Request) suggestState {
 	p := a.Providers.Default()
-	switch {
-	case p == nil || a.Proxy == nil:
+	if p == nil || a.Proxy == nil {
 		return suggestState{Why: "no provider"}
-	case a.Set.Model(p.ID()) == "":
-		return suggestState{Why: "pick an MCP helper model in the status page details"}
-	case !p.Status().SignedIn:
-		return suggestState{Why: "sign in on the status page"}
 	}
-	return suggestState{Enabled: true}
+	v := a.providerView(r, p)
+	v.CSRF, _ = a.Session(r)
+	v.Inline = true
+	st := suggestState{P: &v}
+	switch {
+	case !v.S.SignedIn:
+		st.Why = "sign in on the status page"
+	case v.Model == "":
+		st.Why = "pick an MCP helper model first"
+	default:
+		st.Enabled = true
+	}
+	return st
+}
+
+// controlsHTML renders the Suggest controls (button, MCP helper model picker and its dialog) for the
+// current state: the fragment the client script swaps in after a model was picked.
+func (a *Admin) controlsHTML(r *http.Request) (string, error) {
+	var b strings.Builder
+	err := a.tpl["upstreams"].ExecuteTemplate(&b, "suggest_controls", a.suggestState(r))
+	return b.String(), err
 }
 
 // upstreamSuggest answers with a validated suggestion as JSON for the client script to put into the
@@ -32,7 +49,7 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusConflict, "managed upstreams: "+why)
 		return
 	}
-	st := a.suggestState()
+	st := a.suggestState(r)
 	if !st.Enabled {
 		fail(http.StatusConflict, st.Why)
 		return

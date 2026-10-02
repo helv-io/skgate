@@ -14,6 +14,7 @@ type statusData struct{ Providers []providerView }
 // providerView is a provider as the status page and its dialog show it.
 type providerView struct {
 	ID, Name, CSRF string
+	Inline         bool // the MCP helper model form posts in place (no page reload)
 	S              provider.Status
 	Dev            provider.DeviceFlow
 	State          pillView // sign-in pill; the hover text carries the detail
