@@ -67,7 +67,7 @@ func TestStatusPageAtAGlance(t *testing.T) {
 		}
 	}
 	// the dialog holds the technical facts, masked
-	for _, want := range []string{"Refresh token", "************5678", "************1234", "PKCE", "S256", "Token endpoint", "Base URL", "Fallback", "Helper model", "Model aliases"} {
+	for _, want := range []string{"Refresh token", "************5678", "************1234", "PKCE", "S256", "Token endpoint", "Base URL", "Fallback", "MCP helper model", "Model aliases"} {
 		if !strings.Contains(dlg, want) {
 			t.Errorf("dialog lacks %q", want)
 		}
@@ -164,7 +164,7 @@ func TestProviderAliasesEndToEnd(t *testing.T) {
 	}
 }
 
-// The helper model can only be one of the provider's models, and is kept per provider.
+// The MCP helper model can only be one of the provider's models, and is kept per provider.
 func TestHelperModelSelection(t *testing.T) {
 	up, _ := modelsUpstream(t, "m1", "m2")
 	a, _, br, csrf, _ := signedInProvider(t, up)
@@ -183,7 +183,7 @@ func TestHelperModelSelection(t *testing.T) {
 		t.Fatalf("stored %q", v)
 	}
 	_, page := br.get("/admin")
-	if !strings.Contains(page, `<span class="pill ok" title="used by the configuration helper">m2</span>`) {
+	if !strings.Contains(page, `<span class="pill ok" title="used as the MCP helper model">m2</span>`) {
 		t.Fatal("model summary missing on the main screen")
 	}
 	post(url.Values{"model": {""}})

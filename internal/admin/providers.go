@@ -231,9 +231,9 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = a.Set.SetModel(p.ID(), m)
-	msg := "helper model cleared"
+	msg := "MCP helper model cleared"
 	if m != "" {
-		msg = "helper model: " + m
+		msg = "MCP helper model: " + m
 	}
 	a.back(w, r, dialogHash(p.ID()), msg, "")
 }
