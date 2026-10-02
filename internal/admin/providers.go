@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -205,19 +206,45 @@ func (a *Admin) proxyFor(id string) *provider.Proxy {
 	return nil
 }
 
+// wantsJSON reports whether the client script asked for an in-place answer.
+func wantsJSON(r *http.Request) bool {
+	return strings.Contains(r.Header.Get("Accept"), "application/json")
+}
+
+// helperDone answers a change of the MCP helper model setup. The page script posts with
+// Accept: application/json and gets the toast plus the re-rendered Suggest controls; a plain form
+// post is redirected back to the provider dialog with the toast as a flash.
+func (a *Admin) helperDone(w http.ResponseWriter, r *http.Request, id, ok, errMsg string) {
+	if !wantsJSON(r) {
+		a.back(w, r, dialogHash(id), ok, errMsg)
+		return
+	}
+	t := toast{toastOK, ok}
+	if errMsg != "" {
+		t = toast{toastBad, errMsg}
+	}
+	t.Msg = clip(t.Msg)
+	html, err := a.controlsHTML(r)
+	if err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, map[string]any{"toast": t, "html": html})
+}
+
 func (a *Admin) modelsReload(w http.ResponseWriter, r *http.Request) {
 	p := providerOf(r)
 	px := a.proxyFor(p.ID())
 	if px == nil {
-		a.back(w, r, dialogHash(p.ID()), "", "models are not available for this provider")
+		a.helperDone(w, r, p.ID(), "", "models are not available for this provider")
 		return
 	}
 	ids, err := px.FetchModels(r.Context())
 	if err != nil {
-		a.back(w, r, dialogHash(p.ID()), "", err.Error())
+		a.helperDone(w, r, p.ID(), "", err.Error())
 		return
 	}
-	a.back(w, r, dialogHash(p.ID()), fmt.Sprintf("%d models loaded", len(ids)), "")
+	a.helperDone(w, r, p.ID(), fmt.Sprintf("%d models loaded", len(ids)), "")
 }
 
 func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
@@ -226,7 +253,7 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 	if m != "" {
 		ids, _, known := a.models(r.Context(), p)
 		if !known || !contains(ids, m) {
-			a.back(w, r, dialogHash(p.ID()), "", "not one of the provider's models")
+			a.helperDone(w, r, p.ID(), "", "not one of the provider's models")
 			return
 		}
 	}
@@ -235,7 +262,7 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 	if m != "" {
 		msg = "MCP helper model: " + m
 	}
-	a.back(w, r, dialogHash(p.ID()), msg, "")
+	a.helperDone(w, r, p.ID(), msg, "")
 }
 
 func contains(l []string, s string) bool {

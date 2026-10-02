@@ -51,10 +51,7 @@
 <div class="row"><button class="act">Save</button></div></form>
 
 {{if .CanModels}}<h4>MCP helper model</h4>
-<form method="post" action="/admin/providers/{{.ID}}/model" class="row form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<select name="model"><option value="">none</option>{{range .Models}}<option value="{{.}}" {{if eq . $p.Model}}selected{{end}}>{{.}}</option>{{end}}{{if and .Model (not (inList .Models .Model))}}<option value="{{.Model}}" selected>{{.Model}} (unlisted)</option>{{end}}</select>
-<button class="act">Save</button></form>
-<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/models/reload"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Reload models</button></form>{{if .ModelsKnown}}<span class="muted">{{len .Models}} models, loaded {{.ModelsAt}}</span>{{else}}<span class="muted">not loaded{{if not .S.SignedIn}}: sign in first{{end}}</span>{{end}}</div>
+{{template "model_picker" .}}
 
 <h4>Model aliases</h4>
 <div class="tablewrap"><table class="table"><thead><tr><th>Alias</th><th>Target</th><th>Status</th><th></th></tr></thead><tbody>
@@ -66,3 +63,23 @@
 <select name="target">{{range .Models}}<option value="{{.}}">{{.}}</option>{{end}}</select>
 <button class="act" {{if not .ModelsKnown}}disabled title="load the model list first"{{end}}>Save</button></div></form>{{end}}
 {{template "dialog_end"}}{{end}}
+
+{{/* model_picker: choose the MCP helper model of a provider and reload its model list. Takes a providerView.
+   Inline forms post in place (see app.js, data-inline) and the page re-renders the Suggest controls. */}}
+{{define "model_picker"}}{{$p := .}}<form method="post" action="/admin/providers/{{.ID}}/model" class="row form"{{if .Inline}} data-inline=""{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}">
+<select name="model"><option value="">none</option>{{range .Models}}<option value="{{.}}" {{if eq . $p.Model}}selected{{end}}>{{.}}</option>{{end}}{{if and .Model (not (inList .Models .Model))}}<option value="{{.Model}}" selected>{{.Model}} (unlisted)</option>{{end}}</select>
+<button class="act">Save</button></form>
+<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/models/reload"{{if .Inline}} data-inline="#helper-model"{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">Reload models</button></form>{{if .ModelsKnown}}<span class="muted">{{len .Models}} models, loaded {{.ModelsAt}}</span>{{else}}<span class="muted">not loaded{{if not .S.SignedIn}}: sign in first{{end}}</span>{{end}}</div>{{end}}
+
+{{/* helper_dialog: the model_picker in the shared modal, for pages that need a helper model without going to the
+   status page. Takes a providerView. */}}
+{{define "helper_dialog"}}{{template "dialog_content" (dlg "helper-model" "MCP helper model")}}
+{{template "model_picker" .}}
+{{template "dialog_end"}}{{end}}
+
+{{/* suggest_controls: the "Suggest configuration" button and, when signed in, the control that opens the MCP helper
+   model dialog. Takes a suggestState. Re-rendered by the server after the model changed, and swapped in by app.js. */}}
+{{define "suggest_controls"}}<div class="row" data-suggest-controls>
+<button type="button" class="act" data-suggest="/admin/upstreams/suggest" {{if not .Enabled}}disabled title="{{.Why}}"{{end}}>Suggest configuration</button>
+{{with .P}}{{if .S.SignedIn}}<button type="button" class="act" data-dialog-open="#helper-model">{{if .Model}}MCP helper model: {{.Model}}{{else}}Pick MCP helper model{{end}}</button>{{end}}{{template "helper_dialog" .}}{{end}}
+</div>{{end}}

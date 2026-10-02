@@ -535,6 +535,7 @@ type formData struct {
 type suggestState struct {
 	Enabled bool
 	Why     string
+	P       *providerView // the default provider with its models; nil without one
 }
 
 type pair struct{ Name, Value string }
@@ -742,7 +743,7 @@ func maskedPairs(kv []mcp.KV) []pair {
 	return out
 }
 
-func (a *Admin) form(u mcp.Upstream, isNew bool, include bool) formData {
+func (a *Admin) form(r *http.Request, u mcp.Upstream, isNew bool, include bool) formData {
 	ok, why := a.MCP.ManagedState()
 	f := formData{U: a.view(u), New: isNew, Managed: ok, Why: why, Include: include, Args: newRowList("args", "argument", "Arguments", u.Args),
 		Cmd: newPickList("command", "Command", "Custom path…", "/usr/local/bin/tool", a.MCP.Commands(), u.Command, isNew),
@@ -753,7 +754,7 @@ func (a *Admin) form(u mcp.Upstream, isNew bool, include bool) formData {
 	}
 	f.TokenMasked = httputil.Mask(u.GitToken)
 	f.Source = u.GitURL
-	f.Suggest = a.suggestState()
+	f.Suggest = a.suggestState(r)
 	return f
 }
 
@@ -761,7 +762,7 @@ func (a *Admin) upstreams(w http.ResponseWriter, r *http.Request) {
 	list, _ := a.MCP.Upstreams.List()
 	v, _ := a.DB.GetSetting(settingLastInclude)
 	ok, why := a.MCP.ManagedState()
-	d := upstreamsData{Managed: ok, Why: why, Form: a.form(mcp.Upstream{Kind: mcp.KindRemote, Enabled: true}, true, v == "1")}
+	d := upstreamsData{Managed: ok, Why: why, Form: a.form(r, mcp.Upstream{Kind: mcp.KindRemote, Enabled: true}, true, v == "1")}
 	for _, u := range list {
 		d.List = append(d.List, a.view(u))
 		d.Aliases = append(d.Aliases, u.Alias)
@@ -781,7 +782,7 @@ func (a *Admin) upstreamEdit(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin/upstreams", "", "unknown alias")
 		return
 	}
-	f := a.form(u, false, u.IncludeInMCP)
+	f := a.form(r, u, false, u.IncludeInMCP)
 	a.render(w, r, "upstream_edit", page{Title: "Edit upstream", Nav: "upstreams", Data: editData{Form: f, U: f.U}})
 }
 

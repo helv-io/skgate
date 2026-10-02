@@ -13,16 +13,30 @@
   }, 3000);
 })();
 
-// Toasts: expire after 5 seconds, click to dismiss.
+// Toasts: expire after 5 seconds, click to dismiss. window.skgateToast(kind, text) shows one from script.
 (function () {
   function drop(el) {
     el.classList.add("gone");
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 250);
   }
-  Array.prototype.forEach.call(document.querySelectorAll(".toast"), function (el) {
+  function arm(el) {
     el.addEventListener("click", function () { drop(el); });
     setTimeout(function () { drop(el); }, 5000);
-  });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll(".toast"), arm);
+  window.skgateToast = function (kind, text) {
+    var box = document.querySelector(".toasts");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "toasts";
+      document.body.appendChild(box);
+    }
+    var el = document.createElement("div");
+    el.className = "toast " + kind;
+    el.textContent = text;
+    box.appendChild(el);
+    arm(el);
+  };
 })();
 
 // Confirmation: a form with data-confirm="text" opens the shared modal (<dialog data-modal>) on submit
@@ -304,5 +318,40 @@ document.addEventListener("click", function (e) {
       })
       .catch(function () { show(form, "bad", "failed", ["request failed"]); })
       .then(function () { b.disabled = false; });
+  });
+})();
+
+// Inline forms: a form with data-inline posts by fetch and the page updates in place, without a reload. The
+// server answers {toast, html}: the toast is shown, and html (the element with data-suggest-controls)
+// replaces the current one. data-inline="" closes the open dialog on success; data-inline="#id" keeps it open
+// and reloads its body from <template id>.
+(function () {
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form || !form.hasAttribute || !form.hasAttribute("data-inline") || e.defaultPrevented) return;
+    e.preventDefault();
+    var again = form.getAttribute("data-inline");
+    var btn = form.querySelector("button");
+    if (btn) btn.disabled = true;
+    fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
+      .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.json(); })
+      .then(function (j) {
+        var tpl = document.createElement("template");
+        tpl.innerHTML = j.html;
+        var fresh = tpl.content.firstElementChild;
+        var old = document.querySelector("[data-suggest-controls]");
+        if (fresh && old) old.replaceWith(fresh);
+        var dlg = document.querySelector("[data-modal]");
+        if (j.toast.k === "ok" && !again) {
+          var close = dlg && dlg.querySelector("[data-modal-close]");
+          if (close) close.click();
+        } else if (again) {
+          var src = document.querySelector(again), body = dlg && dlg.querySelector("[data-modal-body]");
+          if (src && body) { body.textContent = ""; body.appendChild(src.content.cloneNode(true)); }
+        }
+        window.skgateToast(j.toast.k, j.toast.m);
+      })
+      .catch(function () { window.skgateToast("bad", "request failed"); })
+      .then(function () { if (btn) btn.disabled = false; });
   });
 })();
