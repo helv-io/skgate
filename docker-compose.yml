@@ -13,7 +13,7 @@ services:
       - OIDC_CLIENT_ID=skgate
       - OIDC_CLIENT_SECRET=change-me
     volumes:
-      - /docker/skgate:/data
+      - ./data:/data
     healthcheck:
       test: ["CMD", "/skgate", "healthcheck"]
       interval: 30s
