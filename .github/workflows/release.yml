@@ -1,0 +1,101 @@
+# Publishes ghcr.io/<owner>/skgate on every version tag (v*), linux/amd64 and linux/arm64.
+#
+# Two Dockerfile targets:
+#   full (default)  vX.Y.Z  X.Y.Z  latest  <sha12>
+#   slim            vX.Y.Z-slim  X.Y.Z-slim  slim  <sha12>-slim
+#
+# Uses the built-in GITHUB_TOKEN; no other secret is needed.
+# The first push creates the package; set its visibility under the repository's Packages settings.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+      # A pre-release tag such as v1.0.0-rc1 does not move latest / slim.
+      STABLE: ${{ !contains(github.ref_name, '-') }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: vars
+        run: echo "sha12=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta_full
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ env.STABLE }}
+            type=raw,value=${{ steps.vars.outputs.sha12 }}
+
+      - id: meta_slim
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ github.ref_name }}-slim
+            type=semver,pattern={{version}},suffix=-slim
+            type=raw,value=slim,enable=${{ env.STABLE }}
+            type=raw,value=${{ steps.vars.outputs.sha12 }}-slim
+
+      - name: Build and push (slim)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: slim
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta_slim.outputs.tags }}
+          labels: ${{ steps.meta_slim.outputs.labels }}
+          cache-from: type=gha,scope=slim
+          cache-to: type=gha,scope=slim,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Build and push (full)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: full
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta_full.outputs.tags }}
+          labels: ${{ steps.meta_full.outputs.labels }}
+          cache-from: type=gha,scope=full
+          cache-to: type=gha,scope=full,mode=max
+          provenance: false
+          sbom: false

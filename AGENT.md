@@ -1,0 +1,55 @@
+# AGENT.md
+
+Guidelines for changes to skgate. Applies to code, UI, docs and releases.
+
+## Product principle
+
+skgate must work out of the box. Users are not security experts.
+
+- Prefer secure defaults that adapt automatically over config toggles. Example: PKCE is used if the client sends it, and is then required for that client.
+- Minimize per-client and per-upstream settings. Every new option needs a reason a default cannot cover.
+- Compatibility first, without weakening security for public clients.
+- Apply this to every design decision.
+
+## Style
+
+- Technical audience. No fluff, no hand-holding, short lines.
+- Generic examples. Name Authentik next to Authelia, never one alone. No house-specific names in code, docs or examples.
+- Provider-neutral. No provider-specific wording or defaults outside that provider's own definition.
+- Consistent labels, casing and spacing. One version display: semver (`vX.Y.Z`), in the header only.
+- No URL-variant or trailing-slash labels. Correct stored data silently.
+
+## UI
+
+- Shared styles and components, never page by page. New markup goes in `templates/components.html` and `app.css`; no inline `style=` or `on*=`.
+- Toasts expire after 5 s and dismiss on click. No dismiss wording. Notifications never travel in URL parameters.
+- Tables: one row per upstream/key/client, no subtitles under values. Detail that does not fit a column goes in a hover `title` (the alias box lists type, target, source, revision, host override). Buttons in a row's action cell share one minimum width (`.table .actions .act`) so the columns line up whatever the label.
+- Forms: wrap fields in `<form class="form">` (`form wide` for the import box). Controls get no widths of their own; they fill their container, so every input, select, textarea and pairs row ends at the same right edge at any nesting depth. `TestFormsShareOneColumn` enforces it; `TestFormRightEdgesInBrowser` measures it in Chrome when `SKGATE_CHROME` and `SKGATE_PUPPETEER` are set.
+- No JS `alert`, `confirm` or `prompt`. One shared modal (`data-modal` for confirmations, `dialog` for content).
+- Values with details (usage counts, and the like) use the `tip` component: short visible text, the rest in the hover tooltip. Large counts go through `numfmt.Compact` (K, M, B, T), exact numbers through `numfmt.Exact`; never format counts in a template.
+- Status pills carry their details in a hover tooltip. No subtitle or parenthesis beside a pill. Use the `pill` component.
+- Tokens are shown masked: asterisks plus the last 4 characters; under 8 characters, asterisks only. Refresh tokens appear only in the provider dialog.
+- Name/value data (env, headers) and lists (args) use the dynamic rows components.
+- Manual input is never gated behind an account or a helper.
+- Icons live in `internal/admin/static/` (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, PNG sizes). Swap the files, keep the names.
+
+## Security
+
+- Secrets are never logged, never put in URLs, never sent to a model.
+- Never run `uv` or `npm` as root in the container. The cache directory is owned by uid 1000.
+- Never edit stack YAML in docs or automation. Suggest the change instead.
+
+## Code
+
+- Small, meaningful commits with a message body. One concern per commit.
+- Tests are required. Run `go test -race ./...`; `tools/chk.sh` (build, vet, tests of the staged tree) must pass for every commit.
+- Update README and `.env.example` in the same change. A test keeps their variables in sync with the code.
+- Admin routes (`/admin/...`) work with and without a trailing slash through one router-level rewrite (`trimAdminSlash`); never add slash variants per page. It touches nothing outside `/admin` (`/mcp`, OAuth, `/.well-known`, `/v1` keep their own handling).
+- Database changes are additive and backward compatible. Existing upstreams keep working.
+
+## Release
+
+1. Bump `Version` in `internal/config/config.go` (semver only, no suffixes).
+2. Full test run, then tag `vX.Y.Z` on the final commit.
+3. Push `main` and the tag to GitHub. The Release workflow builds the images (`vX.Y.Z`, `X.Y.Z`, `latest`, slim variants) for amd64 and arm64 and pushes them to `ghcr.io/helv-io/skgate`.
+4. Deploy: `docker compose pull skgate && docker compose up -d skgate`.

@@ -1,0 +1,25 @@
+{{define "body"}}{{with .Data}}
+<h2>MCP upstreams</h2>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Alias</th><th class="hide-md">Outbound auth</th><th>Process</th><th>Status</th><th>In /mcp</th><th></th></tr></thead><tbody>
+{{range .List}}<tr><td><code title="{{.Tip}}">{{.Alias}}</code></td>
+<td class="hide-md trunc" title="{{.Effective}}{{if .AuthName}} {{.AuthName}}{{end}}{{if and (eq .AuthKind "auto") .DetectedNote}}&#10;{{.DetectedNote}}{{end}}"><span class="chip">{{.Effective}}{{if .AuthName}} <span class="mono">{{.AuthName}}</span>{{end}}{{if .Masked}} <span class="mono">{{.Masked}}</span>{{end}}</span></td>
+<td>{{if .Proc}}{{template "proc_pill" .Proc}}{{if .Proc.Upd.Available}} {{template "pill" (pill "warn" "update" "the remote ref is ahead of the installed commit")}}{{end}}{{else}}<span class="muted">-</span>{{end}}</td>
+<td><form method="post" action="/admin/upstreams/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><input type="hidden" name="flag" value="enabled"><button class="act toggle {{if .Enabled}}on{{else}}off{{end}}" title="toggle enabled">{{if .Enabled}}enabled{{else}}disabled{{end}}</button></form></td>
+<td><form method="post" action="/admin/upstreams/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><input type="hidden" name="flag" value="include"><button class="act toggle {{if .IncludeInMCP}}on{{else}}off{{end}}" title="toggle in /mcp">{{if .IncludeInMCP}}in /mcp{{else}}not in /mcp{{end}}</button></form></td>
+<td><div class="actions"><a class="act" href="/admin/upstreams/edit?alias={{.Alias}}">edit</a>
+<form method="post" action="/admin/upstreams/test"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><button class="act">test</button></form>
+{{if .Managed}}<a class="act" href="/admin/upstreams/logs?alias={{.Alias}}">process</a>{{else}}<form method="post" action="/admin/upstreams/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><button class="act">detect</button></form>{{end}}
+<form method="post" action="/admin/upstreams/delete" data-confirm="Delete this upstream?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><button class="act danger">delete</button></form></div></td></tr>
+{{else}}<tr><td colspan="6" class="empty">none</td></tr>{{end}}</tbody></table></div>
+<h2>Add upstream</h2><div class="card">
+<form method="post" action="/admin/upstreams/save" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="mode" value="new">
+{{template "upstream_fields" .Form}}
+<div class="row"><button class="btn">Add</button></div></form></div>
+<div class="actions"><a class="act" href="/admin/upstreams/import">import JSON</a><a class="act" href="/admin/upstreams/export">export JSON</a></div>
+<h2>Endpoints</h2><div class="card">
+<p>All included upstreams, tools named <code>&lt;alias&gt;-&lt;tool&gt;</code>: <code>{{$.Public}}/mcp</code></p>
+<p>One upstream, unprefixed: <code>{{$.Public}}/mcp/{{if .Aliases}}{{index .Aliases 0}}{{else}}&lt;alias&gt;{{end}}</code></p>
+<p>Discovery: <code>{{$.Public}}/.well-known/oauth-authorization-server</code></p>
+<p class="muted">DCR clients: leave client ID and secret empty (public, PKCE). Others: a key as <code>Authorization: Bearer</code> or <code>X-API-Key</code>, or an OAuth client.</p>
+</div>
+{{end}}{{end}}

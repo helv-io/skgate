@@ -1,0 +1,28 @@
+{{define "body"}}{{with .Data}}{{with .U}}
+<h2>Process <code>{{.Alias}}</code></h2>
+<div class="card flush tablewrap"><table class="table kv"><tbody>
+<tr><th>State</th><td>{{template "proc_pill" .Proc}}</td></tr>
+<tr><th>Command</th><td><code>{{.Target}}</code></td></tr>
+{{with .Proc.Upd}}{{if .Rev}}<tr><th>Installed</th><td><code>{{.Rev}}</code>{{if .Ref}} <span class="muted">{{.Ref}}{{if .RefKind}} ({{.RefKind}}){{end}}</span>{{end}} {{template "upd_chips" .}}</td></tr>{{end}}
+{{if .Remote}}<tr><th>Remote</th><td><code>{{.Remote}}</code> <span class="muted">checked {{.Checked}}</span></td></tr>{{else if .CheckErr}}<tr><th>Remote</th><td class="warn">{{.CheckErr}} <span class="muted">{{.Checked}}</span></td></tr>{{end}}
+{{if .Package}}<tr><th>Package</th><td><code>{{.Package}}</code> {{template "upd_chips" .}}</td></tr>{{end}}
+{{if .Last}}<tr><th>Last update</th><td>{{.Last}}</td></tr>{{end}}
+{{if .Err}}<tr><th>Update failed</th><td class="warn">{{.Err}}</td></tr>{{end}}
+{{if .Any}}<tr><th>Auto-update</th><td>{{.Auto}}{{if .Next}} <span class="muted">next {{.Next}}</span>{{end}}</td></tr>{{end}}{{end}}
+<tr><th>Lifecycle</th><td>{{.Lifecycle}}</td></tr>
+{{if not .Proc.Available}}<tr><th>Managed</th><td class="warn">{{.Proc.Why}}</td></tr>{{end}}
+</tbody></table></div>
+<div class="actions">
+{{range $a := list "start" "stop" "restart"}}<form method="post" action="/admin/upstreams/process"{{if eq $a "stop"}} data-confirm="Stop the process? It stays stopped until started."{{end}}><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{$.Data.U.Alias}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="{{$a}}"><button class="act{{if eq $a "stop"}} danger{{end}}">{{$a}}</button></form>{{end}}
+<form method="post" action="/admin/upstreams/process" data-confirm="{{if eq .Kind "git"}}Fetch the repository, rerun the install step and restart. The previous version is restored if that fails.{{else}}Clear this upstream's package cache and restart. Packages are downloaded again.{{end}}"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="update"><button class="act{{if .Proc.Upd.Available}} accent{{end}}">update</button></form>
+{{if eq .Kind "git"}}<form method="post" action="/admin/upstreams/process"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="check"><button class="act">check</button></form>{{end}}
+<form method="post" action="/admin/upstreams/test"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><button class="act">test</button></form>
+<a class="act" href="/admin/upstreams/logs?alias={{.Alias}}">refresh</a>
+<form method="post" action="/admin/upstreams/process" data-confirm="Clear the captured output?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="clear-logs"><button class="act danger">clear logs</button></form>
+<a class="act" href="/admin/upstreams">back</a></div>
+{{end}}
+<h2>Output ({{len .Lines}} of {{.Total}} lines)</h2>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Time</th><th>Source</th><th>Text</th></tr></thead><tbody>
+{{range .Lines}}<tr><td class="min mono">{{.T}}</td><td class="min"><span class="chip">{{.Src}}</span></td><td class="wrap mono {{.Class}}">{{.Text}}</td></tr>
+{{else}}<tr><td colspan="3" class="empty">no output</td></tr>{{end}}</tbody></table></div>
+{{end}}{{end}}

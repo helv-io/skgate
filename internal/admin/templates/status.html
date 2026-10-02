@@ -1,0 +1,5 @@
+{{define "body"}}{{with .Data}}
+<h2>Sign-in</h2>
+{{range .Providers}}{{template "provider_card" .}}{{end}}
+{{range .Providers}}{{template "provider_dialog" .}}{{end}}
+{{end}}{{end}}

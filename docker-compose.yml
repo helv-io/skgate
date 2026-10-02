@@ -1,0 +1,27 @@
+# Set PUBLIC_URL and the OIDC_* values below (see .env.example for every variable).
+# Local build instead of the published image: docker build -t skgate .   (--target slim: proxy only)
+services:
+  skgate:
+    container_name: skgate
+    image: ghcr.io/helv-io/skgate:latest
+    restart: always
+    ports:
+      - 8080:8080
+    environment:
+      - PUBLIC_URL=https://skgate.example.com
+      - OIDC_ISSUER=https://auth.example.com
+      - OIDC_CLIENT_ID=skgate
+      - OIDC_CLIENT_SECRET=change-me
+    volumes:
+      - /docker/skgate:/data
+    healthcheck:
+      test: ["CMD", "/skgate", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    # Behind Traefik: drop "ports", add network_mode: web and these labels.
+    # labels:
+    #   - traefik.enable=true
+    #   - traefik.http.routers.skgate.rule=Host(`skgate.example.com`)
+    #   - traefik.http.routers.skgate.entryPoints=websecure
+    #   - traefik.http.services.skgate.loadbalancer.server.port=8080

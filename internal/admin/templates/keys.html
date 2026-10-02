@@ -1,0 +1,19 @@
+{{define "body"}}{{with .Data}}
+<h2>Virtual keys</h2>
+{{if .NewKey}}<div class="card"><p class="ok">New key, shown once</p><div class="row"><code class="code" id="new-token">{{.NewKey}}</code><button type="button" class="act" data-copy="#new-token">Copy</button></div></div>{{end}}
+<div class="card"><form method="post" action="/admin/keys/create" class="row form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<input type="text" name="label" placeholder="label" maxlength="80"><button class="act">Create key</button></form></div>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Key</th><th>Label</th><th>Created</th><th>Last used</th><th>Usage</th><th>Status</th><th></th></tr></thead><tbody>
+{{range .Keys}}<tr><td><code>{{.Masked}}</code></td><td>{{.Label}}</td><td>{{ts .CreatedAt}}</td><td>{{ts .LastUsed}}</td><td class="nw">{{template "tip" (usage .Usage)}}</td>
+<td>{{if .Revoked}}{{template "pill" (pill "off" "revoked" "")}}{{else}}{{template "pill" (pill "ok" "active" "")}}{{end}}</td>
+<td><div class="actions">{{if not .Revoked}}<form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">regenerate</button></form>
+<form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form>{{end}}</div></td></tr>
+{{else}}<tr><td colspan="7" class="empty">none</td></tr>{{end}}</tbody></table></div>
+<form method="post" action="/admin/settings/query-key" class="row"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act toggle {{if .QueryKey}}on{{else}}off{{end}}" title="accept the key as ?key= on MCP endpoints; it leaks into logs and history">?key= {{if .QueryKey}}accepted{{else}}refused{{end}}</button></form>
+<p class="muted">Send as <code>Authorization: Bearer sk-...</code></p>
+<ul class="muted">
+<li>OpenAI API: <code>{{$.Public}}/v1</code></li>
+<li>MCP: <code>{{$.Public}}/mcp/&lt;alias&gt;</code></li>
+<li>MCP also accepts <code>X-API-Key</code></li>
+</ul>
+{{end}}{{end}}

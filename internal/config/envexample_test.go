@@ -1,0 +1,81 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+)
+
+// .env.example must document every environment variable the code reads, and nothing else.
+func TestEnvExampleCoversEveryVariable(t *testing.T) {
+	root := filepath.Join("..", "..")
+	ex, err := os.ReadFile(filepath.Join(root, ".env.example"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	documented := map[string]bool{}
+	for _, m := range regexp.MustCompile(`(?m)^#?\s*([A-Z][A-Z0-9_]+)=`).FindAllStringSubmatch(string(ex), -1) {
+		documented[m[1]] = true
+	}
+	used := map[string]bool{}
+	re := regexp.MustCompile(`(?:env|Getenv|LookupEnv|intEnv|durEnv|truthy\(os\.Getenv|splitList\(os\.Getenv|parseID)\(\s*"([A-Z][A-Z0-9_]+)"`)
+	for _, dir := range []string{"internal", "cmd"} {
+		filepath.Walk(filepath.Join(root, dir), func(p string, fi os.FileInfo, _ error) error {
+			// fakemcp is a test-only helper; its FAKE_* switches are not configuration. legacyenv.go only reads
+			// variables that were removed, to migrate them.
+			if fi == nil || fi.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") || strings.Contains(filepath.ToSlash(p), "/fakemcp/") || strings.HasSuffix(p, "legacyenv.go") {
+				return nil
+			}
+			b, _ := os.ReadFile(p)
+			for _, m := range re.FindAllStringSubmatch(string(b), -1) {
+				used[m[1]] = true
+			}
+			return nil
+		})
+	}
+	if len(used) < 15 {
+		t.Fatalf("env scan found only %d variables: %v", len(used), used)
+	}
+	for v := range used {
+		if !documented[v] {
+			t.Errorf("%s is read by the code but missing from .env.example", v)
+		}
+	}
+	for v := range documented {
+		if !used[v] {
+			t.Errorf("%s is in .env.example but never read", v)
+		}
+	}
+	// The banned strings are split so this file does not contain them.
+	for _, bad := range []string{"helv", "Pedre" + "schi", "pedre" + "schi"} {
+		if strings.Contains(string(ex), bad) {
+			t.Errorf(".env.example contains house-specific %q", bad)
+		}
+	}
+}
+
+// Docs stay generic, mention both image tags, and point at .env.example.
+func TestREADMEIsGenericAndReferencesEnvExample(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	for _, bad := range []string{"helv" + ".io", "helv" + "io", "Pedre" + "schi", "kom" + "odo", "Kom" + "odo", "baby" + "buddy"} {
+		if strings.Contains(s, bad) {
+			t.Errorf("README contains house-specific %q", bad)
+		}
+	}
+	for _, want := range []string{".env.example", "auth.example.com", "Authentik", "Keycloak", "`latest`", "`slim`", "image: ghcr.io/helv-io/skgate:", "## Quick start", "## Configuration", "## OIDC setup", "## Security notes", "## Development"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("README lacks %q", want)
+		}
+	}
+	for v := range map[string]bool{"PUBLIC_URL": true, "LISTEN_ADDR": true, "DB_PATH": true, "LOG_LEVEL": true, "PUID": true, "PGID": true, "OIDC_ISSUER": true} {
+		if !strings.Contains(s, "`"+v) {
+			t.Errorf("README config table lacks %s", v)
+		}
+	}
+}

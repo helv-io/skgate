@@ -1,0 +1,165 @@
+/* skgate admin: one stylesheet, shared components only (no page-specific rules).
+   Components: .card .table .tablewrap .tip .pill .chip .code .actions .act .toggle .btn .form .field .pairs .pair .group .toast .modal .muted .row .stack .dialog-head .dialog-body
+   Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
+:root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
+--acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
+*{box-sizing:border-box;border-radius:0}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans)}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+main{max-width:1600px;margin:0 auto;padding:16px clamp(12px,2.5vw,32px) 40px}
+h2{font-size:12px;font-weight:600;margin:22px 0 8px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)}
+p{margin:6px 0}
+ul{margin:6px 0;padding-left:20px}li{margin:3px 0}
+details summary{cursor:pointer;margin:8px 0}
+
+/* top bar */
+header{border-bottom:1px solid var(--line);display:flex;align-items:stretch;flex-wrap:wrap;background:var(--panel)}
+header .brand{display:flex;align-items:center;gap:8px;padding:9px 14px;border-right:1px solid var(--line);font-weight:700;letter-spacing:.04em}
+header .brand img{display:block}
+header a{padding:9px 14px;color:var(--dim);border-right:1px solid var(--line);white-space:nowrap}
+header a:hover{color:var(--fg);background:var(--hover);text-decoration:none}
+header a.on{color:var(--fg);background:var(--bg);box-shadow:inset 0 -2px 0 var(--acc)}
+header form{display:flex;margin:0}
+header .ver,header .who{align-self:center;padding:0 10px;font-size:12px;white-space:nowrap;color:var(--dim)}
+header .ver{margin-left:auto;font-family:var(--mono)}
+header .who{color:var(--fg);opacity:.85}
+header .act{border:0;border-left:1px solid var(--line);height:100%;padding:9px 14px;background:none}
+header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
+
+/* card = the bordered section */
+.card{border:1px solid var(--line);background:var(--panel);padding:12px 14px;margin:0 0 12px}
+.card>:first-child{margin-top:0}.card>:last-child{margin-bottom:0}
+.card.flush{padding:0}
+
+/* table: header row small caps + muted, thin dividers, padded cells, one line per row */
+.tablewrap{overflow-x:auto;max-width:100%}
+.table{border-collapse:collapse;width:100%}
+.table th,.table td{padding:8px 12px;text-align:left;vertical-align:middle;border:0;border-bottom:1px solid var(--line2);height:44px}
+.table tr:last-child td,.table tr:last-child th{border-bottom:0}
+.table thead th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);white-space:nowrap;background:var(--bg);border-bottom:1px solid var(--line);height:34px}
+.table tbody tr:hover td{background:var(--hover)}
+.table td{white-space:nowrap}
+.table td.wrap{white-space:normal;overflow-wrap:anywhere;min-width:160px}
+/* trunc: the flexible column. max-width:0 lets the cell shrink to the space left (no horizontal
+   scrollbar); long values end in an ellipsis and carry the full text in title. */
+.table td.trunc{width:32%;max-width:0;overflow:hidden;text-overflow:ellipsis}
+.table td.trunc .chip{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.table td.trunc .sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.table td.min{width:1%}
+.table td.num{text-align:right}
+.table.kv th{width:1%;white-space:nowrap;text-transform:none;letter-spacing:0;font-size:13px;font-weight:400;color:var(--dim);background:none;height:auto;border-bottom:1px solid var(--line2)}
+.table.kv td{white-space:normal;overflow-wrap:anywhere}
+.empty{color:var(--dim);text-align:center}
+
+/* code / mono */
+code,pre,.code,.mono{font-family:var(--mono);font-size:12.5px}
+code,.code{background:#0c0d0f;border:1px solid var(--line);padding:1px 6px;white-space:nowrap;display:inline-block;max-width:100%;overflow-x:auto;vertical-align:middle}
+pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:auto;white-space:pre-wrap;margin:6px 0}
+.trunc code,.trunc .code,.trunc .mono{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.big{font-size:20px;letter-spacing:.2em;padding:6px 12px}
+
+/* pills and chips */
+.tip[title]{cursor:help}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:1px 9px;border:1px solid var(--line);font-size:12px;line-height:20px;white-space:nowrap;color:var(--dim)}
+.pill::before{content:"";width:7px;height:7px;background:currentColor;display:inline-block}
+.pill.ok{color:var(--ok);border-color:#2f4a33}.pill.bad{color:var(--bad);border-color:#5a3532}.pill.warn{color:var(--warn);border-color:#57492f}
+.pill.off{color:var(--dim)}.pill.off::before{background:none;border:1px solid currentColor}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:1px 8px;border:1px solid var(--line);background:#0c0d0f;font-size:12px;line-height:20px;white-space:nowrap;vertical-align:middle}
+.chip .mono{color:var(--dim)}
+.chip.accent{color:var(--acc);border-color:var(--acc)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}.dim,.muted{color:var(--dim)}.nw{white-space:nowrap}
+.sub{display:block;font-size:12px;color:var(--dim);margin-top:2px;white-space:normal}
+
+/* actions: one row of subtle button-like links, all the same colors */
+.actions{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;white-space:nowrap}
+.actions form{margin:0;display:inline-flex}
+/* row actions: every button in a table's action cell has the same minimum width and centered text, so the
+   buttons of one column line up across rows whatever their label (edit, test, process, detect, delete) */
+.table .actions .act{min-width:5.5em;text-align:center}
+.act,button,input[type=submit]{font:inherit;font-size:13px;color:var(--fg);background:#131518;border:1px solid var(--line);padding:3px 10px;line-height:20px;cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap}
+.act:hover,button:hover{border-color:var(--acc);color:var(--acc);text-decoration:none;background:var(--hover)}
+.act.accent,button.accent{color:var(--acc);border-color:var(--acc)}
+.act.danger,button.danger{color:var(--dim)}
+.act.danger:hover,button.danger:hover{border-color:var(--bad);color:var(--bad)}
+.act.small,button.small{padding:1px 8px;font-size:12px}
+.act.plain,button.link{border:0;background:none;padding:0;color:var(--acc)}
+/* toggle: a button whose state is its color (green on, red off) */
+.act.toggle.on{color:var(--ok);border-color:#2f4a33;background:#132016}
+.act.toggle.off{color:var(--bad);border-color:#5a3532;background:#211514}
+.act.toggle:hover{color:#fff}
+.act.toggle.on:hover{border-color:var(--ok)}.act.toggle.off:hover{border-color:var(--bad)}
+/* primary */
+.btn,a.btn{display:inline-block;padding:5px 16px;border:1px solid var(--acc);background:#14202e;color:var(--acc);font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
+.btn:hover,a.btn:hover{background:#1b2c40;color:#fff;text-decoration:none}
+
+.offscreen{position:fixed;left:-9999px;top:0;opacity:0}
+
+/* forms: a .form is one column of width --form-w (.form.wide: 900px). Controls have no width of their own:
+   they fill their container (width:100%, border-box), and nested blocks (.group, details) only move the
+   left edge, so inputs, selects, textareas and pairs rows of every depth end at the same right edge. */
+.form{max-width:var(--form-w)}
+.form.wide{--form-w:900px}
+/* in a dialog the form spans the dialog's width, like the tables above it */
+.dialog-body .form{max-width:none}
+.field{margin:0 0 12px}
+.field>label,label{display:block;margin:10px 0 4px;color:var(--dim);font-size:13px}
+.field>label:first-child{margin-top:0}
+label.check{display:inline-flex;align-items:center;gap:6px;margin:0 16px 0 0;color:var(--fg)}
+input,select,textarea{font:inherit;color:var(--fg);background:#0c0d0f;border:1px solid var(--line);padding:5px 8px}
+input[type=text],input[type=password],input[type=url],textarea,select{width:100%;display:block}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--acc)}
+input[type=checkbox]{width:auto;accent-color:var(--acc);margin:0}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
+/* controls inside a row share its width instead of each taking all of it */
+.row>input:not([type=checkbox]),.row>select{width:auto;flex:1 1 140px;min-width:0}
+textarea{resize:vertical;min-height:64px}
+textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
+/* pairs: a list of name/value inputs (environment, headers); the value column is masked for stored secrets */
+.pairs-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+.pair{display:grid;grid-template-columns:minmax(110px,1fr) minmax(150px,2fr) 64px;gap:6px;align-items:center}
+.pair input{max-width:none;width:100%}
+.pair.single{grid-template-columns:minmax(150px,1fr) 64px}
+/* a row without a Delete button lets its last input take that column, so every row ends at the same edge */
+.pair>input:last-child{grid-column:span 2}
+.pair>input:only-child{grid-column:1/-1}
+/* group: fields that apply to one upstream kind; the form script shows the group of the selected kind */
+.group{border-left:2px solid var(--line);padding-left:12px;margin:0 0 12px}
+[hidden]{display:none!important}
+.stack>*+*{margin-top:12px}
+
+/* toasts: fixed, one shared component for every notification; app.js expires and dismisses them */
+.toasts{position:fixed;top:14px;right:14px;z-index:50;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 28px))}
+.toast{border:1px solid var(--line);background:var(--panel);padding:9px 14px;cursor:pointer;box-shadow:0 4px 16px #0009;overflow-wrap:anywhere;transition:opacity .25s}
+.toast.ok{border-color:#2f4a33;color:var(--ok)}
+.toast.bad{border-color:#5a3532;color:var(--bad)}
+.toast.gone{opacity:0}
+/* modal: the one shared dialog, confirmation or content (native <dialog>; Escape and focus handling come with it) */
+.modal{border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:16px 18px;width:min(440px,calc(100vw - 28px));box-shadow:0 8px 32px #000c}
+.modal::backdrop{background:#000a}
+.modal h3{margin:0;font-size:14px;font-weight:600}
+.modal>p{margin:0 0 14px;color:var(--dim);overflow-wrap:anywhere}
+.modal .actions{justify-content:flex-end}
+.act.confirm-danger{color:var(--bad);border-color:#5a3532;background:#211514}
+.act.confirm-danger:hover{color:#fff;border-color:var(--bad)}
+
+/* dialog: the same .modal element with room for content (provider details) */
+.modal.wide{width:min(760px,calc(100vw - 28px));max-height:calc(100vh - 40px)}
+.dialog-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 8px}
+.dialog-head h3{margin:0}
+.dialog-body{margin-top:4px}
+.dialog-body h4,.card h3{margin:16px 0 6px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
+.card h3{margin:0;font-size:15px;text-transform:none;letter-spacing:0;color:var(--fg)}
+.row.spread{justify-content:space-between;margin:0 0 8px}
+
+/* suggest: output area of the configuration helper */
+.suggest-out{margin:0 0 12px}
+.suggest-out ul{margin:6px 0}
+
+/* centered pages (signed out, errors) */
+.login{max-width:380px;margin:70px auto}
+
+/* low-priority columns drop out on narrower windows instead of forcing a horizontal scrollbar */
+@media (max-width:1100px){.hide-md{display:none}}
+@media (max-width:800px){.hide-sm{display:none}.table td.trunc{width:auto}}
+@media (max-width:700px){main{padding:10px 8px}.table th,.table td{padding:8px 10px}header .ver{margin-left:0}}
