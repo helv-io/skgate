@@ -20,7 +20,9 @@ The plane in the logo is an inside joke. The public wouldn't understand it, and 
 
 ## Quick start
 
-Before you start: an [OIDC provider](#oidc-setup) with a confidential client for skgate (admin login is OIDC only) and a Grok account with API access.
+Before you start: an [OIDC provider](#oidc-setup) with a confidential client for skgate (admin login is OIDC only).
+
+A Grok subscription is recommended but not required.
 
 ```yaml
 # docker-compose.yml
