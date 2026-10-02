@@ -39,7 +39,7 @@ services:
       - OIDC_CLIENT_ID=skgate
       - OIDC_CLIENT_SECRET=change-me
     volumes:
-      - /docker/skgate:/data
+      - ./data:/data
     healthcheck:
       test: ["CMD", "/skgate", "healthcheck"]
       interval: 30s
@@ -58,7 +58,7 @@ Image tags:
 - `latest`: proxy + managed MCP servers (Node.js, Python, uv, git)
 - `slim`: proxy only
 
-Upgrade: back up `/docker/skgate`, then `docker compose pull && docker compose up -d`.
+Upgrade: back up `./data`, then `docker compose pull && docker compose up -d`.
 
 ## Examples
 
@@ -278,7 +278,7 @@ services:
       - OIDC_CLIENT_ID=skgate
       - OIDC_CLIENT_SECRET=change-me
     volumes:
-      - /docker/skgate:/data
+      - ./data:/data
     healthcheck:
       test: ["CMD", "/skgate", "healthcheck"]
       interval: 30s
