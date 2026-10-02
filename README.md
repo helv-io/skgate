@@ -108,7 +108,9 @@ Aliases are listed first in `/v1/models`.
 
 <details><summary>Add an MCP server with Suggest configuration</summary>
 
-Needs the `latest` image, Grok signed in, and an MCP helper model (Grok > **Details** > MCP helper model). **mcp upstreams** > **Add upstream** > Type `managed (package or repository)`:
+Needs the `latest` image, Grok signed in and an MCP helper model (Grok > **Details** > MCP helper model).
+
+**mcp upstreams** > **Add upstream** > Type `managed (package or repository)`:
 
 1. **MCP source URL / package**, one of:
 
