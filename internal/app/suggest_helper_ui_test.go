@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -102,5 +103,40 @@ func TestInlineFormScript(t *testing.T) {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("app.js lacks %q", want)
 		}
+	}
+}
+
+// The add form starts on the managed type only when Suggest can run (signed in with an MCP helper
+// model); picking the model in place leaves the page as it is, and the edit page never preselects it.
+func TestAddFormDefaultType(t *testing.T) {
+	managed := regexp.MustCompile(`<option value="stdio"\s+selected`)
+	remote := regexp.MustCompile(`<option value="remote"\s+selected`)
+	for name, tc := range map[string]struct {
+		rig     *suggestRig
+		managed bool
+	}{
+		"signed out": {newSuggestRig(t, false, false), false},
+		"no model":   {newSuggestRig(t, true, false), false},
+		"ready":      {newSuggestRig(t, true, true), true},
+	} {
+		_, page := tc.rig.br.get("/admin/upstreams")
+		if managed.MatchString(page) != tc.managed || remote.MatchString(page) == tc.managed {
+			t.Errorf("%s: wrong default type (managed=%v)", name, tc.managed)
+		}
+	}
+	// picking the model in place does not touch the type: the answer only carries the controls
+	r := newSuggestRig(t, true, false)
+	_, ok := r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}})
+	if strings.Contains(ok["html"].(string), `name="kind"`) {
+		t.Error("the in-place answer must not re-render the type")
+	}
+	// editing: the type is fixed, whatever the helper state
+	form := stdioForm(r.csrf, "ed", url.Values{})
+	if resp, _ := r.br.post("/admin/upstreams/save", form); flashKind(resp) != "ok" {
+		t.Fatal("save failed")
+	}
+	_, edit := r.br.get("/admin/upstreams/edit?alias=ed")
+	if strings.Contains(edit, `<select name="kind"`) || !strings.Contains(edit, `<input type="hidden" name="kind" value="stdio"`) {
+		t.Error("edit page must not offer a type")
 	}
 }

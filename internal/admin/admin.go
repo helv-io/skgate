@@ -763,6 +763,11 @@ func (a *Admin) upstreams(w http.ResponseWriter, r *http.Request) {
 	v, _ := a.DB.GetSetting(settingLastInclude)
 	ok, why := a.MCP.ManagedState()
 	d := upstreamsData{Managed: ok, Why: why, Form: a.form(r, mcp.Upstream{Kind: mcp.KindRemote, Enabled: true}, true, v == "1")}
+	// Suggest configuration is the quickest way in: with a signed-in provider and an MCP helper model the
+	// add form starts on the managed type. Editing never changes the type.
+	if d.Form.Managed && d.Form.Suggest.Enabled {
+		d.Form.U.Kind = mcp.KindStdio
+	}
 	for _, u := range list {
 		d.List = append(d.List, a.view(u))
 		d.Aliases = append(d.Aliases, u.Alias)
