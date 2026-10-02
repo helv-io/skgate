@@ -17,7 +17,7 @@ func (a *Admin) suggestState() suggestState {
 	case p == nil || a.Proxy == nil:
 		return suggestState{Why: "no provider"}
 	case a.Set.Model(p.ID()) == "":
-		return suggestState{Why: "pick a helper model in the status page details"}
+		return suggestState{Why: "pick an MCP helper model in the status page details"}
 	case !p.Status().SignedIn:
 		return suggestState{Why: "sign in on the status page"}
 	}

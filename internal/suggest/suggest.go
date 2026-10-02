@@ -110,7 +110,7 @@ const (
 // prompt, a log line or an error.
 func (s *Service) Suggest(ctx context.Context, model string, src Source, token string, runners []string) (*Result, error) {
 	if model == "" {
-		return nil, errors.New("pick a helper model in the provider details first")
+		return nil, errors.New("pick an MCP helper model in the provider details first")
 	}
 	if src.Kind == KindUnsupported {
 		return nil, errors.New(src.UnsupportedMessage(runners))

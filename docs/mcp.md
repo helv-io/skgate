@@ -56,12 +56,12 @@ The managed form has two main fields: **MCP source URL / package** and **Access 
 | PyPI package (`pkg==1.2.3`, `pypi:pkg`, pypi.org URL) | Runs with `uvx`. |
 | crates.io, Go modules, Docker, NuGet, RubyGems, Maven, JSR/Deno | Refused with a message: the image has no `cargo`, `go`, `docker`, `dotnet`, `gem`, `mvn` or `deno`. |
 
-How the helper works:
+How Suggest configuration works:
 
-- It uses the model picked in the provider's details dialog and a fixed system prompt. Output is requested as a strict JSON schema and validated in Go; invalid output is rejected.
+- It uses the MCP helper model (provider details dialog) and a fixed system prompt. Output is requested as a strict JSON schema and validated in Go; invalid output is rejected.
 - skgate fetches the README and manifests itself (`package.json`, `pyproject.toml`, `server.json`, ...) through the host's API, with the token when given. The model sees those documents, never the token; the token is not logged.
 - Validated suggestions use a command available on the host, name and pin the package, list only environment variables the documents mention with `YOUR_...` placeholders, and come with confidence and warnings.
-- Disabled, with a tooltip, until you are signed in and a model is picked.
+- Disabled, with a tooltip, until you are signed in and an MCP helper model is picked.
 
 ### Kinds
 

@@ -4,7 +4,7 @@
 <div class="tablewrap"><table class="table kv"><tbody>
 {{if .S.Account}}<tr><th>Account</th><td>{{.S.Account}}</td></tr>{{end}}
 {{if .Expiry}}<tr><th>Token</th><td>{{.Expiry}}</td></tr>{{end}}
-{{if .CanModels}}<tr><th>Helper model</th><td>{{template "pill" .ModelPill}}</td></tr>
+{{if .CanModels}}<tr><th>MCP helper model</th><td>{{template "pill" .ModelPill}}</td></tr>
 <tr><th>Aliases</th><td>{{template "pill" .AliasPill}}</td></tr>{{end}}
 </tbody></table></div>
 {{if eq .Dev.State "error"}}<p class="bad">Sign-in failed: {{.Dev.Err}}</p>{{end}}
@@ -50,7 +50,7 @@
 <div class="field"><label>Fallback on 402/403 (empty = off)</label><input type="url" name="fallback" value="{{.Fallback}}"></div>
 <div class="row"><button class="act">Save</button></div></form>
 
-{{if .CanModels}}<h4>Helper model</h4>
+{{if .CanModels}}<h4>MCP helper model</h4>
 <form method="post" action="/admin/providers/{{.ID}}/model" class="row form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <select name="model"><option value="">none</option>{{range .Models}}<option value="{{.}}" {{if eq . $p.Model}}selected{{end}}>{{.}}</option>{{end}}{{if and .Model (not (inList .Models .Model))}}<option value="{{.Model}}" selected>{{.Model}} (unlisted)</option>{{end}}</select>
 <button class="act">Save</button></form>

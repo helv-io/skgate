@@ -27,7 +27,7 @@ type providerView struct {
 	ModelsKnown bool
 	ModelsAt    string
 	Model       string
-	ModelPill   pillView // helper model summary
+	ModelPill   pillView // MCP helper model summary
 	Aliases     []aliasView
 	AliasPill   pillView
 }
@@ -87,11 +87,11 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	v.Model = a.Set.Model(id)
 	switch {
 	case v.Model == "":
-		v.ModelPill = pillView{"off", "no model", "pick a model in the details to enable the configuration helper"}
+		v.ModelPill = pillView{"off", "no model", "pick a model in the details to enable Suggest configuration"}
 	case v.ModelsKnown && !contains(v.Models, v.Model):
 		v.ModelPill = pillView{"warn", v.Model, "no longer in the provider's model list"}
 	default:
-		v.ModelPill = pillView{"ok", v.Model, "used by the configuration helper"}
+		v.ModelPill = pillView{"ok", v.Model, "used as the MCP helper model"}
 	}
 	stale := 0
 	for _, al := range a.Set.Aliases(id) {

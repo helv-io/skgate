@@ -2,7 +2,7 @@
 
 Part of the [skgate README](../README.md).
 
-Sign in with a device code on the status page. skgate refreshes the token before expiry. Tokens, endpoints, PKCE info, upstream base and fallback, the helper model and aliases are in the provider's **Details** dialog; the refresh token is shown only there, masked.
+Sign in with a device code on the status page. skgate refreshes the token before expiry. Tokens, endpoints, PKCE info, upstream base and fallback, the MCP helper model and aliases are in the provider's **Details** dialog; the refresh token is shown only there, masked.
 
 Point OpenAI-compatible apps at `PUBLIC_URL` with a virtual key. `/v1`, `/api/v1`, `/api` and no prefix are equivalent: `/chat/completions` (SSE), `/models`, `/responses`, `/embeddings` and the other API paths all work with any of them. `/mcp`, `/admin`, `/authorize`, `/token` and `/.well-known` are never affected.
 

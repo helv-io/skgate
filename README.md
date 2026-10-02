@@ -108,7 +108,7 @@ Aliases are listed first in `/v1/models`.
 
 <details><summary>Add an MCP server with Suggest configuration</summary>
 
-Needs the `latest` image, Grok signed in, and a helper model (Grok > **Details** > Helper model). **mcp upstreams** > **Add upstream** > Type `managed (package or repository)`:
+Needs the `latest` image, Grok signed in, and an MCP helper model (Grok > **Details** > MCP helper model). **mcp upstreams** > **Add upstream** > Type `managed (package or repository)`:
 
 1. **MCP source URL / package**, one of:
 
@@ -118,10 +118,10 @@ Needs the `latest` image, Grok signed in, and a helper model (Grok > **Details**
    | `pypi:mcp-server-time` | PyPI package, `uvx` |
    | `https://github.com/example-org/notes-mcp` | git repo: clone, install, run (private: **Access token**) |
 
-2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the helper model proposes command, args, install step and env names (values as `YOUR_...`), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet. Point it at a repo and it just works, no manual setup unless you want to adjust something.
+2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the MCP helper model proposes command, args, install step and env names (values as `YOUR_...`), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet. Point it at a repo and it just works, no manual setup unless you want to adjust something.
 3. Set an alias, replace the `YOUR_...` values, **Save**. The server is at `https://skgate.example.com/mcp/<alias>`.
 
-If the button is greyed out, hover it: sign in to Grok on **status**, or pick a helper model.
+If the button is greyed out, hover it: sign in to Grok on **status**, or pick an MCP helper model.
 
 </details>
 

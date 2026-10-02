@@ -113,10 +113,10 @@ func AliasIssue(a Alias, real []string, known bool) string {
 	return ""
 }
 
-// Model is the model chosen for skgate's own helper calls (for example configuration suggestions).
+// Model is the MCP helper model: the model skgate uses for its own calls (configuration suggestions).
 func (s Settings) Model(id string) string { v, _ := s.Get(id, "model"); return v }
 
-// SetModel stores the helper model; empty clears it.
+// SetModel stores the MCP helper model; empty clears it.
 func (s Settings) SetModel(id, model string) error {
 	if model == "" {
 		return s.Delete(id, "model")
