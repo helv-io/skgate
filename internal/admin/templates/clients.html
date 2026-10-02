@@ -1,0 +1,19 @@
+{{define "body"}}{{with .Data}}
+<h2>OAuth clients</h2>
+{{if .NewID}}<div class="card"><p class="ok">Client created, secret shown once</p><div class="row">Client ID <code class="code" id="new-client-id">{{.NewID}}</code><button type="button" class="act" data-copy="#new-client-id">Copy</button></div>{{if .NewSecret}}<div class="row">Client secret <code class="code" id="new-client-secret">{{.NewSecret}}</code><button type="button" class="act" data-copy="#new-client-secret">Copy</button></div>{{end}}</div>{{end}}
+<p class="muted">DCR clients are listed too (newest 500 kept). authorize <code>{{$.Public}}/authorize</code> token <code>{{$.Public}}/token</code></p>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Client ID</th><th>Name</th><th>Method</th><th>Source</th><th>Last used</th><th>Redirect URIs</th><th></th></tr></thead><tbody>
+{{range .List}}<tr><td><code>{{.ID}}</code></td><td>{{.Name}}</td><td><span class="chip">{{.AuthMethod}}</span></td><td><span class="chip">{{.Source}}</span></td><td>{{ts .LastUsed}}</td>
+<td class="trunc" title="{{range .RedirectURIs}}{{.}} {{end}}">{{range .RedirectURIs}}<code>{{.}}</code><br>{{end}}</td>
+<td><div class="actions"><form method="post" action="/admin/clients/delete" data-confirm="Delete client and its tokens?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">delete</button></form></div></td></tr>
+{{else}}<tr><td colspan="7" class="empty">none</td></tr>{{end}}</tbody></table></div>
+<h2>Create client</h2><div class="card">
+<form method="post" action="/admin/clients/create" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<div class="field"><label>Preset</label><select data-preset>
+<option value="">Custom</option>
+<option data-set-name="Home Assistant" data-set-redirects="https://my.home-assistant.io/redirect/oauth" data-set-method="client_secret_post">Home Assistant</option></select></div>
+<div class="field"><label>Name</label><input type="text" name="name" maxlength="100"></div>
+<div class="field"><label>Redirect URIs (one per line)</label><textarea name="redirects" rows="3"></textarea></div>
+<div class="field"><label>Auth method</label><select name="method"><option value="client_secret_post">client_secret_post</option><option value="client_secret_basic">client_secret_basic</option><option value="none">none (public, PKCE)</option></select></div>
+<div class="row"><button class="btn">Create</button></div></form></div>
+{{end}}{{end}}

@@ -1,0 +1,6 @@
+{{define "body"}}{{with .Data}}{{with .U}}
+<h2>Edit upstream <code>{{.Alias}}</code></h2>{{end}}<div class="card">
+<form method="post" action="/admin/upstreams/save" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="mode" value="edit"><input type="hidden" name="alias" value="{{.U.Alias}}">
+{{template "upstream_fields" .Form}}
+<div class="row"><button class="btn">Save</button> <a class="act" href="/admin/upstreams">cancel</a></div></form></div>
+{{end}}{{end}}

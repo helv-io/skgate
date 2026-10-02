@@ -1,0 +1,9 @@
+/skgate
+/bin/
+*.db
+*.db-shm
+*.db-wal
+*.env
+.env*
+/data/
+!.env.example

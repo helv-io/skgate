@@ -1,0 +1,65 @@
+{{/* Shared components. "pairs" is a dynamic list of name/value rows and "rows" a dynamic list of single
+   values; app.js adds and removes rows for both. */}}
+{{define "pair_row"}}<div class="pair"><input type="text" name="{{.NameKey}}" value="{{.Row.Name}}" placeholder="{{.NamePH}}" autocomplete="off"><input type="text" name="{{.ValueKey}}" value="{{.Row.Value}}" placeholder="value" autocomplete="off">{{if .Removable}}<button type="button" class="act small danger" data-pairs-remove title="remove row">Delete</button>{{end}}</div>{{end}}
+
+{{define "pairs"}}<div class="field"><label>{{.Label}} (name, value; blank rows are ignored){{if .Err}} <span class="bad">unreadable: SECRETS_KEY changed</span>{{end}}</label>
+<div class="pairs" data-pairs>
+<div class="pairs-rows" data-pairs-rows>{{$l := .}}{{range $i, $r := .Rows}}{{template "pair_row" (pairRow $l $r (gt $i 0))}}{{end}}</div>
+<template data-pairs-template>{{template "pair_row" (pairRow . (pair) true)}}</template>
+<button type="button" class="act small" data-pairs-add>Add</button>
+</div></div>{{end}}
+
+{{define "row_item"}}<div class="pair single"><input type="text" name="{{.Key}}" value="{{.Value}}" placeholder="{{.PH}}" autocomplete="off" spellcheck="false">{{if .Removable}}<button type="button" class="act small danger" data-pairs-remove title="remove row">Delete</button>{{end}}</div>{{end}}
+
+{{define "rows"}}<div class="field"><label>{{.Label}} (one per row; blank rows are ignored)</label>
+<div class="pairs" data-pairs>
+<div class="pairs-rows" data-pairs-rows>{{$l := .}}{{range $i, $v := .Values}}{{template "row_item" (rowItem $l $v (gt $i 0))}}{{end}}</div>
+<template data-pairs-template>{{template "row_item" (rowItem . "" true)}}</template>
+<button type="button" class="act small" data-pairs-add>Add</button>
+</div></div>{{end}}
+
+{{/* pick: a select of known values (name + hint) and a "Custom" option that reveals a text input.
+   Takes a pickList. The select posts <key>_pick (empty = Custom), the text input posts <key>. Wired in app.js. */}}
+{{define "pick"}}{{$k := .Key}}<div class="field"><label>{{.Label}}</label>
+<select name="{{.Key}}_pick" data-pick>{{range .Options}}<option value="{{.Name}}" {{if and (not $.Custom) (eq .Name $.Value)}}selected{{end}}>{{.Name}} - {{.Hint}}</option>{{end}}
+<option value="" {{if .Custom}}selected{{end}}>{{.CustomLabel}}</option></select>
+<input type="text" name="{{.Key}}" placeholder="{{.PH}}" value="{{if .Custom}}{{.Value}}{{end}}" autocomplete="off" data-pick-custom {{if not .Custom}}hidden{{end}}></div>{{end}}
+
+{{/* pill: a status pill. Class is ok, bad, warn or off; details never sit beside it, they go in Tip and show on hover.
+   Takes a pillView (build one with the "pill" function) or a *procView. */}}
+{{define "pill"}}<span class="pill {{.Class}}"{{if .Tip}} title="{{.Tip}}"{{end}}>{{.Text}}</span>{{end}}
+
+{{/* tip: a value with details in a hover tooltip. Takes a tipView (build one with the "tip" function). */}}
+{{define "tip"}}<span class="tip"{{if .Tip}} title="{{.Tip}}"{{end}}>{{.Text}}</span>{{end}}
+
+{{/* proc_pill: the process status of a managed upstream. Takes a *procView. */}}
+{{define "proc_pill"}}{{template "pill" .}}{{end}}
+
+{{/* upd_chips: update state of a managed upstream as chips ("update available", "pinned"). Takes an updView. */}}
+{{define "upd_chips"}}{{if .Available}}<span class="chip accent" title="the remote ref is ahead of the installed commit">update available</span>{{end}}{{if .Pinned}}<span class="chip" title="{{.PinNote}}: never auto-updated">pinned</span>{{end}}{{end}}
+
+{{/* preset: a <select data-preset> in a form. Choosing an option copies its data-set-<field> attributes into
+   the form fields of that name (name, redirects, method, ...). An option without them leaves the form as is. */}}
+
+{{/* modal: the one dialog of the page. Confirmation: any form with data-confirm="text" opens it on submit; the
+   title and the confirm label are the submit button's label, and a button with class "danger" makes it
+   destructive. Optional: data-confirm-title, data-confirm-ok. Content: a button with data-dialog-open="#id"
+   copies <template data-dialog-content id="id" data-title="..."> (see dialog_content) into it. Wired in app.js. */}}
+{{define "modal"}}<dialog class="modal" data-modal aria-labelledby="modal-title" aria-describedby="modal-text">
+<div class="dialog-head"><h3 id="modal-title" data-modal-title></h3><button type="button" class="act small" data-modal-close hidden>Close</button></div>
+<p id="modal-text" data-modal-text></p>
+<div class="dialog-body" data-modal-body hidden></div>
+<div class="actions" data-modal-actions><button type="button" class="act" data-modal-cancel>Cancel</button><button type="button" class="act" data-modal-ok>Confirm</button></div>
+</dialog>{{end}}
+
+{{/* dialog_content: content shown in the shared modal. Takes a dialogHead (id, title); close it with dialog_end.
+   A page address ending in #id opens it on load, so a form post can return to it. */}}
+{{define "dialog_content"}}<template data-dialog-content id="{{.ID}}" data-title="{{.Title}}">{{end}}
+{{define "dialog_end"}}</template>{{end}}
+
+{{/* suggest_result: the output area of the "Suggest configuration" helper. app.js fills it; the form fields are
+   filled for review and nothing is saved. */}}
+{{define "suggest_result"}}<div class="suggest-out" data-suggest-out hidden>
+<div class="row"><span class="pill off" data-suggest-pill></span></div>
+<ul class="muted" data-suggest-list></ul>
+</div>{{end}}
