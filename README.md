@@ -3,7 +3,7 @@
 
 <p align="center">Use your Grok subscription as an OpenAI-compatible API, and serve your MCP servers from one OAuth-protected gateway.</p>
 
-<p align="center">Yes, all MCP servers: everyone's welcome. skgate can run them for you too, so no more stacks.</p>
+<p align="center">Yes, all MCP servers: everyone's welcome. skgate can run them for you too, so no more stacks. It just works.</p>
 
 ## Name Origin
 
@@ -118,7 +118,7 @@ Needs the `latest` image, Grok signed in, and a helper model (Grok > **Details**
    | `pypi:mcp-server-time` | PyPI package, `uvx` |
    | `https://github.com/example-org/notes-mcp` | git repo: clone, install, run (private: **Access token**) |
 
-2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the helper model proposes command, args, install step and env names (values as `YOUR_...`), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet.
+2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the helper model proposes command, args, install step and env names (values as `YOUR_...`), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet. Point it at a repo and it just works, no manual setup unless you want to adjust something.
 3. Set an alias, replace the `YOUR_...` values, **Save**. The server is at `https://skgate.example.com/mcp/<alias>`.
 
 If the button is greyed out, hover it: sign in to Grok on **status**, or pick a helper model.
