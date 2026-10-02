@@ -108,7 +108,7 @@ Aliases are listed first in `/v1/models`.
 
 <details><summary>Add an MCP server with Suggest configuration</summary>
 
-Needs the `latest` image, Grok signed in and an MCP helper model (Grok > **Details** > MCP helper model).
+Needs the `latest` image and Grok signed in. The first time, **Pick MCP helper model** next to the button opens the model picker right on the page.
 
 **mcp upstreams** > **Add upstream** > Type `managed (package or repository)`:
 
@@ -123,7 +123,7 @@ Needs the `latest` image, Grok signed in and an MCP helper model (Grok > **Detai
 2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the MCP helper model proposes command, args, install step and env names (values as `YOUR_...`), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet. Point it at the repo, fill in the variables it needs, and it just works.
 3. Set an alias, replace the `YOUR_...` values, **Save**. The server is at `https://skgate.example.com/mcp/<alias>`.
 
-If the button is greyed out, hover it: sign in to Grok on **status**, or pick an MCP helper model.
+If the button is greyed out, hover it: sign in to Grok on **status**, or use **Pick MCP helper model** beside it.
 
 </details>
 
