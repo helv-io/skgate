@@ -156,9 +156,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if list && resp.StatusCode == http.StatusOK {
 		if raw, err := io.ReadAll(io.LimitReader(resp.Body, maxList)); err == nil {
 			p.Models.Set(p.Backend.ID(), ModelIDs(raw))
-			if al := ModelAliases(raw); al != nil {
-				p.Models.SetAliases(p.Backend.ID(), al)
-			}
 			resp.Body = io.NopCloser(bytes.NewReader(injectAliases(raw, aliases)))
 			httputil.CopyResponse(w, resp, "Content-Length", "Content-Encoding")
 			return
@@ -269,35 +266,14 @@ func (p *Proxy) FetchModels(ctx context.Context) ([]string, error) {
 		return nil, errors.New("model list is empty or unreadable")
 	}
 	p.Models.Set(p.Backend.ID(), ids)
-	aliases := ModelAliases(raw)
-	if al, ok := p.Backend.(AliasLister); ok && aliases == nil { // best effort: the plain list is what matters
-		if rich := p.fetchList(ctx, al.AliasesPath()); rich != nil {
-			aliases = ModelAliases(rich)
-		}
-	}
-	p.Models.SetAliases(p.Backend.ID(), aliases)
 	return ids, nil
 }
 
-// fetchList reads one more model list; any failure gives nil.
-func (p *Proxy) fetchList(ctx context.Context, rest string) []byte {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	resp, err := p.send(ctx, http.MethodGet, rest, "", http.Header{"Accept": {"application/json"}}, nil)
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil
-	}
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, maxList))
-	return raw
-}
-
 // Post sends a JSON request to a provider endpoint (for example /chat/completions) and returns the
-// status and body. The caller's aliases are not applied: pass a real model id.
+// status and body. A "model" that names one of skgate's aliases for this provider is resolved to its target, as for
+// a /v1 request, so the helper may be set to an alias.
 func (p *Proxy) Post(ctx context.Context, rest string, body []byte) (int, []byte, error) {
+	body = rewriteModel(body, p.Set.Aliases(p.Backend.ID()))
 	resp, err := p.send(ctx, http.MethodPost, rest, "", http.Header{"Content-Type": {"application/json"}, "Accept": {"application/json"}}, body)
 	if err != nil {
 		return 0, nil, err
@@ -332,49 +308,6 @@ func rewriteModel(body []byte, aliases []Alias) []byte {
 	}
 	return nb
 }
-
-// ModelAliases extracts the provider's own aliases from a model list: every entry may carry an "aliases" array of
-// names that select it. The result maps alias -> model id. An alias that is itself a model id, or that two models
-// claim, is dropped, so a name always means one model. Lists without aliases give nil.
-func ModelAliases(raw []byte) map[string]string {
-	var l struct {
-		Data []struct {
-			ID      string   `json:"id"`
-			Aliases []string `json:"aliases"`
-		} `json:"data"`
-	}
-	if json.Unmarshal(raw, &l) != nil {
-		return nil
-	}
-	ids := map[string]bool{}
-	for _, d := range l.Data {
-		ids[d.ID] = true
-	}
-	out, claimed := map[string]string{}, map[string]int{}
-	for _, d := range l.Data {
-		for _, a := range d.Aliases {
-			a = strings.TrimSpace(a)
-			if a == "" || ids[a] {
-				continue
-			}
-			claimed[a]++
-			out[a] = d.ID
-		}
-	}
-	for a, n := range claimed {
-		if n > 1 {
-			delete(out, a)
-		}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-// AliasLister is implemented by a provider whose plain model list leaves out the aliases but which has a richer
-// list that carries them (the path is relative to the API base, like "/models").
-type AliasLister interface{ AliasesPath() string }
 
 // ModelIDs extracts the model ids of an OpenAI-style list ({"data":[{"id":...}]}).
 func ModelIDs(raw []byte) []string {

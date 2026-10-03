@@ -82,7 +82,7 @@
 <div class="field"><label>Timeout, seconds without an answer<input type="number" name="timeout" value="{{.Timeout}}" min="1" max="86400" step="1" inputmode="numeric"></label></div>
 <p class="muted">More capable models take longer, so a timeout is more likely with a heavy reasoning model.</p>
 <p class="muted" data-frontier-hint="{{.Frontier}}" {{if not (and .ModelHeavy (lt .Timeout .Frontier))}}hidden{{end}}>This looks like a heavy reasoning model: {{.Frontier}} seconds is a reasonable timeout. Nothing changes until you save it.</p></form>
-<div class="actions">{{if .ModelsKnown}}<span class="muted">{{len .Models}} models{{if .Native}}, {{len .Native}} aliases{{end}}, loaded {{.ModelsAt}}</span>{{else}}<span class="muted">not loaded{{if not .S.SignedIn}}: sign in first{{end}}</span>{{end}}<form method="post" action="/admin/providers/{{.ID}}/models/reload"{{if .Inline}} data-inline="#helper-model"{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">Reload models</button></form></div>{{end}}
+<div class="actions">{{if .ModelsKnown}}<span class="muted">{{len .Models}} models, loaded {{.ModelsAt}}</span>{{else}}<span class="muted">not loaded{{if not .S.SignedIn}}: sign in first{{end}}</span>{{end}}<form method="post" action="/admin/providers/{{.ID}}/models/reload"{{if .Inline}} data-inline="#helper-model"{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">Reload models</button></form></div>{{end}}
 
 {{/* helper_dialog: the model_picker in the shared modal, for pages that need a helper model without going to the
    status page. Takes a providerView. */}}
