@@ -397,7 +397,7 @@ Without `OIDC_*` the admin answers 503. Every user your provider lets in is an a
 - Virtual keys are stored as SHA-256 hashes; upstream credentials are AES-256-GCM encrypted.
 - `/authorize` needs an admin session.
 - Managed upstreams run admin-supplied commands; use the `slim` image to disable them.
-- `?key=` is off by default (URLs leak into logs).
+- A key can be allowed in the URL (`?key=`) for clients that cannot send headers. It is off per key by default, because URLs leak into logs, history and referrers.
 
 More: [operations](docs/operations.md).
 
