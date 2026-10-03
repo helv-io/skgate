@@ -125,7 +125,13 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			body = rewriteModel(body, aliases)
 		}
 	}
-	resp, err := p.send(r.Context(), r.Method, rest, r.URL.RawQuery, r.Header, body)
+	var resp *http.Response
+	var err error
+	if r.Method == http.MethodPost && rest == "/chat/completions" {
+		resp, err = p.sendChat(r, rest, r.Header, body)
+	} else {
+		resp, err = p.send(r.Context(), r.Method, rest, r.URL.RawQuery, r.Header, body)
+	}
 	if err != nil {
 		var ae authError
 		if errors.As(err, &ae) {
