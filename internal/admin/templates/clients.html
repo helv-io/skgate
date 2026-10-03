@@ -2,11 +2,21 @@
 <h2>OAuth clients</h2>
 {{if .NewID}}<div class="card"><p class="ok">Client created, secret shown once</p><div class="row">Client ID <code class="code" id="new-client-id">{{.NewID}}</code><button type="button" class="act" data-copy="#new-client-id">Copy</button></div>{{if .NewSecret}}<div class="row">Client secret <code class="code" id="new-client-secret">{{.NewSecret}}</code><button type="button" class="act" data-copy="#new-client-secret">Copy</button></div>{{end}}</div>{{end}}
 <p class="muted">DCR clients are listed too (newest 500 kept). authorize <code>{{$.Public}}/authorize</code> token <code>{{$.Public}}/token</code></p>
-<div class="card flush tablewrap"><table class="table"><thead><tr><th>Client ID</th><th>Name</th><th>Method</th><th>Source</th><th>Last used</th><th>Redirect URIs</th><th></th></tr></thead><tbody>
-{{range .List}}<tr><td><code>{{.ID}}</code></td><td>{{.Name}}</td><td><span class="chip">{{.AuthMethod}}</span></td><td><span class="chip">{{.Source}}</span></td><td>{{ts .LastUsed}}</td>
-<td class="trunc" title="{{range .RedirectURIs}}{{.}} {{end}}">{{range .RedirectURIs}}<code>{{.}}</code><br>{{end}}</td>
-<td><div class="actions"><form method="post" action="/admin/clients/delete" data-confirm="Delete client and its tokens?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">delete</button></form></div></td></tr>
-{{else}}<tr><td colspan="7" class="empty">none</td></tr>{{end}}</tbody></table></div>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Client ID</th><th>Source</th><th></th></tr></thead><tbody>
+{{range $i, $c := .List}}<tr><td class="primary" data-label="Name">{{$c.Name}}</td><td class="trunc" data-label="Client ID"><code title="{{$c.ID}}">{{$c.ID}}</code></td><td class="status" data-label="Source"><span class="chip">{{$c.Source}}</span></td>
+<td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#client-{{$i}}">details</button>
+<form method="post" action="/admin/clients/delete" data-confirm="Delete client and its tokens?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{$c.ID}}"><button class="act danger">delete</button></form></div></td></tr>
+{{else}}<tr><td colspan="4" class="empty">none</td></tr>{{end}}</tbody></table></div>
+{{range $i, $c := .List}}{{template "dialog_content" (dlg (printf "client-%d" $i) "OAuth client")}}
+<div class="tablewrap"><table class="table kv"><tbody>
+<tr><th>name</th><td>{{$c.Name}}</td></tr>
+<tr><th>client ID</th><td><code>{{$c.ID}}</code></td></tr>
+<tr><th>method</th><td><span class="chip">{{$c.AuthMethod}}</span></td></tr>
+<tr><th>source</th><td><span class="chip">{{$c.Source}}</span></td></tr>
+<tr><th>last used</th><td>{{ts $c.LastUsed}}</td></tr>
+<tr><th>redirect URIs</th><td>{{range $c.RedirectURIs}}<code>{{.}}</code><br>{{end}}</td></tr>
+</tbody></table></div>
+{{template "dialog_end"}}{{end}}
 <h2>Create client</h2><div class="card">
 <form method="post" action="/admin/clients/create" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>Preset</label><select data-preset>

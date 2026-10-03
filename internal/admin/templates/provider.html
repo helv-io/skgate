@@ -59,8 +59,8 @@
 
 <h4>Model aliases</h4>
 <div class="tablewrap"><table class="table"><thead><tr><th>Alias</th><th>Target</th><th>Status</th><th></th></tr></thead><tbody>
-{{range .Aliases}}<tr><td><code>{{.Name}}</code></td><td><code>{{.Target}}</code></td><td>{{template "pill" .Pill}}</td>
-<td><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
+{{range .Aliases}}<tr><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Target"><code>{{.Target}}</code></td><td class="status" data-label="Status">{{template "pill" .Pill}}</td>
+<td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
 {{else}}<tr><td colspan="4" class="empty">none</td></tr>{{end}}</tbody></table></div>
 <form method="post" action="/admin/providers/{{.ID}}/aliases/put" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="row"><input type="text" name="name" placeholder="alias" maxlength="64" autocomplete="off" spellcheck="false">

@@ -22,7 +22,7 @@
 <a class="act" href="/admin/upstreams">back</a></div>
 {{end}}
 <h2>Output ({{len .Lines}} of {{.Total}} lines)</h2>
-<div class="card flush tablewrap"><table class="table"><thead><tr><th>Time</th><th>Source</th><th>Text</th></tr></thead><tbody>
-{{range .Lines}}<tr><td class="min mono">{{.T}}</td><td class="min"><span class="chip">{{.Src}}</span></td><td class="wrap mono {{.Class}}">{{.Text}}</td></tr>
+<div class="card flush tablewrap"><table class="table compact"><thead><tr><th>Time</th><th>Source</th><th>Text</th></tr></thead><tbody>
+{{range .Lines}}<tr><td class="min mono" data-label="Time">{{.T}}</td><td class="min" data-label="Source"><span class="chip">{{.Src}}</span></td><td class="wrap mono {{.Class}}" data-label="Text">{{.Text}}</td></tr>
 {{else}}<tr><td colspan="3" class="empty">no output</td></tr>{{end}}</tbody></table></div>
 {{end}}{{end}}

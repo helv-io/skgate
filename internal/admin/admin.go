@@ -445,6 +445,8 @@ type upstreamView struct {
 	Target string
 	// Tip is the hover text of the alias: type, target, source and revision, host override.
 	Tip string
+	// Facts are the same lines for the Details dialog.
+	Facts []fact
 	// Proc is set for managed upstreams.
 	Proc      *procView
 	ProcClass string
@@ -723,6 +725,7 @@ func (a *Admin) view(u mcp.Upstream) upstreamView {
 		pv.Upd = updViewOf(pi.Update)
 		v.Proc = pv
 	}
+	v.Facts = aliasFacts(v)
 	v.Tip = aliasTip(v)
 	return v
 }
@@ -736,35 +739,55 @@ func redactURL(s string) string {
 	return s
 }
 
-// aliasTip lists what the table no longer shows in columns: one fact per line.
-func aliasTip(v upstreamView) string {
-	lines := []string{"type: " + v.Kind}
+// fact is one line of an upstream's details: the alias hover text and the Details dialog share them.
+// Raw lines have no name (the hover text prints the value alone).
+type fact struct {
+	Name, Value string
+	Code, Raw   bool
+}
+
+// aliasFacts lists what the table does not show in columns: one fact per line.
+func aliasFacts(v upstreamView) []fact {
+	facts := []fact{{Name: "type", Value: v.Kind}}
 	if v.Managed() {
 		if v.Kind == mcp.KindGit {
-			lines = append(lines, "source: "+redactURL(v.GitURL))
+			facts = append(facts, fact{Name: "source", Value: redactURL(v.GitURL), Code: true})
 		}
-		lines = append(lines, "command: "+v.Target)
+		facts = append(facts, fact{Name: "command", Value: v.Target, Code: true})
 		if p := v.Proc; p != nil {
 			u := p.Upd
 			if u.Package != "" {
-				lines = append(lines, "package: "+u.Package)
+				facts = append(facts, fact{Name: "package", Value: u.Package, Code: true})
 			}
 			if u.Rev != "" {
-				lines = append(lines, "installed: "+strings.TrimSpace(u.Rev+" "+u.Ref))
+				facts = append(facts, fact{Name: "installed", Value: strings.TrimSpace(u.Rev + " " + u.Ref), Code: true})
 			}
 			if u.Available {
-				lines = append(lines, "update available"+map[bool]string{true: " (" + u.Remote + ")", false: ""}[u.Remote != ""])
+				facts = append(facts, fact{Name: "update", Value: "available" + map[bool]string{true: " (" + u.Remote + ")", false: ""}[u.Remote != ""]})
 			}
 			if u.Pinned {
-				lines = append(lines, "pinned: "+u.PinNote)
+				facts = append(facts, fact{Name: "pinned", Value: u.PinNote})
 			}
 		}
-		lines = append(lines, "lifecycle: "+orDash(v.Lifecycle, "on-demand"))
+		facts = append(facts, fact{Name: "lifecycle", Value: orDash(v.Lifecycle, "on-demand")})
 	} else {
-		lines = append(lines, "url: "+v.URL)
+		facts = append(facts, fact{Name: "url", Value: v.URL, Code: true})
 	}
 	if v.HostOverride != "" {
-		lines = append(lines, "host override: "+v.HostOverride)
+		facts = append(facts, fact{Name: "host override", Value: v.HostOverride, Code: true})
+	}
+	return facts
+}
+
+// aliasTip is the hover text of the alias: the facts, one per line.
+func aliasTip(v upstreamView) string {
+	var lines []string
+	for _, f := range aliasFacts(v) {
+		if f.Name == "update" {
+			lines = append(lines, "update "+f.Value)
+			continue
+		}
+		lines = append(lines, f.Name+": "+f.Value)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -1124,3 +1147,4 @@ func (a *Admin) clientDelete(w http.ResponseWriter, r *http.Request) {
 	_ = a.MCP.Clients.Delete(r.PostFormValue("id"))
 	a.back(w, r, "/admin/clients", "client deleted", "")
 }
+

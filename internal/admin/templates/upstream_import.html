@@ -7,6 +7,6 @@
 <div class="row"><button class="btn">Import</button> <a class="act" href="/admin/upstreams">back</a></div></form></div>
 {{if .Done}}<h2>Result</h2>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Alias</th><th>Result</th><th>Detail</th></tr></thead><tbody>
-{{range .Results}}<tr><td><code>{{.Name}}</code></td><td><code>{{.Alias}}</code></td><td>{{if eq .Status "created"}}{{template "pill" (pill "ok" "created" "")}}{{else if eq .Status "skipped"}}{{template "pill" (pill "warn" "skipped" "")}}{{else}}{{template "pill" (pill "bad" "invalid" "")}}{{end}}</td><td class="wrap">{{.Detail}}{{range .Notes}}<span class="sub">{{.}}</span>{{end}}</td></tr>
+{{range .Results}}<tr><td class="primary" data-label="Name"><code>{{.Name}}</code></td><td data-label="Alias"><code>{{.Alias}}</code></td><td class="status" data-label="Result">{{if eq .Status "created"}}{{template "pill" (pill "ok" "created" "")}}{{else if eq .Status "skipped"}}{{template "pill" (pill "warn" "skipped" "")}}{{else}}{{template "pill" (pill "bad" "invalid" "")}}{{end}}</td><td class="wrap" data-label="Detail">{{.Detail}}{{range .Notes}}<span class="sub">{{.}}</span>{{end}}</td></tr>
 {{end}}</tbody></table></div>{{end}}
 {{end}}{{end}}
