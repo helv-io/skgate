@@ -61,7 +61,7 @@ How Suggest configuration works:
 - It uses the MCP helper model (pick it beside the button, or in the provider details dialog; the aliases defined in skgate (Model aliases) are listed after the models; an alias is stored as chosen and resolved to its model when the helper calls the provider, as for /v1 requests) and a fixed system prompt. Output is requested as a strict JSON schema and validated in Go; invalid output is rejected.
 - skgate fetches the README and manifests itself (`package.json`, `pyproject.toml`, `server.json`, ...) through the host's API, with the token when given. The model sees those documents, never the token; the token is not logged.
 - The model call is streamed, with the reasoning chosen in the MCP helper model dialog (auto: the model decides). It ends after the helper timeout without data (default 120 seconds, set next to the model; for models that look like heavy reasoners the dialog suggests 600) or after 5 minutes overall, twice the timeout when that is longer; the progress line then shows a timed-out state with the stage and elapsed time and a **Lower reasoning** button. A provider that rejects `reasoning_effort` gets the request again without it.
-- Validated suggestions use a command available on the host, name and pin the package, list only environment variables the documents mention with `YOUR_...` placeholders, and come with confidence and warnings.
+- Validated suggestions use a command available on the host, name and pin the package, list only environment variables the documents mention, each marked secret or not and required or optional, and come with confidence and warnings. The variable fields start empty: the placeholder says Required or Optional, and secret ones are masked.
 - Disabled, with a tooltip, until you are signed in and an MCP helper model is picked. **Pick MCP helper model** next to it opens the picker in place; the button enables without a page reload.
 
 ### Kinds
@@ -72,7 +72,7 @@ How Suggest configuration works:
 | --- | --- |
 | Command | Required. A dropdown of the commands found on `PATH` at runtime (`npx`, `bunx`, `pnpm`, `npm`, `node`, `deno`, `uvx`, `uv`, `pipx`, `python3`, `python`, `dotnet`, `go`, `git`, `docker`, `sh`, `bash`; only those installed) or **Custom path…** for any other name or absolute path. Stored commands not in the list open as Custom. Executed directly (no shell). |
 | Args | One per line. |
-| Env | Name/value rows (up to 64), encrypted at rest, shown masked. |
+| Env | Name/value rows (up to 64), encrypted at rest. Secret values (keys, tokens, passwords) are masked; URLs, hosts and the like show in clear. A variable with an empty value is not set, so the server keeps its own default. |
 | Shell mode | Opt-in. Runs `sh -c` on the command line. Off by default. |
 | Install command | Optional. Runs once before start (again when it changes, or on **Update**), in the upstream's directory, limited to 15 minutes. |
 | Lifecycle | `on-demand` (start on first request, stop after 10 minutes idle) or `always` (start at boot). |
@@ -80,7 +80,7 @@ How Suggest configuration works:
 
 **Git repository.** Same as above, with the repository URL in the source field (https, http or local path; no ssh), ref (branch or tag, default the remote's HEAD) and an optional token for private repos. skgate clones into `<MANAGED_DIR>/<alias>/repo` (shallow), runs the install step (for example `npm ci`, `uv sync`, `pip install -r requirements.txt`), then the command with the repo as working dir. **Update** fetches the ref, reruns install and restarts ([updates](#updates)). The token is encrypted at rest and passed to git only as an `http.extraHeader` through its environment, never in arguments or logs.
 
-Env and header lists start with one row; **Add** appends rows, **Delete** removes an added row, and blank rows are ignored on save. A masked value left unchanged keeps the stored one.
+Env and header lists start with one row; **Add** appends rows, **Delete** removes an added row, and blank rows are ignored on save, and unused variables need no deleting. A masked value left unchanged keeps the stored one.
 
 ### Example: commands
 
