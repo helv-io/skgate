@@ -51,7 +51,7 @@ The managed form has two main fields: **MCP source URL / package** and **Access 
 
 | Source | Result |
 | --- | --- |
-| Git URL (GitHub, GitLab, Gitea/Forgejo, Bitbucket; `/tree/<ref>/<dir>` accepted) | Git upstream. Node, Python and .NET (`dotnet`) repositories are detected. |
+| Git URL (GitHub, GitLab, Gitea/Forgejo, Bitbucket; `/tree/<ref>/<dir>` accepted) | Git upstream. Node, Python, .NET (`dotnet`) and Go (`go`) repositories are detected. |
 | npm package (`pkg`, `@scope/pkg@1.2.3`, `npm:pkg`, npmjs.com URL) | Runs with `npx`. |
 | PyPI package (`pkg==1.2.3`, `pypi:pkg`, pypi.org URL) | Runs with `uvx`. |
 | crates.io, Go modules, Docker, NuGet, RubyGems, Maven, JSR/Deno | Refused with a message: the image has no `cargo`, `go`, `docker`, `gem`, `mvn` or `deno`, and NuGet packages are not run directly (point at the git repository instead). |
@@ -69,7 +69,7 @@ How Suggest configuration works:
 
 | Field | Notes |
 | --- | --- |
-| Command | Required. A dropdown of the commands found on `PATH` at runtime (`npx`, `bunx`, `pnpm`, `npm`, `node`, `deno`, `uvx`, `uv`, `pipx`, `python3`, `python`, `dotnet`, `git`, `docker`, `sh`, `bash`; only those installed) or **Custom path…** for any other name or absolute path. Stored commands not in the list open as Custom. Executed directly (no shell). |
+| Command | Required. A dropdown of the commands found on `PATH` at runtime (`npx`, `bunx`, `pnpm`, `npm`, `node`, `deno`, `uvx`, `uv`, `pipx`, `python3`, `python`, `dotnet`, `go`, `git`, `docker`, `sh`, `bash`; only those installed) or **Custom path…** for any other name or absolute path. Stored commands not in the list open as Custom. Executed directly (no shell). |
 | Args | One per line. |
 | Env | Name/value rows (up to 64), encrypted at rest, shown masked. |
 | Shell mode | Opt-in. Runs `sh -c` on the command line. Off by default. |
