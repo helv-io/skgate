@@ -7,7 +7,7 @@
 <input type="number" name="stop" min="0" placeholder="hard stop" title="Hard stop: requests allowed in total; after that the key is rejected. Empty = none.">
 <button class="act">Create key</button></form></div>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Key</th><th>Label</th><th>Usage</th><th>Status</th><th></th></tr></thead><tbody>
-{{range .Keys}}<tr><td class="primary" data-label="Key"><code>{{.Masked}}</code></td><td data-label="Label">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td class="nw" data-label="Usage">{{template "tip" (usage .Usage)}}</td>
+{{range .Keys}}<tr><td class="primary" data-label="Key"><code>{{.Masked}}</code></td><td data-label="Label">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
 <td class="status" data-label="Status">{{if .Revoked}}{{template "pill" (pill "off" "revoked" "")}}{{else}}{{template "pill" (pill "ok" "active" "")}}{{end}}</td>
 <td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#key-{{.ID}}">details</button>{{if not .Revoked}}
 <form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">regenerate</button></form>
@@ -26,7 +26,7 @@
 <tr><th>limits</th><td>{{.LimitsText}}</td></tr>
 <tr><th>created</th><td>{{ts .CreatedAt}}</td></tr>
 <tr><th>last used</th><td>{{ts .LastUsed}}</td></tr>
-<tr><th>usage</th><td>{{template "tip" (usage .Usage)}}</td></tr>
+<tr><th>usage</th><td>{{template "tip" (keyUsage .)}}</td></tr>
 <tr><th>status</th><td>{{if .Revoked}}{{template "pill" (pill "off" "revoked" "")}}{{else}}{{template "pill" (pill "ok" "active" "")}}{{end}}</td></tr>
 </tbody></table></div>
 {{template "dialog_end"}}{{end}}
