@@ -58,7 +58,7 @@ services:
 
 Image tags:
 
-- `latest`: proxy + managed MCP servers (Node.js, Python, uv, .NET, git)
+- `latest`: proxy + managed MCP servers (Node.js, Python, uv, .NET, Go, git)
 - `slim`: proxy only
 
 Upgrade: back up `./data`, then `docker compose pull && docker compose up -d`.
