@@ -247,24 +247,35 @@ document.addEventListener("click", function (e) {
 
 // Suggest configuration: [data-suggest="url"] posts the source and token of its form and fills the manual fields
 // with the validated answer, for review. Nothing is saved. The fields stay usable whatever the outcome.
+// The server streams one JSON object per line (stage events, then a result or an error); the status pill
+// shows the current stage with an elapsed timer, and the variable rows appear one by one.
 (function () {
+  var calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   function rows(form, name) {
     var first = form.querySelector('[name="' + name + '"]');
     return first ? first.closest("[data-pairs]") : null;
   }
-  // fill replaces the rows of a dynamic list: items are strings (single) or [name, value] (pairs).
-  function fill(box, items, pairs) {
+  // fill replaces the rows of a dynamic list: items are strings (single) or [name, value] (pairs). With
+  // animate the rows after the first are added one at a time and fade in.
+  function fill(box, items, pairs, animate) {
     if (!box) return;
     var list = box.querySelector("[data-pairs-rows]");
     var tpl = box.querySelector("[data-pairs-template]");
     while (list.children.length > 1) list.removeChild(list.lastChild);
-    var need = Math.max(items.length, 1);
-    for (var i = 1; i < need; i++) list.appendChild(tpl.content.cloneNode(true));
-    Array.prototype.forEach.call(list.children, function (row, i) {
+    function put(row, it) {
       var inputs = row.querySelectorAll("input");
-      var it = items[i];
       inputs[0].value = it === undefined ? "" : pairs ? it[0] : it;
       if (pairs) inputs[1].value = it === undefined ? "" : it[1];
+    }
+    put(list.children[0], items[0]);
+    items.slice(1).forEach(function (it, i) {
+      function add() {
+        list.appendChild(tpl.content.cloneNode(true));
+        var row = list.lastElementChild;
+        put(row, it);
+        if (animate && !calm) row.classList.add("reveal");
+      }
+      if (animate && !calm) setTimeout(add, (i + 1) * 140); else add();
     });
   }
   function set(form, name, v) { var f = form.elements[name]; if (f) f.value = v; }
@@ -277,8 +288,8 @@ document.addEventListener("click", function (e) {
       pick.dispatchEvent(new Event("change", { bubbles: true }));
       if (!known) set(form, "command", r.command);
     }
-    fill(rows(form, "args"), r.args || [], false);
-    fill(rows(form, "env_name"), (r.env || []).map(function (e) { return [e.name, e.value]; }), true);
+    fill(rows(form, "args"), r.args || [], false, false);
+    fill(rows(form, "env_name"), (r.env || []).map(function (e) { return [e.name, e.value]; }), true, true);
     set(form, "install", r.install || "");
     set(form, "startup_secs", r.startup_secs || "");
     if (r.kind === "git") { set(form, "source", r.git_url || ""); set(form, "git_ref", r.git_ref || ""); }
@@ -295,6 +306,22 @@ document.addEventListener("click", function (e) {
     lines.forEach(function (l) { var li = document.createElement("li"); li.textContent = l; ul.appendChild(li); });
     out.hidden = false;
   }
+  function sourceLine(s) {
+    return [s.name, s.language, (s.files || []).join(", ")].filter(Boolean).join(" \u00b7 ");
+  }
+  function done(form, b, timer, x) {
+    clearInterval(timer);
+    b.disabled = false;
+    if (x.error) {
+      show(form, "bad", "failed", [x.error]);
+      if (window.skgateToast) window.skgateToast("bad", x.error);
+      return;
+    }
+    apply(form, x.result);
+    var lines = (x.result.warnings || []).concat(x.result.notes || []);
+    lines.unshift("Review before saving. Replace the placeholder values with real ones.");
+    show(form, x.result.confidence === "high" ? "ok" : "warn", x.result.confidence + " confidence", lines);
+  }
   document.addEventListener("click", function (e) {
     var b = e.target && e.target.closest ? e.target.closest("[data-suggest]") : null;
     if (!b || b.disabled) return;
@@ -306,52 +333,43 @@ document.addEventListener("click", function (e) {
     body.set("git_token", form.elements.git_token ? form.elements.git_token.value : "");
     if (form.elements.mode && form.elements.mode.value === "edit" && form.elements.alias) body.set("alias_existing", form.elements.alias.value);
     b.disabled = true;
-    show(form, "warn", "working", []);
-    fetch(b.getAttribute("data-suggest"), { method: "POST", credentials: "same-origin", body: body })
-      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-      .then(function (x) {
-        if (!x.ok) { show(form, "bad", "failed", [x.j.error || "request failed"]); return; }
-        apply(form, x.j);
-        var lines = (x.j.warnings || []).concat(x.j.notes || []);
-        lines.unshift("Review before saving. Replace the placeholder values with real ones.");
-        show(form, x.j.confidence === "high" ? "ok" : "warn", x.j.confidence + " confidence", lines);
-      })
-      .catch(function () { show(form, "bad", "failed", ["request failed"]); })
-      .then(function () { b.disabled = false; });
-  });
-})();
-
-// Inline forms: a form with data-inline posts by fetch and the page updates in place, without a reload. The
-// server answers {toast, html}: the toast is shown, and html (the element with data-suggest-controls)
-// replaces the current one. data-inline="" closes the open dialog on success; data-inline="#id" keeps it open
-// and reloads its body from <template id>.
-(function () {
-  document.addEventListener("submit", function (e) {
-    var form = e.target;
-    if (!form || !form.hasAttribute || !form.hasAttribute("data-inline") || e.defaultPrevented) return;
-    e.preventDefault();
-    var again = form.getAttribute("data-inline");
-    var btn = form.querySelector("button");
-    if (btn) btn.disabled = true;
-    fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
-      .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.json(); })
-      .then(function (j) {
-        var tpl = document.createElement("template");
-        tpl.innerHTML = j.html;
-        var fresh = tpl.content.firstElementChild;
-        var old = document.querySelector("[data-suggest-controls]");
-        if (fresh && old) old.replaceWith(fresh);
-        var dlg = document.querySelector("[data-modal]");
-        if (j.toast.k === "ok" && !again) {
-          var close = dlg && dlg.querySelector("[data-modal-close]");
-          if (close) close.click();
-        } else if (again) {
-          var src = document.querySelector(again), body = dlg && dlg.querySelector("[data-modal-body]");
-          if (src && body) { body.textContent = ""; body.appendChild(src.content.cloneNode(true)); }
+    var t0 = Date.now(), stage = "Starting", info = [];
+    function tick() { show(form, "warn", stage + " \u00b7 " + Math.round((Date.now() - t0) / 1000) + "s", info); }
+    var timer = setInterval(tick, 1000);
+    tick();
+    var finished = false;
+    function finish(x) { if (!finished) { finished = true; done(form, b, timer, x); } }
+    function line(l) {
+      var m;
+      try { m = JSON.parse(l); } catch (err) { return; }
+      if (m.stage) {
+        stage = m.label || stage;
+        if (m.source) info = [sourceLine(m.source)];
+        tick();
+      } else if (m.result || m.error) {
+        finish(m);
+      }
+    }
+    fetch(b.getAttribute("data-suggest"), { method: "POST", credentials: "same-origin", body: body, headers: { Accept: "application/x-ndjson" } })
+      .then(function (r) {
+        var type = r.headers.get("Content-Type") || "";
+        if (type.indexOf("x-ndjson") < 0 || !r.body || !r.body.getReader) { // refused before streaming, or no stream support
+          return r.json().then(function (j) { finish(r.ok ? { result: j } : { error: j.error || "request failed" }); });
         }
-        window.skgateToast(j.toast.k, j.toast.m);
+        var rd = r.body.getReader(), dec = new TextDecoder(), buf = "";
+        function pump() {
+          return rd.read().then(function (c) {
+            if (c.done) { buf.split("\n").forEach(function (l) { if (l) line(l); }); return; }
+            buf += dec.decode(c.value, { stream: true });
+            var parts = buf.split("\n");
+            buf = parts.pop();
+            parts.forEach(function (l) { if (l) line(l); });
+            return pump();
+          });
+        }
+        return pump();
       })
-      .catch(function () { window.skgateToast("bad", "request failed"); })
-      .then(function () { if (btn) btn.disabled = false; });
+      .catch(function () { finish({ error: "request failed" }); })
+      .then(function () { finish({ error: "the answer ended early" }); });
   });
 })();

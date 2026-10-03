@@ -90,6 +90,57 @@ type Service struct {
 	// Logf receives one line per stage (default: the standard logger). Lines never carry the token, a
 	// prompt or a document; a reply that could not be used is logged as a short clipped snippet.
 	Logf func(format string, args ...any)
+	// Progress, when set, is called synchronously as each stage starts, so a caller can stream it.
+	Progress func(Event)
+}
+
+// Stage names of a suggestion, in order.
+const (
+	StageFetch = "fetch"
+	StageRead  = "read"
+	StageModel = "model"
+	StageCheck = "check"
+)
+
+// Event is one progress step. Source is set with StageRead: what was found.
+type Event struct {
+	Stage  string      `json:"stage"`
+	Label  string      `json:"label"`
+	Source *SourceInfo `json:"source,omitempty"`
+}
+
+// SourceInfo describes the fetched source: its name, the language its manifests suggest, and the files read.
+type SourceInfo struct {
+	Name     string   `json:"name"`
+	Language string   `json:"language,omitempty"`
+	Files    []string `json:"files"`
+}
+
+func (s *Service) progress(e Event) {
+	if s.Progress != nil {
+		s.Progress(e)
+	}
+}
+
+var languages = map[string]string{"package.json": "Node.js", "pyproject.toml": "Python", "requirements.txt": "Python",
+	"Cargo.toml": "Rust", "go.mod": "Go"}
+
+// info summarizes a fetched Context.
+func (c Context) info() SourceInfo {
+	i := SourceInfo{Name: c.Name, Files: []string{}}
+	switch c.Kind {
+	case KindNPM:
+		i.Language = "Node.js"
+	case KindPyPI:
+		i.Language = "Python"
+	}
+	for _, f := range c.Files {
+		i.Files = append(i.Files, f.Name)
+		if l := languages[f.Name]; l != "" && i.Language == "" {
+			i.Language = l
+		}
+	}
+	return i
 }
 
 func (s *Service) logf(format string, args ...any) {
@@ -142,16 +193,20 @@ func (s *Service) Suggest(ctx context.Context, model string, src Source, token s
 		return nil, errors.New("no package runner is available on this host")
 	}
 	t := time.Now()
+	s.progress(Event{Stage: StageFetch, Label: "Fetching repo"})
 	doc, err := s.Fetch.Fetch(ctx, src, token)
 	if err != nil {
 		s.logf("suggest: fetch failed source=%s after %s: %s", label, since(t), scrub(err.Error(), token))
 		return nil, errors.New(scrub(err.Error(), token))
 	}
 	s.logf("suggest: fetched kind=%s name=%s version=%s files=%s in %s", doc.Kind, doc.Name, orNone(doc.Version), doc.Summary(), since(t))
+	si := doc.info()
+	s.progress(Event{Stage: StageRead, Label: "Reading README", Source: &si})
 	body, err := buildRequest(model, src, doc, runners, token)
 	if err != nil {
 		return nil, err
 	}
+	s.progress(Event{Stage: StageModel, Label: "Asking the model"})
 	t = time.Now()
 	s.logf("suggest: model call start model=%q request=%d bytes", model, len(body))
 	status, reply, err := s.LLM.Post(ctx, "/chat/completions", body)
@@ -174,6 +229,7 @@ func (s *Service) Suggest(ctx context.Context, model string, src Source, token s
 		s.logf("suggest: model reply unusable: %v; reply=%q", err, snippet(string(reply), token))
 		return nil, err
 	}
+	s.progress(Event{Stage: StageCheck, Label: "Checking the config"})
 	res, err = Validate(content, src, doc, runners)
 	if err != nil {
 		s.logf("suggest: validation failed: %v; content=%q", err, snippet(content, token))

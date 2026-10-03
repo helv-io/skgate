@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .card .table .tablewrap .tip .pill .chip .code .actions .act .toggle .btn .form .field .pairs .pair .group .toast .modal .muted .row .stack .dialog-head .dialog-body
+   Components: .card .table .tablewrap .tip .pill .chip .code .actions .act .toggle .btn .form .field .pairs .pair .group .toast .modal .muted .row .stack .dialog-head .dialog-body .reveal
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -155,6 +155,9 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 /* suggest: output area of the configuration helper */
 .suggest-out{margin:0 0 12px}
 .suggest-out ul{margin:6px 0}
+.reveal{animation:reveal-in .3s ease-out}
+@keyframes reveal-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.reveal{animation:none}}
 
 /* centered pages (signed out, errors) */
 .login{max-width:380px;margin:70px auto}

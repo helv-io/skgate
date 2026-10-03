@@ -42,6 +42,9 @@ func (a *Admin) controlsHTML(r *http.Request) (string, error) {
 	return b.String(), err
 }
 
+// ndjson is the streamed form of the answer: stage events, then a result or an error line.
+const ndjson = "application/x-ndjson"
+
 // upstreamSuggest answers with a validated suggestion as JSON for the client script to put into the
 // form. It saves nothing. POST only (guard checks the CSRF token).
 func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
@@ -81,8 +84,30 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	svc.Logf = log.Printf
+	stream := strings.Contains(r.Header.Get("Accept"), ndjson)
+	var send func(v any)
+	if stream { // one JSON object per line, flushed as each stage starts
+		send = func(v any) {
+			_ = json.NewEncoder(w).Encode(v)
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+		}
+		w.Header().Set("Content-Type", ndjson)
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Accel-Buffering", "no")
+		svc.Progress = func(e suggest.Event) { send(e) }
+	}
 	log.Printf("suggest: request source=%s token=%t", src.Label(), token != "")
 	res, err := svc.Suggest(ctx, a.Set.Model(a.Providers.Default().ID()), src, token, runners)
+	if stream {
+		if err != nil {
+			send(map[string]string{"error": err.Error()})
+		} else {
+			send(map[string]any{"result": res})
+		}
+		return
+	}
 	if err != nil {
 		fail(http.StatusUnprocessableEntity, err.Error())
 		return
