@@ -132,21 +132,45 @@ type ModelCache struct {
 }
 
 type cached struct {
-	ids []string
-	at  time.Time
+	ids     []string
+	at      time.Time
+	aliases map[string]string // provider-side alias -> model id; empty when the list has none
 }
 
 // NewModelCache returns an empty cache.
 func NewModelCache() *ModelCache { return &ModelCache{m: map[string]cached{}} }
 
-// Set stores a list.
+// Set stores a list. Aliases learned earlier stay until SetAliases replaces them.
 func (c *ModelCache) Set(id string, ids []string) {
 	if len(ids) == 0 {
 		return
 	}
 	c.mu.Lock()
-	c.m[id] = cached{ids: append([]string(nil), ids...), at: time.Now()}
+	c.m[id] = cached{ids: append([]string(nil), ids...), at: time.Now(), aliases: c.m[id].aliases}
 	c.mu.Unlock()
+}
+
+// SetAliases stores the provider's own names for its models (alias -> model id).
+func (c *ModelCache) SetAliases(id string, aliases map[string]string) {
+	c.mu.Lock()
+	e := c.m[id]
+	e.aliases = aliases
+	c.m[id] = e
+	c.mu.Unlock()
+}
+
+// Aliases returns the provider's own model aliases (alias -> model id); nil when it has none.
+func (c *ModelCache) Aliases(id string) map[string]string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.m[id].aliases) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(c.m[id].aliases))
+	for k, v := range c.m[id].aliases {
+		out[k] = v
+	}
+	return out
 }
 
 // Get returns the cached list and when it was loaded (ok false when there is none).

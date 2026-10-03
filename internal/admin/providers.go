@@ -255,7 +255,7 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 	m := r.PostFormValue("model")
 	if m != "" {
 		ids, _, known := a.models(r.Context(), p)
-		if !known || !contains(ids, m) {
+		if !known || !(contains(ids, m) || a.proxyFor(p.ID()).Models.Aliases(p.ID())[m] != "") {
 			a.helperDone(w, r, p.ID(), "", "not one of the provider's models")
 			return
 		}

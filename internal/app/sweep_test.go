@@ -24,7 +24,7 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 		t.Skip("set SKGATE_CHROME and SKGATE_PUPPETEER (and install node) to run the browser layout check")
 	}
 	longName := strings.Repeat("segment-", 8) + "end"
-	up, _ := modelsUpstream(t, "grok-4.7-reasoning-with-an-unreasonably-long-model-identifier-0123456789", "grok-mini")
+	up := aliasUpstream(t, true, false) // models with provider aliases, so the picker's long labels are swept too
 	a, _, br, csrf, _ := signedInProvider(t, up)
 	post := func(path string, v url.Values) string {
 		v.Set("csrf", csrf)
@@ -32,7 +32,7 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 		return body
 	}
 	post("/admin/providers/grok/models/reload", url.Values{})
-	post("/admin/providers/grok/aliases/put", url.Values{"name": {strings.Repeat("a", 60)}, "target": {"grok-4.7-reasoning-with-an-unreasonably-long-model-identifier-0123456789"}})
+	post("/admin/providers/grok/aliases/put", url.Values{"name": {strings.Repeat("a", 60)}, "target": {"grok-4.7-reasoning"}})
 	post("/admin/upstreams/save", stdioForm(csrf, "mgd", url.Values{"lifecycle": {"always"}, "args": {"--config", "/very/long/path/" + strings.Repeat("dir/", 20) + "file.json"}}))
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {longName[:63]},
 		"url": {"https://mcp.example.com/" + strings.Repeat("a/very/long/path/", 12) + "mcp?x=" + strings.Repeat("q", 80)}, "auth_kind": {"header"},

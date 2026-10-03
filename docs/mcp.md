@@ -58,7 +58,7 @@ The managed form has two main fields: **MCP source URL / package** and **Access 
 
 How Suggest configuration works:
 
-- It uses the MCP helper model (pick it beside the button, or in the provider details dialog) and a fixed system prompt. Output is requested as a strict JSON schema and validated in Go; invalid output is rejected.
+- It uses the MCP helper model (pick it beside the button, or in the provider details dialog; names the provider offers as aliases of a model are listed next to it and are sent as chosen) and a fixed system prompt. Output is requested as a strict JSON schema and validated in Go; invalid output is rejected.
 - skgate fetches the README and manifests itself (`package.json`, `pyproject.toml`, `server.json`, ...) through the host's API, with the token when given. The model sees those documents, never the token; the token is not logged.
 - The model call is streamed, with the reasoning chosen in the MCP helper model dialog (default: the model decides). It ends after the helper timeout without data (default 120 seconds, set next to the model; for models that look like heavy reasoners the dialog suggests 600) or after 5 minutes overall, twice the timeout when that is longer; the progress line then shows a timed-out state with the stage and elapsed time and a **Lower reasoning** button. A provider that rejects `reasoning_effort` gets the request again without it.
 - Validated suggestions use a command available on the host, name and pin the package, list only environment variables the documents mention with `YOUR_...` placeholders, and come with confidence and warnings.

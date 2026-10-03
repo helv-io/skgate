@@ -114,6 +114,9 @@ func (c *Client) ID() string { return "grok" }
 func (c *Client) Name() string { return "Grok" }
 
 // DefaultBase implements provider.Provider.
+// AliasesPath is the xAI list that carries each model's aliases.
+func (c *Client) AliasesPath() string { return "/language-models" }
+
 func (c *Client) DefaultBase() string { return strings.TrimRight(c.Base, "/") }
 
 // DefaultFallback implements provider.Provider.
