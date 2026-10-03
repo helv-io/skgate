@@ -2,7 +2,7 @@
 
 Part of the [skgate README](../README.md).
 
-**Virtual keys** (admin: keys). Only a SHA-256 hash is stored; the token is shown once with a Copy button. Send as `Authorization: Bearer sk-...` or `X-API-Key` (or `?key=` if enabled), to `/v1` and MCP endpoints.
+**Virtual keys** (admin: keys). Only a SHA-256 hash is stored; the token is shown once with a Copy button. Send as `Authorization: Bearer sk-...` or `X-API-Key` (or `?key=` for a key that has it enabled in its Details), to `/v1` and MCP endpoints.
 
 - **Usage** column: input and output tokens per key, abbreviated (`1.2M in / 340K out`); the tooltip has exact counts, API and MCP requests (last use is its own column). Recorded in the database (`key_usage`), written every 5 s and on shutdown, removed with the key.
   - API (`/v1`): tokens come from the provider's `usage` object, in JSON responses and in the last usage chunk of an event stream. Nothing is estimated and requests are never modified. A stream carries usage only if the client asks for it (for example `stream_options: {"include_usage": true}` on providers that need it); otherwise the call counts as a request without tokens. An aborted stream counts no tokens.
