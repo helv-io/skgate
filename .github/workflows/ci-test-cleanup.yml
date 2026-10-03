@@ -1,0 +1,27 @@
+# Branch-only helper (removed before merge): deletes the throwaway image tags of the ci-speed trial runs.
+name: ci-test-cleanup
+on:
+  workflow_dispatch:
+    inputs:
+      pattern:
+        description: "regex of tags to delete (tagged versions only)"
+        required: true
+        default: "^ci-test-"
+permissions:
+  packages: write
+  contents: read
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PATTERN: ${{ inputs.pattern }}
+        run: |
+          kind=$(gh api /users/${{ github.repository_owner }} --jq '.type' | sed 's/Organization/orgs/;s/User/users/')
+          base=/$kind/${{ github.repository_owner }}/packages/container/skgate/versions
+          gh api --paginate "$base?per_page=100" --jq '.[] | {id, tags: .metadata.container.tags}' > versions.jsonl
+          jq -r --arg p "$PATTERN" 'select(.tags | length > 0) | select(any(.tags[]; test($p))) | "\(.id) \(.tags | join(","))"' versions.jsonl | while read -r id tags; do
+            echo "deleting version $id ($tags)"
+            gh api -X DELETE "$base/$id" && echo "  deleted" || echo "  FAILED"
+          done
