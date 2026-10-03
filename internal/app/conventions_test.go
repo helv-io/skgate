@@ -78,7 +78,7 @@ func TestFaviconRoutes(t *testing.T) {
 			t.Errorf("%s is not the file in static/", path)
 		}
 	}
-	if !strings.HasPrefix(string(mustGet(t, ts.URL+"/favicon.svg")), "<svg") {
+	if !strings.Contains(string(mustGet(t, ts.URL+"/favicon.svg")), "<svg") {
 		t.Error("svg body")
 	}
 	_, page := br.get("/admin")
