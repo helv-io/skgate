@@ -7,6 +7,8 @@
 
 ## Name Origin
 
+**skgate** /ɛsˈkɑːɡeɪt/ (ess-KAH-gate)
+
 "sk" is what most AI API keys start with, or so I perceive it, and "gate" is for gateway. Bit rubbish as names go, but it's ours.
 
 The plane in the logo is an inside joke. The public wouldn't understand it, and I'm not about to explain it. Sorry.
