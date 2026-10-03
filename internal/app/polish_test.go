@@ -256,7 +256,7 @@ func TestUpstreamListSplitsTypeAndStatus(t *testing.T) {
 	}
 	for alias, want := range map[string]string{"rem": "remote", "gitsrv": "managed \u00b7 git", "nodepkg": "managed \u00b7 npm", "pypkg": "managed \u00b7 pypi", "prog": "managed \u00b7 command"} {
 		r := row(alias)
-		if !strings.Contains(r, `<td data-label="Type"><span class="chip">`+want+`</span></td>`) {
+		if !strings.Contains(r, `<td class="inline" data-label="Type"><span class="chip">`+want+`</span></td>`) {
 			t.Errorf("%s: type is not %q:\n%s", alias, want, r)
 		}
 		if !strings.Contains(r, `data-label="Status"`) || !strings.Contains(r, `<a class="name" href="#upstream-`+alias+`" data-dialog-open="#upstream-`+alias+`"`) {
