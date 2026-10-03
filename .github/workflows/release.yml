@@ -182,8 +182,12 @@ jobs:
         run: |
           kind=$(gh api /users/${{ github.repository_owner }} --jq '.type' | sed 's/Organization/orgs/;s/User/users/')
           base=/$kind/${{ github.repository_owner }}/packages/container/skgate/versions
-          gh api --paginate "$base?per_page=100" --jq '.[] | {id, tags: .metadata.container.tags}' > versions.jsonl
-          jq -r 'select(.tags | length > 0) | select(any(.tags[]; test("^ci-test-"))) | "\(.id) \(.tags | join(","))"' versions.jsonl | while read -r id tags; do
-            echo "deleting version $id ($tags)"
+          gh api --paginate "$base?per_page=100" --jq '.[] | {id, created_at, tags: .metadata.container.tags}' > versions.jsonl
+          jq -r '"\(.id) \(.created_at) \(.tags | join(","))"' versions.jsonl | tail -n 40
+          # tagged trial versions, then the untagged per-arch digests the trial runs pushed (nothing before this afternoon's trials)
+          jq -r 'select(.tags | length > 0) | select(any(.tags[]; test("^(ci-test-|v0\\.0\\.0-citest)"))) | .id' versions.jsonl > delete.txt
+          jq -r 'select(.tags | length == 0) | select(.created_at >= "2026-10-03T18:20:00Z") | .id' versions.jsonl >> delete.txt
+          while read -r id; do
+            echo "deleting version $id"
             gh api -X DELETE "$base/$id" && echo "  deleted" || echo "  FAILED"
-          done
+          done < delete.txt
