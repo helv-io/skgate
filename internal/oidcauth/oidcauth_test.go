@@ -2,6 +2,7 @@ package oidcauth
 
 import (
 	"context"
+	"golang.org/x/oauth2"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -103,6 +104,58 @@ func TestClientSecretPostFallback(t *testing.T) {
 	}
 	if !p.PostAuthSeen {
 		t.Fatal("should fall back to client_secret_post")
+	}
+}
+
+// Without advertised methods basic is tried first (the specification's default); a token endpoint
+// that refuses it with invalid_client gets one retry with the secret in the form, and the choice is
+// remembered so later logins do not fail first.
+func TestClientAuthDefaultsToBasicThenRetriesPost(t *testing.T) {
+	p := oidctest.New(t)
+	p.HideMethods = true
+	c := newClient(p, nil)
+	ck, authURL, _ := begin(t, c, p)
+	if _, _, err := finish(c, ck, p.Authorize(t, authURL)); err != nil || p.BasicHits != 1 || p.PostHits != 0 {
+		t.Fatalf("default: %v basic=%d post=%d", err, p.BasicHits, p.PostHits)
+	}
+
+	p = oidctest.New(t)
+	p.HideMethods, p.OnlyPost = true, true
+	c = newClient(p, nil)
+	ck, authURL, _ = begin(t, c, p)
+	if _, _, err := finish(c, ck, p.Authorize(t, authURL)); err != nil || p.BasicHits != 1 || p.PostHits != 1 {
+		t.Fatalf("retry: %v basic=%d post=%d", err, p.BasicHits, p.PostHits)
+	}
+	ck, authURL, _ = begin(t, c, p)
+	if _, _, err := finish(c, ck, p.Authorize(t, authURL)); err != nil || p.BasicHits != 1 || p.PostHits != 2 {
+		t.Fatalf("remembered: %v basic=%d post=%d", err, p.BasicHits, p.PostHits)
+	}
+
+	// a wrong secret fails after the single retry, and says which methods were tried
+	p = oidctest.New(t)
+	p.HideMethods = true
+	c = newClient(p, func(cfg *Config) { cfg.ClientSecret = "wrong" })
+	ck, authURL, _ = begin(t, c, p)
+	if _, _, err := finish(c, ck, p.Authorize(t, authURL)); err == nil || p.BasicHits != 1 || p.PostHits != 1 {
+		t.Fatalf("wrong secret: %v basic=%d post=%d", err, p.BasicHits, p.PostHits)
+	}
+}
+
+func TestAuthStyleChoice(t *testing.T) {
+	for _, tc := range []struct {
+		methods  []string
+		postOnly bool
+		want     oauth2.AuthStyle
+	}{
+		{nil, false, oauth2.AuthStyleInHeader},
+		{[]string{"client_secret_post", "client_secret_basic"}, false, oauth2.AuthStyleInHeader},
+		{[]string{"client_secret_post"}, false, oauth2.AuthStyleInParams},
+		{[]string{"private_key_jwt"}, false, oauth2.AuthStyleInHeader},
+		{nil, true, oauth2.AuthStyleInParams},
+	} {
+		if got, _ := authStyle(tc.methods, tc.postOnly); got != tc.want {
+			t.Errorf("%v postOnly=%v: %v", tc.methods, tc.postOnly, got)
+		}
 	}
 }
 

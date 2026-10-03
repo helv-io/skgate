@@ -30,6 +30,9 @@ type Provider struct {
 	Hits           []string
 	Down           bool
 	OnlyPost       bool   // advertise only client_secret_post and reject basic auth
+	HideMethods    bool   // leave token_endpoint_auth_methods_supported out of discovery
+	BasicHits      int    // token requests with client_secret_basic
+	PostHits       int    // token requests with the secret in the form
 	IssuerOverride string // discovery "issuer" value that differs from the URL
 	NoEndSession   bool
 	Sub, Email     string
@@ -98,6 +101,9 @@ func (p *Provider) serve(w http.ResponseWriter, r *http.Request) {
 			"token_endpoint_auth_methods_supported": methods,
 			"response_types_supported":              []string{"code"}, "subject_types_supported": []string{"public"},
 		}
+		if p.HideMethods {
+			delete(doc, "token_endpoint_auth_methods_supported")
+		}
 		if !p.NoEndSession {
 			doc["end_session_endpoint"] = p.URL + "/x/logout"
 		}
@@ -164,8 +170,10 @@ func (p *Provider) token(w http.ResponseWriter, r *http.Request) {
 	p.mu.Lock()
 	if basic {
 		p.BasicAuthSeen = true
+		p.BasicHits++
 	} else if sec != "" {
 		p.PostAuthSeen = true
+		p.PostHits++
 	}
 	p.mu.Unlock()
 	if p.OnlyPost && basic {
