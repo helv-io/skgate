@@ -13,13 +13,6 @@
 
 The plane in the logo is an inside joke. The public wouldn't understand it, and I'm not about to explain it. Sorry.
 
-![Keys page: virtual keys with token usage per key](docs/img/keys.png)
-
-<p>
-<img src="docs/img/upstreams.png" width="49%" alt="MCP upstreams: remote and managed servers with status">
-<img src="docs/img/grok-details.png" width="49%" alt="Grok details: base URL and model aliases">
-</p>
-
 ## Quick start
 
 Before you start: an [OIDC provider](#oidc-setup) with a confidential client for skgate (admin login is OIDC only).
