@@ -174,3 +174,15 @@ func TestRefusedAdminActionIsLogged(t *testing.T) {
 		t.Errorf("not logged:\n%s", buf.String())
 	}
 }
+
+// In the shared model picker the load time comes first and the Reload button follows, in every dialog that uses it.
+func TestModelPickerShowsTimeBeforeReload(t *testing.T) {
+	r := newSuggestRig(t, true, true)
+	for _, path := range []string{"/admin", "/admin/upstreams"} {
+		_, page := r.br.get(path)
+		i, j := strings.Index(page, "2 models, loaded "), strings.Index(page, "Reload models")
+		if i < 0 || j < 0 || i > j {
+			t.Errorf("%s: time at %d, button at %d", path, i, j)
+		}
+	}
+}

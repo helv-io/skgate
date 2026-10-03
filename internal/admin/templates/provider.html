@@ -69,7 +69,7 @@
 {{define "model_picker"}}{{$p := .}}<form method="post" action="/admin/providers/{{.ID}}/model" class="row form"{{if .Inline}} data-inline=""{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}">
 <select name="model"><option value="">none</option>{{range .Models}}<option value="{{.}}" {{if eq . $p.Model}}selected{{end}}>{{.}}</option>{{end}}{{if and .Model (not (inList .Models .Model))}}<option value="{{.Model}}" selected>{{.Model}} (unlisted)</option>{{end}}</select>
 <button class="act">Save</button></form>
-<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/models/reload"{{if .Inline}} data-inline="#helper-model"{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">Reload models</button></form>{{if .ModelsKnown}}<span class="muted">{{len .Models}} models, loaded {{.ModelsAt}}</span>{{else}}<span class="muted">not loaded{{if not .S.SignedIn}}: sign in first{{end}}</span>{{end}}</div>{{end}}
+<div class="actions">{{if .ModelsKnown}}<span class="muted">{{len .Models}} models, loaded {{.ModelsAt}}</span>{{else}}<span class="muted">not loaded{{if not .S.SignedIn}}: sign in first{{end}}</span>{{end}}<form method="post" action="/admin/providers/{{.ID}}/models/reload"{{if .Inline}} data-inline="#helper-model"{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">Reload models</button></form></div>{{end}}
 
 {{/* helper_dialog: the model_picker in the shared modal, for pages that need a helper model without going to the
    status page. Takes a providerView. */}}
