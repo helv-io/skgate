@@ -67,8 +67,10 @@
 
 // Confirmation: a form with data-confirm="text" opens the shared modal (<dialog data-modal>) on submit
 // instead of submitting. Title and confirm label are the submit button's label; a button with class
-// "danger" makes the confirm button destructive. Escape and Cancel close it; a click on the backdrop only closes a
-// dialog marked data-informational (see below).
+// "danger" makes the confirm button destructive.
+// Escape and Cancel close it; a click on the backdrop only closes a dialog marked data-informational (see below).
+// A form inside a content dialog (regenerate, revoke) keeps that content in place, hidden, while it asks; the form
+// has to stay in the page to submit, and Cancel or Escape go back to the content instead of closing it.
 // Content dialogs are addressed by the URL fragment (#id of their <template>): opening one sets it, a load or
 // hashchange with that fragment opens it, closing it by any route takes the fragment out of the URL again, and
 // the Back button closes it. A dialog opened by a click adds one history entry that closing it by hand removes
@@ -84,6 +86,7 @@
   var bodyEl = dlg.querySelector("[data-modal-body]");
   var actionsEl = dlg.querySelector("[data-modal-actions]");
   var pending = null; // { form, submitter, opener }
+  var stack = null; // a confirmation asked from inside a content dialog: { title, informational }; the content stays, hidden
   var opener = null; // the button that opened content
   var informational = false; // the dialog in view only shows information (template attribute data-informational)
   var shownId = null; // id of the content dialog in view (its fragment is in the URL)
@@ -91,6 +94,7 @@
 
   // mode switches the one dialog between a confirmation and content copied from a template.
   function mode(content) {
+    stack = null;
     dlg.classList.toggle("wide", content);
     bodyEl.hidden = closeBtn.hidden = !content;
     textEl.hidden = actionsEl.hidden = content;
@@ -180,7 +184,16 @@
     var btn = e.submitter || form.querySelector("button:not([type=button])");
     var word = label(btn);
     var danger = !!(btn && btn.classList && btn.classList.contains("danger"));
-    mode(false);
+    // A form inside a content dialog (regenerate, revoke) keeps the content in place, hidden, while it asks: the
+    // form has to stay in the page for the submit, and Cancel goes back to the content instead of closing it.
+    if (shownId !== null && bodyEl.contains(form)) {
+      stack = { title: titleEl.textContent, informational: informational };
+      bodyEl.hidden = closeBtn.hidden = true;
+      textEl.hidden = actionsEl.hidden = false;
+      dlg.classList.remove("wide");
+    } else {
+      mode(false);
+    }
     informational = false;
     pending = { form: form, submitter: btn, opener: btn || document.activeElement };
     titleEl.textContent = form.getAttribute("data-confirm-title") || (word ? word.charAt(0).toUpperCase() + word.slice(1) : "Confirm");
@@ -192,19 +205,43 @@
     (danger ? cancelBtn : okBtn).focus(); // a destructive action is never the default key press
   });
 
-  okBtn.addEventListener("click", function () {
+  // unstack goes back from a confirmation to the content dialog it was asked in. False when there is none.
+  function unstack() {
+    var s = stack;
+    if (!s) return false;
+    stack = null;
     var p = pending;
-    if (!p) return close();
-    close(true); // the form submit navigates away: replace the fragment, do not go back
+    pending = null;
+    bodyEl.hidden = closeBtn.hidden = false;
+    textEl.hidden = actionsEl.hidden = true;
+    dlg.classList.add("wide");
+    titleEl.textContent = s.title;
+    informational = s.informational;
+    if (p && p.opener && p.opener.isConnected && p.opener.focus) p.opener.focus();
+    return true;
+  }
+  function submitPending(p) {
     p.form._confirmed = true;
     if (p.form.requestSubmit) {
       try { p.form.requestSubmit(p.submitter && p.submitter.form === p.form ? p.submitter : undefined); } catch (err) { p.form.requestSubmit(); }
     } else {
       p.form.submit();
     }
+  }
+  okBtn.addEventListener("click", function () {
+    var p = pending;
+    if (!p) return close();
     pending = null;
+    if (stack) { // the form lives in the content: submit it first, then take the dialog away
+      stack = null;
+      submitPending(p);
+      close(true);
+      return;
+    }
+    close(true); // the form submit navigates away: replace the fragment, do not go back
+    submitPending(p);
   });
-  cancelBtn.addEventListener("click", function () { close(); });
+  cancelBtn.addEventListener("click", function () { if (!unstack()) close(); });
   // A click on the backdrop lands on the dialog element itself; clicks inside land on its children. Only a dialog
   // that merely shows information closes that way; one with a form, a field or a decision ignores it (a drag that
   // starts in a field and ends outside must not throw the input away). Escape and the buttons always close.
@@ -213,7 +250,7 @@
   dlg.addEventListener("cancel", function () { /* native close follows */ });
   dlg.addEventListener("close", restoreFocus);
   dlg.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { e.preventDefault(); close(); restoreFocus(); }
+    if (e.key === "Escape") { e.preventDefault(); if (unstack()) return; close(); restoreFocus(); }
   });
 })();
 
