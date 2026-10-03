@@ -180,3 +180,20 @@ func TestAddUpstreamFieldOrderFollowsSuggest(t *testing.T) {
 		last = i
 	}
 }
+
+// The add-upstream form tells the page script which fields belong to which kind of source, and that Suggest is
+// off for a reason the server knows (no helper model).
+func TestAddUpstreamFieldsDeclareTheirKind(t *testing.T) {
+	_, br, _ := managedApp(t)
+	_, page := br.get("/admin/upstreams")
+	form := page[strings.Index(page, `action="/admin/upstreams/save"`):]
+	for _, want := range []string{
+		`data-show-for="git"><label>Ref`, `data-show-for="git"><label>Access token`,
+		`data-hide-for="package"><label>Install command`,
+		`data-suggest-off`, `aria-live="polite"`, `placeholder="e.g. main"`,
+	} {
+		if !strings.Contains(form, want) {
+			t.Errorf("the form lacks %s", want)
+		}
+	}
+}
