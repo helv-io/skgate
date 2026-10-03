@@ -2,7 +2,7 @@
 #
 # Targets:
 #   slim  proxy only (static binary on distroless); managed upstreams are unavailable.
-#   full  slim + managed runtimes: Node.js (npm, npx), Python 3 (pip, venv), uv/uvx, git, tini.
+#   full  slim + managed runtimes: Node.js (npm, npx), Python 3 (pip, venv), uv/uvx, .NET 10 SDK, git, tini.
 # The last stage is the default target, so a plain `docker build .` produces `full`.
 #   docker build --target slim -t skgate:slim .
 #   docker build -t skgate:latest .
@@ -10,6 +10,7 @@
 ARG GO_VERSION=1.24
 ARG NODE_VERSION=22
 ARG UV_VERSION=0.12
+ARG DOTNET_VERSION=10.0
 
 FROM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
@@ -37,11 +38,15 @@ ENTRYPOINT ["/skgate"]
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS dotnet
+
 FROM node:${NODE_VERSION}-bookworm-slim AS full
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates git python3 python3-pip python3-venv tini \
+ && apt-get install -y --no-install-recommends ca-certificates git libgcc-s1 libssl3 libstdc++6 python3 python3-pip python3-venv tini zlib1g \
  && rm -rf /var/lib/apt/lists/* /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 COPY --from=uv /uv /uvx /usr/local/bin/
+COPY --from=dotnet /usr/share/dotnet /usr/share/dotnet
+RUN ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet
 COPY --from=build /out/skgate-full /skgate
 COPY --from=build --chown=1000:1000 /out/data /data
 # Managed children inherit only an allow list of these (see README). Package caches live on the
@@ -53,7 +58,14 @@ ENV DB_PATH=/data/skgate.db LISTEN_ADDR=:8080 \
     UV_CACHE_DIR=/data/cache/uv \
     UV_LINK_MODE=copy \
     PIP_CACHE_DIR=/data/cache/pip \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DOTNET_ROOT=/usr/share/dotnet \
+    NUGET_PACKAGES=/data/cache/nuget \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+    DOTNET_GENERATE_ASPNET_CERTIFICATE=false \
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 VOLUME /data
 EXPOSE 8080
 # Same root start and PUID/PGID drop as slim. tini is PID 1 and reaps orphaned grandchildren.
