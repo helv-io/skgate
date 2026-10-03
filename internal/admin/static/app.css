@@ -7,6 +7,8 @@
 *{box-sizing:border-box;border-radius:0}
 /* the scrollbar keeps its room, so the page does not shift sideways when a dialog hides it */
 html{scrollbar-gutter:stable}
+/* a solo page has no dialog to open and its card is centered on the window, gutter or not */
+html:has(main.solo){scrollbar-gutter:auto}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans)}
 a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 main{max-width:1600px;margin:0 auto;padding:16px clamp(12px,2.5vw,32px) 40px}
@@ -31,7 +33,7 @@ header a.ver{padding:0 10px;border-right:0}
 header a.ver,header a.ver:hover{background:none;color:var(--dim);text-decoration:none;cursor:pointer}
 header a.ver.new,header a.ver.new:hover{color:var(--warn)}
 header a.ver:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
-header .who{color:var(--fg);opacity:.85}
+header .who{color:var(--fg);opacity:.85;min-width:0;overflow:hidden;text-overflow:ellipsis}
 header .act{border:0;border-left:1px solid var(--line);height:100%;padding:9px 14px;background:none}
 header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 
@@ -267,6 +269,8 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   header a{flex:1 1 auto;text-align:center;border-right:0;border-bottom:1px solid var(--line);padding:11px 12px}
   header .ver,header .who{padding:8px 12px}
   header .ver{margin-left:0}
+  /* the user name gives way (ellipsis) so logout always stays on screen */
+  header .who{flex:1 1 0}
   header form:last-child{margin-right:0;margin-left:auto}
   .toasts{left:10px;right:10px;bottom:10px;max-width:none}
   .toasts[popover]{inset:auto 10px 10px 10px}
