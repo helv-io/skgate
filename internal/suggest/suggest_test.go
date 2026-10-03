@@ -587,3 +587,9 @@ func TestPromptNamesDotnetRule(t *testing.T) {
 		t.Fatal("the system prompt lacks the .NET rule")
 	}
 }
+
+func TestPromptNamesGoRule(t *testing.T) {
+	if !strings.Contains(SystemPrompt, "go.mod") || !strings.Contains(SystemPrompt, "go build ./...") {
+		t.Fatal("the system prompt lacks the Go rule")
+	}
+}
