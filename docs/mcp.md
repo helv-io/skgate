@@ -60,6 +60,7 @@ How Suggest configuration works:
 
 - It uses the MCP helper model (pick it beside the button, or in the provider details dialog) and a fixed system prompt. Output is requested as a strict JSON schema and validated in Go; invalid output is rejected.
 - skgate fetches the README and manifests itself (`package.json`, `pyproject.toml`, `server.json`, ...) through the host's API, with the token when given. The model sees those documents, never the token; the token is not logged.
+- The model call is streamed, with the effort chosen in the MCP helper model dialog (default low). It ends after 45 seconds without data or 5 minutes overall; the progress line then shows a timed-out state with the stage and elapsed time and a **Lower effort** button. A provider that rejects `reasoning_effort` gets the request again without it.
 - Validated suggestions use a command available on the host, name and pin the package, list only environment variables the documents mention with `YOUR_...` placeholders, and come with confidence and warnings.
 - Disabled, with a tooltip, until you are signed in and an MCP helper model is picked. **Pick MCP helper model** next to it opens the picker in place; the button enables without a page reload.
 
