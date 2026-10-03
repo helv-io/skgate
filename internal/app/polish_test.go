@@ -66,3 +66,33 @@ func TestManagedUpstreamHasNoOutboundAuthRow(t *testing.T) {
 		t.Error("a remote upstream shows its outbound auth")
 	}
 }
+
+// An address that does not exist, and an authorization request that cannot go on, answer in the admin design
+// (the Solo layout: brand mark, a sentence, a link back) with the right status, not as a bare line of text.
+func TestErrorPagesAreBranded(t *testing.T) {
+	_, ts, br, _ := signedIn(t, nil)
+	check := func(name, path string, status int, want ...string) {
+		t.Helper()
+		resp, body := br.get(path)
+		if resp.StatusCode != status {
+			t.Errorf("%s: status %d, want %d", name, resp.StatusCode, status)
+		}
+		for _, w := range append(want, `class="brandmark"`, `<a class="btn" href="/admin">Back to skgate</a>`, "/admin/static/app.css") {
+			if !strings.Contains(body, w) {
+				t.Errorf("%s lacks %q:\n%s", name, w, body)
+			}
+		}
+		if strings.Contains(body, "style=") || strings.Contains(body, "404 page not found") {
+			t.Errorf("%s is not in the admin design:\n%s", name, body)
+		}
+	}
+	check("404", "/admin/nothing-here", 404, "Page not found", "There is no such page")
+	check("bad alias", "/admin/upstreams/BAD_ALIAS/test", 404, "Page not found")
+	check("unknown client", "/authorize?response_type=code&client_id=nope&redirect_uri=https://x.example/cb&code_challenge=abc&code_challenge_method=S256",
+		400, "Authorization error", "not registered with skgate")
+	// a signed-out visitor gets the same page (it reveals nothing)
+	resp, body := newBrowser(t, ts).get("/admin/nothing-here")
+	if resp.StatusCode != 404 || !strings.Contains(body, "Page not found") {
+		t.Errorf("signed out: %d %s", resp.StatusCode, body)
+	}
+}

@@ -103,7 +103,7 @@ var funcs = template.FuncMap{
 // New builds the Admin and parses templates.
 func New(cfg *config.Config, db *store.DB, reg *provider.Registry, px *provider.Proxy, k *vkeys.Manager, m *mcp.Server) *Admin {
 	a := &Admin{Releases: NewReleaseWatch(cfg.UpdateCheckURL, config.Version), Cfg: cfg, DB: db, Providers: reg, Proxy: px, Set: provider.Settings{KV: db}, Keys: k, MCP: m, tpl: map[string]*template.Template{}}
-	for _, p := range []string{"status", "keys", "upstreams", "upstream_edit", "upstream_test", "upstream_logs", "upstream_import", "clients", "signedout", "autherror", "notconfigured", "consent"} {
+	for _, p := range []string{"status", "keys", "upstreams", "upstream_edit", "upstream_test", "upstream_logs", "upstream_import", "clients", "signedout", "autherror", "notconfigured", "consent", "failure"} {
 		a.tpl[p] = template.Must(template.New(p).Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/components.html", "templates/provider.html", "templates/upstream_form.html", "templates/"+p+".html"))
 	}
 	if cfg.OIDCEnabled() {
@@ -115,6 +115,7 @@ func New(cfg *config.Config, db *store.DB, reg *provider.Registry, px *provider.
 	m.AdminSession = a.Session
 	m.AdminIdentity = a.Identity
 	m.Consent = a.consent
+	m.Failure = a.authorizeFailure
 	return a
 }
 
@@ -130,6 +131,8 @@ type page struct {
 	// Redirects marks a page whose form may be answered by a redirect to another site (the consent POST),
 	// so the content security policy leaves form-action open.
 	Redirects bool
+	// Status is the HTTP status of the page (0 = 200).
+	Status int
 }
 
 func (a *Admin) render(w http.ResponseWriter, r *http.Request, name string, p page) {
@@ -152,6 +155,9 @@ func (a *Admin) render(w http.ResponseWriter, r *http.Request, name string, p pa
 		csp += "; form-action 'self'"
 	}
 	w.Header().Set("Content-Security-Policy", csp)
+	if p.Status != 0 {
+		w.WriteHeader(p.Status)
+	}
 	if err := a.tpl[name].ExecuteTemplate(w, "layout", p); err != nil {
 		http.Error(w, "template error", 500)
 	}
@@ -210,7 +216,7 @@ var aliasPattern = regexp.MustCompile(`^[a-z0-9-]{1,63}$`)
 func (a *Admin) alias(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !aliasPattern.MatchString(r.PathValue("alias")) {
-			http.NotFound(w, r)
+			a.notFound(w, r)
 			return
 		}
 		h(w, r)
@@ -271,7 +277,7 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/logout", a.logout)
 	mux.HandleFunc("/admin/signed-out", a.signedOut)
 	mux.HandleFunc("/admin", a.guard(a.status))
-	mux.HandleFunc("/admin/", http.NotFound)
+	mux.HandleFunc("/admin/", a.notFound)
 	a.providerRoutes(mux)
 	mux.HandleFunc("/admin/oauth/callback", a.guard(a.browserCallback))
 	mux.HandleFunc("/admin/results/{token}", a.guard(a.getOnly(a.resultScreen)))
@@ -1365,4 +1371,22 @@ func (a *Admin) clientDelete(w http.ResponseWriter, r *http.Request) {
 // consent renders the /authorize Approve/Deny page in the admin design.
 func (a *Admin) consent(w http.ResponseWriter, r *http.Request, v mcp.ConsentView) {
 	a.render(w, r, "consent", page{Title: "Authorize MCP access", Data: v, Solo: true, Redirects: true})
+}
+
+// failureView is the content of the failure page: what went wrong, in a sentence, and where to go instead.
+type failureView struct{ Heading, Message string }
+
+// failure renders an error as a Solo page in the admin design with a link back to the admin.
+func (a *Admin) failure(w http.ResponseWriter, r *http.Request, status int, heading, msg string) {
+	a.render(w, r, "failure", page{Title: heading, Data: failureView{heading, msg}, Solo: true, Status: status})
+}
+
+// notFound answers an admin address that does not exist.
+func (a *Admin) notFound(w http.ResponseWriter, r *http.Request) {
+	a.failure(w, r, http.StatusNotFound, "Page not found", "There is no such page in the admin.")
+}
+
+// authorizeFailure is the error page of /authorize (an unknown client, a bad redirect address, OIDC not set up).
+func (a *Admin) authorizeFailure(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	a.failure(w, r, status, "Authorization error", msg)
 }
