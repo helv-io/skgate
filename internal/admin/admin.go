@@ -80,8 +80,14 @@ var funcs = template.FuncMap{
 	// pill feeds the "pill" component: class, label and hover text.
 	"pill": func(class, text, tip string) pillView { return pillView{Class: class, Text: text, Tip: tip} },
 	// tip feeds the "tip" component: visible text with a hover tooltip. usage builds the Usage cell of a key.
-	"tip":   func(text, tip string) tipView { return tipView{Text: text, Tip: tip} },
-	"usage": usageCell,
+	"tip": func(text, tip string) tipView { return tipView{Text: text, Tip: tip} },
+	"keyUsage": func(k vkeys.Key) tipView {
+		last := k.LastUsed
+		if k.Usage.LastUsed.After(last) {
+			last = k.Usage.LastUsed
+		}
+		return usageCell(k.Usage, last)
+	},
 	"rowItem": func(l rowList, v string, removable bool) rowItemData {
 		return rowItemData{Key: l.Key, PH: l.PH, Value: v, Removable: removable}
 	},
@@ -640,11 +646,14 @@ type pillView struct{ Class, Text, Tip string }
 type tipView struct{ Text, Tip string }
 
 // usageCell is the Usage cell of a key: input and output tokens in compact form, the exact counts
-// and requests in the tooltip (last use has its own column). Keys without tokens show an em-dash; the tooltip is kept when
+// and requests in the tooltip, ending with the last use. Keys without tokens show an em-dash; the tooltip is kept when
 // calls were counted without tokens (MCP, or a provider that reported none).
-func usageCell(u vkeys.Usage) tipView {
+func usageCell(u vkeys.Usage, lastUsed time.Time) tipView {
 	v := tipView{Text: "\u2014"}
 	if u.Empty() {
+		if !lastUsed.IsZero() {
+			v.Tip = "Last used: " + timefmt.DateTime(lastUsed)
+		}
 		return v
 	}
 	if u.PromptTokens > 0 || u.CompletionTokens > 0 {
@@ -658,6 +667,9 @@ func usageCell(u vkeys.Usage) tipView {
 	}
 	if u.MCPRequests > 0 {
 		lines = append(lines, "MCP requests: "+numfmt.Exact(u.MCPRequests))
+	}
+	if !lastUsed.IsZero() {
+		lines = append(lines, "Last used: "+timefmt.DateTime(lastUsed))
 	}
 	v.Tip = strings.Join(lines, "\n")
 	return v

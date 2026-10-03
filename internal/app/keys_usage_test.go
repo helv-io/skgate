@@ -44,8 +44,11 @@ func TestKeysPageUsageColumn(t *testing.T) {
 			t.Errorf("tooltip lacks %q", want)
 		}
 	}
-	if strings.Contains(busy, "Last used:") || strings.Contains(busy, "MCP requests") || strings.Contains(busy, "style=") {
-		t.Error("no last-used line (own column), no MCP line without MCP requests, no inline styles")
+	if !strings.Contains(busy, "Last used: 2026-10-02") || strings.Contains(busy, "MCP requests") || strings.Contains(busy, "style=") {
+		t.Error("the tooltip ends with the last use, has no MCP line without MCP requests, and no inline styles")
+	}
+	if strings.Contains(busy, "<th>last used</th>") || strings.Contains(page, "<th>Last used</th>") {
+		t.Error("the last use lives in the Usage tooltip, not in a column")
 	}
 	if !strings.Contains(busy, "************"+used[len(used)-4:]) || strings.Contains(page, used) {
 		t.Error("keys stay masked")
