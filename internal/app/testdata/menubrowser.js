@@ -59,6 +59,8 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   // phone: a tap opens it and a tap on Edit goes to the edit page
   await pg.setViewport({ width: 390, height: 800, hasTouch: true, isMobile: true });
   await pg.goto(url + "/admin/upstreams");
+  const cards = await pg.evaluate(() => [...document.querySelectorAll("main .table:not(.kv) tbody tr")].map(r => Math.round(r.getBoundingClientRect().height)));
+  ok(cards.length === 2 && cards.every(h => h <= 230), "a phone card stays short (two lines of facts at most, one row of actions): " + cards);
   await (await pg.$(btn)).tap(); // scrolls it into view first
   await wait(150);
   s = await state();
