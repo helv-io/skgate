@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -224,33 +223,32 @@ func TestProxyPathsAndOtherRoutes(t *testing.T) {
 	}
 }
 
-// The signed-in pill is the Sign out button: one form around a shared pill with both labels (the longer reserves the
-// width), a confirmation like every destructive action, and no separate Sign out button. A signed-out provider shows
-// a plain pill. The hover/touch behavior is plain CSS on the shared .swap pill.
-func TestSignedInPillIsTheSignOutButton(t *testing.T) {
+// The status pill is a plain status. Signing out is an explicit button with its confirmation, and Sign in again is
+// secondary while signed in and healthy, primary once the provider is signed out.
+func TestSignOutIsAButtonAndThePillIsPlain(t *testing.T) {
 	up, _ := modelsUpstream(t, "real-a")
-	a, _, br, csrf, _ := signedInProvider(t, up)
+	_, _, br, csrf, _ := signedInProvider(t, up)
 	_, page := br.get("/admin")
 	card := page[strings.Index(page, `id="grok"`):]
 	card = card[:strings.Index(card, `data-dialog-open="#provider-grok"`)]
-	for _, want := range []string{`action="/admin/providers/grok/signout"`, `data-confirm="`, `data-confirm-ok="Sign out"`, `class="pill swap danger ok"`, `<span class="was">signed in</span><span class="now">Sign out</span>`} {
+	for _, want := range []string{`<span class="pill ok"`, `action="/admin/providers/grok/signout"`, `data-confirm="`, `data-confirm-ok="Sign out"`, `<button class="act danger">Sign out</button>`,
+		`<button class="act">Sign in again</button>`} {
 		if !strings.Contains(card, want) {
 			t.Errorf("card lacks %q", want)
 		}
 	}
-	if strings.Count(card, ">Sign out<") != 1 || strings.Contains(card, `class="act danger"`) {
-		t.Errorf("Sign out must exist only as the pill:\n%s", card)
+	if strings.Contains(card, "swap") || strings.Contains(card, `<button class="pill`) || strings.Contains(card, `class="btn"`) {
+		t.Errorf("the pill is not a button and nothing is primary while healthy:\n%s", card)
 	}
-	css, _ := os.ReadFile("../admin/static/app.css")
-	for _, want := range []string{"button.pill.swap:hover", "@media (hover:hover)", "@media (hover:none)", ".pill.swap .swaps{display:inline-grid}", ".pill.swap .swaps>span{grid-area:1/1}"} {
-		if !strings.Contains(string(css), want) {
-			t.Errorf("css lacks %q", want)
-		}
+	css := appCSS(t)
+	if strings.Contains(css, ".pill.swap") || strings.Contains(css, "button.pill") {
+		t.Error("the swap pill is gone from the stylesheet")
 	}
 	br.post("/admin/providers/grok/signout", url.Values{"csrf": {csrf}})
 	_, page = br.get("/admin")
-	if strings.Contains(page, `class="pill swap`) || !strings.Contains(page, `<span class="pill bad"`) {
-		t.Error("signed out: a plain pill, no sign-out button")
+	card = page[strings.Index(page, `id="grok"`):]
+	card = card[:strings.Index(card, `data-dialog-open="#provider-grok"`)]
+	if !strings.Contains(card, `<span class="pill bad"`) || !strings.Contains(card, `<button class="btn">Sign in</button>`) || strings.Contains(card, "signout") {
+		t.Errorf("signed out: a plain pill, Sign in is primary, no Sign out:\n%s", card)
 	}
-	_ = a
 }

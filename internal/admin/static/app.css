@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .swap .swaps .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -78,18 +78,6 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 .pill::before{content:"";width:7px;height:7px;background:currentColor;display:inline-block}
 .pill.ok{color:var(--ok);border-color:#2f4a33}.pill.bad{color:var(--bad);border-color:#5a3532}.pill.warn{color:var(--warn);border-color:#57492f}
 .pill.off{color:var(--dim)}.pill.off::before{background:none;border:1px solid currentColor}
-/* swap: a pill that is a button. Its two labels share one grid cell, so the wider one sets the width; hover/focus
-   (pointers only) shows the second one in the bad color. Touch screens never see the swap and get a finger-sized target. */
-button.pill.swap{font:inherit;font-size:12px;line-height:20px;padding:1px 9px;background:none;cursor:pointer}
-.pill.swap .swaps{display:inline-grid}
-.pill.swap .swaps>span{grid-area:1/1}
-.pill.swap .now{visibility:hidden}
-@media (hover:hover){
-  button.pill.swap:hover,button.pill.swap:focus-visible{color:var(--bad);border-color:#5a3532;background:#211514}
-  .pill.swap:hover .was,.pill.swap:focus-visible .was{visibility:hidden}
-  .pill.swap:hover .now,.pill.swap:focus-visible .now{visibility:visible}
-}
-@media (hover:none){button.pill.swap{min-height:44px;padding:1px 14px}}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:1px 8px;border:1px solid var(--line);background:#0c0d0f;font-size:12px;line-height:20px;white-space:nowrap;vertical-align:middle}
 .chip .mono{color:var(--dim)}
 .chip.accent{color:var(--acc);border-color:var(--acc)}
