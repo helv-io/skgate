@@ -675,7 +675,7 @@ func (p *Proc) handshake(ctx context.Context, c *child, spec Spec, h startHint) 
 	msg, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": pc.childID, "method": "initialize", "params": json.RawMessage(params)})
 	if err := c.send(msg); err != nil {
 		p.dropPending(pc)
-		return fmt.Errorf("writing to the process: %s", cleanExecErr(err))
+		return p.writeFailed(c, err)
 	}
 	timeout := spec.startupTimeout()
 	timer := time.NewTimer(timeout)
@@ -697,7 +697,7 @@ func (p *Proc) handshake(ctx context.Context, c *child, spec Spec, h startHint) 
 		}
 		note, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
 		if err := c.send(note); err != nil {
-			return fmt.Errorf("writing to the process: %s", cleanExecErr(err))
+			return p.writeFailed(c, err)
 		}
 		var si struct {
 			ServerInfo struct {
@@ -721,6 +721,17 @@ func (p *Proc) handshake(ctx context.Context, c *child, spec Spec, h startHint) 
 		p.dropPending(pc)
 		return ctx.Err()
 	}
+}
+
+// writeFailed explains a failed write to the child. A process that exited before it read our message (a runner
+// that refuses to start) is reported by how it exited and its last stderr line, not as a broken pipe.
+func (p *Proc) writeFailed(c *child, err error) error {
+	select {
+	case <-c.exited:
+	case <-time.After(3 * time.Second):
+		return fmt.Errorf("writing to the process: %s", cleanExecErr(err))
+	}
+	return fmt.Errorf("%s%s", exitText(c.waitErr), p.lastStderr())
 }
 
 func waitFor(c *child) error {
