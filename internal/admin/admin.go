@@ -1179,6 +1179,12 @@ func (a *Admin) upstreamSave(w http.ResponseWriter, r *http.Request) {
 			msg += "; detected: " + up.DetectedKind
 		}
 	}
+	if !u.Managed() {
+		// Say right away when nothing answers at the address just saved. The message names no host.
+		if d := a.MCP.CheckReachable(r.Context(), u); d != nil {
+			msg += ". Warning: " + d.Hint(false)
+		}
+	}
 	a.back(w, r, "/admin/upstreams", msg, "")
 }
 

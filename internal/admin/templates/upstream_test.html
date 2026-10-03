@@ -3,6 +3,8 @@
 <div class="card flush tablewrap"><table class="table kv"><tbody>
 <tr><th>Result</th><td>{{if .R.OK}}{{template "pill" (pill "ok" "OK" "")}}{{else}}{{template "pill" (pill "bad" "failed" "")}}{{end}}</td></tr>
 {{if .R.Error}}<tr><th>Error</th><td class="bad">{{.R.Error}}</td></tr>{{end}}
+{{if .R.Detail}}<tr><th>Detail</th><td><code>{{.R.Detail}}</code></td></tr>{{end}}
+{{if .R.Hint}}<tr><th>Hint</th><td class="warn">{{.R.Hint}}</td></tr>{{end}}
 {{if .U.Managed}}<tr><th>Type</th><td><span class="chip">{{.U.Kind}}</span> {{template "proc_pill" .U.Proc}}</td></tr>
 {{else}}<tr><th>HTTP status</th><td>{{if .R.Status}}{{.R.Status}}{{else}}<span class="muted">no response</span>{{end}}</td></tr>
 <tr><th>Auth</th><td><span class="chip">{{.R.Auth}}</span> <span class="muted">(mode {{.R.AuthMode}}{{if .R.Detected}}, detected: {{.R.Detected}}{{end}})</span></td></tr>{{end}}

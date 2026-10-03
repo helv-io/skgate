@@ -6,13 +6,13 @@
 <td data-label="Enabled"><form method="post" action="/admin/upstreams/{{.Alias}}/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="flag" value="enabled"><button class="act toggle {{if .Enabled}}on{{else}}off{{end}}" title="toggle enabled">{{if .Enabled}}enabled{{else}}disabled{{end}}</button></form></td>
 <td data-label="In /mcp"><form method="post" action="/admin/upstreams/{{.Alias}}/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="flag" value="include"><button class="act toggle {{if .IncludeInMCP}}on{{else}}off{{end}}" title="{{if and .Managed (ne .Lifecycle "always")}}on-demand servers are not on /mcp; only always-on servers can be{{else}}toggle in /mcp{{end}}"{{if and .Managed (ne .Lifecycle "always")}} disabled{{end}}>{{if .IncludeInMCP}}in /mcp{{else}}not in /mcp{{end}}</button></form></td>
 <td class="actions-cell"><div class="actions">{{if .Enabled}}<button type="button" class="act" data-copy-text="{{$.Public}}/mcp/{{.Alias}}" data-copied="URL copied" title="copy the client URL of this upstream">copy URL</button>{{end}}
+<a class="act" href="/admin/upstreams/{{.Alias}}/test" title="connect and list the tools">test</a>
 <button type="button" class="act" data-dialog-open="#upstream-{{.Alias}}">details</button>
 <a class="act" href="/admin/upstreams/{{.Alias}}/edit">edit</a>
 <form method="post" action="/admin/upstreams/{{.Alias}}/delete" data-confirm="Delete this upstream?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">delete</button></form></div></td></tr>
 {{else}}<tr><td colspan="5" class="empty">none</td></tr>{{end}}</tbody></table></div>
 {{range .List}}{{template "dialog_content" (dlg (printf "upstream-%s" .Alias) (printf "Upstream %s" .Alias))}}
-<div class="actions"><a class="act" href="/admin/upstreams/{{.Alias}}/test">test</a>
-{{if .Managed}}<a class="act" href="/admin/upstreams/{{.Alias}}/logs">process</a>{{else}}<form method="post" action="/admin/upstreams/{{.Alias}}/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">detect</button></form>{{end}}</div>
+<div class="actions">{{if .Managed}}<a class="act" href="/admin/upstreams/{{.Alias}}/logs">process</a>{{else}}<form method="post" action="/admin/upstreams/{{.Alias}}/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">detect</button></form>{{end}}</div>
 <h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 {{range .Facts}}<tr><th>{{.Name}}</th><td>{{if .Code}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}</td></tr>{{end}}
