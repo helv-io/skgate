@@ -3,6 +3,7 @@ package suggest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -460,5 +461,57 @@ func TestTokenNeverReachesModelLogsOrErrors(t *testing.T) {
 	// nor does the fixed system prompt have anywhere to put it
 	if strings.Contains(SystemPrompt, "token") && strings.Contains(SystemPrompt, secretToken) {
 		t.Fatal("impossible")
+	}
+}
+
+type errLLM struct{ err error }
+
+func (e errLLM) Post(context.Context, string, []byte) (int, []byte, error) { return 0, nil, e.err }
+
+// Every stage is logged, and a failure says why, both in the log and in the error the user sees.
+func TestSuggestLogsStagesAndFailureReasons(t *testing.T) {
+	src, _ := ParseSource("mcp-thing")
+	run := func(llm Completer) (string, error) {
+		var lines []string
+		svc := npmService(t, nil)
+		svc.LLM = llm
+		svc.Logf = func(f string, a ...any) { lines = append(lines, fmt.Sprintf(f, a...)) }
+		_, err := svc.Suggest(context.Background(), "m1", src, "", runners)
+		return strings.Join(lines, "\n"), err
+	}
+	cases := []struct {
+		name    string
+		llm     Completer
+		errHas  string
+		logHave []string
+	}{
+		{"ok", &mockLLM{reply: func(string) (int, string) { return 200, chat(goodReply()) }}, "",
+			[]string{"suggest: start source=mcp-thing model=\"m1\"", "suggest: fetched kind=npm", "suggest: model call start", "suggest: model call end status=200", "suggest: ok source=mcp-thing alias=mcp-thing"}},
+		{"http error", &mockLLM{reply: func(string) (int, string) { return 401, `{"error":{"message":"invalid api key"}}` }}, "HTTP 401: invalid api key",
+			[]string{"model call rejected HTTP 401: invalid api key", "suggest: failed source=mcp-thing"}},
+		{"transport", errLLM{context.DeadlineExceeded}, "the model request failed: timed out",
+			[]string{"model call failed after", "suggest: failed"}},
+		{"not json", &mockLLM{reply: func(string) (int, string) { return 200, chat("sorry, I cannot do that") }}, "unusable configuration: not valid JSON",
+			[]string{"validation failed: not valid JSON for the schema; content=\"sorry, I cannot do that\""}},
+		{"empty", &mockLLM{reply: func(string) (int, string) { return 200, `{"choices":[]}` }}, "no content",
+			[]string{"model reply unusable"}},
+	}
+	for _, c := range cases {
+		logs, err := run(c.llm)
+		if (c.errHas == "") != (err == nil) || (err != nil && !strings.Contains(err.Error(), c.errHas)) {
+			t.Errorf("%s: error %v", c.name, err)
+		}
+		for _, want := range c.logHave {
+			if !strings.Contains(logs, want) {
+				t.Errorf("%s: log lacks %q:\n%s", c.name, want, logs)
+			}
+		}
+	}
+	// a fetch failure is logged with its reason
+	f, _ := fetcherFor(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(404) })
+	var got string
+	svc := &Service{Fetch: f, LLM: errLLM{}, Logf: func(f string, a ...any) { got += fmt.Sprintf(f, a...) + "\n" }}
+	if _, err := svc.Suggest(context.Background(), "m", src, "", runners); err == nil || !strings.Contains(got, "fetch failed") || !strings.Contains(got, "not found") {
+		t.Errorf("fetch failure: %v\n%s", err, got)
 	}
 }

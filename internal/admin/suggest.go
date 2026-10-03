@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -44,7 +45,11 @@ func (a *Admin) controlsHTML(r *http.Request) (string, error) {
 // upstreamSuggest answers with a validated suggestion as JSON for the client script to put into the
 // form. It saves nothing. POST only (guard checks the CSRF token).
 func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
-	fail := func(status int, msg string) { httputil.JSON(w, status, map[string]any{"error": msg}) }
+	t0 := time.Now()
+	fail := func(status int, msg string) {
+		log.Printf("suggest: request refused HTTP %d after %s: %s", status, time.Since(t0).Round(time.Millisecond), msg)
+		httputil.JSON(w, status, map[string]any{"error": msg})
+	}
 	if ok, why := a.MCP.ManagedState(); !ok {
 		fail(http.StatusConflict, "managed upstreams: "+why)
 		return
@@ -55,7 +60,7 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	src, err := suggest.ParseSource(r.PostFormValue("source"))
-	if err != nil {
+	if err != nil { // the input itself is not logged: it may carry credentials
 		fail(http.StatusBadRequest, err.Error())
 		return
 	}
@@ -75,6 +80,8 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 			token = u.GitToken
 		}
 	}
+	svc.Logf = log.Printf
+	log.Printf("suggest: request source=%s token=%t", src.Label(), token != "")
 	res, err := svc.Suggest(ctx, a.Set.Model(a.Providers.Default().ID()), src, token, runners)
 	if err != nil {
 		fail(http.StatusUnprocessableEntity, err.Error())

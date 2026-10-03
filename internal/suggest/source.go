@@ -35,6 +35,18 @@ type Source struct {
 	Ecosystem, Needs string
 }
 
+// Label names the source in logs and never includes credentials: the clone address of a repository,
+// else the package name.
+func (s Source) Label() string {
+	switch {
+	case s.Kind == KindGit:
+		return s.CloneURL() + prefixed("@", s.Ref)
+	case s.Name != "":
+		return s.Name
+	}
+	return "unsupported"
+}
+
 // CloneURL is the https address of a git source without any tree or branch part.
 func (s Source) CloneURL() string { return "https://" + s.Host + "/" + s.Path }
 

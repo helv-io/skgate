@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // SystemPrompt is fixed. Users cannot change it; fetched documents are passed as data in the user turn.
@@ -85,6 +87,17 @@ type Completer interface {
 type Service struct {
 	Fetch *Fetcher
 	LLM   Completer
+	// Logf receives one line per stage (default: the standard logger). Lines never carry the token, a
+	// prompt or a document; a reply that could not be used is logged as a short clipped snippet.
+	Logf func(format string, args ...any)
+}
+
+func (s *Service) logf(format string, args ...any) {
+	if s.Logf != nil {
+		s.Logf(format, args...)
+		return
+	}
+	log.Printf(format, args...)
 }
 
 var (
@@ -107,10 +120,20 @@ const (
 
 // Suggest fetches the source, asks the model and returns a validated result. runners are the commands
 // available on this host. token (private repositories) is used by the fetcher only; it never enters a
-// prompt, a log line or an error.
-func (s *Service) Suggest(ctx context.Context, model string, src Source, token string, runners []string) (*Result, error) {
+// prompt, a log line or an error. Every stage is logged, and so is the final reason of a failure.
+func (s *Service) Suggest(ctx context.Context, model string, src Source, token string, runners []string) (res *Result, err error) {
+	t0 := time.Now()
+	label := src.Label()
+	s.logf("suggest: start source=%s model=%q runners=%s", label, model, strings.Join(runners, ","))
+	defer func() {
+		if err != nil {
+			s.logf("suggest: failed source=%s after %s: %v", label, since(t0), err)
+		} else {
+			s.logf("suggest: ok source=%s alias=%s command=%s confidence=%s warnings=%d in %s", label, res.Alias, res.Command, res.Confidence, len(res.Warnings), since(t0))
+		}
+	}()
 	if model == "" {
-		return nil, errors.New("pick an MCP helper model in the provider details first")
+		return nil, errors.New("pick an MCP helper model first")
 	}
 	if src.Kind == KindUnsupported {
 		return nil, errors.New(src.UnsupportedMessage(runners))
@@ -118,34 +141,94 @@ func (s *Service) Suggest(ctx context.Context, model string, src Source, token s
 	if len(runners) == 0 {
 		return nil, errors.New("no package runner is available on this host")
 	}
+	t := time.Now()
 	doc, err := s.Fetch.Fetch(ctx, src, token)
 	if err != nil {
+		s.logf("suggest: fetch failed source=%s after %s: %s", label, since(t), scrub(err.Error(), token))
 		return nil, errors.New(scrub(err.Error(), token))
 	}
+	s.logf("suggest: fetched kind=%s name=%s version=%s files=%s in %s", doc.Kind, doc.Name, orNone(doc.Version), doc.Summary(), since(t))
 	body, err := buildRequest(model, src, doc, runners, token)
 	if err != nil {
 		return nil, err
 	}
+	t = time.Now()
+	s.logf("suggest: model call start model=%q request=%d bytes", model, len(body))
 	status, reply, err := s.LLM.Post(ctx, "/chat/completions", body)
 	if err == nil && (status == 400 || status == 422) { // provider without structured output: ask again in plain JSON mode
+		s.logf("suggest: model refused structured output (HTTP %d: %s); retrying in JSON mode", status, replyReason(reply, token))
 		status, reply, err = s.LLM.Post(ctx, "/chat/completions", withoutSchema(body))
 	}
 	if err != nil {
-		return nil, errors.New("the model request failed")
+		s.logf("suggest: model call failed after %s: %s", since(t), scrub(err.Error(), token))
+		return nil, errors.New("the model request failed: " + cause(err, token))
 	}
+	s.logf("suggest: model call end status=%d reply=%d bytes in %s", status, len(reply), since(t))
 	if status != 200 {
-		return nil, fmt.Errorf("the model request failed (HTTP %d)", status)
+		reason := replyReason(reply, token)
+		s.logf("suggest: model call rejected HTTP %d: %s", status, reason)
+		return nil, fmt.Errorf("the model request failed (HTTP %d%s)", status, prefixed(": ", reason))
 	}
 	content, err := messageContent(reply)
 	if err != nil {
+		s.logf("suggest: model reply unusable: %v; reply=%q", err, snippet(string(reply), token))
 		return nil, err
 	}
-	res, err := Validate(content, src, doc, runners)
+	res, err = Validate(content, src, doc, runners)
 	if err != nil {
+		s.logf("suggest: validation failed: %v; content=%q", err, snippet(content, token))
 		return nil, fmt.Errorf("the model returned an unusable configuration: %w", err)
 	}
 	res.scrub(token)
 	return res, nil
+}
+
+func since(t time.Time) string { return time.Since(t).Round(time.Millisecond).String() }
+
+func orNone(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}
+
+func prefixed(p, s string) string {
+	if s == "" {
+		return ""
+	}
+	return p + s
+}
+
+// snippet is a short single-line excerpt of untrusted text for logs.
+func snippet(s, token string) string { return clipText(scrub(s, token), 400) }
+
+// cause is the short reason of a failed request for the user.
+func cause(err error, token string) string {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "timed out"
+	}
+	if errors.Is(err, context.Canceled) {
+		return "cancelled"
+	}
+	return clipText(scrub(err.Error(), token), 160)
+}
+
+// replyReason is the error message of an OpenAI-style error reply, or a clipped excerpt of the body.
+func replyReason(reply []byte, token string) string {
+	var e struct {
+		Error any `json:"error"`
+	}
+	if json.Unmarshal(reply, &e) == nil {
+		switch v := e.Error.(type) {
+		case string:
+			return clipText(scrub(v, token), 160)
+		case map[string]any:
+			if m, ok := v["message"].(string); ok {
+				return clipText(scrub(m, token), 160)
+			}
+		}
+	}
+	return clipText(scrub(string(reply), token), 160)
 }
 
 // scrub removes the access token from every free-text field, should the model echo it.
