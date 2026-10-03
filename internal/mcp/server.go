@@ -49,6 +49,7 @@ type Server struct {
 	sessions map[string]*sseSession
 	detectMu sync.Mutex // serializes lazy auth detection
 	up       *upClient  // per-upstream MCP sessions used by the /mcp aggregator
+	health   healthBook // how the latest calls to each remote upstream went
 
 	// Managed runs the child processes of stdio and git upstreams (never spawns when disabled).
 	Managed *managed.Manager

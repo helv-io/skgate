@@ -85,6 +85,12 @@ func (s *Server) doFollow(req *http.Request, body []byte) (*http.Response, error
 // spelling that works (no separate state, nothing shown in the UI), so later calls go straight there. The first outcome is returned when the retry does
 // not do better, so a genuine 404 is reported unchanged. Timeouts and cancellations are not retried.
 func (s *Server) doUpstream(up Upstream, req *http.Request, body []byte) (*http.Response, error) {
+	resp, err := s.doUpstreamTry(up, req, body)
+	s.noteCall(req.Context(), up, resp, err)
+	return resp, err
+}
+
+func (s *Server) doUpstreamTry(up Upstream, req *http.Request, body []byte) (*http.Response, error) {
 	resp, err := s.doFollow(req, body)
 	var ne net.Error
 	timedOut := errors.As(err, &ne) && ne.Timeout()
