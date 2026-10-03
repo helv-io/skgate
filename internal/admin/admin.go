@@ -95,6 +95,17 @@ var funcs = template.FuncMap{
 		}
 		return usageCell(k.Usage, last)
 	},
+	"keyEnds": func(k vkeys.Key) cellText { return keyEnds(k, time.Now()) },
+	"keyLastUsed": func(k vkeys.Key) cellText {
+		last := k.LastUsed
+		if k.Usage.LastUsed.After(last) {
+			last = k.Usage.LastUsed
+		}
+		if last.IsZero() {
+			return cellText{Text: "never", Class: "muted"}
+		}
+		return cellText{Text: timefmt.DateTime(last)}
+	},
 	"rowItem": func(l rowList, v string, removable bool) rowItemData {
 		return rowItemData{Key: l.Key, PH: l.PH, Label: l.Label, Value: v, Removable: removable}
 	},
@@ -744,6 +755,44 @@ type pillView struct{ Class, Text, Tip string }
 // tipView is a value with a hover tooltip (the "tip" component); Tip may be empty.
 type tipView struct{ Text, Tip string }
 
+// cellText is a plain table cell with an optional color class (warn, bad, muted) and tooltip.
+type cellText struct{ Text, Class, Tip string }
+
+// expiringSoon is how close an expiration has to be for the keys list to call it out.
+const expiringSoon = 7 * 24 * time.Hour
+
+// keyEnds is the Expires cell of a key: when it ends, "never", or a warning color for a key that expires within
+// a week (it is easy to forget until a client starts failing) and for one that already has.
+func keyEnds(k vkeys.Key, now time.Time) cellText {
+	switch {
+	case k.Revoked:
+		return cellText{Text: "-", Class: "muted"}
+	case k.ExpiresAt.IsZero():
+		return cellText{Text: "never", Class: "muted"}
+	case k.Expired(now):
+		return cellText{Text: timefmt.DateTime(k.ExpiresAt), Class: "bad", Tip: "expired"}
+	case k.ExpiresAt.Sub(now) <= expiringSoon:
+		return cellText{Text: timefmt.DateTime(k.ExpiresAt), Class: "warn", Tip: "expires in " + untilText(k.ExpiresAt.Sub(now))}
+	}
+	return cellText{Text: timefmt.DateTime(k.ExpiresAt)}
+}
+
+// untilText says how long is left in whole days, or in hours when it is under a day.
+func untilText(d time.Duration) string {
+	if d < 24*time.Hour {
+		h := int(d.Round(time.Hour) / time.Hour)
+		if h < 1 {
+			return "less than an hour"
+		}
+		return fmt.Sprintf("%d h", h)
+	}
+	n := int(d.Round(24*time.Hour) / (24 * time.Hour))
+	if n == 1 {
+		return "1 day"
+	}
+	return fmt.Sprintf("%d days", n)
+}
+
 // usageCell is the Usage cell of a key: input and output tokens in compact form, the exact counts
 // and requests in the tooltip, ending with the last use. Keys without tokens show an em-dash; the tooltip is kept when
 // calls were counted without tokens (MCP, or a provider that reported none).
@@ -808,7 +857,7 @@ func newPickList(key, label, customLabel, ph string, options []managed.Command, 
 
 type rowItemData struct {
 	Key, PH, Label, Value string
-	Removable      bool
+	Removable             bool
 }
 
 func newRowList(key, ph, label string, values []string) rowList {
@@ -820,8 +869,8 @@ func newRowList(key, ph, label string, values []string) rowList {
 
 type pairRowData struct {
 	NameKey, ValueKey, SecretKey, NamePH, ValuePH, Label string
-	Row                                                   pair
-	Removable                                     bool
+	Row                                                  pair
+	Removable                                            bool
 }
 
 // pairList feeds the shared "pairs" template component: a dynamic list of name/value rows (env vars,
