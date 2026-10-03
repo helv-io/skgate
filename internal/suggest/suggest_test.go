@@ -322,7 +322,7 @@ func TestInvalidModelOutputIsRejected(t *testing.T) {
 		"package not named":  mut(`"mcp-thing"]`, `"other-pkg"]`),
 		"newline in arg":     mut(`"-y"`, `"-y\nrm"`),
 		"empty arg":          mut(`"-y"`, `""`),
-		"bad env name":       mut(`"THING_KEY","value"`, `"thing key","value"`),
+		"bad env name":       mut(`"name":"THING_KEY"`, `"name":"thing key"`),
 		"bad header":         mut(`"headers":[]`, `"headers":[{"name":"X Bad","value":"V"}]`),
 		"huge args":          mut(`"args":["-y","mcp-thing"]`, `"args":[`+strings.Repeat(`"a",`, 50)+`"mcp-thing"]`),
 		"string for args":    mut(`"args":["-y","mcp-thing"]`, `"args":"-y mcp-thing"`),
