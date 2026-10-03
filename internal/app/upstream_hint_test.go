@@ -53,17 +53,10 @@ func TestUpstreamListShowsHealthOfRemoteOnly(t *testing.T) {
 	br.get("/admin/upstreams/fine/test")
 	_, list := br.get("/admin/upstreams")
 	row := func(alias string) string {
-		i := strings.Index(list, `<code title=`)
-		for i >= 0 {
-			j := strings.Index(list[i:], "</tr>")
-			if strings.Contains(list[i:i+j], ">"+alias+"</code>") {
-				return list[i : i+j]
+		for _, r := range strings.Split(list, "<tr>")[1:] {
+			if i := strings.Index(r, "</tr>"); i >= 0 && strings.Contains(r[:i], ">"+alias+"</code>") {
+				return r[:i]
 			}
-			k := strings.Index(list[i+1:], `<code title=`)
-			if k < 0 {
-				break
-			}
-			i += 1 + k
 		}
 		return ""
 	}

@@ -235,7 +235,9 @@
   }
   document.addEventListener("click", function (e) {
     var o = e.target && e.target.closest ? e.target.closest("[data-dialog-open]") : null;
-    if (o) openContent((o.getAttribute("data-dialog-open") || "").replace(/^#/, ""), o, true);
+    if (!o) return;
+    if (o.tagName === "A") e.preventDefault(); // a link to the dialog's fragment: the dialog opens, the address is set once
+    openContent((o.getAttribute("data-dialog-open") || "").replace(/^#/, ""), o, true);
   });
   closeBtn.addEventListener("click", function () { requestClose(); });
   window.addEventListener("hashchange", follow);

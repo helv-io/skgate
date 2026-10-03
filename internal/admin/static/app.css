@@ -103,6 +103,10 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 .act.toggle.off{color:var(--bad);border-color:#5a3532;background:#211514}
 .act.toggle:hover{color:#fff}
 .act.toggle.on:hover{border-color:var(--ok)}.act.toggle.off:hover{border-color:var(--bad)}
+/* a name that opens its details */
+a.name{color:inherit}
+a.name:hover{text-decoration:none}
+a.name:hover code{border-color:var(--acc);color:var(--acc)}
 /* primary */
 .btn,a.btn{display:inline-block;padding:5px 16px;border:1px solid var(--acc);background:#14202e;color:var(--acc);font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
 .btn:hover,a.btn:hover{background:#1b2c40;color:#fff;text-decoration:none}

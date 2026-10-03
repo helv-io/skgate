@@ -5,7 +5,7 @@
 <option value="remote" {{if eq .U.Kind "remote"}}selected{{end}}>remote (URL)</option>
 <option value="stdio" {{if ne .U.Kind "remote"}}{{if .U.Kind}}selected{{end}}{{end}} {{if not .Managed}}disabled{{end}}>managed (package or repository)</option></select></label>
 {{if not .Managed}}<p class="muted">Managed upstreams: {{.Why}}.</p>{{end}}
-{{else}}<div class="label">Type</div><input type="hidden" name="kind" value="{{.U.Kind}}" data-kind-select><span class="chip">{{.U.Kind}}</span>{{end}}</div>
+{{else}}<div class="label">Type</div><input type="hidden" name="kind" value="{{.U.Kind}}" data-kind-select><span class="chip">{{.U.TypeLabel}}</span>{{end}}</div>
 
 {{/* The order follows the work: Type, then Source with Suggest and its results (they fill the rest), then the alias. */}}
 <div class="group" data-kind="stdio git">
