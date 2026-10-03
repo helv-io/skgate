@@ -14,6 +14,12 @@
 <form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form>{{end}}</div></td></tr>
 {{else}}<tr><td colspan="5" class="empty">none</td></tr>{{end}}</tbody></table></div>
 {{range .Keys}}{{template "dialog_content" (dlg (printf "key-%d" .ID) "Virtual key")}}
+{{if not .Revoked}}<h4>Limits</h4>
+<form method="post" action="/admin/keys/limits" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
+<div class="field"><label>Requests per minute (empty = unlimited)</label><input type="number" name="rate" min="0" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></div>
+<div class="field"><label>Hard stop: total requests, then rejected (empty = none)</label><input type="number" name="stop" min="0" value="{{if .HardStop}}{{.HardStop}}{{end}}"></div>
+<div class="row"><button class="act">Save</button></div></form>{{end}}
+<h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 <tr><th>key</th><td><code>{{.Masked}}</code></td></tr>
 <tr><th>label</th><td>{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td></tr>
@@ -23,11 +29,6 @@
 <tr><th>usage</th><td>{{template "tip" (usage .Usage)}}</td></tr>
 <tr><th>status</th><td>{{if .Revoked}}{{template "pill" (pill "off" "revoked" "")}}{{else}}{{template "pill" (pill "ok" "active" "")}}{{end}}</td></tr>
 </tbody></table></div>
-{{if not .Revoked}}<h4>Limits</h4>
-<form method="post" action="/admin/keys/limits" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
-<div class="field"><label>Requests per minute (empty = unlimited)</label><input type="number" name="rate" min="0" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></div>
-<div class="field"><label>Hard stop: total requests, then rejected (empty = none)</label><input type="number" name="stop" min="0" value="{{if .HardStop}}{{.HardStop}}{{end}}"></div>
-<div class="row"><button class="act">Save</button></div></form>{{end}}
 {{template "dialog_end"}}{{end}}
 <form method="post" action="/admin/settings/query-key" class="row"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act toggle {{if .QueryKey}}on{{else}}off{{end}}" title="accept the key as ?key= on MCP endpoints; it leaks into logs and history">?key= {{if .QueryKey}}accepted{{else}}refused{{end}}</button></form>
 <p class="muted">Send as <code>Authorization: Bearer sk-...</code></p>
