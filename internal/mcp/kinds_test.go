@@ -173,3 +173,31 @@ func TestEmptyEnvValuesAreNotStoredOrPassed(t *testing.T) {
 		t.Fatalf("spec env: %+v", sp.Env)
 	}
 }
+
+// Variables flagged as plain keep their flag; everything else, and anything stored by the first
+// release as a bare list, stays secret (masked).
+func TestPlainEnvRoundTripAndLegacyList(t *testing.T) {
+	e := newEnv(t, nil)
+	u := Upstream{Alias: "tools", Kind: KindStdio, Command: "npx", Lifecycle: "always", Enabled: true,
+		Env:      []KV{{"API_BASE", "http://x"}, {"API_KEY", "k-123456"}},
+		PlainEnv: []string{"API_BASE", "GONE"}}
+	if err := e.srv.Upstreams.Create(u); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := e.srv.Upstreams.Get("tools")
+	if got.EnvSecret("API_BASE") || !got.EnvSecret("API_KEY") || len(got.PlainEnv) != 1 {
+		t.Fatalf("flags: %+v", got.PlainEnv)
+	}
+	if raw := rawCol(t, e, "tools", "env"); !secrets.IsSealed(raw) || strings.Contains(raw, "API_BASE") || strings.Contains(raw, "k-123456") {
+		t.Fatalf("env not sealed: %q", raw)
+	}
+	// a bare list sealed by the first release
+	legacy := e.srv.Upstreams.encodeKV([]KV{{"OLD", "old-value-1"}})
+	if _, err := e.db.Exec(`UPDATE upstreams SET env=? WHERE alias='tools'`, legacy); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = e.srv.Upstreams.Get("tools")
+	if got.SecretErr || len(got.Env) != 1 || got.Env[0].Value != "old-value-1" || !got.EnvSecret("OLD") {
+		t.Fatalf("legacy: %+v", got)
+	}
+}

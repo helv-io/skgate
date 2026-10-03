@@ -160,6 +160,65 @@ func (s *Upstreams) decodeKV(v string) (l []KV, ok bool) {
 	return l, true
 }
 
+// envDoc is the sealed form of Env. The first release stored a bare list of pairs; decodeEnv reads both.
+type envDoc struct {
+	Env   []struct{ N, V string } `json:"env"`
+	Plain []string                `json:"plain,omitempty"`
+}
+
+// encodeEnv stores Env with the names flagged as not secret ("" when there is nothing to store).
+func (s *Upstreams) encodeEnv(u Upstream) string {
+	if len(u.Env) == 0 {
+		return ""
+	}
+	d := envDoc{Env: make([]struct{ N, V string }, len(u.Env))}
+	have := map[string]bool{}
+	for i, kv := range u.Env {
+		d.Env[i].N, d.Env[i].V = kv.Name, kv.Value
+		have[kv.Name] = true
+	}
+	for _, n := range u.PlainEnv {
+		if have[n] {
+			d.Plain = append(d.Plain, n)
+		}
+	}
+	b, _ := json.Marshal(d)
+	return s.db.Secrets.Seal(string(b))
+}
+
+// decodeEnv reads what encodeEnv stored, or a bare list from before the plain names existed (all secret).
+func (s *Upstreams) decodeEnv(v string) (l []KV, plain []string, ok bool) {
+	if v == "" {
+		return nil, nil, true
+	}
+	text, err := s.db.Secrets.Open(v)
+	if err != nil {
+		return nil, nil, false
+	}
+	if strings.HasPrefix(strings.TrimSpace(text), "[") {
+		l, ok = s.decodeKV(v)
+		return l, nil, ok
+	}
+	var d envDoc
+	if json.Unmarshal([]byte(text), &d) != nil {
+		return nil, nil, false
+	}
+	for _, x := range d.Env {
+		l = append(l, KV{Name: x.N, Value: x.V})
+	}
+	return l, d.Plain, true
+}
+
+// EnvSecret reports whether the value of the variable is masked in the UI.
+func (u Upstream) EnvSecret(name string) bool {
+	for _, n := range u.PlainEnv {
+		if n == name {
+			return false
+		}
+	}
+	return true
+}
+
 func encodeArgs(a []string) string {
 	if len(a) == 0 {
 		return ""

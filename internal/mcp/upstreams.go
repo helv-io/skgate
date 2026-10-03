@@ -54,6 +54,9 @@ type Upstream struct {
 	Command        string
 	Args           []string
 	Env            []KV
+	// PlainEnv names the Env variables known not to be secret (URLs, hosts, ports); their values show in
+	// clear in the UI. Every other variable, and every one stored before this list existed, is masked.
+	PlainEnv []string
 	Shell          bool   // run Command through /bin/sh -c
 	WorkDir        string // absolute; empty means the per-alias directory
 	Install        string // shell command run before start when its inputs changed or on Update
@@ -219,7 +222,7 @@ func (s *Upstreams) scan(sc interface{ Scan(...any) error }) (Upstream, error) {
 	}
 	var ok1, ok2 bool
 	u.Headers, ok1 = s.decodeKV(headers)
-	u.Env, ok2 = s.decodeKV(env)
+	u.Env, u.PlainEnv, ok2 = s.decodeEnv(env)
 	if !ok1 || !ok2 {
 		u.SecretErr = true
 	}
@@ -298,7 +301,7 @@ func (s *Upstreams) Create(u Upstream) error {
 	_, err = tx.Exec(`INSERT INTO upstreams(`+upCols+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		u.Alias, u.URL, u.AuthKind, u.AuthName, s.db.Secrets.Seal(u.AuthValue), b2i(u.Enabled), b2i(u.IncludeInMCP), time.Now().Unix(),
 		u.HostOverride, u.DetectedKind, u.DetectedNote,
-		u.Kind, s.encodeKV(u.Headers), u.Command, encodeArgs(u.Args), s.encodeKV(u.Env), b2i(u.Shell), u.WorkDir, u.Install,
+		u.Kind, s.encodeKV(u.Headers), u.Command, encodeArgs(u.Args), s.encodeEnv(u), b2i(u.Shell), u.WorkDir, u.Install,
 		u.StartupSecs, u.IdleSecs, u.Lifecycle, u.GitURL, u.GitRef, s.db.Secrets.Seal(u.GitToken), u.AutoUpdateSecs)
 	if err != nil {
 		return err
@@ -335,7 +338,7 @@ func (s *Upstreams) Update(u Upstream, keepSecret bool) error {
 	_, err = tx.Exec(`UPDATE upstreams SET url=?,auth_kind=?,auth_name=?,auth_value=?,enabled=?,include_in_mcp=?,host_override=?,detected_kind=?,detected_note=?,`+
 		`kind=?,headers=?,command=?,args=?,env=?,shell=?,workdir=?,install_cmd=?,startup_secs=?,idle_secs=?,lifecycle=?,git_url=?,git_ref=?,git_token=?,auto_update_secs=? WHERE alias=?`,
 		u.URL, u.AuthKind, u.AuthName, s.db.Secrets.Seal(u.AuthValue), b2i(u.Enabled), b2i(u.IncludeInMCP), u.HostOverride, u.DetectedKind, u.DetectedNote,
-		u.Kind, s.encodeKV(u.Headers), u.Command, encodeArgs(u.Args), s.encodeKV(u.Env), b2i(u.Shell), u.WorkDir, u.Install,
+		u.Kind, s.encodeKV(u.Headers), u.Command, encodeArgs(u.Args), s.encodeEnv(u), b2i(u.Shell), u.WorkDir, u.Install,
 		u.StartupSecs, u.IdleSecs, u.Lifecycle, u.GitURL, u.GitRef, s.db.Secrets.Seal(u.GitToken), u.AutoUpdateSecs, u.Alias)
 	if err != nil {
 		return err
