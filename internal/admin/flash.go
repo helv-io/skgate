@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/helv-io/skgate/internal/httputil"
 )
 
 // Flash messages survive exactly one redirect (POST-redirect-GET). They travel in a short-lived,
@@ -70,14 +72,24 @@ func (a *Admin) takeFlash(w http.ResponseWriter, r *http.Request) (toast, bool) 
 	return t, true
 }
 
-// back redirects (303) to a page and queues a success or error toast for it.
+// back redirects (303) to a page and queues a success or error toast for it. A form the page script posts in
+// place (Accept: application/json) gets the toast as {"toast": {...}} instead and stays where it is.
 func (a *Admin) back(w http.ResponseWriter, r *http.Request, to, ok, errMsg string) {
+	var t toast
 	switch {
 	case errMsg != "":
 		log.Printf("admin: %s %s refused: %s", r.Method, r.URL.Path, clip(errMsg))
-		a.setFlash(w, toast{toastBad, errMsg})
+		t = toast{toastBad, errMsg}
 	case ok != "":
-		a.setFlash(w, toast{toastOK, ok})
+		t = toast{toastOK, ok}
+	}
+	if wantsJSON(r) {
+		t.Msg = clip(t.Msg)
+		httputil.JSON(w, http.StatusOK, map[string]any{"toast": t})
+		return
+	}
+	if t.Msg != "" {
+		a.setFlash(w, t)
 	}
 	http.Redirect(w, r, to, http.StatusSeeOther)
 }
