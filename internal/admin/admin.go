@@ -273,13 +273,12 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/", http.NotFound)
 	a.providerRoutes(mux)
 	mux.HandleFunc("/admin/oauth/callback", a.guard(a.browserCallback))
-	mux.HandleFunc("/admin/keys/urlkey", a.guard(a.postOnly(a.keyURLKey)))
 	mux.HandleFunc("/admin/results/{token}", a.guard(a.getOnly(a.resultScreen)))
 	mux.HandleFunc("/admin/keys", a.guard(a.keys))
 	mux.HandleFunc("/admin/keys/create", a.guard(a.postOnly(a.keyCreate)))
 	mux.HandleFunc("/admin/keys/revoke", a.guard(a.postOnly(a.keyRevoke)))
 	mux.HandleFunc("/admin/keys/expiry", a.guard(a.getOnly(a.keyExpiry)))
-	mux.HandleFunc("/admin/keys/limits", a.guard(a.postOnly(a.keyLimits)))
+	mux.HandleFunc("/admin/keys/update", a.guard(a.postOnly(a.keyUpdate)))
 	mux.HandleFunc("/admin/keys/regenerate", a.guard(a.postOnly(a.keyRegenerate)))
 	mux.HandleFunc("/admin/upstreams", a.guard(a.upstreams))
 	mux.HandleFunc("/admin/upstreams/save", a.guard(a.postOnly(a.upstreamSave)))
@@ -490,18 +489,27 @@ func expiryOf(t time.Time) expiryData {
 	return expiryData{Value: vkeys.ExpiryText(t), Preview: vkeys.ExpiryPreview(t)}
 }
 
-func (a *Admin) keyLimits(w http.ResponseWriter, r *http.Request) {
+// keyUpdate saves the whole edit form of an active key at once: its name, limits and whether ?key= is accepted.
+// Nothing is changed unless every field is valid.
+func (a *Admin) keyUpdate(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(r.PostFormValue("id"), 10, 64)
 	rate, expires, err := limitsOf(r)
 	if err == nil {
 		err = a.Keys.SetLimits(id, rate, expires)
 	}
+	if err == nil {
+		err = a.Keys.SetLabel(id, r.PostFormValue("label"))
+	}
+	on := r.PostFormValue("urlkey") == "1"
+	if err == nil {
+		err = a.Keys.SetURLKey(id, on)
+	}
 	if err != nil {
 		a.back(w, r, "/admin/keys", "", err.Error())
 		return
 	}
-	log.Printf("admin: key id=%d limits set: rate=%d/min expires=%s", id, rate, expiresLog(expires))
-	a.back(w, r, "/admin/keys", "key limits saved", "")
+	log.Printf("admin: key id=%d saved: rate=%d/min expires=%s ?key=%t", id, rate, expiresLog(expires), on)
+	a.back(w, r, "/admin/keys", "key saved", "")
 }
 
 func expiresLog(t time.Time) string {
@@ -1356,20 +1364,4 @@ func (a *Admin) clientDelete(w http.ResponseWriter, r *http.Request) {
 // consent renders the /authorize Approve/Deny page in the admin design.
 func (a *Admin) consent(w http.ResponseWriter, r *http.Request, v mcp.ConsentView) {
 	a.render(w, r, "consent", page{Title: "Authorize MCP access", Data: v, Solo: true, Redirects: true})
-}
-
-// keyURLKey switches whether one key may be sent as ?key= on MCP endpoints (its Details dialog).
-func (a *Admin) keyURLKey(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PostFormValue("id"), 10, 64)
-	on := r.PostFormValue("allow") == "1"
-	if err := a.Keys.SetURLKey(id, on); err != nil {
-		a.back(w, r, "/admin/keys", "", err.Error())
-		return
-	}
-	log.Printf("admin: key id=%d ?key= %s", id, map[bool]string{true: "allowed", false: "refused"}[on])
-	msg := "?key= refused for this key"
-	if on {
-		msg = "?key= allowed for this key"
-	}
-	a.back(w, r, "/admin/keys#key-"+strconv.FormatInt(id, 10), msg, "")
 }

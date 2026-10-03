@@ -88,24 +88,24 @@ func TestKeyLimitsInAdmin(t *testing.T) {
 		t.Fatalf("%+v", by)
 	}
 	_, page := br.get("/admin/keys")
-	for _, want := range []string{"<th>rate limit</th>", "<th>expires</th>", "30/min", ">unlimited<", ">never<", "2031-12-31 23:59", `name="rate"`, `name="expires"`,
-		`data-expiry-url="/admin/keys/expiry"`, "Rate limit (requests per minute", `action="/admin/keys/limits"`, `id="key-`, "expires 2031-12-31"} {
+	for _, want := range []string{`name="rate" min="0" inputmode="numeric" placeholder="no limit" value="30"`, `name="expires"`,
+		`data-expiry-url="/admin/keys/expiry"`, "Max requests per minute", `action="/admin/keys/update"`, `id="key-`, "expires 2031-12-31"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("keys page lacks %q", want)
 		}
 	}
-	for _, gone := range []string{"hard stop", "Hard stop", `name="stop"`, "stop at"} {
+	for _, gone := range []string{"<th>rate limit</th>", "<th>expires</th>", "Rate limit (requests per minute", `action="/admin/keys/limits"`, "hard stop", "Hard stop", `name="stop"`, "stop at"} {
 		if strings.Contains(page, gone) {
 			t.Errorf("keys page still has %q", gone)
 		}
 	}
 	// the dialog of a key with an expiration is prefilled with a text that reads back to the same moment
 	if !strings.Contains(page, `name="expires" value="2031-12-31"`) {
-		t.Error("the Limits form must carry the current expiration")
+		t.Error("the edit form must carry the current expiration")
 	}
-	br.post("/admin/keys/limits", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["free"].ID, 10)}, "rate": {"5"}, "expires": {"30d"}})
-	br.post("/admin/keys/limits", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["capped"].ID, 10)}})
-	br.post("/admin/keys/limits", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["capped"].ID, 10)}, "expires": {"yesterday"}})
+	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["free"].ID, 10)}, "label": {"free"}, "rate": {"5"}, "expires": {"30d"}})
+	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["capped"].ID, 10)}, "label": {"capped"}})
+	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["capped"].ID, 10)}, "label": {"renamed"}, "expires": {"yesterday"}})
 	ks, _ = a.Keys.List()
 	for _, k := range ks {
 		switch k.Label {
@@ -180,35 +180,47 @@ func TestExpiryPreviewEndpoint(t *testing.T) {
 	}
 }
 
-// ?key= is a per-key switch in the key's Details dialog (editable part, with a warning), off by default; the old
-// global route is gone.
-func TestURLKeySwitchInKeyDialog(t *testing.T) {
+// The edit form of a key is one form with one Save: name, limits and ?key= (a checkbox with a warning, off by
+// default), above the read-only Details. The old separate switch and the global route are gone, and a bad value
+// saves nothing.
+func TestKeyEditFormInKeyDialog(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"one"}})
 	ks, _ := a.Keys.List()
 	id := strconv.FormatInt(ks[0].ID, 10)
 	_, page := br.get("/admin/keys")
-	for _, want := range []string{`action="/admin/keys/urlkey"`, "browser history and referrers", "?key= in the URL: off"} {
+	for _, want := range []string{`action="/admin/keys/update"`, `name="label" maxlength="80" value="one"`, `<input type="checkbox" name="urlkey" value="1" >`, "browser history and referrers"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("keys page lacks %q", want)
 		}
 	}
-	if strings.Contains(page, "/admin/settings/query-key") {
-		t.Error("the global switch must be gone")
+	for _, gone := range []string{"/admin/settings/query-key", "/admin/keys/urlkey", "?key= in the URL: off"} {
+		if strings.Contains(page, gone) {
+			t.Errorf("keys page still has %q", gone)
+		}
 	}
-	if strings.Index(page, `action="/admin/keys/urlkey"`) > strings.Index(page, "<h4>Details</h4>") {
-		t.Error("the switch belongs to the editable part, above Details")
+	if strings.Count(page, `action="/admin/keys/update"`) != 1 {
+		t.Error("one edit form per key")
 	}
-	br.post("/admin/keys/urlkey", url.Values{"csrf": {csrf}, "id": {id}, "allow": {"1"}})
-	if ks, _ = a.Keys.List(); !ks[0].URLKey {
-		t.Fatal("the switch did not turn on")
+	i := strings.Index(page, `action="/admin/keys/update"`)
+	if i > strings.Index(page, "<h4>Details</h4>") || strings.Index(page[i:], "action=\"/admin/keys/revoke\"") > strings.Index(page[i:], "<h4>Details</h4>") {
+		t.Error("the editable part, with revoke and regenerate, belongs above Details")
 	}
-	if _, page = br.get("/admin/keys"); !strings.Contains(page, "?key= in the URL: allowed") {
+	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {id}, "label": {"Home Assistant"}, "rate": {"7"}, "urlkey": {"1"}})
+	ks, _ = a.Keys.List()
+	if k := ks[0]; k.Label != "Home Assistant" || k.RatePerMin != 7 || !k.URLKey {
+		t.Fatalf("Save did not store all three: %+v", k)
+	}
+	if _, page = br.get("/admin/keys"); !strings.Contains(page, `<input type="checkbox" name="urlkey" value="1" checked>`) {
 		t.Error("the dialog must show the state")
 	}
-	br.post("/admin/keys/urlkey", url.Values{"csrf": {csrf}, "id": {id}, "allow": {"0"}})
-	if ks, _ = a.Keys.List(); ks[0].URLKey {
-		t.Fatal("the switch did not turn off")
+	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {id}, "label": {"Home Assistant"}})
+	if ks, _ = a.Keys.List(); ks[0].URLKey || ks[0].Limited() {
+		t.Fatalf("an unchecked box turns ?key= off and an empty rate clears the limit: %+v", ks[0])
+	}
+	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {id}, "label": {"other"}, "rate": {"x"}, "urlkey": {"1"}})
+	if ks, _ = a.Keys.List(); ks[0].Label != "Home Assistant" || ks[0].URLKey {
+		t.Fatalf("a bad value must save nothing: %+v", ks[0])
 	}
 	if resp, _ := br.post("/admin/settings/query-key", url.Values{"csrf": {csrf}}); resp.StatusCode == 200 || resp.StatusCode == 303 {
 		t.Errorf("the global route must be gone: %d", resp.StatusCode)
