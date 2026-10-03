@@ -23,6 +23,10 @@ docker compose pull && docker compose up -d
 
 The SQLite schema migrates on start. Pin `X.Y.Z` instead of `latest` to control when you move.
 
+## Update hint
+
+The version number in the admin header links to the GitHub repository. It turns yellow, with the new version in its tooltip, when GitHub has a newer stable release. skgate asks the public latest-release API without credentials, from the server, at most every six hours (an hour after a failure), keeps the answer in memory and never makes a page wait. Offline, rate limited or an unreadable answer simply shows no hint. `UPDATE_CHECK=false` turns the check off.
+
 ## Security notes
 
 - **`/authorize`** never auto-approves. Order: check `client_id`, exact `redirect_uri`, redirect syntax (https, or http on loopback), `response_type=code` and PKCE S256; require OIDC (refuse if unconfigured); require an admin session (else login, then resume); apply `OIDC_ALLOWED_*`; show consent (on by default, `MCP_OAUTH_REQUIRE_CONSENT=false` turns it off); issue the code with `state` preserved. The OIDC subject and email are recorded on the code and tokens.

@@ -6,6 +6,6 @@
 <a href="/admin/keys" class="{{if eq .Nav "keys"}}on{{end}}">keys</a>
 <a href="/admin/upstreams" class="{{if eq .Nav "upstreams"}}on{{end}}">mcp upstreams</a>
 <a href="/admin/clients" class="{{if eq .Nav "clients"}}on{{end}}">oauth clients</a>
-<span class="ver">v{{.Version}}</span>{{if .User}}<span class="who">{{.User}}</span>{{end}}<form method="post" action="/admin/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act plain">logout</button></form></header>{{end}}
+<a class="ver{{if .Update}} new{{end}}" href="https://github.com/helv-io/skgate" target="_blank" rel="noopener noreferrer"{{if .Update}} title="Update available: {{.Update}}"{{end}}>v{{.Version}}</a>{{if .User}}<span class="who">{{.User}}</span>{{end}}<form method="post" action="/admin/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act plain">logout</button></form></header>{{end}}
 <main{{if .Solo}} class="solo"{{end}}>
 {{template "body" .}}</main>{{if .Toasts}}<div class="toasts">{{range .Toasts}}<div class="toast {{.Kind}}">{{.Msg}}</div>{{end}}</div>{{end}}{{if and .CSRF (not .Solo)}}{{template "modal"}}{{end}}<script src="/admin/static/app.js"></script></body></html>{{end}}

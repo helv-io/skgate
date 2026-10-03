@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/helv-io/skgate/internal/admin"
 	"github.com/helv-io/skgate/internal/config"
 	"github.com/helv-io/skgate/internal/oidctest"
 )
@@ -26,6 +28,9 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	longName := strings.Repeat("segment-", 8) + "end"
 	up := aliasUpstream(t, true, false) // models with provider aliases, so the picker's long labels are swept too
 	a, _, br, csrf, _ := signedInProvider(t, up)
+	gh, _ := fakeGitHub(t, 200, release("v99.0.0", false)) // a newer release, so the header link is swept in its yellow state
+	a.Admin.Releases = admin.NewReleaseWatch(gh.URL, config.Version)
+	a.Admin.Releases.Refresh(context.Background())
 	post := func(path string, v url.Values) string {
 		v.Set("csrf", csrf)
 		_, body := br.post(path, v)
