@@ -47,7 +47,7 @@ services:
 1. `docker compose up -d`
 2. Open `https://skgate.example.com/admin` and sign in through your OIDC provider.
 3. **status** > Grok > **Sign in**: open the shown address, enter the code, approve.
-4. **keys** > enter a label > **Create key**. Copy the `sk-...` key; it is shown once.
+4. **keys** > enter a name > **Create key**. Copy the `sk-...` key; it is shown once.
 5. Use it: base URL `https://skgate.example.com/v1`, API key `sk-...` (see Examples).
    - The base URL is forgiving: `/v1`, `/api`, `/api/v1` and the bare host all reach the same API, so use whichever form your client expects.
 
