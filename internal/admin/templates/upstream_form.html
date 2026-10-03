@@ -1,11 +1,21 @@
 {{define "upstream_fields"}}
-<div class="field">{{if .New}}<label>Alias<input type="text" name="alias" required pattern="[a-z0-9\-]+" maxlength="63" value="{{.U.Alias}}"></label>{{else}}<div class="label">Alias</div><code>{{.U.Alias}}</code>{{end}}</div>
+{{if not .New}}<div class="field"><div class="label">Alias</div><code>{{.U.Alias}}</code></div>{{end}}
 <div class="field">
 {{if .New}}<label>Type<select name="kind" data-kind-select>
 <option value="remote" {{if eq .U.Kind "remote"}}selected{{end}}>remote (URL)</option>
 <option value="stdio" {{if ne .U.Kind "remote"}}{{if .U.Kind}}selected{{end}}{{end}} {{if not .Managed}}disabled{{end}}>managed (package or repository)</option></select></label>
 {{if not .Managed}}<p class="muted">Managed upstreams: {{.Why}}.</p>{{end}}
 {{else}}<div class="label">Type</div><input type="hidden" name="kind" value="{{.U.Kind}}" data-kind-select><span class="chip">{{.U.Kind}}</span>{{end}}</div>
+
+{{/* The order follows the work: Type, then Source with Suggest and its results (they fill the rest), then the alias. */}}
+<div class="group" data-kind="stdio git">
+<div class="field"><label>MCP source URL / package<input type="text" name="source" value="{{.Source}}" placeholder="https://host/org/repo, npm or PyPI package" autocomplete="off" spellcheck="false" data-suggest-source></label></div>
+{{if or .New (eq .U.Kind "git")}}<div class="field"><label>Access token (private repositories){{if .TokenMasked}} (<code>{{.TokenMasked}}</code>, empty keeps){{end}}<input type="password" name="git_token" autocomplete="off" data-suggest-token></label></div>
+{{if .TokenMasked}}<div class="row"><label class="check"><input type="checkbox" name="clear_token" value="1"> remove the stored token</label></div>{{end}}{{end}}
+{{template "suggest_controls" .Suggest}}
+{{template "suggest_result"}}
+</div>
+{{if .New}}<div class="field"><label>Alias<input type="text" name="alias" required pattern="[a-z0-9\-]+" maxlength="63" value="{{.U.Alias}}"></label></div>{{end}}
 
 <div class="group" data-kind="remote">
 <div class="field"><label>URL<input type="url" name="url" placeholder="http://mcp-server:8000/mcp" value="{{.U.URL}}"></label></div>
@@ -24,11 +34,6 @@
 </div>
 
 <div class="group" data-kind="stdio git">
-<div class="field"><label>MCP source URL / package<input type="text" name="source" value="{{.Source}}" placeholder="https://host/org/repo, npm or PyPI package" autocomplete="off" spellcheck="false" data-suggest-source></label></div>
-{{if or .New (eq .U.Kind "git")}}<div class="field"><label>Access token (private repositories){{if .TokenMasked}} (<code>{{.TokenMasked}}</code>, empty keeps){{end}}<input type="password" name="git_token" autocomplete="off" data-suggest-token></label></div>
-{{if .TokenMasked}}<div class="row"><label class="check"><input type="checkbox" name="clear_token" value="1"> remove the stored token</label></div>{{end}}{{end}}
-{{template "suggest_controls" .Suggest}}
-{{template "suggest_result"}}
 <details data-manual {{if not .New}}open{{end}}><summary class="muted">Manual configuration</summary>
 {{if or .New (eq .U.Kind "git")}}<div class="field"><label>Ref (branch or tag, empty = default branch)<input type="text" name="git_ref" placeholder="main" value="{{.U.GitRef}}" autocomplete="off"></label></div>{{end}}
 {{template "pick" .Cmd}}
