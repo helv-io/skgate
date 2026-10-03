@@ -11,8 +11,8 @@ const puppeteer = require(pp);
       const pg = await b.newPage(); await pg.setViewport({ width, height: 900 });
       await pg.goto("file://" + dir + "/" + file + ".html");
       const res = await pg.evaluate(() => {
-        const t = document.querySelector("main .table");
-        const rows = [...t.tBodies[0].rows].map(r => [...r.querySelectorAll(".actions .act")].map(a => a.getBoundingClientRect())).filter(r => r.length);
+        const t = document.querySelector("main .table:not(.kv)");
+        const rows = [...t.tBodies[0].rows].map(r => [...r.querySelectorAll(".actions > .act")].map(a => a.getBoundingClientRect())).filter(r => r.length);
         const out = [];
         if (rows.length < 2) out.push("need two rows, got " + rows.length);
         const w = rows[0].map(r => Math.round(r.width));

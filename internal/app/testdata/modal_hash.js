@@ -27,18 +27,18 @@ for (const native of [false,true]) for (const c of cases) {
   ok(!!d.getElementById(id)&&d.getElementById(id).hasAttribute("data-dialog-content"),tag+"has its content template");
   const len0=w.history.length;
   // click sets the fragment
-  opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+  opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true,cancelable:true}));
   ok(shown()&&hash()===frag,tag+"click opens and sets the fragment ("+hash()+")");
   // close button clears it
   d.querySelector("[data-modal-close]").click(); await tick(w);
   ok(!shown()&&hash()==="","close button closes and clears the fragment ("+hash()+")");
   ok(w.location.pathname===c.path&&w.history.length<=len0+1,tag+"same page, no stray entries");
   // Escape
-  opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+  opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true,cancelable:true}));
   dlg.dispatchEvent(new w.KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true})); await tick(w);
   ok(!shown()&&hash()==="",tag+"Escape clears the fragment ("+hash()+")");
   // backdrop: only a dialog that merely shows information closes by it; one with a form ignores it
-  opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+  opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true,cancelable:true}));
   dlg.dispatchEvent(new w.MouseEvent("click",{bubbles:true})); await tick(w);
   const info=d.getElementById(id).hasAttribute("data-informational");
   ok(info===!!c.info,tag+"informational flag is "+!!c.info);
@@ -46,7 +46,7 @@ for (const native of [false,true]) for (const c of cases) {
   else { ok(shown()&&hash()===frag,tag+"backdrop click is ignored by a dialog with a form"); d.querySelector("[data-modal-close]").click(); await tick(w);
          ok(!shown()&&hash()==="",tag+"the close button then clears the fragment"); }
   // a click inside keeps it open and keeps the fragment
-  opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+  opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true,cancelable:true}));
   d.querySelector("[data-modal-body]").dispatchEvent(new w.MouseEvent("click",{bubbles:true})); await tick(w);
   ok(shown()&&hash()===frag,tag+"a click inside changes nothing");
   // Back closes, Forward reopens
@@ -74,8 +74,8 @@ for (const native of [false,true]) for (const c of cases) {
 { const c=cases.find(x=>x.second); if(c){
   const {w,d}=load(c.page,c.path,"",false); const dlg=d.querySelector("[data-modal]");
   const a=d.querySelector(`[data-dialog-open="#${c.id}"]`), b=d.querySelector(`[data-dialog-open="#${c.second}"]`);
-  a.dispatchEvent(new w.MouseEvent("click",{bubbles:true})); const t1=d.querySelector("[data-modal-title]").textContent;
-  b.dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+  a.dispatchEvent(new w.MouseEvent("click",{bubbles:true,cancelable:true})); const t1=d.querySelector("[data-modal-title]").textContent;
+  b.dispatchEvent(new w.MouseEvent("click",{bubbles:true,cancelable:true}));
   ok(w.location.hash==="#"+encodeURIComponent(c.second)&&d.querySelector("[data-modal-body]").children.length>0,"a second dialog replaces the first and its fragment");
   ok(d.querySelector("[data-modal-body]").querySelectorAll("table").length<=2,"the first dialog's content is gone");
   d.querySelector("[data-modal-close]").click(); await tick(w);

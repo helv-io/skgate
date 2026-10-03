@@ -192,6 +192,8 @@
     pending = null; opener = null;
     var f = (p && p.opener) || o;
     if (f && f.focus) f.focus();
+    var mn = f && f.closest ? f.closest("[data-menu]") : null; // the opener was an item of a menu that has closed: back to its button
+    if (mn && document.activeElement !== f) mn.querySelector("[data-menu-button]").focus();
     mode(false);
     clearHash(false); // closed some other way than close(): never leave the fragment behind
   }
@@ -422,6 +424,74 @@
       .catch(function () { window.skgateToast("bad", "Couldn't reach skgate. Check your connection and try again."); })
       .then(function () { Array.prototype.forEach.call(btns, function (b) { if (b.isConnected) b.disabled = false; }); });
   });
+})();
+
+// Menus (the menu_start component, the ⋯ button of a row): the button opens its list below it, fixed to the window
+// so a scrolling table cannot clip it, and the first item takes the focus. Arrow keys, Home and End move between
+// items; Escape closes and returns to the button; so do a click outside, Tab, a scroll or resize, and choosing an
+// item (the item then does its own thing: a link, a dialog, a form). One menu is open at a time. Taps work as clicks.
+(function () {
+  var current = null; // the open menu's element
+  function parts(m) { return { btn: m.querySelector("[data-menu-button]"), list: m.querySelector("[role=menu]") }; }
+  function items(m) { return Array.prototype.slice.call(parts(m).list.querySelectorAll("[role=menuitem]")).filter(function (i) { return !i.disabled; }); }
+  function place(m) {
+    var p = parts(m), r = p.btn.getBoundingClientRect(), l = p.list;
+    var w = l.offsetWidth, h = l.offsetHeight;
+    var left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8));
+    var top = r.bottom + 4;
+    if (top + h > window.innerHeight - 8 && r.top - h - 4 >= 8) top = r.top - h - 4; // no room below: open upward
+    l.style.left = left + "px";
+    l.style.top = top + "px";
+  }
+  function close(back) {
+    var m = current;
+    if (!m) return;
+    current = null;
+    var p = parts(m);
+    p.list.hidden = true;
+    p.btn.setAttribute("aria-expanded", "false");
+    if (back) p.btn.focus();
+  }
+  function open(m, last) {
+    if (current && current !== m) close(false);
+    var p = parts(m);
+    p.list.hidden = false;
+    p.btn.setAttribute("aria-expanded", "true");
+    place(m);
+    current = m;
+    var it = items(m);
+    if (it.length) it[last ? it.length - 1 : 0].focus({ preventScroll: true });
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("[data-menu-button]") : null;
+    if (b) {
+      var m = b.closest("[data-menu]");
+      if (current === m) close(true); else open(m, false);
+      return;
+    }
+    if (!current) return;
+    close(false); // a click outside, or an item chosen: the item's own action follows
+  });
+  document.addEventListener("keydown", function (e) {
+    var m = current, t = e.target && e.target.closest ? e.target.closest("[data-menu]") : null;
+    if (!m && t && e.target.matches("[data-menu-button]") && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      open(t, e.key === "ArrowUp");
+      return;
+    }
+    if (!m || t !== m) return;
+    var it = items(m), i = it.indexOf(document.activeElement);
+    switch (e.key) {
+      case "Escape": e.preventDefault(); e.stopPropagation(); close(true); break;
+      case "Tab": close(false); break;
+      case "ArrowDown": e.preventDefault(); if (it.length) it[(i + 1) % it.length].focus(); break;
+      case "ArrowUp": e.preventDefault(); if (it.length) it[(i <= 0 ? it.length : i) - 1].focus(); break;
+      case "Home": e.preventDefault(); if (it.length) it[0].focus(); break;
+      case "End": e.preventDefault(); if (it.length) it[it.length - 1].focus(); break;
+    }
+  }, true);
+  window.addEventListener("resize", function () { close(false); });
+  window.addEventListener("scroll", function (e) { if (current && !current.contains(e.target)) close(false); }, true);
 })();
 
 // Expiration field (the expiry_field component): the text is read by the server's parser (one parser, so the

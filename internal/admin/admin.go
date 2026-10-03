@@ -80,6 +80,7 @@ var funcs = template.FuncMap{
 	"pair":     func() pair { return pair{} },
 	"dlg":      func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
 	"infodlg":  func(id, title string) dialogHead { return dialogHead{ID: id, Title: title, Info: true} },
+	"menu":     func(id, label string) menuHead { return menuHead{ID: id, Label: label} },
 	"inList":   contains,
 	"frontier": provider.LooksFrontier,
 	// pill feeds the "pill" component: class, label and hover text.
@@ -750,6 +751,9 @@ type dialogHead struct {
 	ID, Title string
 	Info      bool
 }
+
+// menuHead feeds the shared "menu_start" component: the id of the list and the name of the menu for screen readers.
+type menuHead struct{ ID, Label string }
 
 // pillView is a status pill: Class ok|bad|warn|off, Text the label, Tip the hover text (may be empty).
 type pillView struct{ Class, Text, Tip string }

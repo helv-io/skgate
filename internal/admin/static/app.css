@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .menu
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -103,6 +103,17 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 .act.toggle.off{color:var(--bad);border-color:#5a3532;background:#211514}
 .act.toggle:hover{color:#fff}
 .act.toggle.on:hover{border-color:var(--ok)}.act.toggle.off:hover{border-color:var(--bad)}
+/* menu: the ⋯ button of a row and the list it opens. The list is fixed to the window (placed by app.js under the
+   button), so a table that scrolls sideways cannot clip it. Items are the .act of the row, without their frames. */
+.menu{display:inline-flex}
+.menu .menu-btn{min-width:0;padding:3px 12px;font-weight:700;letter-spacing:.1em}
+.menu .menu-btn[aria-expanded=true]{border-color:var(--acc);color:var(--acc)}
+.menu-list{position:fixed;z-index:40;min-width:11em;max-width:calc(100vw - 16px);padding:4px 0;background:var(--panel);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.menu-list form{display:block;margin:0}
+.menu .menu-list .act{display:block;width:100%;min-width:0;text-align:left;border:0;background:none;padding:7px 14px;line-height:22px}
+.menu .menu-list .act:hover,.menu .menu-list .act:focus-visible{background:var(--hover);color:var(--acc)}
+.menu .menu-list .act.danger,.menu .menu-list .act.danger:hover{color:var(--bad)}
+.menu .menu-list .act.danger:hover,.menu .menu-list .act.danger:focus-visible{background:#211514}
 /* a name that opens its details */
 a.name{color:inherit}
 a.name:hover{text-decoration:none}
@@ -283,4 +294,10 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .pair.single{grid-template-columns:minmax(0,1fr) auto}
   .pair.single>input:first-child{grid-column:1}
   .modal,.modal.wide{width:calc(100vw - 20px);max-width:calc(100vw - 20px);padding:14px}
+}
+@media (max-width:720px){
+  .menu{flex:0 0 auto}
+  .menu-list form,.actions .menu-list form{display:block;flex:none}
+  .table .actions .menu .menu-btn{flex:0 0 auto;min-width:48px}
+  .menu .menu-list .act{min-height:44px;display:flex;align-items:center;justify-content:flex-start;padding:8px 16px}
 }
