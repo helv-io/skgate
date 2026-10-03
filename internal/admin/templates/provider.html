@@ -1,12 +1,6 @@
-{{/* pill_signout: the sign-in state pill of a signed-in provider, which is also its Sign out button. With a pointer, hovering
-   or focusing it turns it red and its label into "Sign out"; the longer label reserves the width, so nothing moves. On a
-   touch screen there is no hover: the pill stays as it is, is a finger-sized target, and tapping it opens the same
-   confirmation. Takes a providerView. */}}
-{{define "pill_signout"}}<form method="post" action="/admin/providers/{{.ID}}/signout" data-confirm="Requests through the API proxy fail until you sign in again." data-confirm-title="Sign out of {{.Name}}" data-confirm-ok="Sign out"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="pill swap danger {{.State.Class}}" aria-label="{{.State.Text}}: sign out of {{.Name}}"{{if .State.Tip}} title="{{.State.Tip}}"{{end}}><span class="swaps"><span class="was">{{.State.Text}}</span><span class="now">Sign out</span></span></button></form>{{end}}
-
 {{/* provider_card: a provider on the status page. Status at a glance; everything technical is in its dialog. */}}
 {{define "provider_card"}}<div class="card" id="{{.ID}}">
-<div class="row spread"><h3>{{.Name}}</h3>{{if .S.SignedIn}}{{template "pill_signout" .}}{{else}}{{template "pill" .State}}{{end}}</div>
+<div class="row spread"><h3>{{.Name}}</h3>{{template "pill" .State}}</div>
 <div class="tablewrap"><table class="table kv"><tbody>
 {{if .S.Account}}<tr><th>Account</th><td>{{.S.Account}}</td></tr>{{end}}
 {{if .Expiry}}<tr><th>Token</th><td>{{.Expiry}}</td></tr>{{end}}
@@ -21,7 +15,9 @@
 <div class="actions"><form method="post" action="/admin/providers/{{.ID}}/device/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Cancel</button></form></div>
 {{else}}
 <div class="actions">
-<form method="post" action="/admin/providers/{{.ID}}/device/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn">{{if .S.SignedIn}}Sign in again{{else}}Sign in{{end}}</button></form>
+{{/* Signing in again is the main action only when it is needed (signed out, or the token is failing); while signed in and healthy it is secondary. */}}
+<form method="post" action="/admin/providers/{{.ID}}/device/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="{{if and .S.SignedIn (eq .State.Class "ok")}}act{{else}}btn{{end}}">{{if .S.SignedIn}}Sign in again{{else}}Sign in{{end}}</button></form>
+{{if .S.SignedIn}}<form method="post" action="/admin/providers/{{.ID}}/signout" data-confirm="Requests through the API proxy fail until you sign in again." data-confirm-title="Sign out of {{.Name}}" data-confirm-ok="Sign out"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Sign out</button></form>{{end}}
 <button type="button" class="act" data-dialog-open="#provider-{{.ID}}">Details</button>
 </div>
 {{end}}
