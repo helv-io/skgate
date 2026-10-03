@@ -115,3 +115,41 @@ func (m *Manager) clock() time.Time {
 	}
 	return time.Now()
 }
+
+// SetURLKey allows or forbids presenting an active key as ?key= on MCP endpoints.
+func (m *Manager) SetURLKey(id int64, allowed bool) error {
+	v := 0
+	if allowed {
+		v = 1
+	}
+	res, err := m.db.Exec(`UPDATE vkeys SET url_key=? WHERE id=? AND revoked_at=0`, v, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return errors.New("key not found or revoked")
+	}
+	return nil
+}
+
+// SettingStore is the part of the settings store the one-time migration of the old global switch needs.
+type SettingStore interface {
+	GetSetting(key string) (string, bool)
+	DeleteSetting(key string) error
+}
+
+// MigrateGlobalURLKey retires the old global "accept ?key=" setting (allow_query_key). If it was on, every existing
+// key gets the per-key switch, so nothing that worked stops working; if it was off, all stay off. The setting is
+// removed afterwards, which makes running this again (or again after a legacy environment import) harmless.
+func (m *Manager) MigrateGlobalURLKey(kv SettingStore) error {
+	v, ok := kv.GetSetting("allow_query_key")
+	if !ok {
+		return nil
+	}
+	if v == "1" {
+		if _, err := m.db.Exec(`UPDATE vkeys SET url_key=1`); err != nil {
+			return err
+		}
+	}
+	return kv.DeleteSetting("allow_query_key")
+}
