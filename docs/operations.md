@@ -31,6 +31,12 @@ The SQLite schema migrates on start. Pin `X.Y.Z` instead of `latest` to control 
 - **Managed upstreams** (full image) execute admin-supplied commands: command execution is an admin capability. Use the `slim` image if you do not want it. See [Safety](mcp.md#safety).
 - **Secrets.** Keys, upstream credentials, headers, env values and Grok tokens are displayed masked (`************abcd`); upstream secrets are encrypted at rest. Logs never contain tokens, client secrets, codes, cookies or credential headers; query values are redacted and log values are quoted.
 - `?key=` is off by default because URLs leak into logs.
+- **Grok tokens** (access, refresh and id) are sealed at rest with `SECRETS_KEY`, or with the key file next to the database when it is unset. Plaintext tokens from earlier versions are sealed automatically at startup.
+- **Consent.** `MCP_OAUTH_REQUIRE_CONSENT` defaults to `true`.
+- **Managed runners** (servers, install and git steps) run as `nobody` (65534) by default, each upstream with its own writable work, home, tmp and cache directories, so a compromised runner cannot read `SECRETS_KEY`, the key file or the database. skgate itself keeps only the capabilities needed to start and stop them. If it is started as a non-root user without them (for example `user:` in compose), it cannot switch users: runners then run as skgate's own user and a warning is logged.
+- **Runner identity.** skgate refuses to start as `nobody` or `nogroup`, or with `PUID` or `PGID` set to 65534; it needs access to `SECRETS_KEY` and the database, which runners must not have.
+- **`/mcp`** includes only always-on managed upstreams. On-demand ones are excluded automatically, so `/mcp` does not start every process; the upstream form says so next to the option.
+- **Key limits** (optional, per virtual key; both default to unlimited). A rate limit allows N requests per minute (fixed one-minute window, kept in memory) and answers `429` with `Retry-After` beyond it. A hard stop ends the key at a total number of successful requests: from then on every request gets `429` until the stop is raised or cleared. Rejected requests do not count. Set them when creating a key or with **limits** on the key's row.
 
 ### Logging
 
