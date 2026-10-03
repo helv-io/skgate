@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/helv-io/skgate/internal/config"
-	"github.com/helv-io/skgate/internal/reqlog"
 )
 
 const (
@@ -65,7 +64,7 @@ func (s *Server) rpcPost(ctx context.Context, up Upstream, body []byte, wantID i
 	start := time.Now()
 	resp, err := s.doUpstream(up, req, body)
 	if err != nil {
-		return nil, fmt.Errorf("upstream unreachable: %s", describeNetErr(ctx, err))
+		return nil, upstreamErr(ctx, err, false)
 	}
 	defer resp.Body.Close()
 	rep := &rpcReply{Status: resp.StatusCode, SessionID: resp.Header.Get("Mcp-Session-Id"),
@@ -94,20 +93,12 @@ func (s *Server) rpcPost(ctx context.Context, up Upstream, body []byte, wantID i
 	}
 	b, err := io.ReadAll(lr)
 	if err != nil {
-		return rep, fmt.Errorf("reading upstream response: %s", describeNetErr(ctx, err))
+		return rep, upstreamErr(ctx, err, true)
 	}
 	rep.Elapsed = time.Since(start)
 	res, rerr, perr := decodeRPC(b, wantID)
 	rep.Result, rep.Err = res, rerr
 	return rep, perr
-}
-
-// describeNetErr turns a transport error into a short plain sentence without URLs.
-func describeNetErr(ctx context.Context, err error) string {
-	if ctx.Err() == context.DeadlineExceeded || errors.Is(err, context.DeadlineExceeded) {
-		return "timed out"
-	}
-	return reqlog.Sanitize(err)
 }
 
 // decodeRPC finds the JSON-RPC response with the given id in a JSON body (object or batch).

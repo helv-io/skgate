@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -465,5 +466,20 @@ func TestAggregateLegacySSERoot(t *testing.T) {
 	n, _ = resp.Body.Read(buf)
 	if !strings.Contains(string(buf[:n]), `a-t1`) || !strings.Contains(string(buf[:n]), `"id":5`) {
 		t.Fatalf("SSE reply: %s", buf[:n])
+	}
+}
+
+// What a client is told about a dead upstream names no address.
+func TestAggregateCallToDeadUpstreamNamesNoAddress(t *testing.T) {
+	e := newEnv(t, nil)
+	addr := deadAddr(t)
+	e.srv.Upstreams.Create(Upstream{Alias: "gone", URL: "http://" + addr + "/mcp", AuthKind: AuthNone, Enabled: true, IncludeInMCP: true})
+	key, _, _ := e.keys.Create("t")
+	_, m := e.rpc(key, "/mcp", `{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"gone-any"}}`)
+	er, _ := m["error"].(map[string]any)
+	msg := fmt.Sprint(er["message"])
+	host, port, _ := net.SplitHostPort(addr)
+	if er == nil || !strings.Contains(msg, "connection refused") || strings.Contains(msg, host) || strings.Contains(msg, port) {
+		t.Fatalf("client-facing error: %v", m)
 	}
 }
