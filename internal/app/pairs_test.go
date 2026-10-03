@@ -56,7 +56,7 @@ func TestPairListRendersEveryStoredRow(t *testing.T) {
 	a, br, csrf := managedApp(t)
 	names, vals := []string{"FAKE_MCP"}, []string{"1"}
 	for i := 0; i < 9; i++ {
-		names, vals = append(names, fmt.Sprintf("VAR_%d", i)), append(vals, fmt.Sprintf("secret-value-%04d", i))
+		names, vals = append(names, fmt.Sprintf("SVC_TOKEN_%d", i)), append(vals, fmt.Sprintf("secret-value-%04d", i))
 	}
 	form := stdioForm(csrf, "many", url.Values{"env_name": names, "env_value": vals})
 	if r, _ := br.post("/admin/upstreams/save", form); flashKind(r) != "ok" {

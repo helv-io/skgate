@@ -73,7 +73,7 @@ var funcs = template.FuncMap{
 	"list": func(v ...string) []string { return v },
 	// pairRow and pair feed the "pair_row" component (see templates/components.html).
 	"pairRow": func(l pairList, r pair, removable bool) pairRowData {
-		return pairRowData{NameKey: l.NameKey, ValueKey: l.ValueKey, NamePH: l.NamePH, Row: r, Removable: removable}
+		return pairRowData{NameKey: l.NameKey, ValueKey: l.ValueKey, SecretKey: l.SecretKey, NamePH: l.NamePH, ValuePH: l.ValuePH, Row: r, Removable: removable}
 	},
 	"pair":     func() pair { return pair{} },
 	"dlg":      func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
@@ -684,7 +684,12 @@ type suggestState struct {
 	P       *providerView // the default provider with its models; nil without one
 }
 
-type pair struct{ Name, Value string }
+// pair is a row of a name/value list. Mark is "1" for a secret value (masked field), "0" for a plain one
+// and empty when unknown (a new row: the name decides).
+type pair struct{ Name, Value, Mark string }
+
+// masked reports whether the row's value field is a password field.
+func (p pair) Masked() bool { return p.Mark == "1" }
 
 // dialogHead feeds the shared "dialog_open" component.
 // Info marks a dialog that only shows information: it has no form, button or field to change, so a click on the
@@ -775,21 +780,43 @@ func newRowList(key, ph, label string, values []string) rowList {
 }
 
 type pairRowData struct {
-	NameKey, ValueKey, NamePH string
-	Row                       pair
-	Removable                 bool
+	NameKey, ValueKey, SecretKey, NamePH, ValuePH string
+	Row                                           pair
+	Removable                                     bool
 }
 
 // pairList feeds the shared "pairs" template component: a dynamic list of name/value rows (env vars,
 // headers). Rows always holds at least one row; the first one cannot be deleted in the UI.
+//
+// With SecretKey set (env vars) each row carries a hidden flag, secret values are password fields that
+// browsers do not fill, and SecretPattern lets the script mask a row once its name matches.
 type pairList struct {
-	NameKey, ValueKey, NamePH, Label string
-	Rows                             []pair
-	Err                              bool // stored values could not be decrypted
+	NameKey, ValueKey, SecretKey, NamePH, ValuePH, Label, SecretPattern string
+	Rows                                                                []pair
+	Err                                                                 bool // stored values could not be decrypted
 }
 
 func newPairList(nameKey, valueKey, namePH, label string, kv []mcp.KV, unreadable bool) pairList {
-	l := pairList{NameKey: nameKey, ValueKey: valueKey, NamePH: namePH, Label: label, Rows: maskedPairs(kv), Err: unreadable}
+	l := pairList{NameKey: nameKey, ValueKey: valueKey, NamePH: namePH, ValuePH: "value", Label: label, Rows: maskedPairs(kv), Err: unreadable}
+	if len(l.Rows) == 0 {
+		l.Rows = []pair{{}}
+	}
+	return l
+}
+
+// newEnvList is the environment list of a managed upstream. Values start empty for new rows; an empty
+// value is not passed to the process, so the placeholder says so.
+func newEnvList(u mcp.Upstream) pairList {
+	l := newPairList("env_name", "env_value", "NAME", "Environment", nil, u.SecretErr)
+	l.SecretKey, l.ValuePH, l.SecretPattern = "env_secret", "Optional", suggest.SecretNamePattern
+	l.Rows = nil
+	for _, x := range u.Env {
+		p := pair{Name: x.Name, Value: httputil.Mask(x.Value), Mark: "1"}
+		if !u.EnvSecret(x.Name) {
+			p.Value, p.Mark = x.Value, "0"
+		}
+		l.Rows = append(l.Rows, p)
+	}
 	if len(l.Rows) == 0 {
 		l.Rows = []pair{{}}
 	}
@@ -916,7 +943,7 @@ func orDash(s, def string) string {
 func maskedPairs(kv []mcp.KV) []pair {
 	var out []pair
 	for _, x := range kv {
-		out = append(out, pair{x.Name, httputil.Mask(x.Value)})
+		out = append(out, pair{Name: x.Name, Value: httputil.Mask(x.Value)})
 	}
 	return out
 }
@@ -925,7 +952,7 @@ func (a *Admin) form(r *http.Request, u mcp.Upstream, isNew bool, include bool) 
 	ok, why := a.MCP.ManagedState()
 	f := formData{U: a.view(u), New: isNew, Managed: ok, Why: why, Include: include, Args: newRowList("args", "argument", "Arguments", u.Args),
 		Cmd: newPickList("command", "Command", "Custom path…", "/usr/local/bin/tool", a.MCP.Commands(), u.Command, isNew),
-		Env: newPairList("env_name", "env_value", "NAME", "Environment", u.Env, u.SecretErr),
+		Env: newEnvList(u),
 		Hdr: newPairList("hdr_name", "hdr_value", "X-Header", "Custom headers", u.Headers, u.SecretErr)}
 	if f.U.Kind == "" {
 		f.U.Kind = mcp.KindRemote
@@ -975,8 +1002,21 @@ func (a *Admin) upstreamEdit(w http.ResponseWriter, r *http.Request) {
 
 // pairsFrom reads parallel name/value form fields; rows without a name are dropped.
 func pairsFrom(r *http.Request, nameKey, valueKey string) []mcp.KV {
+	kv, _ := envPairsFrom(r, nameKey, valueKey, "")
+	return kv
+}
+
+// envPairsFrom is pairsFrom that also reads the per-row secret flag (secretKey, "1" or "0") and returns
+// the names of the plain rows. A row without a flag is secret when its name looks like one.
+func envPairsFrom(r *http.Request, nameKey, valueKey, secretKey string) (out []mcp.KV, plain []string) {
 	names, values := r.PostForm[nameKey], r.PostForm[valueKey]
-	var out []mcp.KV
+	var marks []string
+	if secretKey != "" {
+		marks = r.PostForm[secretKey]
+		if len(marks) != len(names) { // the flags travel with the rows; if they do not line up, ignore them
+			marks = nil
+		}
+	}
 	for i, n := range names {
 		n = strings.TrimSpace(n)
 		if n == "" {
@@ -987,8 +1027,18 @@ func pairsFrom(r *http.Request, nameKey, valueKey string) []mcp.KV {
 			v = values[i]
 		}
 		out = append(out, mcp.KV{Name: n, Value: v})
+		if secretKey == "" {
+			continue
+		}
+		mark := ""
+		if marks != nil {
+			mark = marks[i]
+		}
+		if mark == "0" || mark == "" && !suggest.NameLooksSecret(n) {
+			plain = append(plain, n)
+		}
 	}
-	return out
+	return out, plain
 }
 
 // rowsFrom reads the values of a dynamic single-value list; blank rows are dropped.
@@ -1056,7 +1106,7 @@ func upstreamFromForm(r *http.Request) (mcp.Upstream, error) {
 			u.Command = pick // a listed command; the text input is only read for Custom
 		}
 		u.Args = rowsFrom(r, "args")
-		u.Env = pairsFrom(r, "env_name", "env_value")
+		u.Env, u.PlainEnv = envPairsFrom(r, "env_name", "env_value", "env_secret")
 		u.Shell = r.PostFormValue("shell") == "1"
 		u.Install = strings.TrimSpace(r.PostFormValue("install"))
 		u.Lifecycle = r.PostFormValue("lifecycle")
