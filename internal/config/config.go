@@ -52,6 +52,7 @@ type Config struct {
 	ManagedLogLines   int           // stderr lines kept per process (internal default)
 	ManagedInstallMax time.Duration // limit for one install step (internal default)
 	UpdateCheckURL    string        // GitHub latest-release API polled for the header's update hint; empty = no check (UPDATE_CHECK=false)
+	GitHubToken       string        // GITHUB_TOKEN: Suggest reads GitHub repositories with it unless the upstream has its own token
 	SecretsKey        string        // SECRETS_KEY: encryption key for stored secrets (empty: key file next to the database)
 	kv                KV
 }
@@ -151,6 +152,7 @@ func Load() *Config {
 		RequireConsent:    boolEnv("MCP_OAUTH_REQUIRE_CONSENT", true),
 		LogLevel:          strings.ToLower(env("LOG_LEVEL", "info")),
 		SecretsKey:        strings.TrimSpace(os.Getenv("SECRETS_KEY")),
+		GitHubToken:       strings.TrimSpace(os.Getenv("GITHUB_TOKEN")),
 		UpdateCheckURL:    updateCheckURL(),
 		ManagedDir:        strings.TrimSpace(os.Getenv("MANAGED_DIR")),
 		ManagedMaxProcs:   intEnv("MANAGED_MAX_PROCS", DefaultManagedMaxProcs, 0, 100000),

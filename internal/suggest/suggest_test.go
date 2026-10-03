@@ -593,3 +593,90 @@ func TestPromptNamesGoRule(t *testing.T) {
 		t.Fatal("the system prompt lacks the Go rule")
 	}
 }
+
+// githubAuthServer answers the README for the tokens in ok (an empty entry allows anonymous requests),
+// 401 for a bad bearer token and 404 for anything else.
+func githubAuthServer(t *testing.T, ok ...string) (*Fetcher, *rewrite) {
+	return fetcherFor(t, func(w http.ResponseWriter, r *http.Request) {
+		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		allowed := false
+		for _, o := range ok {
+			allowed = allowed || o == got
+		}
+		switch {
+		case !allowed && got != "":
+			w.WriteHeader(401)
+		case !allowed:
+			w.WriteHeader(404)
+		case strings.Contains(r.URL.Path, "/contents/README.md"):
+			io.WriteString(w, "# Tool\nRun it.")
+		default:
+			w.WriteHeader(404)
+		}
+	})
+}
+
+func lastBearer(rw *rewrite) string {
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
+	return strings.TrimPrefix(rw.seen[len(rw.seen)-1].hdr.Get("Authorization"), "Bearer ")
+}
+
+func TestGitHubTokenIsTheFallbackAndTheUpstreamTokenWins(t *testing.T) {
+	f, rw := githubAuthServer(t, "shared", "own")
+	f.GitHubToken = "shared"
+	src, _ := ParseSource("https://github.com/acme/tool")
+	if _, err := f.Fetch(context.Background(), src, ""); err != nil || lastBearer(rw) != "shared" {
+		t.Fatalf("no upstream token should use GITHUB_TOKEN: %v bearer=%q", err, lastBearer(rw))
+	}
+	if _, err := f.Fetch(context.Background(), src, "own"); err != nil || lastBearer(rw) != "own" {
+		t.Fatalf("the upstream token should win: %v bearer=%q", err, lastBearer(rw))
+	}
+	for _, s := range rw.seen {
+		if strings.Contains(s.url, "shared") || strings.Contains(s.url, "own") {
+			t.Fatalf("token in URL %s", s.url)
+		}
+	}
+}
+
+func TestGitHubTokenOnlyGoesToGitHub(t *testing.T) {
+	f, rw := fetcherFor(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "doc") })
+	f.GitHubToken = "shared"
+	for _, in := range []string{"https://gitlab.com/g/p", "https://bitbucket.org/w/r", "https://git.example.com/o/r"} {
+		src, _ := ParseSource(in)
+		if _, err := f.Fetch(context.Background(), src, ""); err != nil {
+			t.Fatalf("%s: %v", in, err)
+		}
+	}
+	for _, s := range rw.seen {
+		for k, v := range s.hdr {
+			if strings.Contains(strings.Join(v, ""), "shared") {
+				t.Fatalf("GITHUB_TOKEN sent to %s in %s", s.url, k)
+			}
+		}
+	}
+}
+
+func TestRefusedGitHubTokenStillReadsPublicRepositories(t *testing.T) {
+	f, rw := githubAuthServer(t, "") // public: only anonymous requests succeed, a bad token gets 401
+	f.GitHubToken = "revoked"
+	src, _ := ParseSource("https://github.com/acme/tool")
+	doc, err := f.Fetch(context.Background(), src, "")
+	if err != nil || len(doc.Files) != 1 || lastBearer(rw) != "" {
+		t.Fatalf("%v %+v bearer=%q", err, doc, lastBearer(rw))
+	}
+	// the upstream's own refused token is still reported, not retried anonymously
+	if _, err := f.Fetch(context.Background(), src, "bad"); err == nil || !strings.Contains(err.Error(), "refused") {
+		t.Fatalf("own bad token: %v", err)
+	}
+}
+
+func TestGitHubTokenOnAPrivateRepositoryAsksForAnUpstreamToken(t *testing.T) {
+	f, _ := githubAuthServer(t, "own") // the shared token cannot see this repository
+	f.GitHubToken = "shared"
+	src, _ := ParseSource("https://github.com/acme/private")
+	_, err := f.Fetch(context.Background(), src, "")
+	if err == nil || !strings.Contains(err.Error(), "access token") {
+		t.Fatalf("%v", err)
+	}
+}

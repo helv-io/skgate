@@ -89,7 +89,9 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), limit)
 	defer cancel()
-	svc := suggest.Service{Fetch: suggest.NewFetcher(), LLM: a.Proxy, Idle: idle,
+	fetcher := suggest.NewFetcher()
+	fetcher.GitHubToken = a.Cfg.GitHubToken
+	svc := suggest.Service{Fetch: fetcher, LLM: a.Proxy, Idle: idle,
 		Effort: provider.EffortParam(a.Set.Effort(a.Providers.Default().ID()))}
 	if a.SuggestFetch != nil {
 		svc.Fetch = a.SuggestFetch
