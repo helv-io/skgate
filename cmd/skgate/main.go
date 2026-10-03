@@ -24,9 +24,15 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(healthcheck())
 	}
+	if err := refuseNobody(os.Geteuid(), os.Getegid()); err != nil {
+		log.Fatalf("refusing to start: %v", err)
+	}
 	cfg := config.Load()
 	// Container starts as root so the data dir can be chowned, then we drop to PUID:PGID.
 	if err := prepareAndDrop(cfg.DBPath); err != nil {
+		log.Fatalf("refusing to start: %v", err)
+	}
+	if err := refuseNobody(os.Geteuid(), os.Getegid()); err != nil {
 		log.Fatalf("refusing to start: %v", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o750); err != nil {
