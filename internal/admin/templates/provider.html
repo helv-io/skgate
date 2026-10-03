@@ -34,8 +34,8 @@
 
 <h4>Upstream</h4>
 <form method="post" action="/admin/providers/{{.ID}}/settings" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<div class="field"><label>Base URL</label><input type="url" name="base" value="{{.Base}}" placeholder="{{.DefaultBase}}"></div>
-<div class="field"><label>Fallback on 402/403 (empty = off)</label><input type="url" name="fallback" value="{{.Fallback}}"></div>
+<div class="field"><label>Base URL<input type="url" name="base" value="{{.Base}}" placeholder="{{.DefaultBase}}"></label></div>
+<div class="field"><label>Fallback on 402/403 (empty = off)<input type="url" name="fallback" value="{{.Fallback}}"></label></div>
 <div class="row"><button class="act">Save</button></div></form>
 
 {{if .CanModels}}<h4>Model aliases</h4>
@@ -44,8 +44,8 @@
 <td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
 {{else}}<tr><td colspan="4" class="empty">none</td></tr>{{end}}</tbody></table></div>
 <form method="post" action="/admin/providers/{{.ID}}/aliases/put" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<div class="row"><input type="text" name="name" placeholder="alias" maxlength="64" autocomplete="off" spellcheck="false">
-<select name="target">{{range .Models}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+<div class="row"><input type="text" name="name" aria-label="Alias name" placeholder="alias" maxlength="64" autocomplete="off" spellcheck="false">
+<select name="target" aria-label="Target model">{{range .Models}}<option value="{{.}}">{{.}}</option>{{end}}</select>
 <button class="act" {{if not .ModelsKnown}}disabled title="load the model list first"{{end}}>Save</button></div></form>{{end}}
 
 <h4>Sign-in</h4>
@@ -53,7 +53,7 @@
 <details><summary class="muted">Browser sign-in</summary>
 <p class="muted">The default client only allows a loopback redirect. After the redirect fails, paste the address of the failed page.</p>
 <div class="actions"><form method="post" action="/admin/providers/{{.ID}}/browser/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Start</button></form></div>
-<form method="post" action="/admin/providers/{{.ID}}/browser/paste" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="field"><label>Callback URL or code</label><input type="text" name="callback" autocomplete="off"></div><div class="row"><button class="act">Finish</button></div></form>
+<form method="post" action="/admin/providers/{{.ID}}/browser/paste" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="field"><label>Callback URL or code<input type="text" name="callback" autocomplete="off"></label></div><div class="row"><button class="act">Finish</button></div></form>
 </details>
 
 <h4>Tokens</h4>
@@ -77,7 +77,7 @@
 {{/* model_picker: choose the MCP helper model of a provider and reload its model list. Takes a providerView.
    Inline forms post in place (see app.js, data-inline) and the page re-renders the Suggest controls. */}}
 {{define "model_picker"}}{{$p := .}}<form method="post" action="/admin/providers/{{.ID}}/model" class="form"{{if .Inline}} data-inline=""{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><div class="pick">
-<select name="model"><option value="">none</option>{{range .Choices}}<option value="{{.Value}}"{{if .Frontier}} data-frontier{{end}}{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+<select name="model" aria-label="Model"><option value="">none</option>{{range .Choices}}<option value="{{.Value}}"{{if .Frontier}} data-frontier{{end}}{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
 <button class="act">Save</button>
 {{template "effort_select" .Effort}}</div>
 <div class="field"><label>Timeout, seconds without an answer<input type="number" name="timeout" value="{{.Timeout}}" min="1" max="86400" step="1" inputmode="numeric"></label></div>

@@ -354,7 +354,7 @@ document.addEventListener("change", function (e) {
 // Pick: a [data-pick] select whose empty option ("Custom") reveals the [data-pick-custom] input next to it.
 (function () {
   function apply(sel) {
-    var inp = sel.parentNode.querySelector("[data-pick-custom]");
+    var inp = (sel.closest(".field") || sel.parentNode).querySelector("[data-pick-custom]");
     if (!inp) return;
     inp.hidden = sel.value !== "";
     if (!inp.hidden && document.activeElement === sel) inp.focus();
