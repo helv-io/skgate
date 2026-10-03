@@ -43,11 +43,11 @@ func TestMigrateLegacyEnv(t *testing.T) {
 	kv := &memKV{m: map[string]string{}}
 	c := Load()
 	c.Bind(kv)
-	if c.QueryKeyAllowed() {
+	if _, ok := kv.m["allow_query_key"]; ok {
 		t.Fatal("the variable itself must not enable ?key=")
 	}
 	MigrateLegacyEnv(kv)
-	if !c.QueryKeyAllowed() || kv.m["provider.grok.base"] != "https://up.example/v1" {
+	if kv.m["allow_query_key"] != "1" || kv.m["provider.grok.base"] != "https://up.example/v1" {
 		t.Fatalf("not migrated: %v", kv.m)
 	}
 	if v, ok := kv.m["provider.grok.fallback"]; !ok || v != "" {
@@ -56,7 +56,7 @@ func TestMigrateLegacyEnv(t *testing.T) {
 	// once only: a later change in the UI is not overwritten by a still-set variable
 	kv.m["allow_query_key"] = "0"
 	MigrateLegacyEnv(kv)
-	if c.QueryKeyAllowed() {
+	if kv.m["allow_query_key"] != "0" {
 		t.Fatal("the migration must not run twice")
 	}
 }

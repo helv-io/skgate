@@ -142,19 +142,6 @@ func (a *Admin) providerSettings(w http.ResponseWriter, r *http.Request) {
 	a.back(w, r, dialogHash(p.ID()), "upstream saved", "")
 }
 
-func (a *Admin) queryKeyToggle(w http.ResponseWriter, r *http.Request) {
-	v := "1"
-	if a.Cfg.QueryKeyAllowed() {
-		v = "0"
-	}
-	_ = a.DB.SetSetting("allow_query_key", v)
-	msg := "?key= accepted on MCP endpoints"
-	if v == "0" {
-		msg = "?key= refused on MCP endpoints"
-	}
-	a.back(w, r, "/admin/keys", msg, "")
-}
-
 // ---- models ----
 
 // modelTries throttles on-demand model loads per provider.

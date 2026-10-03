@@ -273,7 +273,7 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/", http.NotFound)
 	a.providerRoutes(mux)
 	mux.HandleFunc("/admin/oauth/callback", a.guard(a.browserCallback))
-	mux.HandleFunc("/admin/settings/query-key", a.guard(a.postOnly(a.queryKeyToggle)))
+	mux.HandleFunc("/admin/keys/urlkey", a.guard(a.postOnly(a.keyURLKey)))
 	mux.HandleFunc("/admin/results/{token}", a.guard(a.getOnly(a.resultScreen)))
 	mux.HandleFunc("/admin/keys", a.guard(a.keys))
 	mux.HandleFunc("/admin/keys/create", a.guard(a.postOnly(a.keyCreate)))
@@ -408,14 +408,13 @@ func validBase(s string) bool {
 func cleanBase(s string) string { return strings.TrimRight(strings.TrimSpace(s), "/") }
 
 type keysData struct {
-	Keys     []vkeys.Key
-	NewKey   string
-	QueryKey bool
+	Keys   []vkeys.Key
+	NewKey string
 }
 
 func (a *Admin) keys(w http.ResponseWriter, r *http.Request) {
 	ks, _ := a.Keys.List()
-	a.render(w, r, "keys", page{Title: "Virtual keys", Nav: "keys", Data: keysData{Keys: ks, QueryKey: a.Cfg.QueryKeyAllowed()}})
+	a.render(w, r, "keys", page{Title: "Virtual keys", Nav: "keys", Data: keysData{Keys: ks}})
 }
 
 func (a *Admin) keyCreate(w http.ResponseWriter, r *http.Request) {
@@ -1267,4 +1266,20 @@ func (a *Admin) clientDelete(w http.ResponseWriter, r *http.Request) {
 // consent renders the /authorize Approve/Deny page in the admin design.
 func (a *Admin) consent(w http.ResponseWriter, r *http.Request, v mcp.ConsentView) {
 	a.render(w, r, "consent", page{Title: "Authorize MCP access", Data: v, Solo: true, Redirects: true})
+}
+
+// keyURLKey switches whether one key may be sent as ?key= on MCP endpoints (its Details dialog).
+func (a *Admin) keyURLKey(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PostFormValue("id"), 10, 64)
+	on := r.PostFormValue("allow") == "1"
+	if err := a.Keys.SetURLKey(id, on); err != nil {
+		a.back(w, r, "/admin/keys", "", err.Error())
+		return
+	}
+	log.Printf("admin: key id=%d ?key= %s", id, map[bool]string{true: "allowed", false: "refused"}[on])
+	msg := "?key= refused for this key"
+	if on {
+		msg = "?key= allowed for this key"
+	}
+	a.back(w, r, "/admin/keys#key-"+strconv.FormatInt(id, 10), msg, "")
 }

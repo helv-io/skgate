@@ -38,6 +38,7 @@ func New(cfg *config.Config, db *store.DB) *App {
 	set := provider.Settings{KV: db}
 	set.MigrateLegacy(g.ID())
 	a.Keys = vkeys.New(db)
+	_ = a.Keys.MigrateGlobalURLKey(db) // the old global ?key= switch becomes a per-key one
 	a.MCP = mcp.NewServer(cfg, db, a.Keys)
 	a.Proxy = provider.NewProxy(g, set, a.Keys)
 	a.Admin = admin.New(cfg, db, a.Providers, a.Proxy, a.Keys, a.MCP)

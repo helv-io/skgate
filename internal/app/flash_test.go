@@ -72,7 +72,7 @@ func TestNoNotificationInRedirectQuery(t *testing.T) {
 		{"/admin/providers/grok/aliases/put", url.Values{"name": {"x"}, "target": {"y"}}},
 		{"/admin/providers/grok/model", url.Values{"model": {"y"}}},
 		{"/admin/providers/grok/models/reload", url.Values{}},
-		{"/admin/settings/query-key", url.Values{}},
+		{"/admin/keys/urlkey", url.Values{"id": {"999"}, "allow": {"1"}}},
 		{"/admin/keys/revoke", url.Values{"id": {"999"}}},
 		{"/admin/upstreams/save", url.Values{"mode": {"new"}, "alias": {"x"}, "url": {up.URL}, "auth_kind": {"none"}}},
 		{"/admin/upstreams/save", url.Values{"mode": {"new"}, "alias": {"X!"}, "url": {up.URL}}},

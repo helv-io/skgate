@@ -50,6 +50,7 @@ func main() {
 	}
 	a := app.New(cfg, db) // also moves the old global upstream settings to the provider
 	config.MigrateLegacyEnv(db)
+	_ = a.Keys.MigrateGlobalURLKey(db) // MCP_ALLOW_QUERY_KEY from an older deployment lands here too
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	for _, p := range a.Providers.List() {

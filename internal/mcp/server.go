@@ -170,7 +170,7 @@ func (s *Server) unauthorized(w http.ResponseWriter, r *http.Request, path strin
 	if presented {
 		reqlog.Reject(r, "invalid token: the presented credential is invalid, expired, revoked or for another resource")
 	} else {
-		reqlog.Reject(r, "missing token: no Authorization Bearer, X-API-Key or allowed ?key= credential was sent")
+		reqlog.Reject(r, "missing token: no Authorization Bearer, X-API-Key or ?key= credential was sent")
 	}
 	httputil.SetCORS(w)
 	h := `Bearer resource_metadata="` + s.prmURL(path) + `"`
@@ -227,22 +227,21 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 			reqlog.Reject(r, "invalid token: X-API-Key is not a valid virtual key")
 		}
 	}
-	if s.Cfg.QueryKeyAllowed() {
-		if k := r.URL.Query().Get("key"); k != "" {
-			presented = true
-			if key, ok := s.Keys.Verify(k); ok {
-				s.Keys.Record(key.ID, vkeys.Usage{MCPRequests: 1})
-				reqlog.Note(r, "auth=query-key")
-				return true, true
-			}
+	if k := r.URL.Query().Get("key"); k != "" {
+		presented = true
+		if key, ok := s.Keys.Verify(k); ok && !key.URLKey {
+			reqlog.Reject(r, "invalid token: ?key= is a valid virtual key that is not allowed in the URL (enable it in the key's details)")
+		} else if ok {
+			s.Keys.Record(key.ID, vkeys.Usage{MCPRequests: 1})
+			reqlog.Note(r, "auth=query-key")
+			return true, true
+		} else {
 			if at, late := s.Keys.ExpiredAt(k); late {
 				reqlog.Reject(r, "invalid token: ?key= is a virtual key that expired %s", at.Local().Format(time.RFC3339))
 			} else {
 				reqlog.Reject(r, "invalid token: ?key= is not a valid virtual key")
 			}
 		}
-	} else if r.URL.Query().Get("key") != "" {
-		reqlog.Note(r, "?key= was sent but it is refused (keys page switch)")
 	}
 	return false, presented
 }

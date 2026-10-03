@@ -17,12 +17,16 @@
 <form method="post" action="/admin/keys/limits" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
 <div class="field"><label>Rate limit (requests per minute, empty = unlimited)<input type="number" name="rate" min="0" inputmode="numeric" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></label></div>
 {{template "expiry_field" (expiry .ExpiresAt)}}
-<div class="row"><button class="act">Save</button></div></form>{{end}}
+<div class="row"><button class="act">Save</button></div></form>
+<form method="post" action="/admin/keys/urlkey" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="allow" value="{{if .URLKey}}0{{else}}1{{end}}">
+<div class="row"><button class="act toggle {{if .URLKey}}on{{else}}off{{end}}">?key= in the URL: {{if .URLKey}}allowed{{else}}off{{end}}</button></div>
+<p class="muted">Lets MCP clients that cannot send headers pass this key as <code>?key=</code>. The key may then appear in logs, browser history and referrers.</p></form>{{end}}
 <h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 <tr><th>key</th><td><code>{{.Masked}}</code></td></tr>
 <tr><th>label</th><td>{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td></tr>
 <tr><th>rate limit</th><td>{{.LimitsText}}</td></tr>
+<tr><th>?key= in URL</th><td>{{if .URLKey}}allowed{{else}}off{{end}}</td></tr>
 <tr><th>expires</th><td>{{if .ExpiresAt.IsZero}}never{{else}}{{ts .ExpiresAt}}{{end}}</td></tr>
 <tr><th>created</th><td>{{ts .CreatedAt}}</td></tr>
 <tr><th>last used</th><td>{{ts .LastUsed}}</td></tr>
@@ -30,7 +34,6 @@
 <tr><th>status</th><td>{{template "pill" (keyStatus .)}}</td></tr>
 </tbody></table></div>
 {{template "dialog_end"}}{{end}}
-<form method="post" action="/admin/settings/query-key" class="row"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act toggle {{if .QueryKey}}on{{else}}off{{end}}" title="accept the key as ?key= on MCP endpoints; it leaks into logs and history">?key= {{if .QueryKey}}accepted{{else}}refused{{end}}</button></form>
 <p class="muted">Send as <code>Authorization: Bearer sk-...</code></p>
 <ul class="muted">
 <li>OpenAI API: <code>{{$.Public}}/v1</code></li>

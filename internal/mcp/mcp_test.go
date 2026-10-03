@@ -680,10 +680,15 @@ func TestInboundKeyMethods(t *testing.T) {
 	if s := try("/mcp/u?key="+key, map[string]string{}); s != 401 {
 		t.Errorf("?key= must be rejected by default, got %d", s)
 	}
-	// opt-in via the runtime setting
-	e.db.SetSetting("allow_query_key", "1")
+	// opt-in per key
+	ks, _ := e.keys.List()
+	e.keys.SetURLKey(ks[0].ID, true)
 	if s := try("/mcp/u?key="+key, map[string]string{}); s != 200 {
 		t.Errorf("?key= with opt-in: %d", s)
+	}
+	other, _, _ := e.keys.Create("other") // a second key stays refused
+	if s := try("/mcp/u?key="+other, map[string]string{}); s != 401 {
+		t.Errorf("?key= is per key; another key must stay refused, got %d", s)
 	}
 	// the key must not be forwarded upstream in the query string
 	r := e.do("POST", "/mcp/u?key="+key+"&x=1", map[string]string{"Content-Type": "application/json"}, `{}`)

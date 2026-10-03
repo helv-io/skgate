@@ -174,11 +174,3 @@ func (c *Config) get(key string) (string, bool) {
 	}
 	return c.kv.GetSetting(key)
 }
-
-// QueryKeyAllowed reports whether ?key= is accepted on MCP endpoints: the keys page switch, off by default.
-func (c *Config) QueryKeyAllowed() bool {
-	if v, ok := c.get("allow_query_key"); ok {
-		return v == "1"
-	}
-	return false
-}
