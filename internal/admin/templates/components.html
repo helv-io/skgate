@@ -33,7 +33,7 @@
 {{/* expiry_field: the expiration of a virtual key, typed as plain text (30d, 2w, tomorrow, 2026-12-31, dec 31, never).
    Takes an expiryData. app.js shows what the text means under the field as you type (data-expiry), the quick
    buttons fill it in, and the server reads it with the same parser when the form is submitted. */}}
-{{define "expiry_field"}}<div class="field" data-expiry data-expiry-url="/admin/keys/expiry"><label>Expires (empty = never)<input type="text" name="expires" value="{{.Value}}" placeholder="never, 30d, 2w, dec 31" maxlength="40" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" data-expiry-input></label>
+{{define "expiry_field"}}<div class="field" data-expiry data-expiry-url="/admin/keys/expiry"><label>Expires<input type="text" name="expires" value="{{.Value}}" placeholder="never, 30d, 2w, dec 31" maxlength="40" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" data-expiry-input></label>
 <p class="muted" data-expiry-preview aria-live="polite">{{.Preview}}</p>
 <div class="quick"><button type="button" class="act" data-expiry-set="1d">1 day</button><button type="button" class="act" data-expiry-set="7d">7 days</button><button type="button" class="act" data-expiry-set="30d">30 days</button><button type="button" class="act" data-expiry-set="90d">90 days</button><button type="button" class="act" data-expiry-set="1y">1 year</button><button type="button" class="act" data-expiry-set="never">Never</button></div></div>{{end}}
 

@@ -3,7 +3,7 @@
 {{if .NewKey}}<div class="card"><p class="ok">New key, shown once</p><div class="row"><code class="code" id="new-token">{{.NewKey}}</code><button type="button" class="act" data-copy="#new-token">Copy</button></div></div>{{end}}
 <div class="card"><form method="post" action="/admin/keys/create" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>Label<input type="text" name="label" maxlength="80"></label></div>
-<div class="field"><label>Rate limit (requests per minute, empty = unlimited)<input type="number" name="rate" min="0" inputmode="numeric"></label></div>
+<div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit"></label></div>
 {{template "expiry_field" neverExpires}}
 <div class="row"><button class="act">Create key</button></div></form></div>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Key</th><th>Label</th><th>Usage</th>{{template "th_actions"}}</tr></thead><tbody>
@@ -13,25 +13,24 @@
 <form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form>{{end}}</div></td></tr>
 {{else}}<tr><td colspan="5" class="empty">none</td></tr>{{end}}</tbody></table></div>
 {{range .Keys}}{{template "dialog_content" (dlg (printf "key-%d" .ID) "Virtual key")}}
-{{if not .Revoked}}<h4>Limits</h4>
-<form method="post" action="/admin/keys/limits" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
-<div class="field"><label>Rate limit (requests per minute, empty = unlimited)<input type="number" name="rate" min="0" inputmode="numeric" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></label></div>
+{{if not .Revoked}}<form method="post" action="/admin/keys/update" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
+<div class="field"><label>Name<input type="text" name="label" maxlength="80" value="{{.Label}}"></label></div>
+<div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></label></div>
 {{template "expiry_field" (expiry .ExpiresAt)}}
-<div class="row"><button class="act">Save</button></div></form>
-<form method="post" action="/admin/keys/urlkey" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="allow" value="{{if .URLKey}}0{{else}}1{{end}}">
-<div class="row"><button class="act toggle {{if .URLKey}}on{{else}}off{{end}}">?key= in the URL: {{if .URLKey}}allowed{{else}}off{{end}}</button></div>
-<p class="muted">Lets MCP clients that cannot send headers pass this key as <code>?key=</code>. The key may then appear in logs, browser history and referrers.</p></form>{{end}}
+<div class="field"><label class="check"><input type="checkbox" name="urlkey" value="1" {{if .URLKey}}checked{{end}}> Accept this key in the URL as <code>?key=</code></label>
+<p class="muted">For MCP clients that cannot send headers. The key can then appear in logs, browser history and referrers.</p></div>
+<div class="row"><button class="btn">Save</button></div></form>
+<div class="actions">
+<form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">regenerate</button></form>
+<form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form></div>{{end}}
 <h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 <tr><th>key</th><td><code>{{.Masked}}</code></td></tr>
-<tr><th>label</th><td>{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td></tr>
-<tr><th>rate limit</th><td>{{.LimitsText}}</td></tr>
-<tr><th>?key= in URL</th><td>{{if .URLKey}}allowed{{else}}off{{end}}</td></tr>
-<tr><th>expires</th><td>{{if .ExpiresAt.IsZero}}never{{else}}{{ts .ExpiresAt}}{{end}}</td></tr>
+{{if .Revoked}}<tr><th>name</th><td>{{.Label}}</td></tr>{{end}}
+<tr><th>status</th><td>{{template "pill" (keyStatus .)}}</td></tr>
 <tr><th>created</th><td>{{ts .CreatedAt}}</td></tr>
 <tr><th>last used</th><td>{{ts .LastUsed}}</td></tr>
 <tr><th>usage</th><td>{{template "tip" (keyUsage .)}}</td></tr>
-<tr><th>status</th><td>{{template "pill" (keyStatus .)}}</td></tr>
 </tbody></table></div>
 {{template "dialog_end"}}{{end}}
 <p class="muted">Send as <code>Authorization: Bearer sk-...</code></p>
