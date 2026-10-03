@@ -14,10 +14,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -86,6 +88,8 @@ type Client struct {
 	Secure func() bool
 	HTTP   *http.Client
 
+	postOnly atomic.Bool // the token endpoint refused basic and accepted post
+	how      string      // last client authentication method logged
 	mu       sync.Mutex
 	prov     *oidc.Provider
 	meta     metadata
@@ -173,18 +177,41 @@ func asymmetric(algs []string) []string {
 	return out // empty: go-oidc defaults to RS256
 }
 
-func (c *Client) oauthConfig(p *oidc.Provider, m metadata) *oauth2.Config {
-	ep := p.Endpoint()
-	// Prefer client_secret_basic. Use client_secret_post only when the IdP advertises methods
-	// and client_secret_basic is not among them.
-	ep.AuthStyle = oauth2.AuthStyleInHeader
-	if len(m.AuthMethods) > 0 && !contains(m.AuthMethods, "client_secret_basic") && contains(m.AuthMethods, "client_secret_post") {
-		ep.AuthStyle = oauth2.AuthStyleInParams
+// authStyle picks how the client authenticates at the token endpoint from the discovered
+// token_endpoint_auth_methods_supported: client_secret_basic when supported, else client_secret_post;
+// without the field, client_secret_basic (the specification's default). postOnly is set once a
+// token endpoint refused basic and accepted post.
+func authStyle(methods []string, postOnly bool) (oauth2.AuthStyle, string) {
+	switch {
+	case postOnly:
+		return oauth2.AuthStyleInParams, "client_secret_post (basic was refused)"
+	case len(methods) == 0:
+		return oauth2.AuthStyleInHeader, "client_secret_basic (not advertised, default)"
+	case contains(methods, "client_secret_basic"):
+		return oauth2.AuthStyleInHeader, "client_secret_basic"
+	case contains(methods, "client_secret_post"):
+		return oauth2.AuthStyleInParams, "client_secret_post"
 	}
+	return oauth2.AuthStyleInHeader, "client_secret_basic (none of the advertised methods is supported)"
+}
+
+func (c *Client) oauthConfig(p *oidc.Provider, m metadata, style oauth2.AuthStyle) *oauth2.Config {
+	ep := p.Endpoint()
+	ep.AuthStyle = style
 	return &oauth2.Config{
 		ClientID: c.Cfg.ClientID, ClientSecret: c.Cfg.ClientSecret, Endpoint: ep,
 		RedirectURL: c.RedirectURL(), Scopes: strings.Fields(strings.ReplaceAll(c.Cfg.Scopes, ",", " ")),
 	}
+}
+
+// clientRefused reports whether a token request failed because the endpoint did not accept the
+// client authentication (HTTP 401 or error invalid_client).
+func clientRefused(err error) bool {
+	var re *oauth2.RetrieveError
+	if !errors.As(err, &re) {
+		return false
+	}
+	return re.ErrorCode == "invalid_client" || (re.Response != nil && re.Response.StatusCode == http.StatusUnauthorized)
 }
 
 func contains(l []string, s string) bool {
@@ -248,7 +275,8 @@ func (c *Client) Begin(w http.ResponseWriter, r *http.Request, next string) erro
 	fs := flowState{State: randToken(24), Nonce: randToken(24), Verifier: oauth2.GenerateVerifier(), Next: next,
 		Exp: time.Now().Add(flowTTL).Unix()}
 	http.SetCookie(w, c.cookie(flowCookie, c.seal(fs), "/admin/oidc", int(flowTTL.Seconds())))
-	u := c.oauthConfig(p, m).AuthCodeURL(fs.State, oidc.Nonce(fs.Nonce), oauth2.S256ChallengeOption(fs.Verifier))
+	st, _ := authStyle(m.AuthMethods, c.postOnly.Load())
+	u := c.oauthConfig(p, m, st).AuthCodeURL(fs.State, oidc.Nonce(fs.Nonce), oauth2.S256ChallengeOption(fs.Verifier))
 	http.Redirect(w, r, u, http.StatusFound)
 	return nil
 }
@@ -283,10 +311,27 @@ func (c *Client) Finish(w http.ResponseWriter, r *http.Request) (Identity, strin
 		return id, "", err
 	}
 	ctx := c.ctx(r.Context())
-	oc := c.oauthConfig(p, m)
-	tok, err := oc.Exchange(ctx, code, oauth2.VerifierOption(fs.Verifier))
+	style, how := authStyle(m.AuthMethods, c.postOnly.Load())
+	tok, err := c.oauthConfig(p, m, style).Exchange(ctx, code, oauth2.VerifierOption(fs.Verifier))
+	if err != nil && style == oauth2.AuthStyleInHeader && clientRefused(err) {
+		// Not every provider advertises its methods correctly: retry once with the secret in the form.
+		log.Printf("oidc: token endpoint refused %s (%v); retrying with client_secret_post", how, err)
+		style, how = oauth2.AuthStyleInParams, "client_secret_post (retry)"
+		tok, err = c.oauthConfig(p, m, style).Exchange(ctx, code, oauth2.VerifierOption(fs.Verifier))
+		if err == nil {
+			c.postOnly.Store(true)
+		}
+	}
 	if err != nil {
+		log.Printf("oidc: token exchange failed using %s: %v", how, err)
 		return id, "", fmt.Errorf("token exchange failed: %w", err)
+	}
+	c.mu.Lock()
+	changed := c.how != how
+	c.how = how
+	c.mu.Unlock()
+	if changed {
+		log.Printf("oidc: token endpoint client authentication: %s", how)
 	}
 	raw, _ := tok.Extra("id_token").(string)
 	if raw == "" {
