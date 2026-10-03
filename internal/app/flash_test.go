@@ -10,7 +10,7 @@ import (
 
 func TestFlashToastRendersOnceAndIsSigned(t *testing.T) {
 	_, ts, br, csrf := signedIn(t, nil)
-	r, _ := br.post("/admin/upstreams/delete", url.Values{"csrf": {csrf}, "alias": {"nope"}})
+	r, _ := br.post("/admin/upstreams/nope/delete", url.Values{"csrf": {csrf}})
 	if r.StatusCode != 303 || r.Header.Get("Location") != "/admin/upstreams" {
 		t.Fatalf("delete: %d %q (no query params allowed)", r.StatusCode, r.Header.Get("Location"))
 	}
@@ -76,9 +76,9 @@ func TestNoNotificationInRedirectQuery(t *testing.T) {
 		{"/admin/keys/revoke", url.Values{"id": {"999"}}},
 		{"/admin/upstreams/save", url.Values{"mode": {"new"}, "alias": {"x"}, "url": {up.URL}, "auth_kind": {"none"}}},
 		{"/admin/upstreams/save", url.Values{"mode": {"new"}, "alias": {"X!"}, "url": {up.URL}}},
-		{"/admin/upstreams/redetect", url.Values{"alias": {"x"}}},
-		{"/admin/upstreams/redetect", url.Values{"alias": {"zz"}}},
-		{"/admin/upstreams/delete", url.Values{"alias": {"x"}}},
+		{"/admin/upstreams/x/redetect", url.Values{}},
+		{"/admin/upstreams/zz/redetect", url.Values{}},
+		{"/admin/upstreams/x/delete", url.Values{}},
 		{"/admin/clients/create", url.Values{"method": {"none"}}},
 		{"/admin/clients/delete", url.Values{"id": {"none"}}},
 		{"/admin/providers/grok/refresh", url.Values{}},

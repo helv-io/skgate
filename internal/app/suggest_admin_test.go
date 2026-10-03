@@ -218,7 +218,7 @@ func TestSingleManagedFormDerivesKind(t *testing.T) {
 	if u.Kind != "git" || u.GitURL != "https://git.example.com/org/repo" || u.GitRef != "dev" || u.GitToken != tokenSecret {
 		t.Fatalf("%+v", u)
 	}
-	_, page := r.br.get("/admin/upstreams/edit?alias=hosted")
+	_, page := r.br.get("/admin/upstreams/hosted/edit")
 	if strings.Contains(page, tokenSecret) || !strings.Contains(page, `value="https://git.example.com/org/repo"`) {
 		t.Fatal("edit form must show the source and only a masked token")
 	}

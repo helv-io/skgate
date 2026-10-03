@@ -73,9 +73,17 @@ func (b *browser) get(path string) (*http.Response, string) {
 }
 
 func (b *browser) post(path string, v url.Values) (*http.Response, string) {
+	if path == "/admin/upstreams/save" && v.Get("mode") == "edit" { // an upstream is addressed by its alias
+		path = "/admin/upstreams/" + v.Get("alias") + "/save"
+	}
 	req, _ := http.NewRequest("POST", b.ts.URL+path, strings.NewReader(v.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	return b.do(req)
+	resp, body := b.do(req)
+	// a change that has something to show (a new key, an import's outcome) redirects to its result screen: follow it
+	if loc := resp.Header.Get("Location"); resp.StatusCode == http.StatusSeeOther && strings.HasPrefix(loc, "/admin/results/") {
+		return b.get(loc)
+	}
+	return resp, body
 }
 
 // sso walks the full OIDC flow: login, IdP authorization, callback. It returns the callback response.
@@ -168,7 +176,7 @@ func TestHealthzAndAdminFlow(t *testing.T) {
 		t.Fatalf("upstream save should queue a success toast, got %q", k)
 	}
 	_, ups := get("/admin/upstreams")
-	_, edit := get("/admin/upstreams/edit?alias=demo")
+	_, edit := get("/admin/upstreams/demo/edit")
 	if !strings.Contains(ups, "************"+"ALUE") || !strings.Contains(edit, "************"+"ALUE") || strings.Contains(ups+edit, "SECRET-VAL") {
 		t.Fatal("upstream credential must render as asterisks plus the last 4 characters only")
 	}

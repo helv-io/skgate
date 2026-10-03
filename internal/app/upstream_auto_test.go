@@ -26,17 +26,17 @@ func TestUpstreamAutoModeAndRedetect(t *testing.T) {
 		t.Fatalf("stored: %+v", u)
 	}
 	_, list := br.get("/admin/upstreams")
-	if !strings.Contains(list, "auto: none") || !strings.Contains(list, "/admin/upstreams/redetect") {
+	if !strings.Contains(list, "auto: none") || !strings.Contains(list, "/admin/upstreams/fake/redetect") {
 		t.Fatal("list must show the detected kind and the re-detect action")
 	}
-	path := "/admin/upstreams/redetect"
+	path := "/admin/upstreams/fake/redetect"
 	if r, _ := br.post(path, url.Values{"alias": {"fake"}}); r.StatusCode != 403 {
 		t.Fatalf("%s without csrf: %d", path, r.StatusCode)
 	}
 	if r, _ := br.post(path, url.Values{"alias": {"fake"}, "csrf": {"wrong"}}); r.StatusCode != 403 {
 		t.Fatalf("%s with bad csrf: %d", path, r.StatusCode)
 	}
-	if r, _ := br.get(path + "?alias=fake"); r.StatusCode != 405 {
+	if r, _ := br.get(path); r.StatusCode != 405 {
 		t.Fatalf("GET %s: %d", path, r.StatusCode)
 	}
 	r, _ = br.post(path, url.Values{"alias": {"fake"}, "csrf": {csrf}})

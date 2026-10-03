@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -40,6 +41,7 @@ type Admin struct {
 	Proxy     *provider.Proxy
 	Set       provider.Settings
 	tries     modelTries
+	results   results
 	// SuggestFetch replaces the public fetcher (tests).
 	SuggestFetch *suggest.Fetcher
 	// SuggestIdle and SuggestCap override the silence and overall limits of a suggestion (tests).
@@ -175,6 +177,31 @@ func (a *Admin) postOnly(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func (a *Admin) getOnly(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			http.Error(w, "GET only", http.StatusMethodNotAllowed)
+			return
+		}
+		h(w, r)
+	}
+}
+
+// aliasPattern is what an alias may be; a path that is not one is not an upstream.
+var aliasPattern = regexp.MustCompile(`^[a-z0-9-]{1,63}$`)
+
+// alias passes only requests whose {alias} path value can be an alias; the handler reads it with r.PathValue.
+func (a *Admin) alias(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !aliasPattern.MatchString(r.PathValue("alias")) {
+			http.NotFound(w, r)
+			return
+		}
+		h(w, r)
+	}
+}
+
 // startLogin sends an unauthenticated browser straight into the OIDC authorization flow (no welcome
 // page). Only GET and HEAD requests can be resumed after login, so anything else returns to /admin.
 func (a *Admin) startLogin(w http.ResponseWriter, r *http.Request) {
@@ -233,26 +260,30 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	a.providerRoutes(mux)
 	mux.HandleFunc("/admin/oauth/callback", a.guard(a.browserCallback))
 	mux.HandleFunc("/admin/settings/query-key", a.guard(a.postOnly(a.queryKeyToggle)))
+	mux.HandleFunc("/admin/results/{token}", a.guard(a.getOnly(a.resultScreen)))
 	mux.HandleFunc("/admin/keys", a.guard(a.keys))
-	mux.HandleFunc("/admin/keys/create", a.guard(a.keyCreate))
+	mux.HandleFunc("/admin/keys/create", a.guard(a.postOnly(a.keyCreate)))
 	mux.HandleFunc("/admin/keys/revoke", a.guard(a.postOnly(a.keyRevoke)))
 	mux.HandleFunc("/admin/keys/limits", a.guard(a.postOnly(a.keyLimits)))
 	mux.HandleFunc("/admin/keys/regenerate", a.guard(a.postOnly(a.keyRegenerate)))
 	mux.HandleFunc("/admin/upstreams", a.guard(a.upstreams))
-	mux.HandleFunc("/admin/upstreams/edit", a.guard(a.upstreamEdit))
-	mux.HandleFunc("/admin/upstreams/save", a.guard(a.upstreamSave))
-	mux.HandleFunc("/admin/upstreams/delete", a.guard(a.upstreamDelete))
-	mux.HandleFunc("/admin/upstreams/toggle", a.guard(a.postOnly(a.upstreamToggle)))
-	mux.HandleFunc("/admin/upstreams/redetect", a.guard(a.postOnly(a.upstreamRedetect)))
-	mux.HandleFunc("/admin/upstreams/test", a.guard(a.postOnly(a.upstreamTest)))
-	mux.HandleFunc("/admin/upstreams/process", a.guard(a.postOnly(a.upstreamProcess)))
-	mux.HandleFunc("/admin/upstreams/logs", a.guard(a.upstreamLogs))
+	mux.HandleFunc("/admin/upstreams/save", a.guard(a.postOnly(a.upstreamSave)))
+	// An upstream is identified by its alias in the path: /admin/upstreams/<alias>/<action>. Screens are GET (they
+	// can be refreshed), changes are POST and answer with a redirect to a screen.
+	mux.HandleFunc("/admin/upstreams/{alias}/edit", a.guard(a.alias(a.getOnly(a.upstreamEdit))))
+	mux.HandleFunc("/admin/upstreams/{alias}/test", a.guard(a.alias(a.getOnly(a.upstreamTest))))
+	mux.HandleFunc("/admin/upstreams/{alias}/logs", a.guard(a.alias(a.getOnly(a.upstreamLogs))))
+	mux.HandleFunc("/admin/upstreams/{alias}/save", a.guard(a.alias(a.postOnly(a.upstreamSave))))
+	mux.HandleFunc("/admin/upstreams/{alias}/delete", a.guard(a.alias(a.postOnly(a.upstreamDelete))))
+	mux.HandleFunc("/admin/upstreams/{alias}/toggle", a.guard(a.alias(a.postOnly(a.upstreamToggle))))
+	mux.HandleFunc("/admin/upstreams/{alias}/redetect", a.guard(a.alias(a.postOnly(a.upstreamRedetect))))
+	mux.HandleFunc("/admin/upstreams/{alias}/process", a.guard(a.alias(a.postOnly(a.upstreamProcess))))
 	mux.HandleFunc("/admin/upstreams/suggest", a.guard(a.postOnly(a.upstreamSuggest)))
 	mux.HandleFunc("/admin/upstreams/import", a.guard(a.upstreamImport))
 	mux.HandleFunc("/admin/upstreams/export", a.guard(a.upstreamExport))
 	mux.HandleFunc("/admin/clients", a.guard(a.clients))
-	mux.HandleFunc("/admin/clients/create", a.guard(a.clientCreate))
-	mux.HandleFunc("/admin/clients/delete", a.guard(a.clientDelete))
+	mux.HandleFunc("/admin/clients/create", a.guard(a.postOnly(a.clientCreate)))
+	mux.HandleFunc("/admin/clients/delete", a.guard(a.postOnly(a.clientDelete)))
 }
 
 func (a *Admin) notConfigured(w http.ResponseWriter, r *http.Request) {
@@ -386,8 +417,7 @@ func (a *Admin) keyCreate(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin/keys", "", "create failed")
 		return
 	}
-	ks, _ := a.Keys.List()
-	a.render(w, r, "keys", page{Title: "Virtual keys", Nav: "keys", Toasts: []toast{{toastOK, "key created"}}, Data: keysData{Keys: ks, NewKey: full, QueryKey: a.Cfg.QueryKeyAllowed()}})
+	http.Redirect(w, r, a.stash(r, "key", keysData{NewKey: full}, toast{toastOK, "key created"}), http.StatusSeeOther)
 }
 
 // limitsOf reads the optional limits of the key forms; empty means unlimited.
@@ -434,8 +464,7 @@ func (a *Admin) keyRegenerate(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin/keys", "", err.Error())
 		return
 	}
-	ks, _ := a.Keys.List()
-	a.render(w, r, "keys", page{Title: "Virtual keys", Nav: "keys", Toasts: []toast{{toastOK, "key regenerated"}}, Data: keysData{Keys: ks, NewKey: full, QueryKey: a.Cfg.QueryKeyAllowed()}})
+	http.Redirect(w, r, a.stash(r, "key", keysData{NewKey: full}, toast{toastOK, "key regenerated"}), http.StatusSeeOther)
 }
 
 func (a *Admin) keyRevoke(w http.ResponseWriter, r *http.Request) {
@@ -867,7 +896,7 @@ type editData struct {
 }
 
 func (a *Admin) upstreamEdit(w http.ResponseWriter, r *http.Request) {
-	alias := r.URL.Query().Get("alias")
+	alias := r.PathValue("alias")
 	u, ok := a.MCP.Upstreams.Get(alias)
 	if !ok {
 		a.back(w, r, "/admin/upstreams", "", "unknown alias")
@@ -981,6 +1010,14 @@ func upstreamFromForm(r *http.Request) (mcp.Upstream, error) {
 }
 
 func (a *Admin) upstreamSave(w http.ResponseWriter, r *http.Request) {
+	if alias := r.PathValue("alias"); alias != "" { // editing: the alias in the path is the upstream
+		_ = r.ParseForm()
+		r.PostForm.Set("alias", alias)
+		r.PostForm.Set("mode", "edit")
+	} else if r.PostFormValue("mode") == "edit" { // /admin/upstreams/save only adds
+		a.back(w, r, "/admin/upstreams", "", "edit an upstream through its own address")
+		return
+	}
 	u, err := upstreamFromForm(r)
 	if err != nil {
 		a.back(w, r, "/admin/upstreams", "", err.Error())
@@ -1030,7 +1067,7 @@ func (a *Admin) upstreamSave(w http.ResponseWriter, r *http.Request) {
 
 // upstreamToggle flips "enabled" or "include" for one upstream in place (POST, CSRF-protected by guard).
 func (a *Admin) upstreamToggle(w http.ResponseWriter, r *http.Request) {
-	alias, flag := r.PostFormValue("alias"), r.PostFormValue("flag")
+	alias, flag := r.PathValue("alias"), r.PostFormValue("flag")
 	u, ok := a.MCP.Upstreams.Get(alias)
 	if !ok {
 		a.back(w, r, "/admin/upstreams", "", "unknown alias")
@@ -1063,7 +1100,7 @@ func (a *Admin) upstreamToggle(w http.ResponseWriter, r *http.Request) {
 
 // upstreamRedetect re-runs auth auto-detection for one upstream (POST, CSRF-protected by guard).
 func (a *Admin) upstreamRedetect(w http.ResponseWriter, r *http.Request) {
-	alias := r.PostFormValue("alias")
+	alias := r.PathValue("alias")
 	up, err := a.MCP.Redetect(r.Context(), alias)
 	if err != nil {
 		a.back(w, r, "/admin/upstreams", "", err.Error())
@@ -1080,9 +1117,10 @@ func (a *Admin) upstreamRedetect(w http.ResponseWriter, r *http.Request) {
 	a.back(w, r, "/admin/upstreams", msg, "")
 }
 
-// upstreamTest runs initialize + tools/list against one upstream and renders the outcome.
+// upstreamTest runs initialize + tools/list against one upstream and renders the outcome (GET, so the screen
+// can be refreshed to test again).
 func (a *Admin) upstreamTest(w http.ResponseWriter, r *http.Request) {
-	alias := r.PostFormValue("alias")
+	alias := r.PathValue("alias")
 	up, ok := a.MCP.Upstreams.Get(alias)
 	if !ok {
 		a.back(w, r, "/admin/upstreams", "", "unknown alias")
@@ -1099,7 +1137,7 @@ type testData struct {
 }
 
 func (a *Admin) upstreamDelete(w http.ResponseWriter, r *http.Request) {
-	alias := r.PostFormValue("alias")
+	alias := r.PathValue("alias")
 	_ = a.MCP.Upstreams.Delete(alias)
 	a.MCP.SyncManaged(alias)
 	a.back(w, r, "/admin/upstreams", "upstream deleted", "")
@@ -1150,8 +1188,7 @@ func (a *Admin) clientCreate(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin/clients", "", "create failed")
 		return
 	}
-	l, _ := a.MCP.Clients.List()
-	a.render(w, r, "clients", page{Title: "OAuth clients", Nav: "clients", Data: clientsData{List: l, NewID: c.ID, NewSecret: secret}})
+	http.Redirect(w, r, a.stash(r, "client", clientsData{NewID: c.ID, NewSecret: secret}, toast{}), http.StatusSeeOther)
 }
 
 func (a *Admin) clientDelete(w http.ResponseWriter, r *http.Request) {

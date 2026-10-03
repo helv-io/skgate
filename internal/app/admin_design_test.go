@@ -28,12 +28,12 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 	a.MCP.Upstreams.Create(mcp.Upstream{Alias: "repo", Kind: mcp.KindGit, Command: "python3", Args: []string{"-m", "srv"}, GitURL: "https://git.example.com/org/repo.git", GitToken: "git-secret-token-5555", Enabled: true})
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
 	pages := map[string]string{}
-	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/upstreams/edit?alias=one", "/admin/upstreams/edit?alias=mgd", "/admin/upstreams/edit?alias=repo",
-		"/admin/upstreams/logs?alias=mgd", "/admin/upstreams/import", "/admin/clients"} {
+	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/upstreams/one/edit", "/admin/upstreams/mgd/edit", "/admin/upstreams/repo/edit",
+		"/admin/upstreams/mgd/logs", "/admin/upstreams/import", "/admin/clients"} {
 		_, pages[p] = br.get(p)
 	}
-	_, pages["/admin/upstreams/test"] = br.post("/admin/upstreams/test", url.Values{"csrf": {csrf}, "alias": {"one"}})
-	_, pages["/admin/upstreams/test (managed)"] = br.post("/admin/upstreams/test", url.Values{"csrf": {csrf}, "alias": {"mgd"}})
+	_, pages["/admin/upstreams/test"] = br.get("/admin/upstreams/one/test")
+	_, pages["/admin/upstreams/test (managed)"] = br.get("/admin/upstreams/mgd/test")
 	_, pages["/admin/upstreams/import (result)"] = br.post("/admin/upstreams/import", url.Values{"csrf": {csrf}, "json": {`{"x": {"command": "y"}, "one": {"command": "z"}, "q": {}}`}})
 	anon := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	r, _ := anon.Get(ts.URL + "/admin/signed-out")
@@ -53,7 +53,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 			}
 		}
 	}
-	for _, name := range []string{"/admin/keys", "/admin/upstreams", "/admin/clients", "/admin/upstreams/test", "/admin/upstreams/test (managed)", "/admin/upstreams/logs?alias=mgd", "/admin/upstreams/import (result)"} {
+	for _, name := range []string{"/admin/keys", "/admin/upstreams", "/admin/clients", "/admin/upstreams/test", "/admin/upstreams/test (managed)", "/admin/upstreams/mgd/logs", "/admin/upstreams/import (result)"} {
 		if !strings.Contains(pages[name], `class="table`) || !strings.Contains(pages[name], `tablewrap`) || !strings.Contains(pages[name], "<thead>") {
 			t.Errorf("%s: tables must use .table inside .tablewrap with a thead", name)
 		}
@@ -83,13 +83,13 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 		}
 	}
 	// managed rows use the same pill, chip and action components as remote ones
-	for _, want := range []string{`class="pill off" title="`, `>stopped</span>`, `href="/admin/upstreams/logs?alias=mgd"`, `href="/admin/upstreams/import"`, `href="/admin/upstreams/export"`} {
+	for _, want := range []string{`class="pill off" title="`, `>stopped</span>`, `href="/admin/upstreams/mgd/logs"`, `href="/admin/upstreams/import"`, `href="/admin/upstreams/export"`} {
 		if !strings.Contains(ups, want) {
 			t.Errorf("upstreams page lacks %q", want)
 		}
 	}
 	// the same form partial is used by the add form and both edit pages
-	for _, name := range []string{"/admin/upstreams", "/admin/upstreams/edit?alias=one", "/admin/upstreams/edit?alias=mgd", "/admin/upstreams/edit?alias=repo"} {
+	for _, name := range []string{"/admin/upstreams", "/admin/upstreams/one/edit", "/admin/upstreams/mgd/edit", "/admin/upstreams/repo/edit"} {
 		for _, want := range []string{`class="group" data-kind="remote"`, `class="group" data-kind="stdio git"`, `data-kind-select`, `class="pairs"`, `data-pairs-add`, `data-pairs-template`} {
 			if !strings.Contains(pages[name], want) {
 				t.Errorf("%s lacks the shared form component %q", name, want)
@@ -110,7 +110,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 			}
 		}
 	}
-	if !strings.Contains(pages["/admin/upstreams/edit?alias=mgd"], "************9876") || !strings.Contains(pages["/admin/upstreams/edit?alias=repo"], "************5555") {
+	if !strings.Contains(pages["/admin/upstreams/mgd/edit"], "************9876") || !strings.Contains(pages["/admin/upstreams/repo/edit"], "************5555") {
 		t.Error("stored secrets must show as 12 asterisks plus the last 4 characters")
 	}
 	if !strings.Contains(pages["/admin/keys"], `class="pill ok">active`) || !strings.Contains(pages["/admin/clients"], `class="card`) {
@@ -154,7 +154,7 @@ func TestNoInlineEventHandlers(t *testing.T) {
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
 	br.post("/admin/clients/create", url.Values{"csrf": {csrf}, "redirects": {"https://c.example/cb"}, "method": {"none"}})
 	re := regexp.MustCompile(`(?i)\son[a-z]+=|javascript:|<script[^>]*>[^<]`)
-	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/upstreams/edit?alias=one", "/admin/upstreams/import", "/admin/upstreams/logs?alias=mgd", "/admin/clients"} {
+	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/upstreams/one/edit", "/admin/upstreams/import", "/admin/upstreams/mgd/logs", "/admin/clients"} {
 		_, page := br.get(p)
 		if re.MatchString(page) {
 			t.Errorf("%s has an inline handler or script: %q", p, re.FindString(page))
@@ -176,7 +176,7 @@ func TestAdminCopyIsTerse(t *testing.T) {
 	fluff := []string{"no keys yet", "no upstreams yet", "no clients yet", "learned automatically", "shown once, copy it now", "stored, later shown",
 		"Nothing is retried", "You are signed out", "leave empty to keep", "e.g. ", "This page updates by itself", "normally served by"}
 	p := regexp.MustCompile(`(?s)<p class="muted">(.*?)</p>`)
-	for _, path := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/upstreams/edit?alias=one", "/admin/upstreams/edit?alias=mgd", "/admin/upstreams/import", "/admin/upstreams/logs?alias=mgd", "/admin/clients"} {
+	for _, path := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/upstreams/one/edit", "/admin/upstreams/mgd/edit", "/admin/upstreams/import", "/admin/upstreams/mgd/logs", "/admin/clients"} {
 		_, page := br.get(path)
 		for _, f := range fluff {
 			if strings.Contains(page, f) {

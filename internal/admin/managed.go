@@ -3,7 +3,6 @@ package admin
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/helv-io/skgate/internal/mcp"
@@ -13,10 +12,10 @@ import (
 // upstreamProcess runs a process action (start, stop, restart, update, clear-logs) on a managed
 // upstream and returns to the upstreams list or the process page.
 func (a *Admin) upstreamProcess(w http.ResponseWriter, r *http.Request) {
-	alias, action := r.PostFormValue("alias"), r.PostFormValue("action")
+	alias, action := r.PathValue("alias"), r.PostFormValue("action")
 	to := "/admin/upstreams"
 	if r.PostFormValue("to") == "logs" {
-		to = "/admin/upstreams/logs?alias=" + url.QueryEscape(alias)
+		to = "/admin/upstreams/" + alias + "/logs"
 	}
 	u, ok := a.MCP.Upstreams.Get(alias)
 	if !ok {
@@ -47,7 +46,7 @@ type logsData struct {
 
 // upstreamLogs shows the status and the captured output of a managed process.
 func (a *Admin) upstreamLogs(w http.ResponseWriter, r *http.Request) {
-	alias := r.URL.Query().Get("alias")
+	alias := r.PathValue("alias")
 	u, ok := a.MCP.Upstreams.Get(alias)
 	if !ok || !u.Managed() {
 		a.back(w, r, "/admin/upstreams", "", "unknown managed upstream")
@@ -105,11 +104,11 @@ func (a *Admin) upstreamImport(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		a.MCP.Log.Printf("upstream_import created=%d total=%d", created, len(d.Results))
-		toasts := []toast{{toastOK, fmt.Sprintf("%d of %d imported", created, len(d.Results))}}
+		t := toast{toastOK, fmt.Sprintf("%d of %d imported", created, len(d.Results))}
 		if created == 0 {
-			toasts = []toast{{toastBad, "nothing imported"}}
+			t = toast{toastBad, "nothing imported"}
 		}
-		a.render(w, r, "upstream_import", page{Title: "Import upstreams", Nav: "upstreams", Toasts: toasts, Data: d})
+		http.Redirect(w, r, a.stash(r, "import", d, t), http.StatusSeeOther)
 		return
 	}
 	v, _ := a.DB.GetSetting(settingLastInclude)

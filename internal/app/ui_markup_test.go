@@ -27,7 +27,7 @@ func TestTableCellsCarryTheirLabels(t *testing.T) {
 	cell := regexp.MustCompile(`<td([^>]*)>`)
 	label := regexp.MustCompile(`data-label="([^"]*)"`)
 	seen := 0
-	for _, path := range []string{"/admin", "/admin/keys", "/admin/clients", "/admin/upstreams", "/admin/upstreams/logs?alias=m", "/admin/providers/grok"} {
+	for _, path := range []string{"/admin", "/admin/keys", "/admin/clients", "/admin/upstreams", "/admin/upstreams/m/logs", "/admin/providers/grok"} {
 		_, page := br.get(path)
 		for _, tb := range table.FindAllStringSubmatch(page, -1) {
 			if strings.Contains(tb[1], "kv") {
