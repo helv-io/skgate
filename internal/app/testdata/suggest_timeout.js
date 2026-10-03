@@ -27,19 +27,19 @@ async function run(lines, hang){
   let r=await run([
     JSON.stringify({stage:"model",label:"Asking the model"}),
     JSON.stringify({stage:"model",label:"Asking the model",chars:1500}),
-    JSON.stringify({error:"timed out while asking the model: no data for 45s; lower the effort",timeout:{kind:"idle",stage:"model",where:"asking the model",secs:45,effort:"low"}})]);
+    JSON.stringify({error:"timed out while asking the model: no data for 45s; lower the reasoning",timeout:{kind:"idle",stage:"model",where:"asking the model",secs:45,effort:"low"}})]);
   ok(/^Timed out while asking the model \u00b7 \d+s$/.test(r.pill.textContent),"pill: "+r.pill.textContent);
   ok(r.pill.classList.contains("bad"),"pill is in the bad state");
   const act=r.out.querySelector("[data-suggest-action]");
-  ok(act&&act.textContent==="Lower effort"&&act.getAttribute("data-dialog-open")==="#helper-model","Lower effort button opens the helper dialog");
-  ok(/No data for 45s/.test(r.out.textContent)&&/effort \(now: low\)/.test(r.out.textContent),"explanation names the effort");
-  ok(r.toasts.length===1&&r.toasts[0][0]==="bad"&&/lower the effort/.test(r.toasts[0][1]),"toast carries the reason");
+  ok(act&&act.textContent==="Lower reasoning"&&act.getAttribute("data-dialog-open")==="#helper-model","Lower reasoning button opens the helper dialog");
+  ok(/No data for 45s/.test(r.out.textContent)&&/reasoning \(now: low\)/.test(r.out.textContent),"explanation names the reasoning");
+  ok(r.toasts.length===1&&r.toasts[0][0]==="bad"&&/lower the reasoning/.test(r.toasts[0][1]),"toast carries the reason");
 
   r=await run([
     JSON.stringify({stage:"fetch",label:"Fetching repo"}),
     JSON.stringify({error:"timed out while fetching the repo after 300s",timeout:{kind:"cap",stage:"fetch",where:"fetching the repo",secs:300}})]);
   ok(/^Timed out while fetching the repo/.test(r.pill.textContent),"fetch timeout pill: "+r.pill.textContent);
-  ok(!r.out.querySelector("[data-suggest-action]"),"no effort button when the model was not the slow part");
+  ok(!r.out.querySelector("[data-suggest-action]"),"no reasoning button when the model was not the slow part");
 
   r=await run([
     JSON.stringify({stage:"model",label:"Asking the model"}),

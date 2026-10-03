@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -118,7 +119,7 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 	res, err := svc.Suggest(ctx, a.Set.Model(a.Providers.Default().ID()), src, token, runners)
 	var te *suggest.TimeoutError
 	timeout := func() map[string]any {
-		return map[string]any{"kind": te.Kind, "stage": te.Stage, "where": te.Where(), "secs": int(te.After.Round(time.Second) / time.Second), "effort": svc.Effort}
+		return map[string]any{"kind": te.Kind, "stage": te.Stage, "where": te.Where(), "secs": int(te.After.Round(time.Second) / time.Second), "effort": cmp.Or(svc.Effort, "default")}
 	}
 	if stream {
 		if errors.As(err, &te) {

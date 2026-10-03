@@ -3,86 +3,43 @@ package provider
 import (
 	"encoding/json"
 	"github.com/helv-io/skgate/internal/vkeys"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 )
 
-func TestEffortSettingsAreSeparateAndDefaulted(t *testing.T) {
+func TestReasoningDefaultsToTheModelsChoiceAndKeepsSavedValues(t *testing.T) {
 	r := newRig(t, nil)
-	if r.set.Effort("fake") != "low" || r.set.ChatEffort("fake") != "default" {
-		t.Fatalf("defaults: helper %q chat %q", r.set.Effort("fake"), r.set.ChatEffort("fake"))
+	if r.set.Effort("fake") != "default" {
+		t.Fatalf("unset: %q", r.set.Effort("fake"))
 	}
 	r.set.SetEffort("fake", "high")
-	r.set.SetChatEffort("fake", "medium")
-	if r.set.Effort("fake") != "high" || r.set.ChatEffort("fake") != "medium" {
-		t.Fatalf("stored: helper %q chat %q", r.set.Effort("fake"), r.set.ChatEffort("fake"))
+	if r.set.Effort("fake") != "high" {
+		t.Fatalf("stored: %q", r.set.Effort("fake"))
+	}
+	r.set.Set("fake", "effort", "bogus") // an unknown stored value falls back to the default
+	if r.set.Effort("fake") != "default" {
+		t.Fatalf("bogus: %q", r.set.Effort("fake"))
 	}
 	if EffortParam("default") != "" || EffortParam("low") != "low" || EffortParam("bogus") != "" || ValidEffort("bogus") {
 		t.Fatal("EffortParam / ValidEffort")
 	}
 }
 
-func TestChatEffortAddedOnlyWhenClientSetNone(t *testing.T) {
+// The reasoning choice belongs to the MCP helper model only: proxied chat requests go through as the client wrote
+// them, whatever an older version stored.
+func TestChatRequestsAreNeverGivenReasoning(t *testing.T) {
 	r := newRig(t, nil)
-	post := func(body string) string {
-		t.Helper()
-		r.do(t, "POST", "/v1/chat/completions", body)
-		_, _, _, got := r.last()
-		return got
+	r.set.Set("fake", "chat_effort", "high") // left over from an older version
+	r.set.SetEffort("fake", "high")
+	r.do(t, "POST", "/v1/chat/completions", `{"model":"real-a"}`)
+	if _, _, _, got := r.last(); strings.Contains(got, "reasoning") {
+		t.Fatalf("a reasoning setting reached a chat request: %s", got)
 	}
-	if got := post(`{"model":"real-a"}`); strings.Contains(got, "reasoning_effort") {
-		t.Fatalf("default effort must send nothing: %s", got)
-	}
-	r.set.SetChatEffort("fake", "medium")
-	if got := post(`{"model":"real-a"}`); !strings.Contains(got, `"reasoning_effort":"medium"`) {
-		t.Fatalf("stored effort not added: %s", got)
-	}
-	if got := post(`{"model":"real-a","reasoning_effort":"high"}`); !strings.Contains(got, `"reasoning_effort":"high"`) || strings.Contains(got, "medium") {
-		t.Fatalf("the client's own effort must win: %s", got)
-	}
-	r.do(t, "GET", "/v1/models", "")
-	if _, _, _, got := r.last(); strings.Contains(got, "reasoning_effort") {
-		t.Fatalf("only chat completions get the effort: %s", got)
-	}
-}
-
-func TestChatEffortRetriedWithoutWhenRejected(t *testing.T) {
-	var mu sync.Mutex
-	var bodies []string
-	r := newRig(t, func(w http.ResponseWriter, req *http.Request, body string) {
-		mu.Lock()
-		bodies = append(bodies, body)
-		mu.Unlock()
-		if strings.Contains(body, "reasoning_effort") {
-			w.WriteHeader(400)
-			io.WriteString(w, `{"error":{"message":"Unsupported parameter: reasoning_effort"}}`)
-			return
-		}
-		io.WriteString(w, `{"ok":true}`)
-	})
-	r.set.SetChatEffort("fake", "high")
-	st, out, _ := r.do(t, "POST", "/v1/chat/completions", `{"model":"real-a"}`)
-	if st != 200 || !strings.Contains(out, `"ok":true`) || len(bodies) != 2 || strings.Contains(bodies[1], "reasoning_effort") {
-		t.Fatalf("status %d %s bodies %v", st, out, bodies)
-	}
-	// an unrelated 400 is passed on, not retried
-	bodies = nil
-	r2 := newRig(t, func(w http.ResponseWriter, req *http.Request, body string) {
-		mu.Lock()
-		bodies = append(bodies, body)
-		mu.Unlock()
-		w.WriteHeader(400)
-		io.WriteString(w, `{"error":{"message":"messages is required"}}`)
-	})
-	r2.set.SetChatEffort("fake", "high")
-	st, out, _ = r2.do(t, "POST", "/v1/chat/completions", `{"model":"real-a"}`)
-	if st != 400 || len(bodies) != 1 || !strings.Contains(out, "messages is required") {
-		t.Fatalf("status %d %s bodies %v", st, out, bodies)
+	r.do(t, "POST", "/v1/chat/completions", `{"model":"real-a","reasoning_effort":"low"}`)
+	if _, _, _, got := r.last(); !strings.Contains(got, `"reasoning_effort":"low"`) {
+		t.Fatalf("the client's own setting must pass untouched: %s", got)
 	}
 }
 

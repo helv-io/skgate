@@ -238,23 +238,22 @@ func TestSuggestStreamsStages(t *testing.T) {
 	}
 }
 
-// Both model dialogs carry the effort dropdown directly under the model dropdown (same form, so Save covers
-// both), low unless chosen; the chat effort has its own control and its own setting.
-func TestEffortSelectorsInModelDialogs(t *testing.T) {
+// Both model dialogs carry the Reasoning dropdown directly under the model dropdown (same form, so Save covers
+// both), defaulting to "default" (the model decides). It is the only reasoning setting: there is none for chat.
+func TestReasoningSelectorInModelDialogs(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	for _, path := range []string{"/admin", "/admin/upstreams"} {
 		_, page := r.br.get(path)
 		m, e, reload := strings.Index(page, `<select name="model">`), strings.Index(page, `<select name="effort"`), strings.Index(page, "Reload models")
 		if m < 0 || e < m || reload < e {
-			t.Errorf("%s: model select at %d, effort at %d, reload at %d", path, m, e, reload)
+			t.Errorf("%s: model select at %d, reasoning at %d, reload at %d", path, m, e, reload)
 		}
-		if !strings.Contains(page, `<option value="low" selected>Effort: low</option>`) || !strings.Contains(page, "Effort: default (provider decides)") {
-			t.Errorf("%s: effort options missing or not defaulting to low", path)
+		if !strings.Contains(page, `<option value="default" selected>Reasoning: default (model decides)</option>`) || !strings.Contains(page, "Reasoning: low") {
+			t.Errorf("%s: reasoning options missing or not defaulting to default", path)
 		}
-	}
-	_, status := r.br.get("/admin")
-	if !strings.Contains(status, `action="/admin/providers/grok/chat-effort"`) || !strings.Contains(status, `<option value="default" selected>Effort: default (provider decides)</option>`) {
-		t.Error("the chat effort control is missing or not defaulting to the provider's choice")
+		if strings.Contains(page, "Effort") || strings.Contains(page, "effort</") || strings.Contains(page, "chat-effort") {
+			t.Errorf("%s: the old effort wording or the chat setting is still there", path)
+		}
 	}
 	_, css := r.br.get("/admin/static/app.css")
 	if !strings.Contains(css, ".pick{display:grid") {
@@ -267,34 +266,36 @@ func TestEffortSelectorsInModelDialogs(t *testing.T) {
 		defer r.mu.Unlock()
 		return r.prompt[len(r.prompt)-1]
 	}
-	if body := ask(); !strings.Contains(body, `"reasoning_effort":"low"`) {
-		t.Errorf("default effort not sent: %.200s", body)
+	if body := ask(); strings.Contains(body, "reasoning_effort") {
+		t.Errorf("the default must send nothing: %.200s", body)
 	}
 	_, ok := r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"high"}})
-	if ok["toast"].(map[string]any)["m"] != "MCP helper model: helper-2, effort high" {
+	if ok["toast"].(map[string]any)["m"] != "MCP helper model: helper-2, reasoning high" {
 		t.Errorf("toast %v", ok["toast"])
 	}
 	if body := ask(); !strings.Contains(body, `"reasoning_effort":"high"`) {
-		t.Errorf("stored effort not sent: %.200s", body)
+		t.Errorf("stored reasoning not sent: %.200s", body)
 	}
 	r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"default"}})
 	if body := ask(); strings.Contains(body, "reasoning_effort") {
 		t.Errorf("default must send nothing: %.200s", body)
 	}
 	if _, bad := r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"extreme"}}); bad["toast"].(map[string]any)["k"] != "bad" {
-		t.Error("an unknown effort must be refused")
+		t.Error("an unknown reasoning choice must be refused")
 	}
-	if got := r.a.Admin.Set.ChatEffort("grok"); got != "default" {
-		t.Errorf("helper dialog must not touch the chat effort: %s", got)
+	// the chat setting is gone: its route answers 404 and nothing stored for it is read
+	if resp, _ := r.br.post("/admin/providers/grok/chat-effort", url.Values{"csrf": {r.csrf}, "effort": {"medium"}}); resp.StatusCode != 404 {
+		t.Errorf("chat-effort route: %d", resp.StatusCode)
 	}
-	r.br.post("/admin/providers/grok/chat-effort", url.Values{"csrf": {r.csrf}, "effort": {"medium"}})
-	if r.a.Admin.Set.ChatEffort("grok") != "medium" || r.a.Admin.Set.Effort("grok") != "default" {
-		t.Errorf("settings are not separate: chat %s helper %s", r.a.Admin.Set.ChatEffort("grok"), r.a.Admin.Set.Effort("grok"))
+	// a choice saved by an older version keeps working
+	_ = r.a.DB.SetSetting("provider.grok.effort", "medium")
+	if got := r.a.Admin.Set.Effort("grok"); got != "medium" {
+		t.Errorf("saved choice lost: %s", got)
 	}
 }
 
-// A silent model ends the suggestion with a timed-out error that names the stage and the effort, in the log, the
-// stream and the plain JSON answer; the page script shows the state and the button to lower the effort.
+// A silent model ends the suggestion with a timed-out error that names the stage and the reasoning, in the log, the
+// stream and the plain JSON answer; the page script shows the state and the button to lower the reasoning.
 func TestSuggestTimeoutIsVisible(t *testing.T) {
 	var buf bytes.Buffer
 	log.SetOutput(&buf)
@@ -316,10 +317,10 @@ func TestSuggestTimeoutIsVisible(t *testing.T) {
 		t.Fatal(err)
 	}
 	to, _ := last["timeout"].(map[string]any)
-	if to == nil || to["kind"] != "idle" || to["stage"] != "model" || to["where"] != "asking the model" || to["effort"] != "low" {
+	if to == nil || to["kind"] != "idle" || to["stage"] != "model" || to["where"] != "asking the model" || to["effort"] != "default" {
 		t.Fatalf("timeout object: %v", last)
 	}
-	if msg, _ := last["error"].(string); !strings.Contains(msg, "timed out while asking the model") || !strings.Contains(msg, "lower the effort") {
+	if msg, _ := last["error"].(string); !strings.Contains(msg, "timed out while asking the model") || !strings.Contains(msg, "lower the reasoning") {
 		t.Errorf("reason: %v", last["error"])
 	}
 
@@ -336,7 +337,7 @@ func TestSuggestTimeoutIsVisible(t *testing.T) {
 	}
 
 	out := buf.String()
-	for _, want := range []string{"suggest: model call timed out (idle) stage=model effort=low", "suggest: model call timed out (cap)", "suggest: failed source=https://gitlab.com/grp/thing"} {
+	for _, want := range []string{"suggest: model call timed out (idle) stage=model reasoning=default", "suggest: model call timed out (cap)", "suggest: failed source=https://gitlab.com/grp/thing"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("log lacks %q", want)
 		}
@@ -347,12 +348,12 @@ func TestSuggestTimeoutIsVisible(t *testing.T) {
 
 	_, js := r.br.get("/admin/static/app.js")
 	_, page := r.br.get("/admin/upstreams")
-	if !strings.Contains(js, "Timed out while ") || !strings.Contains(js, `"Lower effort"`) || !strings.Contains(js, `"#helper-model"`) || !strings.Contains(page, `id="helper-model"`) {
-		t.Error("the timed-out state or the Lower effort button is missing")
+	if !strings.Contains(js, "Timed out while ") || !strings.Contains(js, `"Lower reasoning"`) || !strings.Contains(js, `"#helper-model"`) || !strings.Contains(page, `id="helper-model"`) {
+		t.Error("the timed-out state or the Lower reasoning button is missing")
 	}
 }
 
-// The page script turns a timeout into a distinct state with the elapsed time and the Lower effort button, and
+// The page script turns a timeout into a distinct state with the elapsed time and the Lower reasoning button, and
 // shows streamed activity while the model works. Needs node and jsdom (see TestModalBehaviorInJSDOM).
 func TestSuggestTimeoutStateInJSDOM(t *testing.T) {
 	node, err := exec.LookPath("node")
