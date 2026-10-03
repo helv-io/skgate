@@ -161,3 +161,22 @@ func TestEveryFormControlHasAName(t *testing.T) {
 	}
 	t.Log(strings.TrimSpace(string(out)))
 }
+
+// The Add upstream form follows the work: Type, Source, Suggest, its results, then the alias (which Suggest
+// fills), then the rest. Alias used to come first and, being required, sent people back up after Suggest.
+func TestAddUpstreamFieldOrderFollowsSuggest(t *testing.T) {
+	_, br, _ := managedApp(t)
+	_, page := br.get("/admin/upstreams")
+	form := page[strings.Index(page, `action="/admin/upstreams/save"`):]
+	last := -1
+	for _, m := range []string{`name="kind"`, `name="source"`, `data-suggest="/admin/upstreams/suggest"`, `data-suggest-out`, `name="alias" required`, `name="url"`, `name="command_pick"`} {
+		i := strings.Index(form, m)
+		if i < 0 {
+			t.Fatalf("no %s", m)
+		}
+		if i < last {
+			t.Errorf("%s comes too early in the form", m)
+		}
+		last = i
+	}
+}
