@@ -494,6 +494,37 @@
   window.addEventListener("scroll", function (e) { if (current && !current.contains(e.target)) close(false); }, true);
 })();
 
+// Top bar (the header in layout.html): on phones the links, version, user and logout are a panel that the Menu button
+// folds and unfolds; Escape, a click outside, choosing a link, leaving the panel with Tab, or coming back to the
+// page from history fold it. Wider windows show everything and ignore the state. --header-h follows the bar's height,
+// so anchors and focus scrolling land below the sticky bar.
+(function () {
+  var bar = document.querySelector("header[data-nav]");
+  if (!bar) return;
+  var btn = bar.querySelector("[data-nav-button]"), panel = bar.querySelector(".nav-panel");
+  function set(open, back) {
+    if (open) bar.removeAttribute("data-collapsed"); else bar.setAttribute("data-collapsed", "");
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (!open && back) btn.focus();
+  }
+  function isOpen() { return btn.getAttribute("aria-expanded") === "true"; }
+  set(false);
+  btn.addEventListener("click", function () { set(!isOpen(), false); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && isOpen() && !document.querySelector("dialog[open]")) { e.preventDefault(); set(false, true); }
+  });
+  document.addEventListener("click", function (e) {
+    if (!isOpen()) return;
+    if (!bar.contains(e.target) || (panel.contains(e.target) && e.target.closest("a"))) set(false, false);
+  });
+  bar.addEventListener("focusout", function (e) { if (isOpen() && e.relatedTarget && !bar.contains(e.relatedTarget)) set(false, false); });
+  window.addEventListener("pageshow", function () { set(false, false); });
+  window.addEventListener("hashchange", function () { set(false, false); });
+  function size() { document.documentElement.style.setProperty("--header-h", Math.ceil(bar.getBoundingClientRect().height) + "px"); }
+  size();
+  if (window.ResizeObserver) new ResizeObserver(size).observe(bar); else window.addEventListener("resize", size);
+})();
+
 // Expiration field (the expiry_field component): the text is read by the server's parser (one parser, so the
 // preview and the saved value always agree). Typing shows what it means, or why it does not, under the field;
 // the quick buttons fill the text in. A response that arrives late for older text is ignored.
