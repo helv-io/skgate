@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -56,7 +57,7 @@ func TestStatusPageAtAGlance(t *testing.T) {
 	if strings.Contains(main, "(ok)") || strings.Contains(main, "refresh-secret") || strings.Contains(main, "5678") || strings.Contains(main, "Refresh token") {
 		t.Fatalf("main screen shows technical detail:\n%s", main)
 	}
-	for _, want := range []string{`<span class="pill ok">signed in</span>`, "<h3>Grok</h3>", `data-dialog-open="#provider-grok"`, "Sign in", "Sign out"} {
+	for _, want := range []string{`<span class="was">signed in</span><span class="now">Sign out</span>`, "<h3>Grok</h3>", `data-dialog-open="#provider-grok"`, "Sign in", "Sign out"} {
 		if !strings.Contains(main, want) {
 			t.Errorf("main screen lacks %q", want)
 		}
@@ -221,4 +222,35 @@ func TestProxyPathsAndOtherRoutes(t *testing.T) {
 			t.Errorf("%s should be gone", p)
 		}
 	}
+}
+
+// The signed-in pill is the Sign out button: one form around a shared pill with both labels (the longer reserves the
+// width), a confirmation like every destructive action, and no separate Sign out button. A signed-out provider shows
+// a plain pill. The hover/touch behavior is plain CSS on the shared .swap pill.
+func TestSignedInPillIsTheSignOutButton(t *testing.T) {
+	up, _ := modelsUpstream(t, "real-a")
+	a, _, br, csrf, _ := signedInProvider(t, up)
+	_, page := br.get("/admin")
+	card := page[strings.Index(page, `id="grok"`):]
+	card = card[:strings.Index(card, `data-dialog-open="#provider-grok"`)]
+	for _, want := range []string{`action="/admin/providers/grok/signout"`, `data-confirm="`, `data-confirm-ok="Sign out"`, `class="pill swap danger ok"`, `<span class="was">signed in</span><span class="now">Sign out</span>`} {
+		if !strings.Contains(card, want) {
+			t.Errorf("card lacks %q", want)
+		}
+	}
+	if strings.Count(card, ">Sign out<") != 1 || strings.Contains(card, `class="act danger"`) {
+		t.Errorf("Sign out must exist only as the pill:\n%s", card)
+	}
+	css, _ := os.ReadFile("../admin/static/app.css")
+	for _, want := range []string{"button.pill.swap:hover", "@media (hover:hover)", "@media (hover:none)", ".pill.swap .swaps{display:inline-grid}", ".pill.swap .swaps>span{grid-area:1/1}"} {
+		if !strings.Contains(string(css), want) {
+			t.Errorf("css lacks %q", want)
+		}
+	}
+	br.post("/admin/providers/grok/signout", url.Values{"csrf": {csrf}})
+	_, page = br.get("/admin")
+	if strings.Contains(page, `class="pill swap`) || !strings.Contains(page, `<span class="pill bad"`) {
+		t.Error("signed out: a plain pill, no sign-out button")
+	}
+	_ = a
 }

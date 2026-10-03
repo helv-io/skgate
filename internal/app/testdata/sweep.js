@@ -97,6 +97,8 @@ const measure = () => {
 
 (async () => {
   const b = await puppeteer.launch({ executablePath: chrome, args: ["--no-sandbox", "--headless=new"] });
+  // headless Chrome reports no hover; a second browser that reports a mouse checks the hover behavior of the sign-out pill
+  const bm = await puppeteer.launch({ executablePath: chrome, args: ["--no-sandbox", "--headless=new", "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4"] });
   let bad = 0, checks = 0, ref = null;
   for (const p of pages) {
     const solo = ["consent", "signed-out", "auth-error", "not-configured"].includes(p.name);
@@ -116,6 +118,33 @@ const measure = () => {
         if (deny[0] !== "Deny" || approve[0] !== "Approve" || approve.slice(1, 4).join() === deny.slice(1, 4).join()) { bad++; console.log("FAIL", p.name, "Approve must be the filled primary", JSON.stringify(sig)); }
       }
       if (res.length) { bad++; console.log("FAIL", p.name, width + "x" + height, JSON.stringify(res)); }
+      // the signed-in pill is the Sign out button: hovering turns it red and shows "Sign out" without any size change
+      const sw0 = await pg.$("button.pill.swap");
+      if (sw0) {
+        checks++;
+        // touch (no hover): the pill is a finger-sized target and shows no Sign out label
+        const touch = await pg.evaluate(() => { const b = document.querySelector("button.pill.swap"); return { h: b.getBoundingClientRect().height, now: getComputedStyle(b.querySelector(".now")).visibility, cs: getComputedStyle(b).color }; });
+        if (touch.h < 44 || touch.now !== "hidden") { bad++; console.log("FAIL", p.name, width, "sign-out pill without hover:", JSON.stringify(touch)); }
+        const mp = await bm.newPage();
+        await mp.setViewport({ width, height });
+        await mp.goto("file://" + dir + "/" + p.name + ".html");
+        const sw = await mp.$("button.pill.swap");
+        const state = () => mp.evaluate(() => { const b = document.querySelector("button.pill.swap"), r = b.getBoundingClientRect(), v = e => getComputedStyle(b.querySelector(e)).visibility;
+          return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, color: getComputedStyle(b).color, was: v(".was"), now: v(".now"), right: r.right, vw: document.documentElement.clientWidth, sw: document.documentElement.scrollWidth,
+            fits: b.querySelector(".swaps").getBoundingClientRect().width >= Math.max(...[".was", ".now"].map(e => b.querySelector(e).scrollWidth)) }; });
+        const before = await state();
+        await sw.hover(); await new Promise(r => setTimeout(r, 80));
+        const after = await state();
+        await mp.mouse.move(1, 1);
+        const why = [];
+        if (before.w !== after.w || before.h !== after.h) why.push("the pill changes size on hover " + before.w + "x" + before.h + " -> " + after.w + "x" + after.h);
+        if (before.was !== "visible" || before.now !== "hidden") why.push("resting labels wrong");
+        if (after.was !== "hidden" || after.now !== "visible") why.push("hover must show Sign out ");
+        if (after.color !== "rgb(255, 138, 128)" || before.color === after.color) why.push("hover color " + after.color);
+        if (!before.fits || before.right > before.vw + 0.5 || before.sw > before.vw) why.push("pill does not fit");
+        if (why.length) { bad++; console.log("FAIL", p.name, width, "sign-out pill:", why.join("; ")); }
+        await mp.close();
+      }
       if (shots && solo) await pg.screenshot({ path: shots + "/" + p.name + "-" + width + "x" + height + ".png" });
       else if (shots && (width === 390 || width === 1280)) await pg.screenshot({ path: shots + "/" + p.name + "-" + width + ".png", fullPage: true });
       if (p.dialog) {
@@ -161,5 +190,6 @@ const measure = () => {
     }
   }
   await b.close();
+  await bm.close();
   console.log(bad ? "FAILED " + bad + " of " + checks : "ALL OK " + checks + " checks"); process.exit(bad ? 1 : 0);
 })();
