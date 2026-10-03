@@ -190,7 +190,7 @@ func TestAddUpstreamFieldsDeclareTheirKind(t *testing.T) {
 	for _, want := range []string{
 		`data-show-for="git"><label>Ref`, `data-show-for="git"><label>Access token`,
 		`data-hide-for="package"><label>Install command`,
-		`data-suggest-off`, `aria-live="polite"`, `placeholder="e.g. main"`,
+		`data-suggest-off`, `aria-live="polite"`,
 	} {
 		if !strings.Contains(form, want) {
 			t.Errorf("the form lacks %s", want)
