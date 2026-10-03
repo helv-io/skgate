@@ -2,7 +2,7 @@
    Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
---acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+--acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
 *{box-sizing:border-box;border-radius:0}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans)}
@@ -44,6 +44,8 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 .table thead th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);white-space:nowrap;background:var(--bg);border-bottom:1px solid var(--line);height:34px}
 .table thead th.actions-th{width:1%}
 .table tbody tr:hover td{background:var(--hover)}
+/* a row marked geturl (a key that may be sent as ?key=): the shared warm tint, text colors untouched */
+.table tbody tr.geturl,.table tbody tr.geturl:hover td{background-color:var(--tint-url)}
 .table td{white-space:nowrap}
 .table td.wrap{white-space:normal;overflow-wrap:anywhere;min-width:160px}
 /* trunc: the flexible column. max-width:0 lets the cell shrink to the space left (no horizontal
@@ -213,6 +215,7 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .table:not(.kv),.table:not(.kv) tbody{display:block;width:100%}
   .table:not(.kv) tr{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 10px;padding:14px;border:1px solid var(--line);background:var(--panel)}
   .table:not(.kv) tbody tr:hover td{background:none}
+  .table:not(.kv) tbody tr.geturl{background:linear-gradient(var(--tint-url),var(--tint-url)),var(--panel)}
   .table:not(.kv) td{display:flex;align-items:center;gap:10px;flex:1 1 100%;min-width:0;height:auto;padding:0;border:0;white-space:normal;overflow-wrap:anywhere;overflow:visible;text-overflow:clip;width:auto;max-width:100%}
   .table:not(.kv) td[data-label]::before{content:attr(data-label);flex:0 0 30%;max-width:30%;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
   .table:not(.kv) td.primary,.table:not(.kv) td.status,.table:not(.kv) td.actions-cell{gap:6px}

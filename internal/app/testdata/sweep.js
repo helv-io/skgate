@@ -49,6 +49,40 @@ const measure = () => {
     const r = e.getBoundingClientRect();
     if (r.width < 160) out.push("expiry field only " + Math.round(r.width) + "px wide");
   });
+  // keys that may be sent as ?key= are tinted (row on desktop, card on phones); the others are not, and every cell's
+  // text keeps its contrast on the tinted background
+  const rows = [...document.querySelectorAll("tr.geturl")];
+  const plain = [...document.querySelectorAll(".table:not(.kv) tbody tr:not(.geturl)")].filter(r => r.querySelector("td.primary"));
+  const rgba = s => { const m = s.match(/[\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }; };
+  const under = el => { // what the element really sits on: backgrounds of itself and its ancestors composed
+    const layers = [];
+    for (let e = el; e; e = e.parentElement) { const c = rgba(getComputedStyle(e).backgroundColor); if (c.a > 0) layers.push(c); if (c.a === 1) break; }
+    let base = layers.pop() || { r: 14, g: 15, b: 17, a: 1 };
+    while (layers.length) { const t = layers.pop(); base = { r: t.r * t.a + base.r * (1 - t.a), g: t.g * t.a + base.g * (1 - t.a), b: t.b * t.a + base.b * (1 - t.a), a: 1 }; }
+    return base;
+  };
+  // a tinted card on phones paints its gradient as background-image; fold that layer in
+  const tinted = el => { const bi = getComputedStyle(el).backgroundImage; return bi && bi !== "none" ? rgba(bi.match(/rgba?\([^)]*\)/)[0]) : null; };
+  const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const rowBg = tr => {
+    let bg = under(tr.querySelector("td"));
+    const tint = tinted(tr);
+    if (tint) bg = { r: tint.r * tint.a + bg.r * (1 - tint.a), g: tint.g * tint.a + bg.g * (1 - tint.a), b: tint.b * tint.a + bg.b * (1 - tint.a), a: 1 };
+    return bg;
+  };
+  const plainRef = plain[0] ? rowBg(plain[0]) : null;
+  rows.forEach(tr => {
+    const bg = rowBg(tr);
+    if (plainRef && Math.abs(bg.r - plainRef.r) + Math.abs(bg.g - plainRef.g) + Math.abs(bg.b - plainRef.b) < 4) out.push("tinted key row is not visibly tinted against a plain one");
+    tr.querySelectorAll("td, td *").forEach(e => {
+      if (![...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) return;
+      const col = rgba(getComputedStyle(e).color);
+      if (ratio(col, bg) < 4.5) out.push("text on a tinted key row only has contrast " + ratio(col, bg).toFixed(2) + " (" + e.tagName + ")");
+    });
+  });
+  if (plain[0] && plainRef) { const t = tinted(plain[0]); if (t && t.r === 230) out.push("a plain key row carries the tint"); }
+  window.__tinted = rows.length;
   if (out.length) {
     const bad = [];
     for (const el of document.querySelectorAll("body *")) {
@@ -72,6 +106,7 @@ const measure = () => {
       await pg.goto("file://" + dir + "/" + p.name + ".html");
       let res = await pg.evaluate(measure);
       checks++;
+      if (p.name === "keys") { checks++; if (!(await pg.evaluate(() => window.__tinted))) { bad++; console.log("FAIL", p.name, width, "no tinted ?key= row on the keys page"); } }
       const sig = await pg.evaluate(() => window.__choices || []);
       if (sig.length) {
         // Approve (primary) and Deny look the same at every width, and Approve is the filled one
