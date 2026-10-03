@@ -31,6 +31,8 @@ skgate must work out of the box. Users are not security experts.
 - Tokens are shown masked: asterisks plus the last 4 characters; under 8 characters, asterisks only. Refresh tokens appear only in the provider dialog.
 - Name/value data (env, headers) and lists (args) use the dynamic rows components.
 - Manual input is never gated behind an account or a helper.
+- Reasoning effort: the dropdown (default = provider decides, low, medium, high) sits directly under the model dropdown inside the shared `model_picker`, same form so one Save covers both, no one-off CSS (`.pick`). The MCP helper model's effort defaults to low; the chat effort is a separate setting (default: send nothing) and is added as `reasoning_effort` to proxied chat requests only when the client set none. A provider that rejects the parameter gets the request again without it.
+- A Suggest timeout (silence or overall cap) shows a distinct state with the stage and elapsed time, the toast reason, and a Lower effort button that opens the helper model dialog. The log line names the same stage and effort.
 - Icons live in `internal/admin/static/` (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, PNG sizes). Swap the files, keep the names.
 
 ## Security
@@ -43,6 +45,7 @@ skgate must work out of the box. Users are not security experts.
 
 - Small, meaningful commits with a message body. One concern per commit.
 - Tests are required. Run `go test -race ./...`; `tools/chk.sh` (build, vet, tests of the staged tree) must pass for every commit.
+- README is for user-visible things only (features, runtimes, env variables, setup). Logging, timeouts, streaming, retries, TZ plumbing and the effort selector stay out of the front page; details go in `docs/` or the code. README edits go in their own small commits.
 - Update README and `.env.example` in the same change. A test keeps their variables in sync with the code.
 - Admin routes (`/admin/...`) work with and without a trailing slash through one router-level rewrite (`trimAdminSlash`); never add slash variants per page. It touches nothing outside `/admin` (`/mcp`, OAuth, `/.well-known`, `/v1` keep their own handling).
 - Database changes are additive and backward compatible. Existing upstreams keep working.
