@@ -63,7 +63,7 @@ var unsupportedHosts = map[string]eco{
 	"crates.io": {"crates.io", "cargo"}, "docs.rs": {"crates.io", "cargo"}, "lib.rs": {"crates.io", "cargo"},
 	"pkg.go.dev": {"Go modules", "go"}, "proxy.golang.org": {"Go modules", "go"},
 	"hub.docker.com": {"Docker", "docker"}, "docker.io": {"Docker", "docker"}, "ghcr.io": {"Docker", "docker"}, "quay.io": {"Docker", "docker"},
-	"nuget.org": {"NuGet", "dotnet"}, "www.nuget.org": {"NuGet", "dotnet"},
+	"nuget.org": {"NuGet", "dotnet tool support"}, "www.nuget.org": {"NuGet", "dotnet tool support"},
 	"rubygems.org":     {"RubyGems", "gem"},
 	"search.maven.org": {"Maven", "mvn"}, "mvnrepository.com": {"Maven", "mvn"}, "repo1.maven.org": {"Maven", "mvn"},
 	"jsr.io": {"JSR", "deno"}, "deno.land": {"Deno", "deno"},
@@ -71,7 +71,7 @@ var unsupportedHosts = map[string]eco{
 
 var unsupportedPrefix = map[string]eco{
 	"cargo": {"crates.io", "cargo"}, "crate": {"crates.io", "cargo"}, "go": {"Go modules", "go"},
-	"docker": {"Docker", "docker"}, "nuget": {"NuGet", "dotnet"}, "gem": {"RubyGems", "gem"},
+	"docker": {"Docker", "docker"}, "nuget": {"NuGet", "dotnet tool support"}, "gem": {"RubyGems", "gem"},
 	"maven": {"Maven", "mvn"}, "jsr": {"JSR", "deno"}, "deno": {"Deno", "deno"},
 }
 
