@@ -21,13 +21,25 @@ const (
 // KV is a name/value pair: an environment variable of a managed process or an outbound header.
 type KV struct{ Name, Value string }
 
+// toManaged converts the env list for the process. Empty values are left out: an unset variable keeps
+// the program's own default, a blank one would override it.
 func toManaged(l []KV) []managed.KV {
-	if len(l) == 0 {
-		return nil
+	var out []managed.KV
+	for _, kv := range l {
+		if kv.Value != "" {
+			out = append(out, managed.KV{Name: kv.Name, Value: kv.Value})
+		}
 	}
-	out := make([]managed.KV, len(l))
-	for i, kv := range l {
-		out[i] = managed.KV{Name: kv.Name, Value: kv.Value}
+	return out
+}
+
+// withoutEmpty drops the pairs with an empty value.
+func withoutEmpty(l []KV) []KV {
+	var out []KV
+	for _, kv := range l {
+		if kv.Value != "" {
+			out = append(out, kv)
+		}
 	}
 	return out
 }

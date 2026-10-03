@@ -286,6 +286,7 @@ func (s *Upstreams) Create(u Upstream) error {
 	if err := u.Validate(); err != nil {
 		return err
 	}
+	u.Env = withoutEmpty(u.Env) // unused rows are not stored
 	if _, ok := s.Get(u.Alias); ok {
 		return fmt.Errorf("alias %q already exists", u.Alias)
 	}
@@ -318,6 +319,7 @@ func (s *Upstreams) Update(u Upstream, keepSecret bool) error {
 	if err := u.Validate(); err != nil {
 		return err
 	}
+	u.Env = withoutEmpty(u.Env) // unused rows are not stored
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err

@@ -37,7 +37,8 @@ func CacheEnv(cacheDir string) []KV {
 
 // BuildEnv returns the child environment: the inherited allow list from parent (KEY=VALUE
 // entries), a per-process HOME and TMPDIR, a default LANG and PATH, then the user's variables
-// (which may override any of these). The result is sorted and has no duplicates.
+// (which may override any of these). A variable with an empty value is not set, so the program's own
+// default stands. The result is sorted and has no duplicates.
 func BuildEnv(parent []string, home, tmp string, user []KV) []string {
 	m := map[string]string{}
 	allowed := map[string]bool{}
@@ -59,7 +60,9 @@ func BuildEnv(parent []string, home, tmp string, user []KV) []string {
 		m["PATH"] = "/usr/local/bin:/usr/bin:/bin"
 	}
 	for _, kv := range user {
-		m[kv.Name] = kv.Value
+		if kv.Value != "" {
+			m[kv.Name] = kv.Value
+		}
 	}
 	out := make([]string, 0, len(m))
 	for k, v := range m {
