@@ -64,8 +64,8 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 			t.Errorf("upstreams page lacks %q", want)
 		}
 	}
-	// low-priority upstream columns are hidden on narrow windows; the URL column shrinks with an ellipsis
-	for _, want := range []string{`<th class="hide-md">Outbound auth</th>`, `class="hide-md trunc"`} {
+	// the table keeps the at-a-glance columns; the rest is in the Details dialog
+	for _, want := range []string{`<th>Name</th><th>Type</th><th>Enabled</th><th>In /mcp</th>`, `data-dialog-open="#upstream-`, `<th>outbound auth</th>`} {
 		if !strings.Contains(ups, want) {
 			t.Errorf("upstreams page lacks %q", want)
 		}

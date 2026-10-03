@@ -97,13 +97,13 @@ func TestClientsPageShowsLastUsed(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
 	br.post("/admin/clients/create", url.Values{"csrf": {csrf}, "name": {"fresh"}, "redirects": {"https://c.example/cb"}, "method": {"none"}})
 	_, page := br.get("/admin/clients")
-	if !strings.Contains(page, "<th>Last used</th>") || !regexp.MustCompile(`fresh</td>.*?<td>-</td>`).MatchString(page) {
+	if !strings.Contains(page, "<th>last used</th>") || !regexp.MustCompile(`<th>last used</th><td>-</td>`).MatchString(page) {
 		t.Fatalf("never-used client must show a dash:\n%s", page)
 	}
 	l, _ := a.MCP.Clients.List()
 	a.MCP.Clients.Touch(l[0].ID)
 	_, page = br.get("/admin/clients")
-	if strings.Contains(page, "fresh</td><td><span class=\"chip\">none</span></td><td><span class=\"chip\">admin</span></td><td>-</td>") {
+	if strings.Contains(page, "<th>last used</th><td>-</td>") {
 		t.Fatal("used client still shows a dash")
 	}
 	if !strings.Contains(page, time.Now().Format("2006-01-02")) {

@@ -21,14 +21,14 @@ func TestKeysPageUsageColumn(t *testing.T) {
 	a.Keys.Record(mcpOnly.ID, vkeys.Usage{MCPRequests: 3})
 	_, page := br.get("/admin/keys")
 
-	if !strings.Contains(page, "<th>Last used</th><th>Usage</th><th>Status</th>") {
+	if !strings.Contains(page, "<th>Label</th><th>Usage</th><th>Status</th>") {
 		t.Fatal("Usage must sit directly before Status")
 	}
 	i := strings.Index(page, "<tbody>")
 	rows := strings.Split(page[i:], "</tr>")
 	row := func(label string) string {
 		for _, r := range rows {
-			if strings.Contains(r, "<td>"+label+"</td>") {
+			if strings.Contains(r, `data-label="Label">`+label+"</td>") {
 				return r
 			}
 		}
@@ -79,7 +79,7 @@ func TestKeyLimitsInAdmin(t *testing.T) {
 		t.Fatalf("%+v", by)
 	}
 	_, page := br.get("/admin/keys")
-	for _, want := range []string{"<th>Limits</th>", "30/min, stop at 1000", ">unlimited<", `name="rate"`, `name="stop"`, `action="/admin/keys/limits"`, `id="key-limits-`} {
+	for _, want := range []string{"<th>limits</th>", "30/min, stop at 1000", ">unlimited<", `name="rate"`, `name="stop"`, `action="/admin/keys/limits"`, `id="key-`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("keys page lacks %q", want)
 		}

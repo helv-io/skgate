@@ -12,7 +12,7 @@
 </tbody></table></div>
 {{if .R.OK}}<h2>Tools ({{.R.ToolTotal}}{{if .R.ToolsCapped}}, list capped{{end}})</h2>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>
-{{range .R.Tools}}<tr><td><code>{{.Name}}</code></td><td class="wrap">{{.Desc}}</td></tr>
+{{range .R.Tools}}<tr><td class="primary" data-label="Name"><code>{{.Name}}</code></td><td class="wrap" data-label="Description">{{.Desc}}</td></tr>
 {{else}}<tr><td colspan="2" class="empty">no tools</td></tr>{{end}}</tbody></table></div>{{end}}
 <div class="actions"><a class="act" href="/admin/upstreams">back</a>{{if .U.Managed}}<a class="act" href="/admin/upstreams/logs?alias={{.U.Alias}}">process</a>{{end}}
 <form method="post" action="/admin/upstreams/test"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.U.Alias}}"><button class="btn">Test again</button></form></div>
