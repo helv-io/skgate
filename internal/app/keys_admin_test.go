@@ -131,3 +131,25 @@ func TestKeyRowHasOneAction(t *testing.T) {
 		t.Error("only the active key's dialog has the edit form, regenerate and revoke")
 	}
 }
+
+// The create form asks for a name and nothing else up front; the limits are optional and folded away (a key is
+// unlimited and never expires by default), and a key can be created from the name alone, or from nothing.
+func TestKeyCreateFormIsJustAName(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	_, page := br.get("/admin/keys")
+	form := page[strings.Index(page, `action="/admin/keys/create"`):]
+	form = form[:strings.Index(form, "</form>")]
+	open := strings.Index(form, "<details>")
+	if open < 0 || strings.Index(form, `name="label"`) > open || strings.Index(form, `name="rate"`) < open || strings.Index(form, `name="expires"`) < open {
+		t.Errorf("name first, limits inside a closed details:\n%s", form)
+	}
+	if strings.Contains(form, "<details open") {
+		t.Error("the limits start folded")
+	}
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"Home Assistant"}})
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}})
+	ks, _ := a.Keys.List()
+	if len(ks) != 2 || ks[1].Label != "Home Assistant" || ks[0].Label != "unnamed" || ks[1].Limited() || !ks[1].ExpiresAt.IsZero() {
+		t.Fatalf("defaults: %+v", ks)
+	}
+}
