@@ -157,7 +157,7 @@ for (const native of [false,true]) {
 { const {w,d}=load("list.html",false);
   const form=d.querySelector('form[action="/admin/upstreams/save"]');
   w.fetch=()=>Promise.resolve({ok:true,headers:{get:()=>"application/json"},json:()=>Promise.resolve({alias:"thing",kind:"stdio",command:"npx",args:["-y","thing@1.0.0"],env:[{name:"THING_KEY",description:"k",secret:true,required:true},{name:"THING_URL",secret:false,required:false}],install:"",startup_secs:45,confidence:"high",warnings:["w1"],notes:["n1"]})});
-  const b=d.querySelector("[data-suggest]"); b.disabled=false; form.elements.source.value="thing";
+  const b=d.querySelector("[data-suggest]"); b.removeAttribute("data-suggest-off"); b.disabled=false; form.elements.source.value="thing";
   b.dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
   setTimeout(()=>{
     ok(form.elements.command_pick.value==="npx"||form.elements.command.value==="npx","command filled");
