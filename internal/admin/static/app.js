@@ -47,7 +47,8 @@
 
 // Confirmation: a form with data-confirm="text" opens the shared modal (<dialog data-modal>) on submit
 // instead of submitting. Title and confirm label are the submit button's label; a button with class
-// "danger" makes the confirm button destructive. Escape, Cancel and a click on the backdrop close it.
+// "danger" makes the confirm button destructive. Escape and Cancel close it; a click on the backdrop only closes a
+// dialog marked data-informational (see below).
 // Content dialogs are addressed by the URL fragment (#id of their <template>): opening one sets it, a load or
 // hashchange with that fragment opens it, closing it by any route takes the fragment out of the URL again, and
 // the Back button closes it. A dialog opened by a click adds one history entry that closing it by hand removes
@@ -64,6 +65,7 @@
   var actionsEl = dlg.querySelector("[data-modal-actions]");
   var pending = null; // { form, submitter, opener }
   var opener = null; // the button that opened content
+  var informational = false; // the dialog in view only shows information (template attribute data-informational)
   var shownId = null; // id of the content dialog in view (its fragment is in the URL)
   var pushed = false; // opening it added a history entry
 
@@ -112,6 +114,7 @@
     var tpl = id ? document.getElementById(id) : null;
     if (!tpl || !tpl.hasAttribute("data-dialog-content")) return;
     mode(true);
+    informational = tpl.hasAttribute("data-informational");
     bodyEl.textContent = "";
     titleEl.textContent = tpl.getAttribute("data-title") || "";
     bodyEl.appendChild(tpl.content.cloneNode(true));
@@ -157,6 +160,7 @@
     var word = label(btn);
     var danger = !!(btn && btn.classList && btn.classList.contains("danger"));
     mode(false);
+    informational = false;
     pending = { form: form, submitter: btn, opener: btn || document.activeElement };
     titleEl.textContent = form.getAttribute("data-confirm-title") || (word ? word.charAt(0).toUpperCase() + word.slice(1) : "Confirm");
     textEl.textContent = text;
@@ -179,13 +183,53 @@
     pending = null;
   });
   cancelBtn.addEventListener("click", function () { close(); });
-  // A click on the backdrop lands on the dialog element itself; clicks inside land on its children.
-  dlg.addEventListener("click", function (e) { if (e.target === dlg) close(); });
+  // A click on the backdrop lands on the dialog element itself; clicks inside land on its children. Only a dialog
+  // that merely shows information closes that way; one with a form, a field or a decision ignores it (a drag that
+  // starts in a field and ends outside must not throw the input away). Escape and the buttons always close.
+  dlg.addEventListener("click", function (e) { if (e.target === dlg && informational) close(); });
   // Escape fires cancel (native) and then close; both end up here.
   dlg.addEventListener("cancel", function () { /* native close follows */ });
   dlg.addEventListener("close", restoreFocus);
   dlg.addEventListener("keydown", function (e) {
     if (e.key === "Escape") { e.preventDefault(); close(); restoreFocus(); }
+  });
+})();
+
+// Expiration field (the expiry_field component): the text is read by the server's parser (one parser, so the
+// preview and the saved value always agree). Typing shows what it means, or why it does not, under the field;
+// the quick buttons fill the text in. A response that arrives late for older text is ignored.
+(function () {
+  var timers = new WeakMap(), seq = 0;
+  function show(box, ok, text) {
+    var p = box.querySelector("[data-expiry-preview]");
+    if (!p) return;
+    p.textContent = text;
+    p.classList.toggle("bad", !ok);
+    p.classList.toggle("muted", ok);
+  }
+  function check(box) {
+    var input = box.querySelector("[data-expiry-input]"), mine = ++seq;
+    box._seq = mine;
+    fetch(box.getAttribute("data-expiry-url") + "?q=" + encodeURIComponent(input.value), { credentials: "same-origin", headers: { Accept: "application/json" } })
+      .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.json(); })
+      .then(function (j) { if (box._seq === mine) show(box, j.ok, j.text); })
+      .catch(function () { if (box._seq === mine) show(box, true, "Could not check this now; the server reads it when you save."); });
+  }
+  document.addEventListener("input", function (e) {
+    var input = e.target && e.target.closest ? e.target.closest("[data-expiry-input]") : null;
+    var box = input && input.closest("[data-expiry]");
+    if (!box) return;
+    clearTimeout(timers.get(box));
+    timers.set(box, setTimeout(function () { check(box); }, 150));
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("[data-expiry-set]") : null;
+    var box = b && b.closest("[data-expiry]");
+    if (!box) return;
+    var input = box.querySelector("[data-expiry-input]");
+    input.value = b.getAttribute("data-expiry-set") === "never" ? "" : b.getAttribute("data-expiry-set");
+    clearTimeout(timers.get(box));
+    check(box);
   });
 })();
 

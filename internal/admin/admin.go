@@ -75,12 +75,16 @@ var funcs = template.FuncMap{
 	},
 	"pair":     func() pair { return pair{} },
 	"dlg":      func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
+	"infodlg":  func(id, title string) dialogHead { return dialogHead{ID: id, Title: title, Info: true} },
 	"inList":   contains,
 	"frontier": provider.LooksFrontier,
 	// pill feeds the "pill" component: class, label and hover text.
 	"pill": func(class, text, tip string) pillView { return pillView{Class: class, Text: text, Tip: tip} },
 	// tip feeds the "tip" component: visible text with a hover tooltip. usage builds the Usage cell of a key.
-	"tip": func(text, tip string) tipView { return tipView{Text: text, Tip: tip} },
+	"tip":          func(text, tip string) tipView { return tipView{Text: text, Tip: tip} },
+	"expiry":       expiryOf,
+	"keyStatus":    keyStatus,
+	"neverExpires": func() expiryData { return expiryOf(time.Time{}) },
 	"keyUsage": func(k vkeys.Key) tipView {
 		last := k.LastUsed
 		if k.Usage.LastUsed.After(last) {
@@ -270,6 +274,7 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/keys", a.guard(a.keys))
 	mux.HandleFunc("/admin/keys/create", a.guard(a.postOnly(a.keyCreate)))
 	mux.HandleFunc("/admin/keys/revoke", a.guard(a.postOnly(a.keyRevoke)))
+	mux.HandleFunc("/admin/keys/expiry", a.guard(a.getOnly(a.keyExpiry)))
 	mux.HandleFunc("/admin/keys/limits", a.guard(a.postOnly(a.keyLimits)))
 	mux.HandleFunc("/admin/keys/regenerate", a.guard(a.postOnly(a.keyRegenerate)))
 	mux.HandleFunc("/admin/upstreams", a.guard(a.upstreams))
@@ -410,14 +415,14 @@ func (a *Admin) keys(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) keyCreate(w http.ResponseWriter, r *http.Request) {
-	rate, stop, err := limitsOf(r)
+	rate, expires, err := limitsOf(r)
 	if err != nil {
 		a.back(w, r, "/admin/keys", "", err.Error())
 		return
 	}
 	full, k, err := a.Keys.Create(r.PostFormValue("label"))
-	if err == nil && (rate > 0 || stop > 0) {
-		err = a.Keys.SetLimits(k.ID, rate, stop)
+	if err == nil && (rate > 0 || !expires.IsZero()) {
+		err = a.Keys.SetLimits(k.ID, rate, expires)
 	}
 	if err != nil {
 		a.back(w, r, "/admin/keys", "", "create failed")
@@ -426,39 +431,81 @@ func (a *Admin) keyCreate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, a.stash(r, "key", keysData{NewKey: full}, toast{toastOK, "key created"}), http.StatusSeeOther)
 }
 
-// limitsOf reads the optional limits of the key forms; empty means unlimited.
-func limitsOf(r *http.Request) (rate, stop int64, err error) {
-	bad := fmt.Errorf("limits must be whole numbers from 0 to %d (empty = unlimited)", vkeys.MaxLimit)
-	one := func(name string) (int64, error) {
-		v := strings.TrimSpace(r.PostFormValue(name))
-		if v == "" {
-			return 0, nil
+// limitsOf reads the optional limits of the key forms: the rate limit (empty = unlimited) and the expiration,
+// typed as text and read by vkeys.ParseExpiry in the server's zone (empty = never).
+func limitsOf(r *http.Request) (rate int64, expires time.Time, err error) {
+	if v := strings.TrimSpace(r.PostFormValue("rate")); v != "" {
+		rate, err = strconv.ParseInt(v, 10, 64)
+		if err != nil || rate < 0 || rate > vkeys.MaxLimit {
+			return 0, time.Time{}, fmt.Errorf("the rate limit must be a whole number of requests per minute from 0 to %d (empty = unlimited)", vkeys.MaxLimit)
 		}
-		n, err := strconv.ParseInt(v, 10, 64)
-		if err != nil || n < 0 || n > vkeys.MaxLimit {
-			return 0, bad
-		}
-		return n, nil
 	}
-	if rate, err = one("rate"); err != nil {
-		return
+	expires, _, err = vkeys.ParseExpiry(r.PostFormValue("expires"), time.Now(), time.Local)
+	if err != nil {
+		return 0, time.Time{}, err
 	}
-	stop, err = one("stop")
-	return
+	return rate, expires, nil
+}
+
+// keyExpiry answers the live preview under the expiration field: what the text means, or why it does not.
+func (a *Admin) keyExpiry(w http.ResponseWriter, r *http.Request) {
+	t, never, err := vkeys.ParseExpiry(r.URL.Query().Get("q"), time.Now(), time.Local)
+	out := map[string]any{"ok": err == nil, "never": never}
+	switch {
+	case err != nil:
+		out["text"] = err.Error()
+	case never:
+		out["text"] = expiryNever
+	default:
+		out["text"] = vkeys.ExpiryPreview(t)
+	}
+	httputil.JSON(w, http.StatusOK, out)
+}
+
+// keyStatus is the status pill of a key: revoked, expired (with the date) or active (with the date it ends, if any).
+func keyStatus(k vkeys.Key) pillView {
+	switch {
+	case k.Revoked:
+		return pillView{"off", "revoked", ""}
+	case k.Expired(time.Now()):
+		return pillView{"warn", "expired", "expired " + timefmt.DateTime(k.ExpiresAt)}
+	case !k.ExpiresAt.IsZero():
+		return pillView{"ok", "active", "expires " + timefmt.DateTime(k.ExpiresAt)}
+	}
+	return pillView{"ok", "active", ""}
+}
+
+const expiryNever = "Never expires"
+
+// expiryData feeds the shared expiry_field component: the text in the field and the line under it.
+type expiryData struct{ Value, Preview string }
+
+func expiryOf(t time.Time) expiryData {
+	if t.IsZero() {
+		return expiryData{Preview: expiryNever}
+	}
+	return expiryData{Value: vkeys.ExpiryText(t), Preview: vkeys.ExpiryPreview(t)}
 }
 
 func (a *Admin) keyLimits(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(r.PostFormValue("id"), 10, 64)
-	rate, stop, err := limitsOf(r)
+	rate, expires, err := limitsOf(r)
 	if err == nil {
-		err = a.Keys.SetLimits(id, rate, stop)
+		err = a.Keys.SetLimits(id, rate, expires)
 	}
 	if err != nil {
 		a.back(w, r, "/admin/keys", "", err.Error())
 		return
 	}
-	log.Printf("admin: key id=%d limits set: rate=%d/min hard_stop=%d", id, rate, stop)
+	log.Printf("admin: key id=%d limits set: rate=%d/min expires=%s", id, rate, expiresLog(expires))
 	a.back(w, r, "/admin/keys", "key limits saved", "")
+}
+
+func expiresLog(t time.Time) string {
+	if t.IsZero() {
+		return "never"
+	}
+	return t.Format(time.RFC3339)
 }
 
 // keyRegenerate swaps the secret of an active key and shows the new one once (rendered directly,
@@ -637,7 +684,12 @@ type suggestState struct {
 type pair struct{ Name, Value string }
 
 // dialogHead feeds the shared "dialog_open" component.
-type dialogHead struct{ ID, Title string }
+// Info marks a dialog that only shows information: it has no form, button or field to change, so a click on the
+// backdrop may close it. Every other dialog ignores the backdrop (Escape and its buttons close it).
+type dialogHead struct {
+	ID, Title string
+	Info      bool
+}
 
 // pillView is a status pill: Class ok|bad|warn|off, Text the label, Tip the hover text (may be empty).
 type pillView struct{ Class, Text, Tip string }

@@ -45,7 +45,8 @@ for (const native of [false,true]) {
   ev=new w.Event("submit",{cancelable:true,bubbles:true}); ev.submitter=btn; rev.dispatchEvent(ev);
   ok(dlg.hasAttribute("open"),"reopened");
   dlg.dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
-  ok(!dlg.hasAttribute("open") && !rev._submitted,"backdrop click closes, no submit");
+  ok(dlg.hasAttribute("open") && !rev._submitted,"a confirmation ignores the backdrop, no submit");
+  d.querySelector("[data-modal-cancel]").click();
   // click inside (on the text) does not close
   ev=new w.Event("submit",{cancelable:true,bubbles:true}); ev.submitter=btn; rev.dispatchEvent(ev);
   d.querySelector("[data-modal-text]").dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
