@@ -140,7 +140,7 @@ func TestClientPresetMarkupAndHomeAssistantFlow(t *testing.T) {
 
 func TestCommandFieldIsADropdownOfInstalledCommandsWithCustom(t *testing.T) {
 	a, br, csrf := managedApp(t)
-	_, page := br.get("/admin/upstreams")
+	_, page := br.get("/admin/upstreams/new")
 	sel := regexp.MustCompile(`(?s)<select name="command_pick" data-pick>(.*?)</select>`).FindStringSubmatch(page)
 	if sel == nil {
 		t.Fatal("no command dropdown")

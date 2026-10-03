@@ -101,7 +101,7 @@ func TestEmptyEnvRowsAreIgnoredAndNotRequired(t *testing.T) {
 	if len(u.Env) != 2 || u.Env[0].Name != "FAKE_MCP" || u.Env[1].Name != "BASE_URL" {
 		t.Fatalf("stored: %+v", u.Env)
 	}
-	_, add := br.get("/admin/upstreams")
+	_, add := br.get("/admin/upstreams/new")
 	blank := envRows(t, add)
 	if len(blank) != 1 || blank[0]["placeholder"] != "Optional" || blank[0]["value"] != "" || blank[0]["flag"] != "" {
 		t.Fatalf("a blank row: %v", blank)

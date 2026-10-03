@@ -38,13 +38,13 @@ func (r *suggestRig) postJSON(path string, v url.Values) (*http.Response, map[st
 func TestUpstreamPageOffersHelperModelPicker(t *testing.T) {
 	const opener = `data-dialog-open="#helper-model"`
 	out := newSuggestRig(t, false, false)
-	_, page := out.br.get("/admin/upstreams")
+	_, page := out.br.get("/admin/upstreams/new")
 	if !strings.Contains(page, `disabled title="sign in on the status page"`) || strings.Contains(page, opener) {
 		t.Error("signed out: expected the sign-in explanation and no picker")
 	}
 
 	none := newSuggestRig(t, true, false)
-	_, page = none.br.get("/admin/upstreams")
+	_, page = none.br.get("/admin/upstreams/new")
 	for _, want := range []string{`disabled title="pick an MCP helper model first"`, opener, "Pick MCP helper model",
 		`<template data-dialog-content id="helper-model" data-title="MCP helper model">`, `action="/admin/providers/grok/model"`, `data-inline=""`, `<option value="helper-2"`} {
 		if !strings.Contains(page, want) {
@@ -53,7 +53,7 @@ func TestUpstreamPageOffersHelperModelPicker(t *testing.T) {
 	}
 
 	with := newSuggestRig(t, true, true)
-	_, page = with.br.get("/admin/upstreams")
+	_, page = with.br.get("/admin/upstreams/new")
 	if strings.Contains(page, `data-suggest="/admin/upstreams/suggest" disabled`) || !strings.Contains(page, "MCP helper model: helper-2") {
 		t.Error("with a model: Suggest must be enabled and the model shown")
 	}
@@ -125,7 +125,7 @@ func TestAddFormDefaultType(t *testing.T) {
 		"no model":   {newSuggestRig(t, true, false), false},
 		"ready":      {newSuggestRig(t, true, true), true},
 	} {
-		_, page := tc.rig.br.get("/admin/upstreams")
+		_, page := tc.rig.br.get("/admin/upstreams/new")
 		if managed.MatchString(page) != tc.managed || remote.MatchString(page) == tc.managed {
 			t.Errorf("%s: wrong default type (managed=%v)", name, tc.managed)
 		}
@@ -181,7 +181,7 @@ func TestRefusedAdminActionIsLogged(t *testing.T) {
 // In the shared model picker the load time comes first and the Reload button follows, in every dialog that uses it.
 func TestModelPickerShowsTimeBeforeReload(t *testing.T) {
 	r := newSuggestRig(t, true, true)
-	for _, path := range []string{"/admin", "/admin/upstreams"} {
+	for _, path := range []string{"/admin", "/admin/upstreams/new"} {
 		_, page := r.br.get(path)
 		i, j := strings.Index(page, "2 models, loaded "), strings.Index(page, "Reload models")
 		if i < 0 || j < 0 || i > j {
@@ -242,7 +242,7 @@ func TestSuggestStreamsStages(t *testing.T) {
 // both), defaulting to "auto" (the model decides). It is the only reasoning setting: there is none for chat.
 func TestReasoningSelectorInModelDialogs(t *testing.T) {
 	r := newSuggestRig(t, true, true)
-	for _, path := range []string{"/admin", "/admin/upstreams"} {
+	for _, path := range []string{"/admin", "/admin/upstreams/new"} {
 		_, page := r.br.get(path)
 		m, e, reload := strings.Index(page, `<select name="model"`), strings.Index(page, `<select name="effort"`), strings.Index(page, "Reload models")
 		if m < 0 || e < m || reload < e {
@@ -347,7 +347,7 @@ func TestSuggestTimeoutIsVisible(t *testing.T) {
 	}
 
 	_, js := r.br.get("/admin/static/app.js")
-	_, page := r.br.get("/admin/upstreams")
+	_, page := r.br.get("/admin/upstreams/new")
 	if !strings.Contains(js, "Timed out while ") || !strings.Contains(js, `"Lower reasoning"`) || !strings.Contains(js, `"#helper-model"`) || !strings.Contains(page, `id="helper-model"`) {
 		t.Error("the timed-out state or the Lower reasoning button is missing")
 	}
@@ -370,7 +370,7 @@ func TestSuggestTimeoutStateInJSDOM(t *testing.T) {
 		t.Skip("jsdom is not available (set SKGATE_JSDOM to a directory with node_modules/jsdom)")
 	}
 	r := newSuggestRig(t, true, true)
-	_, page := r.br.get("/admin/upstreams")
+	_, page := r.br.get("/admin/upstreams/new")
 	dir := t.TempDir()
 	file := filepath.Join(dir, "upstreams.html")
 	if err := os.WriteFile(file, []byte(page), 0o600); err != nil {

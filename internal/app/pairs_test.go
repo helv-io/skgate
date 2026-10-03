@@ -33,7 +33,7 @@ func countRows(block string) (n, removable int) {
 // control plus a template whose row is deletable. The list has no fixed size.
 func TestPairListStartsWithOneUndeletableRow(t *testing.T) {
 	_, _, br, _ := signedIn(t, nil)
-	for _, path := range []string{"/admin/upstreams"} {
+	for _, path := range []string{"/admin/upstreams/new"} {
 		_, page := br.get(path)
 		rows, tpls := pairBlocks(t, page)
 		for i, name := range []string{"headers", "arguments", "environment"} {

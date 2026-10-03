@@ -66,7 +66,7 @@ func TestFormRightEdgesInBrowser(t *testing.T) {
 	js, _ := os.ReadFile(filepath.Join("..", "admin", "static", "app.js"))
 	os.WriteFile(filepath.Join(dir, "app.css"), css, 0o600)
 	os.WriteFile(filepath.Join(dir, "app.js"), js, 0o600)
-	for file, path := range map[string]string{"upstreams": "/admin/upstreams", "edit_managed": "/admin/upstreams/m/edit", "edit_remote": "/admin/upstreams/r/edit",
+	for file, path := range map[string]string{"upstreams": "/admin/upstreams/new", "edit_managed": "/admin/upstreams/m/edit", "edit_remote": "/admin/upstreams/r/edit",
 		"clients": "/admin/clients", "import": "/admin/upstreams/import"} {
 		_, page := br.get(path)
 		os.WriteFile(filepath.Join(dir, file+".html"), []byte(strings.ReplaceAll(page, "/admin/static/", "")), 0o600)

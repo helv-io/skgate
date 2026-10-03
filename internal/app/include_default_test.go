@@ -10,7 +10,7 @@ var addFormInclude = regexp.MustCompile(`name="include" value="1" data-include (
 
 func includePreselected(t *testing.T, br *browser) bool {
 	t.Helper()
-	_, page := br.get("/admin/upstreams")
+	_, page := br.get("/admin/upstreams/new")
 	m := addFormInclude.FindStringSubmatch(page)
 	if m == nil {
 		t.Fatal("add form has no include checkbox")

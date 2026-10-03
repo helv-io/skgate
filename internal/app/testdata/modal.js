@@ -116,7 +116,7 @@ for (const native of [false,true]) {
   ok(f.elements.method.value==="none"&&f.elements.name.value==="x","Custom leaves the form as is");
 }
 // command pick: Custom reveals the path input, a listed command hides it
-{ const {w,d}=load("list.html",false);
+{ const {w,d}=load("new.html",false);
   const sel=d.querySelector("select[data-pick]"), inp=d.querySelector("[data-pick-custom]");
   ok(inp.hidden,"path input hidden while a command is listed");
   sel.value=""; sel.dispatchEvent(new w.Event("change",{bubbles:true}));
@@ -145,7 +145,7 @@ for (const native of [false,true]) {
     d.querySelector("[data-modal-cancel]").click(); }
 }
 // remote form: the header name shows only for the auth types that use a header; host override is under Advanced
-{ const {w,d}=load("list.html",false);
+{ const {w,d}=load("new.html",false);
   const sel=d.querySelector('select[name="auth_kind"]'), name=d.querySelector('input[name="auth_name"]').closest("[data-when]");
   const at=v=>{ sel.value=v; sel.dispatchEvent(new w.Event("change",{bubbles:true})); return name.hidden; };
   ok(at("header")===false&&at("auto")===false,"header name shown for header and auto");
@@ -154,7 +154,7 @@ for (const native of [false,true]) {
   ok(!!adv&&/Advanced/.test(adv.querySelector("summary").textContent)&&!adv.open,"host override sits in a closed Advanced block");
 }
 // suggest: fills the manual fields from the answer and leaves them editable
-{ const {w,d}=load("list.html",false);
+{ const {w,d}=load("new.html",false);
   const form=d.querySelector('form[action="/admin/upstreams/save"]');
   w.fetch=()=>Promise.resolve({ok:true,headers:{get:()=>"application/json"},json:()=>Promise.resolve({alias:"thing",kind:"stdio",command:"npx",args:["-y","thing@1.0.0"],env:[{name:"THING_KEY",description:"k",secret:true,required:true},{name:"THING_URL",secret:false,required:false}],install:"",startup_secs:45,confidence:"high",warnings:["w1"],notes:["n1"]})});
   const b=d.querySelector("[data-suggest]"); b.removeAttribute("data-suggest-off"); b.disabled=false; form.elements.source.value="thing";

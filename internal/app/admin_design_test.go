@@ -28,7 +28,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 	a.MCP.Upstreams.Create(mcp.Upstream{Alias: "repo", Kind: mcp.KindGit, Command: "python3", Args: []string{"-m", "srv"}, GitURL: "https://git.example.com/org/repo.git", GitToken: "git-secret-token-5555", Enabled: true})
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
 	pages := map[string]string{}
-	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/upstreams/one/edit", "/admin/upstreams/mgd/edit", "/admin/upstreams/repo/edit",
+	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/upstreams/new", "/admin/upstreams/one/edit", "/admin/upstreams/mgd/edit", "/admin/upstreams/repo/edit",
 		"/admin/upstreams/mgd/logs", "/admin/upstreams/import", "/admin/clients"} {
 		_, pages[p] = br.get(p)
 	}
@@ -89,7 +89,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 		}
 	}
 	// the same form partial is used by the add form and both edit pages
-	for _, name := range []string{"/admin/upstreams", "/admin/upstreams/one/edit", "/admin/upstreams/mgd/edit", "/admin/upstreams/repo/edit"} {
+	for _, name := range []string{"/admin/upstreams/new", "/admin/upstreams/one/edit", "/admin/upstreams/mgd/edit", "/admin/upstreams/repo/edit"} {
 		for _, want := range []string{`class="group" data-kind="remote"`, `class="group" data-kind="stdio git"`, `data-kind-select`, `class="pairs"`, `data-pairs-add`, `data-pairs-template`} {
 			if !strings.Contains(pages[name], want) {
 				t.Errorf("%s lacks the shared form component %q", name, want)
