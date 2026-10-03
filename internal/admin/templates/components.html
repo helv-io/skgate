@@ -1,9 +1,9 @@
 {{/* Shared components. "pairs" is a dynamic list of name/value rows and "rows" a dynamic list of single
    values; app.js adds and removes rows for both. */}}
-{{define "pair_row"}}<div class="pair"><input type="text" name="{{.NameKey}}" value="{{.Row.Name}}" placeholder="{{.NamePH}}" autocomplete="off"><input type="text" name="{{.ValueKey}}" value="{{.Row.Value}}" placeholder="value" autocomplete="off">{{if .Removable}}<button type="button" class="act small danger" data-pairs-remove title="remove row">Delete</button>{{end}}</div>{{end}}
+{{define "pair_row"}}<div class="pair"><input type="text" name="{{.NameKey}}" value="{{.Row.Name}}" placeholder="{{.NamePH}}" autocomplete="off">{{if .SecretKey}}<input type="hidden" name="{{.SecretKey}}" value="{{.Row.Mark}}"><input type="{{if .Row.Masked}}password{{else}}text{{end}}" name="{{.ValueKey}}" value="{{.Row.Value}}" placeholder="{{.ValuePH}}" autocomplete="{{if .Row.Masked}}new-password{{else}}off{{end}}" spellcheck="false">{{else}}<input type="text" name="{{.ValueKey}}" value="{{.Row.Value}}" placeholder="{{.ValuePH}}" autocomplete="off">{{end}}{{if .Removable}}<button type="button" class="act small danger" data-pairs-remove title="remove row">Delete</button>{{end}}</div>{{end}}
 
 {{define "pairs"}}<div class="field"><label>{{.Label}} (name, value; blank rows are ignored){{if .Err}} <span class="bad">unreadable: SECRETS_KEY changed</span>{{end}}</label>
-<div class="pairs" data-pairs>
+<div class="pairs" data-pairs{{if .SecretPattern}} data-secret-pattern="{{.SecretPattern}}"{{end}}>
 <div class="pairs-rows" data-pairs-rows>{{$l := .}}{{range $i, $r := .Rows}}{{template "pair_row" (pairRow $l $r (gt $i 0))}}{{end}}</div>
 <template data-pairs-template>{{template "pair_row" (pairRow . (pair) true)}}</template>
 <button type="button" class="act small" data-pairs-add>Add</button>
