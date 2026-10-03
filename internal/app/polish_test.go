@@ -110,3 +110,14 @@ func TestDangerButtonsAreRedAtRest(t *testing.T) {
 		t.Errorf("the resting danger rule must be red: %s", rule)
 	}
 }
+
+// Readable text on large screens: 15 px body, 13 px section headings, content no wider than 1200 px (the status
+// card used to stretch 1600 px, far from what it describes).
+func TestBaseTypeAndContentWidth(t *testing.T) {
+	css := appCSS(t)
+	for _, want := range []string{"font:15px/1.5 var(--sans)", "main{max-width:1200px;", "h2{font-size:13px;"} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %s", want)
+		}
+	}
+}

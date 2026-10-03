@@ -9,10 +9,10 @@
 html{scrollbar-gutter:stable}
 /* a solo page has no dialog to open and its card is centered on the window, gutter or not */
 html:has(main.solo){scrollbar-gutter:auto}
-body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans)}
 a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
-main{max-width:1600px;margin:0 auto;padding:16px clamp(12px,2.5vw,32px) 40px}
-h2{font-size:12px;font-weight:600;margin:22px 0 8px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)}
+main{max-width:1200px;margin:0 auto;padding:16px clamp(12px,2.5vw,32px) 40px}
+h2{font-size:13px;font-weight:600;margin:22px 0 8px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)}
 /* an alias in a heading keeps its case: aliases are case-sensitive */
 h2 code{text-transform:none;letter-spacing:0}
 p{margin:6px 0}
@@ -47,7 +47,7 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 .table{border-collapse:collapse;width:100%}
 .table th,.table td{padding:8px 12px;text-align:left;vertical-align:middle;border:0;border-bottom:1px solid var(--line2);height:44px}
 .table tr:last-child td,.table tr:last-child th{border-bottom:0}
-.table thead th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);white-space:nowrap;background:var(--bg);border-bottom:1px solid var(--line);height:34px}
+.table thead th{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);white-space:nowrap;background:var(--bg);border-bottom:1px solid var(--line);height:34px}
 .table thead th.actions-th{width:1%}
 .table tbody tr:hover td{background:var(--hover)}
 /* a row marked geturl (a key that may be sent as ?key=): the shared warm tint, text colors untouched */
@@ -61,12 +61,12 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 .table td.trunc .sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .table td.min{width:1%}
 .table td.num{text-align:right}
-.table.kv th{width:1%;white-space:nowrap;text-transform:none;letter-spacing:0;font-size:13px;font-weight:400;color:var(--dim);background:none;height:auto;border-bottom:1px solid var(--line2)}
+.table.kv th{width:1%;white-space:nowrap;text-transform:none;letter-spacing:0;font-size:14px;font-weight:400;color:var(--dim);background:none;height:auto;border-bottom:1px solid var(--line2)}
 .table.kv td{white-space:normal;overflow-wrap:anywhere}
 .empty{color:var(--dim);text-align:center}
 
 /* code / mono */
-code,pre,.code,.mono{font-family:var(--mono);font-size:12.5px}
+code,pre,.code,.mono{font-family:var(--mono);font-size:13px}
 code,.code{background:#0c0d0f;border:1px solid var(--line);padding:1px 6px;white-space:nowrap;display:inline-block;max-width:100%;overflow-x:auto;vertical-align:middle}
 pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:auto;white-space:pre-wrap;margin:6px 0}
 .trunc code,.trunc .code,.trunc .mono{max-width:100%;overflow:hidden;text-overflow:ellipsis}
@@ -102,7 +102,7 @@ button.pill.swap{font:inherit;font-size:12px;line-height:20px;padding:1px 9px;ba
 /* row actions: every button in a table's action cell has the same minimum width and centered text, so the
    buttons of one column line up across rows whatever their label (edit, test, process, detect, delete) */
 .table .actions .act{min-width:5.5em;text-align:center}
-.act,button,input[type=submit]{font:inherit;font-size:13px;color:var(--fg);background:#131518;border:1px solid var(--line);padding:3px 10px;line-height:20px;cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap}
+.act,button,input[type=submit]{font:inherit;font-size:14px;color:var(--fg);background:#131518;border:1px solid var(--line);padding:3px 10px;line-height:20px;cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap}
 .act:hover,button:hover{border-color:var(--acc);color:var(--acc);text-decoration:none;background:var(--hover)}
 .act.accent,button.accent{color:var(--acc);border-color:var(--acc)}
 /* danger: red at rest (touch screens have no hover), brighter border and a red wash on hover */
@@ -136,7 +136,7 @@ button.pill.swap{font:inherit;font-size:12px;line-height:20px;padding:1px 9px;ba
 .quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .quick .act[aria-pressed=true]{color:var(--acc);border-color:var(--acc);background:#14202e}
 .field>p{margin:6px 0 0}
-.field>label,label{display:block;margin:10px 0 4px;color:var(--dim);font-size:13px}
+.field>label,label{display:block;margin:10px 0 4px;color:var(--dim);font-size:14px}
 .field>label:first-child{margin-top:0}
 label.check{display:inline-flex;align-items:center;gap:6px;margin:0 16px 0 0;color:var(--fg)}
 input,select,textarea{font:inherit;color:var(--fg);background:#0c0d0f;border:1px solid var(--line);padding:5px 8px}
