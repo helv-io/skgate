@@ -19,6 +19,19 @@ const (
 	defaultPGID = 1000
 )
 
+// nobodyID is the uid and gid of nobody and nogroup, the identity managed servers run as.
+const nobodyID = 65534
+
+const nobodyWhy = "that is nobody/nogroup, the identity managed servers run as; skgate needs access to SECRETS_KEY and the database, which they must not have"
+
+// refuseNobody is the startup check: skgate must not itself run as nobody or nogroup.
+func refuseNobody(uid, gid int) error {
+	if uid == nobodyID || gid == nobodyID {
+		return fmt.Errorf("running as uid=%d gid=%d: %s", uid, gid, nobodyWhy)
+	}
+	return nil
+}
+
 // targetIDs computes the uid:gid the server must run as from PUID / PGID.
 // Empty values fall back to 1000. Root (0) is rejected: skgate never serves as root.
 func targetIDs(getenv func(string) string) (uid, gid int, err error) {
@@ -44,6 +57,9 @@ func parseID(name, val string, def int) (int, error) {
 	}
 	if n == 0 {
 		return 0, fmt.Errorf("%s=0 refused: skgate never runs as root", name)
+	}
+	if n == nobodyID {
+		return 0, fmt.Errorf("%s=%d refused: %s", name, n, nobodyWhy)
 	}
 	return n, nil
 }

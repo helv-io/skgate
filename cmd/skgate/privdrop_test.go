@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -24,6 +25,8 @@ func TestTargetIDs(t *testing.T) {
 		{"empty strings", map[string]string{"PUID": "", "PGID": ""}, 1000, 1000, false},
 		{"root uid refused", map[string]string{"PUID": "0"}, 0, 0, true},
 		{"root gid refused", map[string]string{"PGID": "0"}, 0, 0, true},
+		{"nobody uid refused", map[string]string{"PUID": "65534"}, 0, 0, true},
+		{"nogroup gid refused", map[string]string{"PGID": "65534"}, 0, 0, true},
 		{"garbage", map[string]string{"PUID": "abc"}, 0, 0, true},
 		{"negative", map[string]string{"PGID": "-5"}, 0, 0, true},
 	}
@@ -115,6 +118,20 @@ func TestPrepareAndDropSkipsWhenNotRoot(t *testing.T) {
 	}
 	if err := prepareAndDrop(filepath.Join(t.TempDir(), "x.db")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRefuseNobody(t *testing.T) {
+	for _, c := range [][2]int{{65534, 65534}, {65534, 1000}, {1000, 65534}} {
+		err := refuseNobody(c[0], c[1])
+		if err == nil || !strings.Contains(err.Error(), "SECRETS_KEY") || strings.Contains(err.Error(), "\n") {
+			t.Errorf("%v: %v", c, err)
+		}
+	}
+	for _, c := range [][2]int{{1000, 1000}, {0, 0}, {65532, 65532}} {
+		if err := refuseNobody(c[0], c[1]); err != nil {
+			t.Errorf("%v: %v", c, err)
+		}
 	}
 }
 
