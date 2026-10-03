@@ -53,5 +53,7 @@
 </div>
 
 
-<div class="row"><label class="check"><input type="checkbox" name="enabled" value="1" {{if or .New .U.Enabled}}checked{{end}}> enabled</label><label class="check"><input type="checkbox" name="include" value="1" {{if .Include}}checked{{end}}> include in /mcp</label></div>
+<div class="row"><label class="check"><input type="checkbox" name="enabled" value="1" {{if or .New .U.Enabled}}checked{{end}}> enabled</label></div>
+<div class="field"><label class="check"><input type="checkbox" name="include" value="1" data-include {{if .Include}}checked{{end}}{{if and (ne .U.Kind "remote") (ne .U.Lifecycle "always")}} disabled{{end}}> include in /mcp</label>
+<p class="muted" data-kind="stdio git">Only always-on servers can be exposed on /mcp. On-demand servers are excluded automatically, so /mcp does not start every process at once. Default: off.</p></div>
 {{end}}

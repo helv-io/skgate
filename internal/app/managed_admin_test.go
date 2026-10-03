@@ -274,7 +274,7 @@ func TestAdminImportExport(t *testing.T) {
 	}
 	f, _ := a.MCP.Upstreams.Get("files")
 	rem, _ := a.MCP.Upstreams.Get("remote")
-	if f.Kind != mcp.KindStdio || f.Env[0].Value != "import-secret-1234" || !f.IncludeInMCP || rem.Headers[0].Value != "hdr-secret-5678" {
+	if f.Kind != mcp.KindStdio || f.Env[0].Value != "import-secret-1234" || f.IncludeInMCP || rem.Headers[0].Value != "hdr-secret-5678" {
 		t.Fatalf("%+v %+v", f, rem)
 	}
 	// a second import reports conflicts
@@ -418,5 +418,43 @@ func TestRemoteFormAdvancedAndHeaderName(t *testing.T) {
 	_, list := br.get("/admin/upstreams")
 	if !strings.Contains(list, `<details ><summary class="muted">Advanced</summary>`) {
 		t.Fatal("new form must have a closed Advanced block")
+	}
+}
+
+const inMCPHelp = "Only always-on servers can be exposed on /mcp. On-demand servers are excluded automatically, so /mcp does not start every process at once. Default: off."
+
+// The include control always comes with its explanation; for an on-demand managed server it is disabled, and the
+// server never puts such a server on /mcp, however it was asked.
+func TestIncludeInMCPControlExplainsAndEnforces(t *testing.T) {
+	a, br, csrf := managedApp(t)
+	_, add := br.get("/admin/upstreams")
+	if !strings.Contains(add, inMCPHelp) || !strings.Contains(add, `name="include" value="1" data-include`) {
+		t.Fatal("the add form must explain the include control")
+	}
+	br.post("/admin/upstreams/save", stdioForm(csrf, "od", nil))
+	br.post("/admin/upstreams/save", stdioForm(csrf, "ao", url.Values{"lifecycle": {"always"}}))
+	if u, _ := a.MCP.Upstreams.Get("od"); u.IncludeInMCP {
+		t.Fatal("an on-demand managed upstream must not be on /mcp")
+	}
+	if u, _ := a.MCP.Upstreams.Get("ao"); !u.IncludeInMCP {
+		t.Fatal("an always-on one may")
+	}
+	_, od := br.get("/admin/upstreams/edit?alias=od")
+	_, ao := br.get("/admin/upstreams/edit?alias=ao")
+	box := regexp.MustCompile(`<input type="checkbox" name="include"[^>]*>`)
+	if !strings.Contains(od, inMCPHelp) || !strings.Contains(box.FindString(od), "disabled") || strings.Contains(box.FindString(od), "checked") {
+		t.Errorf("on-demand edit page: %s", box.FindString(od))
+	}
+	if !strings.Contains(ao, inMCPHelp) || strings.Contains(box.FindString(ao), "disabled") || !strings.Contains(box.FindString(ao), "checked") {
+		t.Errorf("always-on edit page: %s", box.FindString(ao))
+	}
+	_, list := br.get("/admin/upstreams")
+	if !strings.Contains(list, "on-demand servers are not on /mcp; only always-on servers can be") {
+		t.Error("the list must explain the disabled toggle")
+	}
+	// the toggle endpoint refuses too, with the reason
+	r, _ := br.post("/admin/upstreams/toggle", url.Values{"csrf": {csrf}, "alias": {"od"}, "flag": {"include"}})
+	if _, msg := flashOf(r); !strings.Contains(msg, "always-on") {
+		t.Errorf("toggle reason: %q", msg)
 	}
 }

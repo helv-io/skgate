@@ -193,6 +193,23 @@ document.addEventListener("change", function (e) {
   Array.prototype.forEach.call(document.querySelectorAll("[data-pick]"), apply);
 })();
 
+// Include in /mcp: managed servers can join only when always-on, so the checkbox is disabled (and cleared) for an
+// on-demand managed upstream. The server enforces the same rule.
+(function () {
+  var inc = document.querySelector("[data-include]");
+  var sel = document.querySelector("[data-kind-select]");
+  if (!inc || !sel || !inc.form) return;
+  function sync() {
+    var managed = sel.value === "stdio" || sel.value === "git";
+    var life = inc.form.elements.lifecycle;
+    var off = managed && life && life.value !== "always";
+    inc.disabled = !!off;
+    if (off) inc.checked = false;
+  }
+  inc.form.addEventListener("change", sync);
+  sync();
+})();
+
 // Upstream form: [data-kind-select] (a select, or a hidden input on the edit page) picks which
 // [data-kind] groups are visible. Without JavaScript every group stays visible.
 (function () {

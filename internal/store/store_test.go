@@ -361,3 +361,38 @@ func TestMigrateKeyLimitsStayUnlimited(t *testing.T) {
 		db.Close()
 	}
 }
+
+// On-demand managed rows lose their /mcp flag at open; always-on and remote rows keep it; running again changes nothing.
+func TestMigrateClearsOnDemandManagedFromMCP(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "inmcp.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range []struct{ alias, kind, life string }{
+		{"od-stdio", "stdio", "on-demand"}, {"od-git", "git", "on-demand"}, {"ao", "stdio", "always"}, {"rem", "remote", "on-demand"}} {
+		if _, err := db.Exec(`INSERT INTO upstreams(alias,url,auth_kind,created_at,kind,lifecycle,include_in_mcp) VALUES(?,?,?,?,?,?,1)`, r.alias, "http://x", "none", 1, r.kind, r.life); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	for i := 0; i < 2; i++ {
+		db, err := Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := map[string]int{}
+		rows, _ := db.Query(`SELECT alias,include_in_mcp FROM upstreams`)
+		for rows.Next() {
+			var a string
+			var n int
+			rows.Scan(&a, &n)
+			got[a] = n
+		}
+		rows.Close()
+		db.Close()
+		if got["od-stdio"] != 0 || got["od-git"] != 0 || got["ao"] != 1 || got["rem"] != 1 {
+			t.Fatalf("pass %d: %v", i, got)
+		}
+	}
+}

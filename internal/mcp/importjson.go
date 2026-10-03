@@ -333,6 +333,9 @@ func parseServer(name string, raw json.RawMessage) (it ImportItem) {
 	if err := u.Validate(); err != nil {
 		it.Err = err.Error()
 	}
+	if it.IncludeSet && it.Upstream.IncludeInMCP != u.IncludeInMCP {
+		it.Notes = append(it.Notes, "not on /mcp: only always-on servers can be")
+	}
 	it.Upstream = u
 	return it
 }
