@@ -1,6 +1,6 @@
 {{define "body"}}{{with .Data}}
 <h2>MCP upstreams</h2>
-<div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Type</th><th>Enabled</th><th>In /mcp</th><th></th></tr></thead><tbody>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Type</th><th>Enabled</th><th>In /mcp</th>{{template "th_actions"}}</tr></thead><tbody>
 {{range .List}}<tr><td class="primary" data-label="Name"><code title="{{.Tip}}">{{.Alias}}</code></td>
 <td class="status" data-label="Type"><span class="chip">{{.Kind}}</span>{{if .Proc}} {{template "proc_pill" .Proc}}{{if .Proc.Upd.Available}} {{template "pill" (pill "warn" "update" "the remote ref is ahead of the installed commit")}}{{end}}{{end}}</td>
 <td data-label="Enabled"><form method="post" action="/admin/upstreams/{{.Alias}}/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="flag" value="enabled"><button class="act toggle {{if .Enabled}}on{{else}}off{{end}}" title="toggle enabled">{{if .Enabled}}enabled{{else}}disabled{{end}}</button></form></td>

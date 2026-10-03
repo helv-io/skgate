@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal
+   Components: .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -38,6 +38,7 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 .table th,.table td{padding:8px 12px;text-align:left;vertical-align:middle;border:0;border-bottom:1px solid var(--line2);height:44px}
 .table tr:last-child td,.table tr:last-child th{border-bottom:0}
 .table thead th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);white-space:nowrap;background:var(--bg);border-bottom:1px solid var(--line);height:34px}
+.table thead th.actions-th{width:1%}
 .table tbody tr:hover td{background:var(--hover)}
 .table td{white-space:nowrap}
 .table td.wrap{white-space:normal;overflow-wrap:anywhere;min-width:160px}
