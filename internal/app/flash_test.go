@@ -119,7 +119,13 @@ func TestToastsAreInFrontOfEverything(t *testing.T) {
 	css, _ := os.ReadFile(filepath.Join("..", "admin", "static", "app.css"))
 	for _, m := range regexp.MustCompile(`z-index:\s*([^;}\s]+)`).FindAllStringSubmatch(string(css), -1) {
 		if m[1] != "var(--z-toast)" {
-			if n, err := strconv.Atoi(m[1]); err != nil || n >= 1000 {
+			v := m[1]
+			if tok := regexp.MustCompile(`^var\((--z-[a-z]+)\)$`).FindStringSubmatch(v); tok != nil { // a layer token: its value counts
+				if d := regexp.MustCompile(tok[1] + `:(\d+)`).FindStringSubmatch(string(css)); d != nil {
+					v = d[1]
+				}
+			}
+			if n, err := strconv.Atoi(v); err != nil || n >= 1000 {
 				t.Errorf("z-index %s competes with the toast layer", m[1])
 			}
 		}
