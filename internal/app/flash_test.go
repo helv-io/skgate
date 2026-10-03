@@ -112,7 +112,7 @@ func TestToastAssets(t *testing.T) {
 		return string(b)
 	}
 	css, js := get("/admin/static/app.css"), get("/admin/static/app.js")
-	for _, want := range []string{".toasts{position:fixed", ".toast.ok", ".toast.bad"} {
+	for _, want := range []string{".toasts{position:fixed;bottom:", ".toast.ok", ".toast.bad"} {
 		if !strings.Contains(css, want) {
 			t.Errorf("css lacks %q", want)
 		}

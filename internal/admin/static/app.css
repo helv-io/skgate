@@ -128,8 +128,8 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 [hidden]{display:none!important}
 .stack>*+*{margin-top:12px}
 
-/* toasts: fixed, one shared component for every notification; app.js expires and dismisses them */
-.toasts{position:fixed;top:14px;right:14px;z-index:50;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 28px))}
+/* toasts: fixed at the bottom right, one shared component for every notification; app.js expires and dismisses them */
+.toasts{position:fixed;bottom:14px;right:14px;z-index:50;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 28px))}
 .toast{border:1px solid var(--line);background:var(--panel);padding:9px 14px;cursor:pointer;box-shadow:0 4px 16px #0009;overflow-wrap:anywhere;transition:opacity .25s}
 .toast.ok{border-color:#2f4a33;color:var(--ok)}
 .toast.bad{border-color:#5a3532;color:var(--bad)}
