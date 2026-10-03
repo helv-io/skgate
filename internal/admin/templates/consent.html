@@ -9,5 +9,5 @@
 <tr><th>Signed in as</th><td>{{$.User}}</td></tr>
 </tbody></table></div>
 <form method="post" action="/authorize"><input type="hidden" name="csrf" value="{{.CSRF}}">{{range .Fields}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}
-<div class="choices"><button class="act" name="decision" value="deny">Deny</button><button class="btn" name="decision" value="approve">Approve</button></div></form>
+<div class="choices"><button class="act" name="decision" value="deny">Deny</button><button class="btn fill" name="decision" value="approve">Approve</button></div></form>
 </div></div>{{end}}{{end}}
