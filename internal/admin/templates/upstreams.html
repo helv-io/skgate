@@ -1,5 +1,12 @@
 {{define "body"}}{{with .Data}}
 <h2>MCP upstreams</h2>
+<div class="card flush tablewrap"><table class="table kv"><tbody>
+<tr><th>All included</th><td><code>{{$.Public}}/mcp</code> <span class="muted">tools named <code>&lt;alias&gt;-&lt;tool&gt;</code></span></td></tr>
+<tr><th>One upstream</th><td><code>{{$.Public}}/mcp/{{if .Aliases}}{{index .Aliases 0}}{{else}}&lt;alias&gt;{{end}}</code> <span class="muted">tools unprefixed</span></td></tr>
+<tr><th>Discovery</th><td><code>{{$.Public}}/.well-known/oauth-authorization-server</code></td></tr>
+</tbody></table></div>
+<p class="muted">DCR clients: leave client ID and secret empty (public, PKCE). Others: a key as <code>Authorization: Bearer</code> or <code>X-API-Key</code>, or an OAuth client.</p>
+<div class="row spread"><a class="btn" href="/admin/upstreams/new">Add upstream</a><div class="actions"><a class="act" href="/admin/upstreams/import">import JSON</a><a class="act" href="/admin/upstreams/export">export JSON</a></div></div>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Name</th><th>Type</th><th>Enabled</th><th>In /mcp</th>{{template "th_actions"}}</tr></thead><tbody>
 {{range .List}}<tr><td class="status" data-label="Status">{{if .Proc}}{{template "proc_pill" .Proc}}{{if .Proc.Upd.Available}} {{template "pill" (pill "warn" "update" "the remote ref is ahead of the installed commit")}}{{end}}{{else}}{{with .Health}}{{template "pill" (pill .Class .Text .Tip)}}{{if .LastErr}}<div class="muted">{{.LastErr}}</div>{{end}}{{end}}{{end}}</td>
 <td class="primary" data-label="Name"><a class="name" href="#upstream-{{.Alias}}" data-dialog-open="#upstream-{{.Alias}}" title="open the details of {{.Alias}}"><code title="{{.Tip}}">{{.Alias}}</code></a></td>
@@ -11,7 +18,7 @@
 <button type="button" class="act" data-dialog-open="#upstream-{{.Alias}}">details</button>
 <a class="act" href="/admin/upstreams/{{.Alias}}/edit">edit</a>
 <form method="post" action="/admin/upstreams/{{.Alias}}/delete" data-confirm="Delete this upstream?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">delete</button></form></div></td></tr>
-{{else}}<tr><td colspan="5" class="empty">none</td></tr>{{end}}</tbody></table></div>
+{{else}}<tr><td colspan="6" class="empty">none</td></tr>{{end}}</tbody></table></div>
 {{range .List}}{{template "dialog_content" (dlg (printf "upstream-%s" .Alias) (printf "Upstream %s" .Alias))}}
 <div class="actions">{{if .Managed}}<a class="act" href="/admin/upstreams/{{.Alias}}/logs">process</a>{{else}}<form method="post" action="/admin/upstreams/{{.Alias}}/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">detect</button></form>{{end}}</div>
 <h4>Details</h4>
@@ -21,11 +28,4 @@
 <tr><th>client URL</th><td>{{if .Enabled}}<code>{{$.Public}}/mcp/{{.Alias}}</code>{{else}}<span class="muted">disabled</span>{{end}}</td></tr>
 </tbody></table></div>
 {{template "dialog_end"}}{{end}}
-<div class="actions"><a class="btn" href="/admin/upstreams/new">Add upstream</a><a class="act" href="/admin/upstreams/import">import JSON</a><a class="act" href="/admin/upstreams/export">export JSON</a></div>
-<h2>Endpoints</h2><div class="card">
-<p>All included upstreams, tools named <code>&lt;alias&gt;-&lt;tool&gt;</code>: <code>{{$.Public}}/mcp</code></p>
-<p>One upstream, unprefixed: <code>{{$.Public}}/mcp/{{if .Aliases}}{{index .Aliases 0}}{{else}}&lt;alias&gt;{{end}}</code></p>
-<p>Discovery: <code>{{$.Public}}/.well-known/oauth-authorization-server</code></p>
-<p class="muted">DCR clients: leave client ID and secret empty (public, PKCE). Others: a key as <code>Authorization: Bearer</code> or <code>X-API-Key</code>, or an OAuth client.</p>
-</div>
 {{end}}{{end}}

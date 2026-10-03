@@ -279,3 +279,20 @@ func TestUpstreamListSplitsTypeAndStatus(t *testing.T) {
 		t.Error("the edit page uses the same name for the type")
 	}
 }
+
+// The endpoints are at the top of the page and the toolbar (Add upstream, import, export) sits above the table.
+func TestUpstreamListPageOrder(t *testing.T) {
+	_, br, _ := managedApp(t)
+	_, page := br.get("/admin/upstreams")
+	last := -1
+	for _, m := range []string{"<h2>MCP upstreams</h2>", "/.well-known/oauth-authorization-server", ">Add upstream</a>", `href="/admin/upstreams/import"`, `href="/admin/upstreams/export"`, "<thead>"} {
+		i := strings.Index(page, m)
+		if i < 0 || i < last {
+			t.Fatalf("%q is missing or out of order on the list page", m)
+		}
+		last = i
+	}
+	if strings.Contains(page[strings.Index(page, "</table></div>\n"):], "Endpoints") || strings.Contains(page, "<h2>Endpoints</h2>") {
+		t.Error("the endpoints are still at the bottom")
+	}
+}
