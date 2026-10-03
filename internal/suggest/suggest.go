@@ -223,7 +223,7 @@ func (s *Service) Suggest(ctx context.Context, model string, src Source, token s
 	}
 	s.progress(Event{Stage: StageModel, Label: "Asking the model"})
 	t = time.Now()
-	s.logf("suggest: model call start model=%q reasoning=%s request=%d bytes idle=%s", model, orDefault(s.Effort), len(body), s.idle())
+	s.logf("suggest: model call start model=%q reasoning=%s request=%d bytes idle=%s", model, orAuto(s.Effort), len(body), s.idle())
 	c, err := s.call(ctx, body, t0)
 	if err == nil && s.Effort != "" && effortRejected(c.status, c.reply) {
 		s.logf("suggest: model refused reasoning_effort (HTTP %d: %s); retrying without it", c.status, replyReason(c.reply, token))
@@ -237,7 +237,7 @@ func (s *Service) Suggest(ctx context.Context, model string, src Source, token s
 	status, reply := c.status, c.reply
 	var te *TimeoutError
 	if errors.As(err, &te) {
-		s.logf("suggest: model call timed out (%s) stage=%s reasoning=%s after %s, %d chars received, first token %s", te.Kind, te.Stage, orDefault(s.Effort), since(t), c.chars, firstToken(c.first))
+		s.logf("suggest: model call timed out (%s) stage=%s reasoning=%s after %s, %d chars received, first token %s", te.Kind, te.Stage, orAuto(s.Effort), since(t), c.chars, firstToken(c.first))
 		return nil, te
 	}
 	if err != nil {
@@ -265,9 +265,9 @@ func (s *Service) Suggest(ctx context.Context, model string, src Source, token s
 	return res, nil
 }
 
-func orDefault(s string) string {
+func orAuto(s string) string {
 	if s == "" {
-		return "default"
+		return "auto"
 	}
 	return s
 }

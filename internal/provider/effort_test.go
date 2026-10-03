@@ -11,18 +11,26 @@ import (
 
 func TestReasoningDefaultsToTheModelsChoiceAndKeepsSavedValues(t *testing.T) {
 	r := newRig(t, nil)
-	if r.set.Effort("fake") != "default" {
+	if r.set.Effort("fake") != "auto" {
 		t.Fatalf("unset: %q", r.set.Effort("fake"))
 	}
 	r.set.SetEffort("fake", "high")
 	if r.set.Effort("fake") != "high" {
 		t.Fatalf("stored: %q", r.set.Effort("fake"))
 	}
+	r.set.Set("fake", "effort", "default") // the name auto had before still reads as auto
+	if r.set.Effort("fake") != "auto" || !ValidEffort("default") {
+		t.Fatalf("legacy default: %q", r.set.Effort("fake"))
+	}
+	r.set.SetEffort("fake", "default")
+	if v, _ := r.set.Get("fake", "effort"); v != "auto" {
+		t.Fatalf("stored as %q, want auto", v)
+	}
 	r.set.Set("fake", "effort", "bogus") // an unknown stored value falls back to the default
-	if r.set.Effort("fake") != "default" {
+	if r.set.Effort("fake") != "auto" {
 		t.Fatalf("bogus: %q", r.set.Effort("fake"))
 	}
-	if EffortParam("default") != "" || EffortParam("low") != "low" || EffortParam("bogus") != "" || ValidEffort("bogus") {
+	if EffortParam("auto") != "" || EffortParam("default") != "" || EffortParam("low") != "low" || EffortParam("bogus") != "" || ValidEffort("bogus") {
 		t.Fatal("EffortParam / ValidEffort")
 	}
 }
