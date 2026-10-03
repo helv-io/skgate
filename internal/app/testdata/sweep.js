@@ -39,6 +39,8 @@ const measure = () => {
     if (ver.classList.contains("new") !== (col === "rgb(230, 192, 123)")) out.push("version link colour " + col + " does not match its update state");
     if (ver.target !== "_blank" || !/noopener/.test(ver.rel) || !/noreferrer/.test(ver.rel)) out.push("version link must open in a new tab with rel noopener noreferrer");
   }
+  // folded sections (the create form's Limits) are opened so what is inside is measured too
+  document.querySelectorAll("details:not([open])").forEach(d => { d.open = true; });
   // the expiration presets are finger-sized on phones and the field and its preview fit the screen
   [...document.querySelectorAll(".quick .act")].filter(e => e.offsetParent !== null).forEach(e => {
     const r = e.getBoundingClientRect();
