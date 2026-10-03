@@ -26,7 +26,7 @@ func TestRateLimitIsPerKeyPerMinute(t *testing.T) {
 	m.Now = func() time.Time { return now }
 	a, ka, _ := m.Create("a")
 	b, kb, _ := m.Create("b")
-	if err := m.SetLimits(ka.ID, 3, 0); err != nil {
+	if err := m.SetLimits(ka.ID, 3, time.Time{}); err != nil {
 		t.Fatal(err)
 	}
 	va, _ := m.Verify(a)
@@ -53,65 +53,82 @@ func TestRateLimitIsPerKeyPerMinute(t *testing.T) {
 	}
 }
 
-func TestHardStopCountsRecordedRequests(t *testing.T) {
+func TestExpiredKeysAreRefusedAndCanBeExtended(t *testing.T) {
 	m := New(newDB(t))
-	full, k, _ := m.Create("capped")
-	if err := m.SetLimits(k.ID, 0, 5); err != nil {
+	now := time.Unix(1_800_000_000, 0)
+	m.Now = func() time.Time { return now }
+	full, k, _ := m.Create("temp")
+	if k.ExpiresAt != (time.Time{}) || k.Expired(now) {
+		t.Fatalf("a new key never expires: %+v", k)
+	}
+	when := now.Add(time.Hour)
+	if err := m.SetLimits(k.ID, 0, when); err != nil {
 		t.Fatal(err)
 	}
-	v, _ := m.Verify(full)
-	if v.LimitsText() != "stop at 5" || m.Check(v) != nil {
-		t.Fatalf("%+v", v)
+	v, ok := m.Verify(full)
+	if !ok || !v.ExpiresAt.Equal(when) || v.Expired(now) {
+		t.Fatalf("not yet: %+v %v", v, ok)
 	}
-	m.Record(k.ID, Usage{Requests: 3})
-	if m.Check(v) != nil { // pending increments count too
-		t.Fatal("3 of 5 used")
+	if _, late := m.ExpiredAt(full); late {
+		t.Fatal("not expired yet")
 	}
-	m.Record(k.ID, Usage{Requests: 2})
-	rej := m.Check(v)
-	if rej == nil || rej.Code != "key_hard_stop" || rej.RetryAfter != 0 {
-		t.Fatalf("%+v", rej)
+	now = when.Add(-time.Second)
+	if _, ok := m.Verify(full); !ok {
+		t.Fatal("one second before")
 	}
-	// once written, Verify carries the stored total
-	if err := m.FlushUsage(); err != nil {
+	now = when // the moment itself is already expired
+	if _, ok := m.Verify(full); ok {
+		t.Fatal("an expired key verified")
+	}
+	if at, late := m.ExpiredAt(full); !late || !at.Equal(when) {
+		t.Fatalf("%v %v", at, late)
+	}
+	if _, late := m.ExpiredAt("sk-unknown-key-xxxxxxxxxxxxxxxxxxxxxxxx"); late {
+		t.Error("an unknown key is not an expired one")
+	}
+	ks, _ := m.List()
+	if !ks[0].Expired(now) || !ks[0].ExpiresAt.Equal(when) {
+		t.Fatalf("the list shows it: %+v", ks[0])
+	}
+	// moving the date brings the same secret back; clearing it ends the expiration
+	if err := m.SetLimits(k.ID, 0, now.Add(24*time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	v, _ = m.Verify(full)
-	if m.Check(v) == nil {
-		t.Fatal("still stopped after the flush")
+	if _, ok := m.Verify(full); !ok {
+		t.Fatal("extended key refused")
 	}
-	// raising the stop lifts it; clearing it too
-	m.SetLimits(k.ID, 0, 6)
-	v, _ = m.Verify(full)
-	if m.Check(v) != nil {
-		t.Fatal("raised stop must let the key through")
+	if err := m.SetLimits(k.ID, 0, time.Time{}); err != nil {
+		t.Fatal(err)
 	}
-	m.SetLimits(k.ID, 0, 0)
-	v, _ = m.Verify(full)
-	if v.Limited() || m.Check(v) != nil {
-		t.Fatal("cleared limits")
+	now = now.Add(1000 * 24 * time.Hour)
+	if v, ok := m.Verify(full); !ok || !v.ExpiresAt.IsZero() {
+		t.Fatalf("cleared: %+v %v", v, ok)
+	}
+	if !strings.Contains(ExpiredMessage(when), "expired on") {
+		t.Error("the message says expired")
 	}
 }
 
 func TestSetLimitsValidationAndRegenerate(t *testing.T) {
 	m := New(newDB(t))
 	full, k, _ := m.Create("x")
-	for _, bad := range [][2]int64{{-1, 0}, {0, -1}, {MaxLimit + 1, 0}} {
-		if m.SetLimits(k.ID, bad[0], bad[1]) == nil {
+	for _, bad := range []int64{-1, MaxLimit + 1} {
+		if m.SetLimits(k.ID, bad, time.Time{}) == nil {
 			t.Errorf("%v accepted", bad)
 		}
 	}
-	m.SetLimits(k.ID, 10, 100)
+	exp := time.Now().Add(48 * time.Hour).Truncate(time.Second)
+	m.SetLimits(k.ID, 10, exp)
 	nf, nk, err := m.Regenerate(k.ID)
-	if err != nil || nf == full || nk.RatePerMin != 10 || nk.HardStop != 100 {
+	if err != nil || nf == full || nk.RatePerMin != 10 || !nk.ExpiresAt.Equal(exp) {
 		t.Fatalf("regenerate must keep the limits: %+v %v", nk, err)
 	}
 	ks, _ := m.List()
-	if ks[0].RatePerMin != 10 || ks[0].HardStop != 100 || ks[0].LimitsText() != "10/min, stop at 100" {
+	if ks[0].RatePerMin != 10 || ks[0].LimitsText() != "10/min" || !ks[0].ExpiresAt.Equal(exp) {
 		t.Fatalf("%+v", ks[0])
 	}
 	m.Revoke(k.ID)
-	if m.SetLimits(k.ID, 1, 1) == nil {
+	if m.SetLimits(k.ID, 1, time.Time{}) == nil {
 		t.Error("a revoked key has no limits to edit")
 	}
 }

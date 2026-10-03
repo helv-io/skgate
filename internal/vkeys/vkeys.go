@@ -31,8 +31,9 @@ type Key struct {
 	LastUsed  time.Time
 	Revoked   bool
 	Usage     Usage
-	// Optional limits on the /v1 API; 0 means unlimited (see Limits).
-	RatePerMin, HardStop int64
+	// Optional limits; 0 / the zero time mean none (see limits.go).
+	RatePerMin int64
+	ExpiresAt  time.Time
 }
 
 // Masked is the display form of the key: asterisks plus the last 4 characters when known.
@@ -91,21 +92,41 @@ func (m *Manager) Create(label string) (string, Key, error) {
 	return full, Key{ID: id, Prefix: prefix, Label: label, Last4: full[len(full)-4:], CreatedAt: now}, nil
 }
 
-// Verify checks a presented key. Revoked or unknown keys fail.
+// Verify checks a presented key. Revoked, expired or unknown keys fail.
 func (m *Manager) Verify(token string) (Key, bool) {
+	k, ok := m.lookup(token)
+	if !ok || k.Expired(m.clock()) {
+		return Key{}, false
+	}
+	return k, true
+}
+
+// ExpiredAt reports that token is a known, active key whose expiration has passed, and when it did.
+func (m *Manager) ExpiredAt(token string) (time.Time, bool) {
+	k, ok := m.lookup(token)
+	if !ok || !k.Expired(m.clock()) {
+		return time.Time{}, false
+	}
+	return k.ExpiresAt, true
+}
+
+func (m *Manager) lookup(token string) (Key, bool) {
 	if !LooksLikeKey(token) {
 		return Key{}, false
 	}
 	var k Key
-	var created, last, revoked int64
-	err := m.db.QueryRow(`SELECT k.id,k.prefix,k.label,k.created_at,k.last_used,k.revoked_at,k.last4,k.rate_per_min,k.hard_stop,COALESCE(u.requests,0)
+	var created, last, revoked, expires int64
+	err := m.db.QueryRow(`SELECT k.id,k.prefix,k.label,k.created_at,k.last_used,k.revoked_at,k.last4,k.rate_per_min,k.expires_at,COALESCE(u.requests,0)
 		FROM vkeys k LEFT JOIN key_usage u ON u.key_id=k.id WHERE k.hash=?`,
-		httputil.SHA256Hex(token)).Scan(&k.ID, &k.Prefix, &k.Label, &created, &last, &revoked, &k.Last4, &k.RatePerMin, &k.HardStop, &k.Usage.Requests)
+		httputil.SHA256Hex(token)).Scan(&k.ID, &k.Prefix, &k.Label, &created, &last, &revoked, &k.Last4, &k.RatePerMin, &expires, &k.Usage.Requests)
 	if err != nil || revoked != 0 {
 		return Key{}, false
 	}
 	k.CreatedAt = time.Unix(created, 0)
-	if time.Since(time.Unix(last, 0)) > time.Minute {
+	if expires > 0 {
+		k.ExpiresAt = time.Unix(expires, 0)
+	}
+	if !k.Expired(m.clock()) && time.Since(time.Unix(last, 0)) > time.Minute {
 		_, _ = m.db.Exec(`UPDATE vkeys SET last_used=? WHERE id=?`, time.Now().Unix(), k.ID)
 	}
 	return k, true
@@ -207,7 +228,7 @@ func (m *Manager) RunPurge(ctx context.Context, every time.Duration) {
 // List returns all keys, newest first, with their usage (pending increments are written first).
 func (m *Manager) List() ([]Key, error) {
 	_ = m.FlushUsage()
-	rows, err := m.db.Query(`SELECT k.id,k.prefix,k.label,k.created_at,k.last_used,k.revoked_at,k.last4,k.rate_per_min,k.hard_stop,
+	rows, err := m.db.Query(`SELECT k.id,k.prefix,k.label,k.created_at,k.last_used,k.revoked_at,k.last4,k.rate_per_min,k.expires_at,
 		COALESCE(u.prompt_tokens,0),COALESCE(u.completion_tokens,0),COALESCE(u.total_tokens,0),
 		COALESCE(u.requests,0),COALESCE(u.mcp_requests,0),COALESCE(u.last_used,0)
 		FROM vkeys k LEFT JOIN key_usage u ON u.key_id=k.id ORDER BY k.id DESC`)
@@ -218,8 +239,8 @@ func (m *Manager) List() ([]Key, error) {
 	var out []Key
 	for rows.Next() {
 		var k Key
-		var c, l, r, ul int64
-		if err := rows.Scan(&k.ID, &k.Prefix, &k.Label, &c, &l, &r, &k.Last4, &k.RatePerMin, &k.HardStop,
+		var c, l, r, ul, ex int64
+		if err := rows.Scan(&k.ID, &k.Prefix, &k.Label, &c, &l, &r, &k.Last4, &k.RatePerMin, &ex,
 			&k.Usage.PromptTokens, &k.Usage.CompletionTokens, &k.Usage.TotalTokens, &k.Usage.Requests, &k.Usage.MCPRequests, &ul); err != nil {
 			return nil, err
 		}
@@ -229,6 +250,9 @@ func (m *Manager) List() ([]Key, error) {
 		}
 		if ul > 0 {
 			k.Usage.LastUsed = time.Unix(ul, 0)
+		}
+		if ex > 0 {
+			k.ExpiresAt = time.Unix(ex, 0)
 		}
 		k.Revoked = r != 0
 		out = append(out, k)

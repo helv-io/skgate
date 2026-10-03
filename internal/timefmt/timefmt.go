@@ -12,6 +12,7 @@ const (
 	dateTimeLayout = "2006-01-02 15:04"
 	stampLayout    = "Jan 2 15:04 MST"
 	logLayout      = "2006/01/02 15:04:05"
+	longLayout     = "Mon Jan 2, 2006, 3:04 PM MST"
 )
 
 // Date is "2026-10-02".
@@ -28,6 +29,9 @@ func DateTime(t time.Time) string { return t.Local().Format(dateTimeLayout) }
 
 // Stamp is "Oct 2 19:04 EDT": short, with the zone abbreviation.
 func Stamp(t time.Time) string { return t.Local().Format(stampLayout) }
+
+// Long is "Fri Dec 31, 2026, 11:59 PM EST": weekday, date, 12-hour time and zone, for a moment typed by an administrator.
+func Long(t time.Time) string { return t.Local().Format(longLayout) }
 
 // Log is the prefix layout of skgate's own log lines, "2026/10/02 19:04:05".
 func Log(t time.Time) string { return t.Local().Format(logLayout) }
