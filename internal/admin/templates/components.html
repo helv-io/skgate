@@ -69,7 +69,7 @@
 
 {{/* suggest_result: the output area of the "Suggest configuration" helper. app.js fills it; the form fields are
    filled for review and nothing is saved. */}}
-{{define "suggest_result"}}<div class="suggest-out" data-suggest-out hidden>
+{{define "suggest_result"}}<div class="suggest-out" data-suggest-out aria-live="polite" hidden>
 <div class="row"><span class="pill off" data-suggest-pill></span></div>
 <ul class="muted" data-suggest-list></ul>
 </div>{{end}}

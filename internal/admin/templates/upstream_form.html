@@ -9,9 +9,9 @@
 
 {{/* The order follows the work: Type, then Source with Suggest and its results (they fill the rest), then the alias. */}}
 <div class="group" data-kind="stdio git">
-<div class="field"><label>MCP source URL / package<input type="text" name="source" value="{{.Source}}" placeholder="https://host/org/repo, npm or PyPI package" autocomplete="off" spellcheck="false" data-suggest-source></label></div>
-{{if or .New (eq .U.Kind "git")}}<div class="field"><label>Access token (private repositories){{if .TokenMasked}} (<code>{{.TokenMasked}}</code>, empty keeps){{end}}<input type="password" name="git_token" autocomplete="off" data-suggest-token></label></div>
-{{if .TokenMasked}}<div class="row"><label class="check"><input type="checkbox" name="clear_token" value="1"> remove the stored token</label></div>{{end}}{{end}}
+<div class="field"><label>MCP source URL / package<input type="text" name="source" value="{{.Source}}" placeholder="e.g. https://github.com/org/repo or npm:package" autocomplete="off" spellcheck="false" data-suggest-source></label></div>
+{{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Access token (private repositories){{if .TokenMasked}} (<code>{{.TokenMasked}}</code>, empty keeps){{end}}<input type="password" name="git_token" autocomplete="off" data-suggest-token></label></div>
+{{if .TokenMasked}}<div class="row" data-show-for="git"><label class="check"><input type="checkbox" name="clear_token" value="1"> remove the stored token</label></div>{{end}}{{end}}
 {{template "suggest_controls" .Suggest}}
 {{template "suggest_result"}}
 </div>
@@ -35,12 +35,12 @@
 
 <div class="group" data-kind="stdio git">
 <details data-manual {{if not .New}}open{{end}}><summary class="muted">Manual configuration</summary>
-{{if or .New (eq .U.Kind "git")}}<div class="field"><label>Ref (branch or tag, empty = default branch)<input type="text" name="git_ref" placeholder="main" value="{{.U.GitRef}}" autocomplete="off"></label></div>{{end}}
+{{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Ref (branch or tag, empty = default branch)<input type="text" name="git_ref" placeholder="e.g. main" value="{{.U.GitRef}}" autocomplete="off"></label></div>{{end}}
 {{template "pick" .Cmd}}
 {{template "rows" .Args}}
 <div class="row"><label class="check"><input type="checkbox" name="shell" value="1" {{if .U.Shell}}checked{{end}}> shell mode (run the command with /bin/sh -c)</label></div>
 {{template "pairs" .Env}}
-<div class="field"><label>Install command (runs before start when it or the checkout changed, and on Update)<textarea name="install" rows="2" placeholder="npm ci">{{.U.Install}}</textarea></label></div>
+<div class="field" data-hide-for="package"><label>Install command (runs before start when it or the checkout changed, and on Update)<textarea name="install" rows="2" placeholder="e.g. npm ci">{{.U.Install}}</textarea></label></div>
 <div class="field"><label>Lifecycle<select name="lifecycle">
 <option value="on-demand" {{if ne .U.Lifecycle "always"}}selected{{end}}>on-demand (start on first request, stop when idle)</option>
 <option value="always" {{if eq .U.Lifecycle "always"}}selected{{end}}>always-on (start at boot)</option></select></label></div>
