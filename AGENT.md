@@ -23,6 +23,10 @@ skgate must work out of the box. Users are not security experts.
 
 - Shared styles and components, never page by page. New markup goes in `templates/components.html` and `app.css`; no inline `style=` or `on*=`.
 - Toasts expire after 5 s and dismiss on click. No dismiss wording. Notifications never travel in URL parameters.
+- List tables are tables above 720 px and a stack of cards below it, from the same markup. Every `td` carries `data-label` (its column title); `primary` marks the name (the card title), `status` the pill beside it, `actions-cell` the button row; log lines use `compact`. `TestTableCellsCarryTheirLabels` enforces it.
+- Keep list rows short: name, kind or status, the toggles, and actions. Everything else (facts, URLs, limits, dates) lives in a Details dialog opened with `data-dialog-open` from the shared `dialog_content` template, so nothing becomes unreachable. Details never repeat what the row already shows.
+- Standalone screens (consent, signed out, sign-in error, OIDC not configured) set `Solo` on the page: no header, one `.login` card centered both ways (`main.solo`, `min-height:100dvh`), brandmark first, no inline styles. The CSP drops `form-action` only on the consent page, so its redirect to the client works.
+- `TestNoHorizontalScrollInBrowser` (Chrome) checks 320, 360, 390, 768, 1024, 1280 and 1920 px: no horizontal scroll on any page or Details dialog, solo cards centered. `SKGATE_SHOTS=<dir>` saves screenshots.
 - Tables: one row per upstream/key/client, no subtitles under values. Detail that does not fit a column goes in a hover `title` (the alias box lists type, target, source, revision, host override). Buttons in a row's action cell share one minimum width (`.table .actions .act`) so the columns line up whatever the label.
 - Forms: wrap fields in `<form class="form">` (`form wide` for the import box). Controls get no widths of their own; they fill their container, so every input, select, textarea and pairs row ends at the same right edge at any nesting depth. `TestFormsShareOneColumn` enforces it; `TestFormRightEdgesInBrowser` measures it in Chrome when `SKGATE_CHROME` and `SKGATE_PUPPETEER` are set.
 - No JS `alert`, `confirm` or `prompt`. One shared modal (`data-modal` for confirmations, `dialog` for content).
@@ -38,7 +42,7 @@ skgate must work out of the box. Users are not security experts.
 ## Security
 
 - Secrets are never logged, never put in URLs, never sent to a model.
-- Never run `uv` or `npm` as root in the container. The cache directory is owned by uid 1000.
+- Never run `uv` or `npm` as root in the container. Managed servers run as `nobody` (65534), which owns the cache directory.
 - Never edit stack YAML in docs or automation. Suggest the change instead.
 
 ## Code
