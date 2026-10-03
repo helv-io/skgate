@@ -1,10 +1,13 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -138,5 +141,24 @@ func TestAddFormDefaultType(t *testing.T) {
 	_, edit := r.br.get("/admin/upstreams/edit?alias=ed")
 	if strings.Contains(edit, `<select name="kind"`) || !strings.Contains(edit, `<input type="hidden" name="kind" value="stdio"`) {
 		t.Error("edit page must not offer a type")
+	}
+}
+
+// The suggest endpoint logs the request and the reason of a refusal, never the token or the raw input.
+func TestSuggestEndpointLogs(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+	r := newSuggestRig(t, true, true)
+	r.suggest(url.Values{"source": {"https://gitlab.com/grp/thing"}, "git_token": {tokenSecret}})
+	r.suggest(url.Values{"source": {"https://user:" + tokenSecret + "@host.example/not a source"}})
+	out := buf.String()
+	for _, want := range []string{"suggest: request source=https://gitlab.com/grp/thing token=true", `suggest: start source=https://gitlab.com/grp/thing model="helper-2"`, "suggest: ok source=https://gitlab.com/grp/thing", "suggest: request refused HTTP 400"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("log lacks %q", want)
+		}
+	}
+	if strings.Contains(out, tokenSecret) {
+		t.Error("the token reached the log")
 	}
 }

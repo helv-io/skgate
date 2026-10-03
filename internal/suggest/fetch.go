@@ -31,6 +31,15 @@ type Context struct {
 	Files   []File
 }
 
+// Summary lists the fetched files with their sizes, for logs.
+func (c Context) Summary() string {
+	var l []string
+	for _, f := range c.Files {
+		l = append(l, fmt.Sprintf("%s(%d)", f.Name, len(f.Text)))
+	}
+	return strings.Join(l, ",")
+}
+
 // Fetcher reads READMEs and manifests server-side. Redirects are never followed (so a token cannot be
 // carried to another host) and link-local addresses are refused.
 type Fetcher struct {
