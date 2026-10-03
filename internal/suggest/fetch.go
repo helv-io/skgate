@@ -11,9 +11,12 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/helv-io/skgate/internal/timefmt"
 )
 
 // Limits on what is read and later shown to the model.
@@ -72,9 +75,15 @@ func NewFetcher() *Fetcher {
 
 // get returns the status and up to max bytes. Errors never contain the request headers.
 func (f *Fetcher) get(ctx context.Context, u string, hdr map[string]string, max int) (int, []byte, error) {
+	st, b, _, err := f.getH(ctx, u, hdr, max)
+	return st, b, err
+}
+
+// getH is get that also returns the response headers.
+func (f *Fetcher) getH(ctx context.Context, u string, hdr map[string]string, max int) (int, []byte, http.Header, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 	for k, v := range hdr {
 		req.Header.Set(k, v)
@@ -86,11 +95,11 @@ func (f *Fetcher) get(ctx context.Context, u string, hdr map[string]string, max 
 		if pu, e := url.Parse(u); e == nil {
 			host = pu.Host
 		}
-		return 0, nil, fmt.Errorf("cannot reach %s", host)
+		return 0, nil, nil, fmt.Errorf("cannot reach %s", host)
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, int64(max)))
-	return resp.StatusCode, b, nil
+	return resp.StatusCode, b, resp.Header, nil
 }
 
 // Fetch reads the source. token is used for git hosts only and travels in request headers.
@@ -318,8 +327,11 @@ func (f *Fetcher) fetchGitAs(ctx context.Context, s Source, token string, shared
 	b := &budget{maxTotal}
 	reached, denied := false, false
 	for _, n := range readmeNames {
-		st, body, err := f.get(ctx, fg.url(n), fg.headers, maxFile)
+		st, body, h, err := f.getH(ctx, fg.url(n), fg.headers, maxFile)
 		if err != nil {
+			return Context{}, err
+		}
+		if err := rateLimited(s, st, h, token != ""); err != nil {
 			return Context{}, err
 		}
 		if st == 200 {
@@ -335,8 +347,11 @@ func (f *Fetcher) fetchGitAs(ctx context.Context, s Source, token string, shared
 		}
 	}
 	for _, n := range manifestNames {
-		st, body, err := f.get(ctx, fg.url(n), fg.headers, maxFile)
+		st, body, h, err := f.getH(ctx, fg.url(n), fg.headers, maxFile)
 		if err != nil {
+			return Context{}, err
+		}
+		if err := rateLimited(s, st, h, token != ""); err != nil {
 			return Context{}, err
 		}
 		if st == 200 {
@@ -363,6 +378,22 @@ func (f *Fetcher) fetchGitAs(ctx context.Context, s Source, token string, shared
 		return Context{}, errors.New("no README or manifest found in the repository (check the URL, ref and token)")
 	}
 	return c, nil
+}
+
+// rateLimited turns GitHub's "limit used up" 403 into a message with the time it resets (server time zone).
+// Without any token the message also names GITHUB_TOKEN, which raises the limit.
+func rateLimited(s Source, status int, h http.Header, hasToken bool) error {
+	if s.Host != "github.com" || status != http.StatusForbidden || h.Get("X-RateLimit-Remaining") != "0" {
+		return nil
+	}
+	msg := "GitHub rate limit reached, try again later"
+	if n, err := strconv.ParseInt(h.Get("X-RateLimit-Reset"), 10, 64); err == nil && n > 0 {
+		msg = "GitHub rate limit reached, try again at " + timefmt.Minute(time.Unix(n, 0))
+	}
+	if !hasToken {
+		msg += " or set GITHUB_TOKEN"
+	}
+	return errors.New(msg)
 }
 
 var (
