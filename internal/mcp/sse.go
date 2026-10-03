@@ -117,8 +117,10 @@ func (s *Server) serveSSE(w http.ResponseWriter, r *http.Request) {
 	h.Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	endpoint := "/messages?sessionId=" + url.QueryEscape(ss.id)
-	if r.URL.Query().Get("key") != "" && s.Cfg.QueryKeyAllowed() {
-		endpoint += "&key=" + url.QueryEscape(r.URL.Query().Get("key"))
+	if q := r.URL.Query().Get("key"); q != "" {
+		if key, ok := s.Keys.Verify(q); ok && key.URLKey { // only a key that may be in the URL is passed on in it
+			endpoint += "&key=" + url.QueryEscape(q)
+		}
 	}
 	_, _ = io.WriteString(w, "event: endpoint\ndata: "+endpoint+"\n\n")
 	_ = rc.Flush()

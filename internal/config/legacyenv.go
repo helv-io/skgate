@@ -12,7 +12,8 @@ var removedEnv = []string{"UPSTREAM_BASE", "UPSTREAM_FALLBACK", "XAI_ISSUER", "X
 
 const legacyEnvDone = "legacy_env_migrated"
 
-// MigrateLegacyEnv runs once per database. It stores MCP_ALLOW_QUERY_KEY as the keys page switch and
+// MigrateLegacyEnv runs once per database. It stores MCP_ALLOW_QUERY_KEY as the old global switch (which
+// vkeys.MigrateGlobalURLKey turns into the per-key switch) and
 // UPSTREAM_BASE/UPSTREAM_FALLBACK as the Grok provider's base and fallback, so a deployment that set
 // them keeps its effective behavior. A value already stored in the UI is never overwritten.
 func MigrateLegacyEnv(kv KV) {

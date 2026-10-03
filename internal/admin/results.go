@@ -87,7 +87,6 @@ func (a *Admin) resultScreen(w http.ResponseWriter, r *http.Request) {
 	case keysData:
 		ks, _ := a.Keys.List()
 		d.Keys = ks
-		d.QueryKey = a.Cfg.QueryKeyAllowed()
 		a.render(w, r, "keys", page{Title: "Virtual keys", Nav: "keys", Toasts: toasts, Data: d})
 	case clientsData:
 		d.List, _ = a.MCP.Clients.List()

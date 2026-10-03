@@ -178,3 +178,38 @@ func TestExpiryPreviewEndpoint(t *testing.T) {
 		t.Error("the preview must need an admin session")
 	}
 }
+
+// ?key= is a per-key switch in the key's Details dialog (editable part, with a warning), off by default; the old
+// global route is gone.
+func TestURLKeySwitchInKeyDialog(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"one"}})
+	ks, _ := a.Keys.List()
+	id := strconv.FormatInt(ks[0].ID, 10)
+	_, page := br.get("/admin/keys")
+	for _, want := range []string{`action="/admin/keys/urlkey"`, "browser history and referrers", "?key= in the URL: off"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("keys page lacks %q", want)
+		}
+	}
+	if strings.Contains(page, "/admin/settings/query-key") {
+		t.Error("the global switch must be gone")
+	}
+	if strings.Index(page, `action="/admin/keys/urlkey"`) > strings.Index(page, "<h4>Details</h4>") {
+		t.Error("the switch belongs to the editable part, above Details")
+	}
+	br.post("/admin/keys/urlkey", url.Values{"csrf": {csrf}, "id": {id}, "allow": {"1"}})
+	if ks, _ = a.Keys.List(); !ks[0].URLKey {
+		t.Fatal("the switch did not turn on")
+	}
+	if _, page = br.get("/admin/keys"); !strings.Contains(page, "?key= in the URL: allowed") {
+		t.Error("the dialog must show the state")
+	}
+	br.post("/admin/keys/urlkey", url.Values{"csrf": {csrf}, "id": {id}, "allow": {"0"}})
+	if ks, _ = a.Keys.List(); ks[0].URLKey {
+		t.Fatal("the switch did not turn off")
+	}
+	if resp, _ := br.post("/admin/settings/query-key", url.Values{"csrf": {csrf}}); resp.StatusCode == 200 || resp.StatusCode == 303 {
+		t.Errorf("the global route must be gone: %d", resp.StatusCode)
+	}
+}
