@@ -23,7 +23,7 @@ func TestKeysPageUsageColumn(t *testing.T) {
 	a.Keys.Record(mcpOnly.ID, vkeys.Usage{MCPRequests: 3})
 	_, page := br.get("/admin/keys")
 
-	if !strings.Contains(page, "<th>Status</th><th>Name</th><th>Key</th><th>Usage</th><th class=\"actions-th\">Actions</th>") {
+	if !strings.Contains(page, "<th>Status</th><th>Name</th><th>Key</th><th>Usage</th><th>Expires</th><th>Last used</th><th class=\"actions-th\">Actions</th>") {
 		t.Fatal("Status is the first column and the buttons column is headed Actions")
 	}
 	i := strings.Index(page, "<tbody>")
@@ -49,8 +49,8 @@ func TestKeysPageUsageColumn(t *testing.T) {
 	if !strings.Contains(busy, "Last used: 2026-10-02") || strings.Contains(busy, "MCP requests") || strings.Contains(busy, "style=") {
 		t.Error("the tooltip ends with the last use, has no MCP line without MCP requests, and no inline styles")
 	}
-	if strings.Contains(busy, "<th>last used</th>") || strings.Contains(page, "<th>Last used</th>") {
-		t.Error("the last use lives in the Usage tooltip, not in a column")
+	if strings.Contains(busy, "<th>last used</th>") || !strings.Contains(page, "<th>Last used</th>") {
+		t.Error("the last use is a column of the list (and still ends the Usage tooltip)")
 	}
 	if !strings.Contains(busy, "************"+used[len(used)-4:]) || strings.Contains(page, used) {
 		t.Error("keys stay masked")
@@ -274,5 +274,58 @@ func TestURLKeyRowIsMarked(t *testing.T) {
 		if !strings.Contains(c, sel) {
 			t.Errorf("no rule for %q", sel)
 		}
+	}
+}
+
+// The list shows when each key ends and when it was last used; a key that ends within a week (or already has)
+// is colored, because that is the one that breaks a client unannounced.
+func TestKeysListShowsExpiryAndLastUse(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	for _, l := range []string{"soon", "later", "forever", "past", "used"} {
+		br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {l}})
+	}
+	ks, _ := a.Keys.List()
+	id := map[string]vkeys.Key{}
+	for _, k := range ks {
+		id[k.Label] = k
+	}
+	a.Keys.SetLimits(id["soon"].ID, 0, time.Now().Add(3*24*time.Hour))
+	a.Keys.SetLimits(id["later"].ID, 0, time.Now().Add(30*24*time.Hour))
+	a.Keys.SetLimits(id["past"].ID, 0, time.Now().Add(-time.Hour))
+	full, used, _ := a.Keys.Create("used")
+	a.Keys.Verify(full)
+	_ = used
+	_, page := br.get("/admin/keys")
+	cell := func(label, col string) string {
+		for _, r := range strings.Split(page[strings.Index(page, "<tbody>"):], "</tr>") {
+			if strings.Contains(r, `data-label="Name">`+label+"</td>") {
+				i := strings.Index(r, `data-label="`+col+`"`)
+				if i < 0 {
+					t.Fatalf("no %s cell in %s", col, r)
+				}
+				j := strings.LastIndex(r[:i], "<td")
+				return r[j : i+strings.Index(r[i:], "</td>")+5]
+			}
+		}
+		t.Fatalf("no row %s", label)
+		return ""
+	}
+	if c := cell("soon", "Expires"); !strings.Contains(c, `nw warn`) || !strings.Contains(c, `title="expires in 3 days"`) {
+		t.Errorf("a key ending within a week is called out: %s", c)
+	}
+	if c := cell("later", "Expires"); strings.Contains(c, "warn") || strings.Contains(c, "muted") || strings.Contains(c, "bad") {
+		t.Errorf("a key ending later is plain: %s", c)
+	}
+	if c := cell("forever", "Expires"); !strings.Contains(c, "muted") || !strings.Contains(c, ">never<") {
+		t.Errorf("never: %s", c)
+	}
+	if c := cell("past", "Expires"); !strings.Contains(c, "nw bad") || !strings.Contains(c, `title="expired"`) {
+		t.Errorf("an expired key: %s", c)
+	}
+	if c := cell("forever", "Last used"); !strings.Contains(c, "muted") || !strings.Contains(c, ">never<") {
+		t.Errorf("never used: %s", c)
+	}
+	if c := cell("used", "Last used"); strings.Contains(c, "never") || !strings.Contains(c, time.Now().Format("2006-01-02")) {
+		t.Errorf("last used shows the date: %s", c)
 	}
 }
