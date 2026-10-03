@@ -35,8 +35,9 @@ skgate must work out of the box. Users are not security experts.
 - Tokens are shown masked: asterisks plus the last 4 characters; under 8 characters, asterisks only. Refresh tokens appear only in the provider dialog.
 - Name/value data (env, headers) and lists (args) use the dynamic rows components.
 - Manual input is never gated behind an account or a helper.
-- Reasoning effort: the dropdown (default = provider decides, low, medium, high) sits directly under the model dropdown inside the shared `model_picker`, same form so one Save covers both, no one-off CSS (`.pick`). The MCP helper model's effort defaults to low; the chat effort is a separate setting (default: send nothing) and is added as `reasoning_effort` to proxied chat requests only when the client set none. A provider that rejects the parameter gets the request again without it.
-- A Suggest timeout (silence or overall cap) shows a distinct state with the stage and elapsed time, the toast reason, and a Lower effort button that opens the helper model dialog. The log line names the same stage and effort.
+- Reasoning: the dropdown labelled "Reasoning" (default = the model decides, low, medium, high) sits directly under the model dropdown inside the shared `model_picker`, same form so one Save covers both, no one-off CSS (`.pick`). It belongs to the MCP helper model only and defaults to default; a choice saved earlier keeps working. There is no reasoning setting for chat: proxied requests go through as the client wrote them. A provider that rejects `reasoning_effort` gets the Suggest request again without it.
+- Helper timeout: a number field in the same picker (seconds without an answer, default 120, any whole number), with a note that more capable models take longer. For models that look like heavy reasoners (`provider.LooksFrontier`, by name) the picker suggests 600 s as text only; a suggestion is never applied for the user.
+- A Suggest timeout (silence or overall cap) shows a distinct state with the stage and elapsed time, the toast reason, and a Lower reasoning button that opens the helper model dialog. The log line names the same stage and reasoning.
 - Icons live in `internal/admin/static/` (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, PNG sizes). Swap the files, keep the names.
 
 ## Security
