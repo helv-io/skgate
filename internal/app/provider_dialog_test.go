@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -130,5 +133,62 @@ func TestProviderDialogSections(t *testing.T) {
 		if !strings.Contains(f, "data-save") && !strings.Contains(f, `target="_blank"`) {
 			t.Errorf("a form of the dialog does not save in place: <form%s>", f)
 		}
+	}
+}
+
+// Sections of the dialog in jsdom: edits are tracked per section, closing with unsaved edits asks first (Close and
+// Escape), and saving one section updates the page without losing what is typed in another. Needs node and jsdom.
+func TestProviderDialogDirtyStateInJSDOM(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	env := os.Environ()
+	if d := os.Getenv("SKGATE_JSDOM"); d != "" {
+		env = append(env, "NODE_PATH="+filepath.Join(d, "node_modules"))
+	}
+	probe := exec.Command(node, "-e", `require("jsdom")`)
+	probe.Env = env
+	if err := probe.Run(); err != nil {
+		t.Skip("jsdom is not available (set SKGATE_JSDOM to a directory with node_modules/jsdom)")
+	}
+	up, _ := aliasUpstream(t)
+	_, _, br, csrf, _ := signedInProvider(t, up)
+	postJSON(br, "/admin/providers/grok/models/reload", url.Values{"csrf": {csrf}})
+	dir := t.TempDir()
+	save := func(name string) {
+		_, page := br.get("/admin")
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(page), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save("before.html")
+	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"fast"}, "target": {"grok-mini"}})
+	save("after.html")
+	js, _ := filepath.Abs(filepath.Join("..", "admin", "static", "app.js"))
+	script, _ := filepath.Abs(filepath.Join("testdata", "dirty.js"))
+	cmd := exec.Command(node, script, dir, js)
+	cmd.Env = env
+	out, err := cmd.CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "ALL OK") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+// In a real browser (optional, like the layout sweep): an edit in one section survives a save in another with no
+// reload, and closing the dialog with unsaved edits asks first, by Close and by Escape.
+func TestProviderDialogSectionsInBrowser(t *testing.T) {
+	chrome, pp := os.Getenv("SKGATE_CHROME"), os.Getenv("SKGATE_PUPPETEER")
+	node, err := exec.LookPath("node")
+	if chrome == "" || pp == "" || err != nil {
+		t.Skip("set SKGATE_CHROME and SKGATE_PUPPETEER (and install node) to run the dialog check in a browser")
+	}
+	up, _ := aliasUpstream(t)
+	_, ts, br, csrf, _ := signedInProvider(t, up)
+	postJSON(br, "/admin/providers/grok/models/reload", url.Values{"csrf": {csrf}})
+	script, _ := filepath.Abs(filepath.Join("testdata", "providerdialog.js"))
+	out, err := exec.Command(node, script, ts.URL, chrome, filepath.Join(pp, "node_modules", "puppeteer-core"), browserCookies(br, ts.URL)).CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "ALL OK") {
+		t.Fatalf("%v\n%s", err, out)
 	}
 }
