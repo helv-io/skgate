@@ -50,6 +50,9 @@ type Fetcher struct {
 	PyPI         string // default https://pypi.org
 	GitHubAPI    string // default https://api.github.com
 	BitbucketAPI string // default https://api.bitbucket.org
+	// GitHubToken is sent to github.com when the upstream has no token of its own (GITHUB_TOKEN). It lifts
+	// the anonymous rate limit; an upstream's own token always wins.
+	GitHubToken string
 }
 
 // NewFetcher returns a Fetcher with the public registries.
@@ -294,7 +297,22 @@ func (f *Fetcher) forgeFor(s Source, token string) forge {
 	}}
 }
 
+// errSharedTokenRefused marks a 401 for the shared GitHubToken (revoked or expired).
+var errSharedTokenRefused = errors.New("the shared GitHub token was refused")
+
 func (f *Fetcher) fetchGit(ctx context.Context, s Source, token string) (Context, error) {
+	if token == "" && s.Host == "github.com" && f.GitHubToken != "" {
+		c, err := f.fetchGitAs(ctx, s, f.GitHubToken, true)
+		if !errors.Is(err, errSharedTokenRefused) {
+			return c, err
+		}
+		// A bad shared token must not break public repositories: read them anonymously.
+	}
+	return f.fetchGitAs(ctx, s, token, false)
+}
+
+// fetchGitAs reads the repository with token; shared tells that it is the server's, not the upstream's.
+func (f *Fetcher) fetchGitAs(ctx context.Context, s Source, token string, shared bool) (Context, error) {
 	fg := f.forgeFor(s, token)
 	c := Context{Kind: KindGit, Name: s.Path}
 	b := &budget{maxTotal}
@@ -308,6 +326,9 @@ func (f *Fetcher) fetchGit(ctx context.Context, s Source, token string) (Context
 			reached = true
 			c.add(b, n, trimReadme(clip(body, maxFile)))
 			break
+		}
+		if st == 401 && shared {
+			return Context{}, errSharedTokenRefused
 		}
 		if st == 401 || st == 403 {
 			denied = true
@@ -330,10 +351,11 @@ func (f *Fetcher) fetchGit(ctx context.Context, s Source, token string) (Context
 		f.dotnetProjects(ctx, fg, &c, b)
 	}
 	if !reached {
+		own := token != "" && !shared // the upstream's own token
 		switch {
-		case token == "" && denied:
+		case !own && denied:
 			return Context{}, errors.New("the repository needs authentication: add an access token")
-		case token == "":
+		case !own:
 			return Context{}, errors.New("no README or manifest found; for a private repository add an access token")
 		case denied:
 			return Context{}, errors.New("the access token was refused by the host")

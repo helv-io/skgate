@@ -246,6 +246,7 @@ Set under `environment:` (or `env_file`); placeholders in [`.env.example`](.env.
 | `OIDC_ALLOWED_EMAILS`, `OIDC_ALLOWED_GROUPS` | empty | Comma lists limiting who is admin. |
 | `MCP_OAUTH_REQUIRE_CONSENT` | `true` | Approve/Deny page after login at `/authorize`. |
 | `SECRETS_KEY` | random `secrets.key` file | Encrypts stored upstream secrets. 32-byte base64 or a passphrase. |
+| `GITHUB_TOKEN` | empty | Optional GitHub token for **Suggest** when it reads a repository. An upstream's own access token takes precedence. Raises GitHub's rate limit. |
 | `LISTEN_ADDR` | `:8080` | Listen address. |
 | `DB_PATH` | `/data/skgate.db` | SQLite file. |
 | `LOG_LEVEL` | `info` | `info` or `debug`. |
