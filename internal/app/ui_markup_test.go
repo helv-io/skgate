@@ -7,9 +7,11 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/helv-io/skgate/internal/config"
 	"github.com/helv-io/skgate/internal/oidctest"
+	"github.com/helv-io/skgate/internal/provider/grok"
 )
 
 // On phones every list table becomes a stack of cards, and each cell is titled by its data-label, so
@@ -157,5 +159,37 @@ func TestDetailsDialogsPutEditableFirstAndInfoLast(t *testing.T) {
 	}
 	if seen < 4 {
 		t.Fatalf("saw only %d dialogs", seen)
+	}
+}
+
+// Every list table whose rows end in buttons heads that column "Actions" (the shared th_actions), no header
+// cell is empty, and a Status column comes first.
+func TestListTablesHeadTheActionsColumn(t *testing.T) {
+	a, br, csrf := managedApp(t)
+	a.Providers.Default().(*grok.Client).SetTokens("acc", "ref", time.Now().Add(time.Hour))
+	br.post("/admin/upstreams/save", stdioForm(csrf, "m", nil))
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
+	br.post("/admin/clients/create", url.Values{"csrf": {csrf}, "name": {"c"}, "redirects": {"https://x.example/cb"}, "method": {"client_secret_post"}})
+	head := regexp.MustCompile(`<thead><tr>(.*?)</tr></thead>`)
+	for _, path := range []string{"/admin", "/admin/keys", "/admin/clients", "/admin/upstreams"} {
+		_, page := br.get(path)
+		n := 0
+		for _, m := range head.FindAllStringSubmatch(page, -1) {
+			if strings.Contains(m[1], "<th></th>") {
+				t.Errorf("%s: a table has an empty header cell: %s", path, m[1])
+			}
+			if strings.Contains(m[1], `Actions`) {
+				n++
+				if !strings.HasSuffix(m[1], `<th class="actions-th">Actions</th>`) {
+					t.Errorf("%s: Actions must be the last column: %s", path, m[1])
+				}
+			}
+			if i := strings.Index(m[1], "<th>Status</th>"); i > 0 {
+				t.Errorf("%s: Status must be the first column: %s", path, m[1])
+			}
+		}
+		if n == 0 {
+			t.Errorf("%s has no table with an Actions column", path)
+		}
 	}
 }

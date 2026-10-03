@@ -30,6 +30,9 @@
 {{define "pill"}}<span class="pill {{.Class}}"{{if .Tip}} title="{{.Tip}}"{{end}}>{{.Text}}</span>{{end}}
 
 {{/* tip: a value with details in a hover tooltip. Takes a tipView (build one with the "tip" function). */}}
+{{/* th_actions: the header of the column of row buttons. Every list table with row actions ends with it. */}}
+{{define "th_actions"}}<th class="actions-th">Actions</th>{{end}}
+
 {{define "tip"}}<span class="tip"{{if .Tip}} title="{{.Tip}}"{{end}}>{{.Text}}</span>{{end}}
 
 {{/* proc_pill: the process status of a managed upstream. Takes a *procView. */}}

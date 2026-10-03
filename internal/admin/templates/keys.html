@@ -6,9 +6,8 @@
 <input type="number" name="rate" min="0" placeholder="requests/min" title="Rate limit: requests per minute. Empty = unlimited.">
 <input type="number" name="stop" min="0" placeholder="hard stop" title="Hard stop: requests allowed in total; after that the key is rejected. Empty = none.">
 <button class="act">Create key</button></form></div>
-<div class="card flush tablewrap"><table class="table"><thead><tr><th>Key</th><th>Label</th><th>Usage</th><th>Status</th><th></th></tr></thead><tbody>
-{{range .Keys}}<tr><td class="primary" data-label="Key"><code>{{.Masked}}</code></td><td data-label="Label">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
-<td class="status" data-label="Status">{{if .Revoked}}{{template "pill" (pill "off" "revoked" "")}}{{else}}{{template "pill" (pill "ok" "active" "")}}{{end}}</td>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Key</th><th>Label</th><th>Usage</th>{{template "th_actions"}}</tr></thead><tbody>
+{{range .Keys}}<tr><td class="status" data-label="Status">{{if .Revoked}}{{template "pill" (pill "off" "revoked" "")}}{{else}}{{template "pill" (pill "ok" "active" "")}}{{end}}</td><td class="primary" data-label="Key"><code>{{.Masked}}</code></td><td data-label="Label">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
 <td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#key-{{.ID}}">details</button>{{if not .Revoked}}
 <form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">regenerate</button></form>
 <form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form>{{end}}</div></td></tr>

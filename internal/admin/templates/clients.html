@@ -2,7 +2,7 @@
 <h2>OAuth clients</h2>
 {{if .NewID}}<div class="card"><p class="ok">Client created, secret shown once</p><div class="row">Client ID <code class="code" id="new-client-id">{{.NewID}}</code><button type="button" class="act" data-copy="#new-client-id">Copy</button></div>{{if .NewSecret}}<div class="row">Client secret <code class="code" id="new-client-secret">{{.NewSecret}}</code><button type="button" class="act" data-copy="#new-client-secret">Copy</button></div>{{end}}</div>{{end}}
 <p class="muted">DCR clients are listed too (newest 500 kept). authorize <code>{{$.Public}}/authorize</code> token <code>{{$.Public}}/token</code></p>
-<div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Client ID</th><th>Source</th><th></th></tr></thead><tbody>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Client ID</th><th>Source</th>{{template "th_actions"}}</tr></thead><tbody>
 {{range $c := .List}}<tr><td class="primary" data-label="Name">{{$c.Name}}</td><td class="trunc" data-label="Client ID"><code title="{{$c.ID}}">{{$c.ID}}</code></td><td class="status" data-label="Source"><span class="chip">{{$c.Source}}</span></td>
 <td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#client-{{$c.ID}}">details</button>
 <form method="post" action="/admin/clients/delete" data-confirm="Delete client and its tokens?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{$c.ID}}"><button class="act danger">delete</button></form></div></td></tr>
