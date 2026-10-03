@@ -1,6 +1,7 @@
 package app
 
 import (
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -33,7 +34,7 @@ func TestPageDoesNotShiftAndAliasesKeepTheirCase(t *testing.T) {
 // check silently does not run. The alias pattern must compile under both flags.
 func TestAliasPatternCompilesWithTheVFlag(t *testing.T) {
 	_, br, _ := managedApp(t)
-	_, page := br.get("/admin/upstreams")
+	_, page := br.get("/admin/upstreams/new")
 	pat := between(page, `name="alias" required pattern="`, `"`)
 	if pat != `[a-z0-9\-]+` {
 		t.Fatalf("alias pattern %q", pat)
@@ -150,7 +151,7 @@ func TestEveryFormControlHasAName(t *testing.T) {
 	mbr.post("/admin/upstreams/save", stdioForm(mcsrf, "m", url.Values{"lifecycle": {"always"}, "args": {"-x", "-y"}}))
 	_, page := mbr.get("/admin/upstreams/m/edit")
 	os.WriteFile(filepath.Join(dir, "edit-managed.html"), []byte(page), 0o600)
-	_, page = mbr.get("/admin/upstreams")
+	_, page = mbr.get("/admin/upstreams/new")
 	os.WriteFile(filepath.Join(dir, "managed-list.html"), []byte(page), 0o600)
 	script, _ := filepath.Abs(filepath.Join("testdata", "labels.js"))
 	cmd := exec.Command(node, script, dir)
@@ -166,7 +167,7 @@ func TestEveryFormControlHasAName(t *testing.T) {
 // fills), then the rest. Alias used to come first and, being required, sent people back up after Suggest.
 func TestAddUpstreamFieldOrderFollowsSuggest(t *testing.T) {
 	_, br, _ := managedApp(t)
-	_, page := br.get("/admin/upstreams")
+	_, page := br.get("/admin/upstreams/new")
 	form := page[strings.Index(page, `action="/admin/upstreams/save"`):]
 	last := -1
 	for _, m := range []string{`name="kind"`, `name="source"`, `data-suggest="/admin/upstreams/suggest"`, `data-suggest-out`, `name="alias" required`, `name="url"`, `name="command_pick"`} {
@@ -185,7 +186,7 @@ func TestAddUpstreamFieldOrderFollowsSuggest(t *testing.T) {
 // off for a reason the server knows (no helper model).
 func TestAddUpstreamFieldsDeclareTheirKind(t *testing.T) {
 	_, br, _ := managedApp(t)
-	_, page := br.get("/admin/upstreams")
+	_, page := br.get("/admin/upstreams/new")
 	form := page[strings.Index(page, `action="/admin/upstreams/save"`):]
 	for _, want := range []string{
 		`data-show-for="git"><label>Ref`, `data-show-for="git"><label>Access token`,
@@ -195,5 +196,31 @@ func TestAddUpstreamFieldsDeclareTheirKind(t *testing.T) {
 		if !strings.Contains(form, want) {
 			t.Errorf("the form lacks %s", want)
 		}
+	}
+}
+
+// Adding an upstream has its own page; the list only links to it. A refused save returns to the form it came from.
+func TestAddUpstreamHasItsOwnPage(t *testing.T) {
+	_, br, csrf := managedApp(t)
+	_, list := br.get("/admin/upstreams")
+	if strings.Contains(list, `action="/admin/upstreams/save"`) || strings.Contains(list, `data-kind-select`) {
+		t.Error("the list must not carry the add form")
+	}
+	if !strings.Contains(list, `<a class="btn" href="/admin/upstreams/new">Add upstream</a>`) {
+		t.Error("the list lacks the primary Add upstream button")
+	}
+	resp, page := br.get("/admin/upstreams/new")
+	if resp.StatusCode != 200 || !strings.Contains(page, "<h2>Add upstream</h2>") || !strings.Contains(page, `name="mode" value="new"`) ||
+		!strings.Contains(page, `action="/admin/upstreams/save"`) || !strings.Contains(page, `<a class="act" href="/admin/upstreams">cancel</a>`) {
+		t.Errorf("the add page is incomplete (%d)", resp.StatusCode)
+	}
+	resp, _ = br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"bad alias!"}, "url": {"http://x.example/mcp"}})
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/admin/upstreams/new" {
+		t.Errorf("a refused add goes back to the form: %d %q", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"ok"}, "url": {"http://127.0.0.1:1/mcp"}, "auth_kind": {"none"}})
+	resp, _ = br.post("/admin/upstreams/ok/save", url.Values{"csrf": {csrf}, "kind": {"remote"}, "url": {"not a url"}, "auth_kind": {"none"}})
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/admin/upstreams/ok/edit" {
+		t.Errorf("a refused edit goes back to its form: %d %q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 }

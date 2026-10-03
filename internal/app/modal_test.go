@@ -78,7 +78,7 @@ func TestModalBehaviorInJSDOM(t *testing.T) {
 	br.post("/admin/upstreams/save", stdioForm(csrf, "m", url.Values{"lifecycle": {"always"}}))
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
 	dir := t.TempDir()
-	for file, path := range map[string]string{"keys.html": "/admin/keys", "logs.html": "/admin/upstreams/m/logs", "list.html": "/admin/upstreams", "clients.html": "/admin/clients", "status.html": "/admin"} {
+	for file, path := range map[string]string{"keys.html": "/admin/keys", "logs.html": "/admin/upstreams/m/logs", "list.html": "/admin/upstreams", "new.html": "/admin/upstreams/new", "clients.html": "/admin/clients", "status.html": "/admin"} {
 		_, page := br.get(path)
 		if err := os.WriteFile(filepath.Join(dir, file), []byte(page), 0o600); err != nil {
 			t.Fatal(err)

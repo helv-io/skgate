@@ -167,7 +167,7 @@ func TestManualFormNeverGated(t *testing.T) {
 		if st != 409 || m["error"] == "" {
 			t.Fatalf("%s: %d %v", name, st, m)
 		}
-		_, page := rig.br.get("/admin/upstreams")
+		_, page := rig.br.get("/admin/upstreams/new")
 		if !strings.Contains(page, `data-suggest="/admin/upstreams/suggest" disabled title="`) {
 			t.Errorf("%s: the helper button must be disabled with a tooltip", name)
 		}
@@ -188,7 +188,7 @@ func TestManualFormNeverGated(t *testing.T) {
 	}
 	// enabled when signed in with a model
 	rig := newSuggestRig(t, true, true)
-	_, page := rig.br.get("/admin/upstreams")
+	_, page := rig.br.get("/admin/upstreams/new")
 	if strings.Contains(page, `data-suggest="/admin/upstreams/suggest" disabled`) {
 		t.Fatal("helper should be enabled")
 	}

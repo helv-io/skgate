@@ -300,6 +300,7 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/keys/regenerate", a.guard(a.postOnly(a.keyRegenerate)))
 	mux.HandleFunc("/admin/upstreams", a.guard(a.upstreams))
 	mux.HandleFunc("/admin/upstreams/save", a.guard(a.postOnly(a.upstreamSave)))
+	mux.HandleFunc("/admin/upstreams/new", a.guard(a.getOnly(a.upstreamNew)))
 	// An upstream is identified by its alias in the path: /admin/upstreams/<alias>/<action>. Screens are GET (they
 	// can be refreshed), changes are POST and answer with a redirect to a screen.
 	mux.HandleFunc("/admin/upstreams/{alias}/edit", a.guard(a.alias(a.getOnly(a.upstreamEdit))))
@@ -706,9 +707,6 @@ func procTip(pi mcp.ProcInfo) string {
 type upstreamsData struct {
 	List    []upstreamView
 	Aliases []string
-	Form    formData // the add form
-	Managed bool
-	Why     string
 }
 
 // formData feeds the shared upstream form (add and edit).
@@ -1061,23 +1059,28 @@ func (a *Admin) form(r *http.Request, u mcp.Upstream, isNew bool, include bool) 
 
 func (a *Admin) upstreams(w http.ResponseWriter, r *http.Request) {
 	list, _ := a.MCP.Upstreams.List()
-	v, _ := a.DB.GetSetting(settingLastInclude)
-	ok, why := a.MCP.ManagedState()
-	d := upstreamsData{Managed: ok, Why: why, Form: a.form(r, mcp.Upstream{Kind: mcp.KindRemote, Enabled: true}, true, v == "1")}
-	if d.Form.U.Kind == mcp.KindRemote {
-		d.Form.U.Lifecycle = "on-demand"
-	}
-	// Suggest configuration is the quickest way in: with a signed-in provider and an MCP helper model the
-	// add form starts on the managed type. Editing never changes the type.
-	if d.Form.Managed && d.Form.Suggest.Enabled {
-		d.Form.U.Kind = mcp.KindStdio
-		d.Form.Include = false // a new managed server starts on-demand, which is never on /mcp
-	}
+	var d upstreamsData
 	for _, u := range list {
 		d.List = append(d.List, a.view(u))
 		d.Aliases = append(d.Aliases, u.Alias)
 	}
 	a.render(w, r, "upstreams", page{Title: "MCP upstreams", Nav: "upstreams", Data: d})
+}
+
+// upstreamNew is the page of the add form; the list links to it.
+func (a *Admin) upstreamNew(w http.ResponseWriter, r *http.Request) {
+	v, _ := a.DB.GetSetting(settingLastInclude)
+	f := a.form(r, mcp.Upstream{Kind: mcp.KindRemote, Enabled: true}, true, v == "1")
+	if f.U.Kind == mcp.KindRemote {
+		f.U.Lifecycle = "on-demand"
+	}
+	// Suggest configuration is the quickest way in: with a signed-in provider and an MCP helper model the
+	// add form starts on the managed type. Editing never changes the type.
+	if f.Managed && f.Suggest.Enabled {
+		f.U.Kind = mcp.KindStdio
+		f.Include = false // a new managed server starts on-demand, which is never on /mcp
+	}
+	a.render(w, r, "upstream_edit", page{Title: "Add upstream", Nav: "upstreams", Data: editData{Form: f, U: f.U}})
 }
 
 type editData struct {
@@ -1223,35 +1226,37 @@ func upstreamFromForm(r *http.Request) (mcp.Upstream, error) {
 }
 
 func (a *Admin) upstreamSave(w http.ResponseWriter, r *http.Request) {
+	form := "/admin/upstreams/new"                  // a refusal returns to the form it came from, not to the list
 	if alias := r.PathValue("alias"); alias != "" { // editing: the alias in the path is the upstream
 		_ = r.ParseForm()
 		r.PostForm.Set("alias", alias)
 		r.PostForm.Set("mode", "edit")
+		form = "/admin/upstreams/" + alias + "/edit"
 	} else if r.PostFormValue("mode") == "edit" { // /admin/upstreams/save only adds
 		a.back(w, r, "/admin/upstreams", "", "edit an upstream through its own address")
 		return
 	}
 	u, err := upstreamFromForm(r)
 	if err != nil {
-		a.back(w, r, "/admin/upstreams", "", err.Error())
+		a.back(w, r, form, "", err.Error())
 		return
 	}
 	edit := r.PostFormValue("mode") == "edit"
 	if edit {
 		old, ok := a.MCP.Upstreams.Get(u.Alias)
 		if !ok {
-			a.back(w, r, "/admin/upstreams", "", "unknown alias")
+			a.back(w, r, form, "", "unknown alias")
 			return
 		}
 		if old.KindOrRemote() != u.Kind {
-			a.back(w, r, "/admin/upstreams", "", "the type cannot be changed; create a new upstream")
+			a.back(w, r, form, "", "the type cannot be changed; create a new upstream")
 			return
 		}
 		u = mcp.MergeSecrets(old, u, r.PostFormValue("clear_token") == "1")
 	}
 	if u.Managed() {
 		if ok, why := a.MCP.ManagedState(); !ok {
-			a.back(w, r, "/admin/upstreams", "", "managed upstreams: "+why)
+			a.back(w, r, form, "", "managed upstreams: "+why)
 			return
 		}
 	}
@@ -1261,7 +1266,7 @@ func (a *Admin) upstreamSave(w http.ResponseWriter, r *http.Request) {
 		err = a.MCP.Upstreams.Create(u)
 	}
 	if err != nil {
-		a.back(w, r, "/admin/upstreams", "", err.Error())
+		a.back(w, r, form, "", err.Error())
 		return
 	}
 	if !u.Managed() { // the remembered choice is for remote upstreams; managed ones follow their lifecycle

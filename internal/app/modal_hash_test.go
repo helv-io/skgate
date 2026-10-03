@@ -38,7 +38,7 @@ func TestEveryDialogIsHashAddressable(t *testing.T) {
 			t.Errorf("%s has no opener with an id starting %q", path, prefix)
 		}
 	}
-	_, page := br.get("/admin/upstreams")
+	_, page := br.get("/admin/upstreams/new")
 	if !strings.Contains(page, `data-dialog-open="#helper-model"`) || !strings.Contains(page, `<template data-dialog-content id="helper-model"`) {
 		t.Error("the helper model picker must be a fragment-addressed dialog")
 	}
@@ -83,7 +83,7 @@ func TestModalFragmentInJSDOM(t *testing.T) {
 	for _, c := range []struct{ file, path, prefix string }{
 		{"status.html", "/admin", "provider-grok"}, {"keys.html", "/admin/keys", "key-"},
 		{"clients.html", "/admin/clients", "client-"}, {"list.html", "/admin/upstreams", "upstream-m"},
-		{"list.html", "/admin/upstreams", "helper-model"},
+		{"new.html", "/admin/upstreams/new", "helper-model"},
 	} {
 		_, page := br.get(c.path)
 		if err := os.WriteFile(filepath.Join(dir, c.file), []byte(page), 0o600); err != nil {

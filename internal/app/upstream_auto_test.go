@@ -10,7 +10,7 @@ import (
 func TestUpstreamAutoModeAndRedetect(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
 	up := fakeUpstream(t)
-	_, form := br.get("/admin/upstreams")
+	_, form := br.get("/admin/upstreams/new")
 	if !strings.Contains(form, `<option value="auto" selected>`) {
 		t.Fatal("auto must be the default for new upstreams")
 	}

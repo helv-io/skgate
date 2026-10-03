@@ -147,7 +147,7 @@ func TestAdminSlimShowsNoticeAndRefuses(t *testing.T) {
 	config.Edition = "slim"
 	t.Cleanup(func() { config.Edition = old })
 	a, _, br, csrf := signedIn(t, nil)
-	_, page := br.get("/admin/upstreams")
+	_, page := br.get("/admin/upstreams/new")
 	if !strings.Contains(page, "slim image") || !regexp.MustCompile(`<option value="stdio"[^>]*disabled`).MatchString(page) {
 		t.Fatal("the add form must show the notice and disable the managed types")
 	}
@@ -415,7 +415,7 @@ func TestRemoteFormAdvancedAndHeaderName(t *testing.T) {
 	if !strings.Contains(edit, `<details open><summary class="muted">Advanced</summary>`) || !strings.Contains(edit, `data-when="header auto"`) {
 		t.Fatal("stored host override must open Advanced; header name must be conditional")
 	}
-	_, list := br.get("/admin/upstreams")
+	_, list := br.get("/admin/upstreams/new")
 	if !strings.Contains(list, `<details ><summary class="muted">Advanced</summary>`) {
 		t.Fatal("new form must have a closed Advanced block")
 	}
@@ -427,7 +427,7 @@ const inMCPHelp = "Only always-on servers can be exposed on /mcp. On-demand serv
 // server never puts such a server on /mcp, however it was asked.
 func TestIncludeInMCPControlExplainsAndEnforces(t *testing.T) {
 	a, br, csrf := managedApp(t)
-	_, add := br.get("/admin/upstreams")
+	_, add := br.get("/admin/upstreams/new")
 	if !strings.Contains(add, inMCPHelp) || !strings.Contains(add, `name="include" value="1" data-include`) {
 		t.Fatal("the add form must explain the include control")
 	}

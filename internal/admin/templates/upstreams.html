@@ -20,11 +20,7 @@
 <tr><th>client URL</th><td>{{if .Enabled}}<code>{{$.Public}}/mcp/{{.Alias}}</code>{{else}}<span class="muted">disabled</span>{{end}}</td></tr>
 </tbody></table></div>
 {{template "dialog_end"}}{{end}}
-<h2>Add upstream</h2><div class="card">
-<form method="post" action="/admin/upstreams/save" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="mode" value="new">
-{{template "upstream_fields" .Form}}
-<div class="row"><button class="btn">Add</button></div></form></div>
-<div class="actions"><a class="act" href="/admin/upstreams/import">import JSON</a><a class="act" href="/admin/upstreams/export">export JSON</a></div>
+<div class="actions"><a class="btn" href="/admin/upstreams/new">Add upstream</a><a class="act" href="/admin/upstreams/import">import JSON</a><a class="act" href="/admin/upstreams/export">export JSON</a></div>
 <h2>Endpoints</h2><div class="card">
 <p>All included upstreams, tools named <code>&lt;alias&gt;-&lt;tool&gt;</code>: <code>{{$.Public}}/mcp</code></p>
 <p>One upstream, unprefixed: <code>{{$.Public}}/mcp/{{if .Aliases}}{{index .Aliases 0}}{{else}}&lt;alias&gt;{{end}}</code></p>
