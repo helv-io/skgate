@@ -433,11 +433,22 @@ func (p *Proc) dirs(spec Spec) (work, home, tmp string, err error) {
 	}
 	home, tmp = filepath.Join(base, "home"), filepath.Join(base, "tmp")
 	cache, _ := p.m.AliasCacheDir(spec.Alias)
-	for _, d := range []string{work, home, tmp, cache} {
-		if err = ensureDir(d); err != nil {
-			return "", "", "", fmt.Errorf("creating %s: %w", filepath.Base(d), err)
+	if err = ensureDir(base); err != nil {
+		return "", "", "", fmt.Errorf("creating %s: %w", filepath.Base(base), err)
+	}
+	owned := []string{home, tmp, cache}
+	if spec.WorkDir == "" {
+		owned = append(owned, work)
+	} else if err = os.MkdirAll(work, 0o755); err != nil { // the user's own directory: created, never re-owned
+		return "", "", "", fmt.Errorf("creating the working directory: %w", err)
+	}
+	for _, d := range owned {
+		if err = p.m.handOver(d); err != nil {
+			return "", "", "", fmt.Errorf("preparing %s: %w", filepath.Base(d), err)
 		}
 	}
+	p.m.traversable(base) // the runner must be able to walk down to its directories
+	p.m.traversable(filepath.Dir(cache))
 	return
 }
 
@@ -506,7 +517,7 @@ func (p *Proc) runOnce(ctx context.Context, h startHint) error {
 		cmd = exec.Command(bin, spec.Args...)
 	}
 	cmd.Dir, cmd.Env = work, env
-	setGroup(cmd)
+	p.m.confine(cmd)
 	cmd.WaitDelay = 2 * time.Second
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

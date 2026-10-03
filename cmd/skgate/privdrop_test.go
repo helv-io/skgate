@@ -117,3 +117,18 @@ func TestPrepareAndDropSkipsWhenNotRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPrivateDBTakesAwayGroupAndOtherAccess(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "s.db")
+	for _, f := range []string{db, db + "-wal", db + "-shm"} {
+		if err := os.WriteFile(f, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	privateDB(db) // a missing -journal is fine
+	for _, f := range []string{db, db + "-wal", db + "-shm"} {
+		if fi, _ := os.Stat(f); fi.Mode().Perm() != 0o600 {
+			t.Errorf("%s: %v", f, fi.Mode().Perm())
+		}
+	}
+}

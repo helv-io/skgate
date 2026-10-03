@@ -89,7 +89,7 @@ func (p *Proc) gitOutput(ctx context.Context, spec Spec, timeout time.Duration, 
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir, cmd.Env = base, env
-	setGroup(cmd)
+	p.m.confine(cmd)
 	cmd.WaitDelay = 2 * time.Second
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &limitedBuffer{b: &stderr, max: 4096}
@@ -518,7 +518,7 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 	p.stopLocked(false)
 	p.lifeMu.Unlock()
 	aside := filepath.Join(filepath.Dir(cache), ".old-"+spec.Alias)
-	_ = os.RemoveAll(aside)
+	_ = p.m.removeAll(aside)
 	if _, e := os.Stat(cache); e == nil {
 		if err := os.Rename(cache, aside); err != nil {
 			return "", fmt.Errorf("clearing the package cache: %w", err)
@@ -528,11 +528,11 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 	p.mu.Lock()
 	p.forceSync = true // the install step, if any, runs again
 	p.mu.Unlock()
-	if err := ensureDir(cache); err != nil {
+	if err := p.m.handOver(cache); err != nil {
 		return "", err
 	}
 	if !up {
-		_ = os.RemoveAll(aside)
+		_ = p.m.removeAll(aside)
 		return "", nil
 	}
 	if err := p.startAndWait(ctx, spec); err != nil {
@@ -541,7 +541,7 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 		p.lifeMu.Unlock()
 		msg := ""
 		if _, e := os.Stat(aside); e == nil {
-			_ = os.RemoveAll(cache)
+			_ = p.m.removeAll(cache)
 			if e := os.Rename(aside, cache); e != nil {
 				msg = "; restoring the package cache failed: " + e.Error()
 			}
@@ -551,7 +551,7 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 		}
 		return "", fmt.Errorf("%v; the previous version is kept%s", err, msg)
 	}
-	_ = os.RemoveAll(aside)
+	_ = p.m.removeAll(aside)
 	p.mu.Lock()
 	v := p.serverVer
 	p.mu.Unlock()

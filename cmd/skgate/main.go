@@ -37,6 +37,7 @@ func main() {
 		log.Fatalf("open db: %v", err)
 	}
 	defer db.Close()
+	privateDB(cfg.DBPath)
 	log.Printf("secrets: encryption key from %s", db.SecretsSource)
 	a := app.New(cfg, db) // also moves the old global upstream settings to the provider
 	config.MigrateLegacyEnv(db)

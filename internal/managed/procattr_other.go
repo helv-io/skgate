@@ -3,11 +3,12 @@
 package managed
 
 import (
+	"io/fs"
 	"os"
 	"os/exec"
 )
 
-func setGroup(cmd *exec.Cmd) {}
+func setGroup(cmd *exec.Cmd, _ *RunAs) {}
 
 func signalGroup(pid int, kill bool) {
 	if p, err := os.FindProcess(pid); err == nil {
@@ -16,3 +17,7 @@ func signalGroup(pid int, kill bool) {
 }
 
 func groupAlive(pid int) bool { return false }
+
+func ownerOf(fs.FileInfo) (int, bool) { return 0, false }
+
+func lchown(string, int, int) error { return nil }

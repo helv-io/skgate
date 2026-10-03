@@ -58,7 +58,7 @@ func NewServer(cfg *config.Config, db *store.DB, keys *vkeys.Manager) *Server {
 	tr.ResponseHeaderTimeout = 2 * time.Minute
 	lg := reqlog.New(reqlog.ParseLevel(cfg.LogLevel), os.Stderr)
 	return &Server{
-		Managed: managed.NewManager(managed.Options{Enabled: config.ManagedAvailable(), Dir: cfg.ManagedDir, CacheDir: cfg.ManagedCacheDir, MaxProcs: cfg.ManagedMaxProcs,
+		Managed: managed.NewManager(managed.Options{Enabled: config.ManagedAvailable(), Dir: cfg.ManagedDir, CacheDir: cfg.ManagedCacheDir, MaxProcs: cfg.ManagedMaxProcs, RunAs: managed.DetectRunAs(),
 			StopGrace: cfg.ManagedStopGrace, LogLines: cfg.ManagedLogLines, InstallMax: cfg.ManagedInstallMax, Logf: lg.Printf, Version: config.Version}),
 		Cfg: cfg, DB: db, Keys: keys, Upstreams: NewUpstreams(db), Clients: NewClients(db),
 		HTTP:     &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},

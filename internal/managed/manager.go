@@ -35,6 +35,7 @@ type Options struct {
 	Logf       func(format string, args ...any)
 	Environ    func() []string // parent environment, default os.Environ
 	Version    string          // skgate version, sent as clientInfo
+	RunAs      *RunAs          // identity of children; nil = same as skgate (see DetectRunAs)
 
 	// Supervision tuning (tests shrink these).
 	BackoffBase  time.Duration // first restart delay, doubles per consecutive crash
@@ -109,6 +110,13 @@ func NewManager(o Options) *Manager {
 	o.defaults()
 	m := &Manager{o: o, procs: map[string]*Proc{}, quit: make(chan struct{})}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
+	if o.Enabled {
+		if o.RunAs != nil {
+			o.Logf("managed: servers run as uid=%d gid=%d, each with its own writable directories", o.RunAs.UID, o.RunAs.GID)
+		} else {
+			o.Logf("managed: WARNING cannot switch users (not root, no CAP_SETUID): servers run as skgate itself (uid=%d) and can read its database and key file; start the container as root so they run as nobody", os.Geteuid())
+		}
+	}
 	m.wg.Add(1)
 	go m.janitor()
 	return m
