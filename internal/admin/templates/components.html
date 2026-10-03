@@ -1,18 +1,19 @@
 {{/* Shared components. "pairs" is a dynamic list of name/value rows and "rows" a dynamic list of single
-   values; app.js adds and removes rows for both. */}}
-{{define "pair_row"}}<div class="pair"><input type="text" name="{{.NameKey}}" value="{{.Row.Name}}" placeholder="{{.NamePH}}" autocomplete="off">{{if .SecretKey}}<input type="hidden" name="{{.SecretKey}}" value="{{.Row.Mark}}"><input type="{{if .Row.Masked}}password{{else}}text{{end}}" name="{{.ValueKey}}" value="{{.Row.Value}}" placeholder="{{.ValuePH}}" autocomplete="{{if .Row.Masked}}new-password{{else}}off{{end}}" spellcheck="false">{{else}}<input type="text" name="{{.ValueKey}}" value="{{.Row.Value}}" placeholder="{{.ValuePH}}" autocomplete="off">{{end}}{{if .Removable}}<button type="button" class="act small danger" data-pairs-remove title="remove row">Delete</button>{{end}}</div>{{end}}
+   values; app.js adds and removes rows for both. A control is named by a label that wraps it; a list of rows is a
+   group with a caption (.label) and every input in it carries an aria-label, so no field is announced as bare "edit text". */}}
+{{define "pair_row"}}<div class="pair"><input type="text" name="{{.NameKey}}" aria-label="{{.Label}} name" value="{{.Row.Name}}" placeholder="{{.NamePH}}" autocomplete="off">{{if .SecretKey}}<input type="hidden" name="{{.SecretKey}}" value="{{.Row.Mark}}"><input type="{{if .Row.Masked}}password{{else}}text{{end}}" name="{{.ValueKey}}" aria-label="{{.Label}} value" value="{{.Row.Value}}" placeholder="{{.ValuePH}}" autocomplete="{{if .Row.Masked}}new-password{{else}}off{{end}}" spellcheck="false">{{else}}<input type="text" name="{{.ValueKey}}" aria-label="{{.Label}} value" value="{{.Row.Value}}" placeholder="{{.ValuePH}}" autocomplete="off">{{end}}{{if .Removable}}<button type="button" class="act small danger" data-pairs-remove title="remove row">Delete</button>{{end}}</div>{{end}}
 
-{{define "pairs"}}<div class="field"><label>{{.Label}} (name, value; blank rows are ignored){{if .Err}} <span class="bad">unreadable: SECRETS_KEY changed</span>{{end}}</label>
-<div class="pairs" data-pairs{{if .SecretPattern}} data-secret-pattern="{{.SecretPattern}}"{{end}}>
+{{define "pairs"}}<div class="field"><div class="label">{{.Label}} (name, value; blank rows are ignored){{if .Err}} <span class="bad">unreadable: SECRETS_KEY changed</span>{{end}}</div>
+<div class="pairs" role="group" aria-label="{{.Label}}" data-pairs{{if .SecretPattern}} data-secret-pattern="{{.SecretPattern}}"{{end}}>
 <div class="pairs-rows" data-pairs-rows>{{$l := .}}{{range $i, $r := .Rows}}{{template "pair_row" (pairRow $l $r (gt $i 0))}}{{end}}</div>
 <template data-pairs-template>{{template "pair_row" (pairRow . (pair) true)}}</template>
 <button type="button" class="act small" data-pairs-add>Add</button>
 </div></div>{{end}}
 
-{{define "row_item"}}<div class="pair single"><input type="text" name="{{.Key}}" value="{{.Value}}" placeholder="{{.PH}}" autocomplete="off" spellcheck="false">{{if .Removable}}<button type="button" class="act small danger" data-pairs-remove title="remove row">Delete</button>{{end}}</div>{{end}}
+{{define "row_item"}}<div class="pair single"><input type="text" name="{{.Key}}" aria-label="{{.Label}}" value="{{.Value}}" placeholder="{{.PH}}" autocomplete="off" spellcheck="false">{{if .Removable}}<button type="button" class="act small danger" data-pairs-remove title="remove row">Delete</button>{{end}}</div>{{end}}
 
-{{define "rows"}}<div class="field"><label>{{.Label}} (one per row; blank rows are ignored)</label>
-<div class="pairs" data-pairs>
+{{define "rows"}}<div class="field"><div class="label">{{.Label}} (one per row; blank rows are ignored)</div>
+<div class="pairs" role="group" aria-label="{{.Label}}" data-pairs>
 <div class="pairs-rows" data-pairs-rows>{{$l := .}}{{range $i, $v := .Values}}{{template "row_item" (rowItem $l $v (gt $i 0))}}{{end}}</div>
 <template data-pairs-template>{{template "row_item" (rowItem . "" true)}}</template>
 <button type="button" class="act small" data-pairs-add>Add</button>
@@ -20,10 +21,9 @@
 
 {{/* pick: a select of known values (name + hint) and a "Custom" option that reveals a text input.
    Takes a pickList. The select posts <key>_pick (empty = Custom), the text input posts <key>. Wired in app.js. */}}
-{{define "pick"}}{{$k := .Key}}<div class="field"><label>{{.Label}}</label>
-<select name="{{.Key}}_pick" data-pick>{{range .Options}}<option value="{{.Name}}" {{if and (not $.Custom) (eq .Name $.Value)}}selected{{end}}>{{.Name}} - {{.Hint}}</option>{{end}}
-<option value="" {{if .Custom}}selected{{end}}>{{.CustomLabel}}</option></select>
-<input type="text" name="{{.Key}}" placeholder="{{.PH}}" value="{{if .Custom}}{{.Value}}{{end}}" autocomplete="off" data-pick-custom {{if not .Custom}}hidden{{end}}></div>{{end}}
+{{define "pick"}}{{$k := .Key}}<div class="field"><label>{{.Label}}<select name="{{.Key}}_pick" data-pick>{{range .Options}}<option value="{{.Name}}" {{if and (not $.Custom) (eq .Name $.Value)}}selected{{end}}>{{.Name}} - {{.Hint}}</option>{{end}}
+<option value="" {{if .Custom}}selected{{end}}>{{.CustomLabel}}</option></select></label>
+<input type="text" name="{{.Key}}" aria-label="{{.Label}} ({{.CustomLabel}})" placeholder="{{.PH}}" value="{{if .Custom}}{{.Value}}{{end}}" autocomplete="off" data-pick-custom {{if not .Custom}}hidden{{end}}></div>{{end}}
 
 {{/* pill: a status pill. Class is ok, bad, warn or off; details never sit beside it, they go in Tip and show on hover.
    Takes a pillView (build one with the "pill" function) or a *procView. */}}

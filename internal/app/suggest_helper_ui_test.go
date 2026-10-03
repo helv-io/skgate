@@ -244,7 +244,7 @@ func TestReasoningSelectorInModelDialogs(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	for _, path := range []string{"/admin", "/admin/upstreams"} {
 		_, page := r.br.get(path)
-		m, e, reload := strings.Index(page, `<select name="model">`), strings.Index(page, `<select name="effort"`), strings.Index(page, "Reload models")
+		m, e, reload := strings.Index(page, `<select name="model"`), strings.Index(page, `<select name="effort"`), strings.Index(page, "Reload models")
 		if m < 0 || e < m || reload < e {
 			t.Errorf("%s: model select at %d, reasoning at %d, reload at %d", path, m, e, reload)
 		}

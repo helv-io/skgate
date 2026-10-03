@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -120,4 +121,43 @@ func TestBaseTypeAndContentWidth(t *testing.T) {
 			t.Errorf("app.css lacks %s", want)
 		}
 	}
+}
+
+// Every form control on every admin page, in dialogs and row templates too, has a name a screen reader announces
+// (a wrapping label, aria-label...), not just "edit text".
+func TestEveryFormControlHasAName(t *testing.T) {
+	node, err := exec.LookPath("node")
+	jsdom := os.Getenv("SKGATE_JSDOM")
+	if err != nil || jsdom == "" {
+		t.Skip("set SKGATE_JSDOM (and install node) to run the label check")
+	}
+	up, _ := aliasUpstream(t)
+	_, _, br, csrf, _ := signedInProvider(t, up)
+	br.post("/admin/providers/grok/models/reload", url.Values{"csrf": {csrf}})
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}, "expires": {"30d"}})
+	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"r"}, "url": {"http://127.0.0.1:1/mcp"}, "auth_kind": {"header"}, "auth_name": {"X-K"}, "auth_value": {"secret-value-1234"}, "hdr_name": {"X-A"}, "hdr_value": {"1"}})
+	br.post("/admin/clients/create", url.Values{"csrf": {csrf}, "name": {"n"}, "redirects": {"https://x.example/cb"}, "method": {"client_secret_post"}})
+	dir := t.TempDir()
+	for file, path := range map[string]string{"status.html": "/admin", "keys.html": "/admin/keys", "upstreams.html": "/admin/upstreams", "edit-remote.html": "/admin/upstreams/edit?alias=r",
+		"import.html": "/admin/upstreams/import", "clients.html": "/admin/clients"} {
+		_, page := br.get(path)
+		if err := os.WriteFile(filepath.Join(dir, file), []byte(page), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// a managed upstream has fields of its own (source, command, args, environment, install)
+	_, mbr, mcsrf := managedApp(t)
+	mbr.post("/admin/upstreams/save", stdioForm(mcsrf, "m", url.Values{"lifecycle": {"always"}, "args": {"-x", "-y"}}))
+	_, page := mbr.get("/admin/upstreams/m/edit")
+	os.WriteFile(filepath.Join(dir, "edit-managed.html"), []byte(page), 0o600)
+	_, page = mbr.get("/admin/upstreams")
+	os.WriteFile(filepath.Join(dir, "managed-list.html"), []byte(page), 0o600)
+	script, _ := filepath.Abs(filepath.Join("testdata", "labels.js"))
+	cmd := exec.Command(node, script, dir)
+	cmd.Env = append(os.Environ(), "NODE_PATH="+filepath.Join(jsdom, "node_modules"))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	t.Log(strings.TrimSpace(string(out)))
 }

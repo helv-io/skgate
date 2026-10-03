@@ -124,8 +124,8 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 .quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .quick .act[aria-pressed=true]{color:var(--acc);border-color:var(--acc);background:#14202e}
 .field>p{margin:6px 0 0}
-.field>label,label{display:block;margin:10px 0 4px;color:var(--dim);font-size:14px}
-.field>label:first-child{margin-top:0}
+.field>label,label,.field>.label{display:block;margin:10px 0 4px;color:var(--dim);font-size:14px}
+.field>label:first-child,.field>.label:first-child{margin-top:0}
 label.check{display:inline-flex;align-items:center;gap:6px;margin:0 16px 0 0;color:var(--fg)}
 input,select,textarea{font:inherit;color:var(--fg);background:#0c0d0f;border:1px solid var(--line);padding:5px 8px}
 input[type=text],input[type=password],input[type=url],textarea,select{width:100%;display:block}

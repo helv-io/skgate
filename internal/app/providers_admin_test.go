@@ -56,7 +56,7 @@ func TestStatusPageAtAGlance(t *testing.T) {
 	if strings.Contains(main, "(ok)") || strings.Contains(main, "refresh-secret") || strings.Contains(main, "5678") || strings.Contains(main, "Refresh token") {
 		t.Fatalf("main screen shows technical detail:\n%s", main)
 	}
-	for _, want := range []string{`<span class="was">signed in</span><span class="now">Sign out</span>`, "<h3>Grok</h3>", `data-dialog-open="#provider-grok"`, "Sign in", "Sign out"} {
+	for _, want := range []string{`<span class="pill ok"`, "<h3>Grok</h3>", `data-dialog-open="#provider-grok"`, "Sign in", "Sign out"} {
 		if !strings.Contains(main, want) {
 			t.Errorf("main screen lacks %q", want)
 		}

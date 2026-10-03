@@ -74,7 +74,7 @@ var funcs = template.FuncMap{
 	"list":    func(v ...string) []string { return v },
 	// pairRow and pair feed the "pair_row" component (see templates/components.html).
 	"pairRow": func(l pairList, r pair, removable bool) pairRowData {
-		return pairRowData{NameKey: l.NameKey, ValueKey: l.ValueKey, SecretKey: l.SecretKey, NamePH: l.NamePH, ValuePH: l.ValuePH, Row: r, Removable: removable}
+		return pairRowData{NameKey: l.NameKey, ValueKey: l.ValueKey, SecretKey: l.SecretKey, NamePH: l.NamePH, ValuePH: l.ValuePH, Label: l.Label, Row: r, Removable: removable}
 	},
 	"pair":     func() pair { return pair{} },
 	"dlg":      func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
@@ -96,7 +96,7 @@ var funcs = template.FuncMap{
 		return usageCell(k.Usage, last)
 	},
 	"rowItem": func(l rowList, v string, removable bool) rowItemData {
-		return rowItemData{Key: l.Key, PH: l.PH, Value: v, Removable: removable}
+		return rowItemData{Key: l.Key, PH: l.PH, Label: l.Label, Value: v, Removable: removable}
 	},
 }
 
@@ -807,7 +807,7 @@ func newPickList(key, label, customLabel, ph string, options []managed.Command, 
 }
 
 type rowItemData struct {
-	Key, PH, Value string
+	Key, PH, Label, Value string
 	Removable      bool
 }
 
@@ -819,8 +819,8 @@ func newRowList(key, ph, label string, values []string) rowList {
 }
 
 type pairRowData struct {
-	NameKey, ValueKey, SecretKey, NamePH, ValuePH string
-	Row                                           pair
+	NameKey, ValueKey, SecretKey, NamePH, ValuePH, Label string
+	Row                                                   pair
 	Removable                                     bool
 }
 
