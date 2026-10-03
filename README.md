@@ -117,8 +117,8 @@ Needs the `latest` image and Grok signed in. The first time, **Pick MCP helper m
    | `pypi:mcp-server-time` | PyPI package, `uvx` |
    | `https://github.com/example-org/notes-mcp` | git repo: clone, install, run (private: **Access token**) |
 
-2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the MCP helper model proposes command, args, install step and env names (values as `YOUR_...`), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet. Point it at the repo, fill in the variables it needs, and it just works.
-3. Set an alias, replace the `YOUR_...` values, **Save**. The server is at `https://skgate.example.com/mcp/<alias>`.
+2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the MCP helper model proposes command, args, install step and env names (marked secret or not, required or optional), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet. Point it at the repo, fill in the variables it needs, and it just works.
+3. Set an alias, fill in the variables you need (empty ones are not passed to the server), **Save**. The server is at `https://skgate.example.com/mcp/<alias>`.
 
 If the button is greyed out, hover it: sign in to Grok on **status**, or use **Pick MCP helper model** beside it.
 
