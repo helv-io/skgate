@@ -27,6 +27,7 @@ func CacheEnv(cacheDir string) []KV {
 		{"PIP_CACHE_DIR", filepath.Join(cacheDir, "pip")},
 		{"XDG_CACHE_HOME", filepath.Join(cacheDir, "xdg")},
 		{"NUGET_PACKAGES", filepath.Join(cacheDir, "nuget")},
+		{"DOTNET_CLI_HOME", filepath.Join(cacheDir, "dotnet")},
 		{"GOCACHE", filepath.Join(cacheDir, "go-build")},
 		{"GOPATH", filepath.Join(cacheDir, "gopath")},
 		{"GOMODCACHE", filepath.Join(cacheDir, "gomod")},

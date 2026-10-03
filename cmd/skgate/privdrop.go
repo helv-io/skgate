@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/helv-io/skgate/internal/config"
 )
 
 // Default unprivileged identity the server runs as (override with PUID / PGID).
@@ -115,9 +117,19 @@ func prepareAndDrop(dbPath string) error {
 	default:
 		log.Printf("privdrop: data dir %s already owned by %d:%d", dir, uid, gid)
 	}
-	if err := dropPrivileges(uid, gid); err != nil {
+	if err := dropPrivileges(uid, gid, config.ManagedAvailable()); err != nil {
 		return err
 	}
 	log.Printf("privdrop: dropped root, now running as uid=%d gid=%d", os.Getuid(), os.Getgid())
 	return nil
+}
+
+// privateDB takes group and other access off the database files, which older versions created as
+// 0644. The key file next to them is 0600 already.
+func privateDB(dbPath string) {
+	for _, suffix := range []string{"", "-wal", "-shm", "-journal"} {
+		if err := os.Chmod(dbPath+suffix, 0o600); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			log.Printf("privdrop: chmod %s: %v", dbPath+suffix, err)
+		}
+	}
 }
