@@ -129,19 +129,34 @@ for (const native of [false,true]) {
 // suggest: fills the manual fields from the answer and leaves them editable
 { const {w,d}=load("list.html",false);
   const form=d.querySelector('form[action="/admin/upstreams/save"]');
-  w.fetch=()=>Promise.resolve({ok:true,json:()=>Promise.resolve({alias:"thing",kind:"stdio",command:"npx",args:["-y","thing@1.0.0"],env:[{name:"THING_KEY",value:"YOUR_THING_KEY"},{name:"OTHER",value:"YOUR_OTHER"}],install:"",startup_secs:45,confidence:"high",warnings:["w1"],notes:["n1"]})});
+  w.fetch=()=>Promise.resolve({ok:true,headers:{get:()=>"application/json"},json:()=>Promise.resolve({alias:"thing",kind:"stdio",command:"npx",args:["-y","thing@1.0.0"],env:[{name:"THING_KEY",description:"k",secret:true,required:true},{name:"THING_URL",secret:false,required:false}],install:"",startup_secs:45,confidence:"high",warnings:["w1"],notes:["n1"]})});
   const b=d.querySelector("[data-suggest]"); b.disabled=false; form.elements.source.value="thing";
   b.dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
   setTimeout(()=>{
     ok(form.elements.command_pick.value==="npx"||form.elements.command.value==="npx","command filled");
     const args=[...form.querySelectorAll('input[name="args"]')].map(x=>x.value); ok(args.join()==="-y,thing@1.0.0","args one per row: "+args);
-    const names=[...form.querySelectorAll('input[name="env_name"]')].map(x=>x.value), vals=[...form.querySelectorAll('input[name="env_value"]')].map(x=>x.value);
-    ok(names.join()==="THING_KEY,OTHER"&&vals.join()==="YOUR_THING_KEY,YOUR_OTHER","env rows filled with placeholders");
+    const names=[...form.querySelectorAll('input[name="env_name"]')].map(x=>x.value), vals=[...form.querySelectorAll('input[name="env_value"]')];
+    ok(names.join()==="THING_KEY,THING_URL","env rows filled with the names: "+names);
+    ok(vals.every(v=>v.value===""),"suggested env values start empty");
+    ok(vals.map(v=>v.placeholder).join()==="Required,Optional","placeholders say Required or Optional: "+vals.map(v=>v.placeholder));
+    ok(vals.map(v=>v.type).join()==="password,text","secret values are masked, URLs are not: "+vals.map(v=>v.type));
+    ok(vals.map(v=>v.getAttribute("autocomplete")).join()==="new-password,off","masked fields are kept from autofill");
+    ok([...form.querySelectorAll('input[name="env_secret"]')].map(x=>x.value).join()==="1,0","the secret flags travel with the rows");
+    { const sec=[...form.querySelectorAll("[data-secret-pattern]")]; ok(sec.length===1,"only the env list carries the secret pattern");
+      const box=sec[0];
+      box.querySelector("[data-pairs-add]").dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+      const rowsEl=[...box.querySelectorAll(".pair")], row=rowsEl[rowsEl.length-1];
+      const nm=row.querySelector('input[name="env_name"]'), vl=row.querySelector('input[name="env_value"]');
+      ok(row.querySelector('input[name="env_secret"]').value==="","a new row has no flag");
+      nm.value="MY_API_KEY"; nm.dispatchEvent(new w.Event("input",{bubbles:true}));
+      ok(vl.type==="password"&&vl.getAttribute("autocomplete")==="new-password","a name like a key masks the value");
+      nm.value="MY_HOST"; nm.dispatchEvent(new w.Event("input",{bubbles:true}));
+      ok(vl.type==="text","a plain name unmasks it"); }
     ok(form.elements.startup_secs.value==="45","startup timeout filled");
     ok(form.elements.alias.value==="thing","alias suggested");
     const out=d.querySelector("[data-suggest-out]"); ok(!out.hidden&&/w1/.test(out.textContent)&&/high/.test(out.textContent),"warnings and confidence shown");
     ok(!b.disabled&&!form.elements.command.disabled,"manual fields and the button stay usable");
     console.log(fails?("FAILED "+fails):"ALL OK"); process.exit(fails?1:0);
-  },50);
+  },500);
 }
 

@@ -354,7 +354,7 @@ document.addEventListener("click", function (e) {
     var tpl = box.querySelector("[data-pairs-template]");
     var rows = box.querySelector("[data-pairs-rows]");
     rows.appendChild(tpl.content.cloneNode(true));
-    var inputs = rows.querySelectorAll("input");
+    var inputs = rows.querySelectorAll("input:not([type=hidden])");
     if (inputs.length >= 2) inputs[inputs.length - 2].focus();
     return;
   }
@@ -363,6 +363,21 @@ document.addEventListener("click", function (e) {
     var row = rm.closest(".pair");
     if (row && row.parentNode) row.parentNode.removeChild(row);
   }
+});
+
+// Secret values: a pairs list with data-secret-pattern masks the value of a row once its name matches
+// (KEY, TOKEN, ...), unless the row's flag already says so (stored rows and Suggest results carry "1"/"0").
+// The server applies the same pattern to rows submitted without a flag.
+document.addEventListener("input", function (e) {
+  var box = e.target.closest ? e.target.closest("[data-secret-pattern]") : null;
+  var row = box && e.target.closest(".pair");
+  if (!row) return;
+  var flag = row.querySelector("input[type=hidden]");
+  var fields = row.querySelectorAll("input:not([type=hidden])");
+  if (!flag || flag.value !== "" || fields.length < 2 || e.target !== fields[0]) return;
+  var secret = new RegExp(box.getAttribute("data-secret-pattern"), "i").test(fields[0].value);
+  fields[1].type = secret ? "password" : "text";
+  fields[1].setAttribute("autocomplete", secret ? "new-password" : "off");
 });
 
 
@@ -376,17 +391,32 @@ document.addEventListener("click", function (e) {
     var first = form.querySelector('[name="' + name + '"]');
     return first ? first.closest("[data-pairs]") : null;
   }
-  // fill replaces the rows of a dynamic list: items are strings (single) or [name, value] (pairs). With
-  // animate the rows after the first are added one at a time and fade in.
+  // fill replaces the rows of a dynamic list: items are strings (single) or [name, value] (pairs). A pairs
+  // item may carry a third element {secret, required} (a suggested variable): the value starts empty, its
+  // field is masked when secret (and kept from browser autofill) and its placeholder says Required or
+  // Optional. With animate the rows after the first are added one at a time and fade in.
   function fill(box, items, pairs, animate) {
     if (!box) return;
     var list = box.querySelector("[data-pairs-rows]");
     var tpl = box.querySelector("[data-pairs-template]");
     while (list.children.length > 1) list.removeChild(list.lastChild);
     function put(row, it) {
-      var inputs = row.querySelectorAll("input");
+      var inputs = row.querySelectorAll("input:not([type=hidden])");
       inputs[0].value = it === undefined ? "" : pairs ? it[0] : it;
-      if (pairs) inputs[1].value = it === undefined ? "" : it[1];
+      if (!pairs) return;
+      var val = inputs[1], flag = row.querySelector("input[type=hidden]"), opt = it && it[2];
+      val.value = it === undefined ? "" : it[1];
+      if (it === undefined) { // nothing suggested: the first row goes back to a blank row
+        val.type = "text";
+        val.placeholder = "Optional";
+        val.setAttribute("autocomplete", "off");
+        if (flag) flag.value = "";
+      }
+      if (!opt) return;
+      val.placeholder = opt.required ? "Required" : "Optional";
+      val.type = opt.secret ? "password" : "text";
+      val.setAttribute("autocomplete", opt.secret ? "new-password" : "off");
+      if (flag) flag.value = opt.secret ? "1" : "0";
     }
     put(list.children[0], items[0]);
     items.slice(1).forEach(function (it, i) {
@@ -410,7 +440,7 @@ document.addEventListener("click", function (e) {
       if (!known) set(form, "command", r.command);
     }
     fill(rows(form, "args"), r.args || [], false, false);
-    fill(rows(form, "env_name"), (r.env || []).map(function (e) { return [e.name, ""]; }), true, true);
+    fill(rows(form, "env_name"), (r.env || []).map(function (e) { return [e.name, "", { secret: !!e.secret, required: !!e.required }]; }), true, true);
     set(form, "install", r.install || "");
     set(form, "startup_secs", r.startup_secs || "");
     if (r.kind === "git") { set(form, "source", r.git_url || ""); set(form, "git_ref", r.git_ref || ""); }
@@ -460,7 +490,7 @@ document.addEventListener("click", function (e) {
     }
     apply(form, x.result);
     var lines = (x.result.warnings || []).concat(x.result.notes || []);
-    lines.unshift("Review before saving. Replace the placeholder values with real ones.");
+    lines.unshift("Review before saving. Fill in the values; empty ones are not passed to the server.");
     show(form, x.result.confidence === "high" ? "ok" : "warn", x.result.confidence + " confidence", lines);
   }
   document.addEventListener("click", function (e) {
