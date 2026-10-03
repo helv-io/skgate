@@ -251,7 +251,7 @@ Set under `environment:` (or `env_file`); placeholders in [`.env.example`](.env.
 | `OIDC_SCOPES` | `openid profile email groups` | Requested scopes. |
 | `OIDC_REDIRECT_URL` | `PUBLIC_URL/admin/oidc/callback` | Callback registered at the provider. |
 | `OIDC_ALLOWED_EMAILS`, `OIDC_ALLOWED_GROUPS` | empty | Comma lists limiting who is admin. |
-| `MCP_OAUTH_REQUIRE_CONSENT` | `true` | Approve/Deny page after login at `/authorize`. `false` approves without asking. |
+| `MCP_OAUTH_REQUIRE_CONSENT` | `true` | Approve/Deny page after login at `/authorize`. |
 | `SECRETS_KEY` | random `secrets.key` file | Encrypts stored upstream secrets. 32-byte base64 or a passphrase. |
 | `LISTEN_ADDR` | `:8080` | Listen address. |
 | `DB_PATH` | `/data/skgate.db` | SQLite file. |
@@ -401,8 +401,8 @@ Without `OIDC_*` the admin answers 503. With `OIDC_ALLOWED_EMAILS` and `OIDC_ALL
 
 ## Security notes
 
-- Virtual keys are stored as SHA-256 hashes; upstream credentials are AES-256-GCM encrypted. Grok sign-in tokens are stored unencrypted in the SQLite file: protect `/data`.
-- `/authorize` needs an admin session and, by default, approval of each client by name and host (`MCP_OAUTH_REQUIRE_CONSENT`).
+- Virtual keys are stored as SHA-256 hashes; upstream credentials are AES-256-GCM encrypted.
+- `/authorize` needs an admin session.
 - Managed upstreams run admin-supplied commands; use the `slim` image to disable them.
 - `?key=` is off by default (URLs leak into logs).
 
