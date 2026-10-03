@@ -31,6 +31,16 @@ const measure = () => {
   const ch = [...document.querySelectorAll(".choices button")];
   window.__choices = ch.map(e => { const c = getComputedStyle(e); return [e.textContent.trim(), c.backgroundColor, c.borderTopColor, c.color, c.fontSize, c.borderTopWidth, c.minHeight].join("|"); });
   ch.forEach(e => { if (e.getBoundingClientRect().height < 48) out.push(e.textContent.trim() + " button is shorter than 48px"); });
+  // the expiration presets are finger-sized on phones and the field and its preview fit the screen
+  [...document.querySelectorAll(".quick .act")].filter(e => e.offsetParent !== null).forEach(e => {
+    const r = e.getBoundingClientRect();
+    if (vw <= 720 && r.height < 44) out.push("expiry preset " + e.textContent.trim() + " is " + Math.round(r.height) + "px tall, under 44px");
+    if (r.right > vw + 0.5) out.push("expiry preset " + e.textContent.trim() + " reaches past the screen");
+  });
+  [...document.querySelectorAll("[data-expiry-input]")].filter(e => e.offsetParent !== null).forEach(e => {
+    const r = e.getBoundingClientRect();
+    if (r.width < 160) out.push("expiry field only " + Math.round(r.width) + "px wide");
+  });
   if (out.length) {
     const bad = [];
     for (const el of document.querySelectorAll("body *")) {
@@ -86,9 +96,13 @@ const measure = () => {
           checks++;
           if ((await open()) || (await hash()) !== "") { bad++; console.log("FAIL", p.name, width, "Escape leaves the fragment", await hash()); }
           await reopen();
-          await pg.mouse.click(2, 2); await settle(); // the backdrop, outside the dialog box
+          // the backdrop (outside the dialog box): an information-only dialog closes by it, one with a form ignores it
+          const info = await pg.evaluate(() => document.getElementById(document.querySelector("[data-dialog-open]").getAttribute("data-dialog-open").slice(1)).hasAttribute("data-informational"));
+          await pg.mouse.click(2, 2); await settle();
           checks++;
-          if ((await open()) || (await hash()) !== "") { bad++; console.log("FAIL", p.name, width, "backdrop click leaves the fragment", await hash(), await open()); }
+          if (info && ((await open()) || (await hash()) !== "")) { bad++; console.log("FAIL", p.name, width, "backdrop click must close an informational dialog", await hash(), await open()); }
+          if (!info && (!(await open()) || (await hash()) === "")) { bad++; console.log("FAIL", p.name, width, "backdrop click must not close a dialog with a form", await hash(), await open()); }
+          if (!info) { await pg.keyboard.press("Escape"); await settle(); checks++; if (await open()) { bad++; console.log("FAIL", p.name, width, "Escape must still close it"); } }
           await reopen();
           await pg.evaluate(() => document.querySelector("[data-modal-close]").click()); await settle();
           await pg.reload({ waitUntil: "load" }); await settle();

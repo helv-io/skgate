@@ -37,10 +37,14 @@ for (const native of [false,true]) for (const c of cases) {
   opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
   dlg.dispatchEvent(new w.KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true})); await tick(w);
   ok(!shown()&&hash()==="",tag+"Escape clears the fragment ("+hash()+")");
-  // backdrop
+  // backdrop: only a dialog that merely shows information closes by it; one with a form ignores it
   opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
   dlg.dispatchEvent(new w.MouseEvent("click",{bubbles:true})); await tick(w);
-  ok(!shown()&&hash()==="",tag+"backdrop click clears the fragment ("+hash()+")");
+  const info=d.getElementById(id).hasAttribute("data-informational");
+  ok(info===!!c.info,tag+"informational flag is "+!!c.info);
+  if(info) ok(!shown()&&hash()==="",tag+"backdrop click closes an informational dialog and clears the fragment ("+hash()+")");
+  else { ok(shown()&&hash()===frag,tag+"backdrop click is ignored by a dialog with a form"); d.querySelector("[data-modal-close]").click(); await tick(w);
+         ok(!shown()&&hash()==="",tag+"the close button then clears the fragment"); }
   // a click inside keeps it open and keeps the fragment
   opener().dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
   d.querySelector("[data-modal-body]").dispatchEvent(new w.MouseEvent("click",{bubbles:true})); await tick(w);

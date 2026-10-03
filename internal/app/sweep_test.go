@@ -42,7 +42,7 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"git"}, "alias": {"gitsrv"}, "git_url": {"https://git.example.com/" + strings.Repeat("org/", 15) + "repo.git"},
 		"command": {"python3"}, "args": {"-m", "srv"}, "lifecycle": {"on-demand"}, "enabled": {"1"}})
 	for _, l := range []string{"production service key " + strings.Repeat("with a very long label ", 3), "short"} {
-		post("/admin/keys/create", url.Values{"label": {l}, "rate": {"30"}, "stop": {"1000000"}})
+		post("/admin/keys/create", url.Values{"label": {l}, "rate": {"30"}, "expires": {"2031-12-31 18:00"}})
 	}
 	for _, n := range []string{"Home Assistant " + strings.Repeat("with a very long client name ", 3), "c2"} {
 		post("/admin/clients/create", url.Values{"name": {n}, "redirects": {"https://my.home-assistant.io/redirect/" + strings.Repeat("oauth/", 15) + "callback\nhttps://x.example/cb"}, "method": {"client_secret_post"}})

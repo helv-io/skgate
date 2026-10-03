@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"strings"
@@ -62,14 +63,17 @@ func TestKeysPageUsageColumn(t *testing.T) {
 	}
 }
 
-// Limits are optional: the create form and the per-key dialog set them, an empty value means unlimited, bad
-// values are refused, and the table shows them.
+// The rate limit and the expiration are optional: the create form and the per-key dialog set them, an empty
+// value means none, bad values are refused (and create nothing), and the table and Details show them.
 func TestKeyLimitsInAdmin(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"free"}})
-	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"capped"}, "rate": {"30"}, "stop": {"1000"}})
-	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"bad"}, "rate": {"-4"}})
-	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"bad2"}, "stop": {"lots"}})
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"capped"}, "rate": {"30"}, "expires": {"2031-12-31"}})
+	for name, v := range map[string]url.Values{"bad": {"rate": {"-4"}}, "bad2": {"expires": {"someday"}}, "bad3": {"expires": {"2020-01-01"}}, "bad4": {"rate": {"x"}}} {
+		v.Set("csrf", csrf)
+		v.Set("label", name)
+		br.post("/admin/keys/create", v)
+	}
 	ks, _ := a.Keys.List()
 	if len(ks) != 2 {
 		t.Fatalf("invalid limits must not create a key: %d keys", len(ks))
@@ -78,28 +82,99 @@ func TestKeyLimitsInAdmin(t *testing.T) {
 	for _, k := range ks {
 		by[k.Label] = k
 	}
-	if by["free"].Limited() || by["capped"].RatePerMin != 30 || by["capped"].HardStop != 1000 {
+	end := time.Date(2031, 12, 31, 23, 59, 59, 0, time.Local)
+	if by["free"].Limited() || !by["free"].ExpiresAt.IsZero() || by["capped"].RatePerMin != 30 || !by["capped"].ExpiresAt.Equal(end) {
 		t.Fatalf("%+v", by)
 	}
 	_, page := br.get("/admin/keys")
-	for _, want := range []string{"<th>limits</th>", "30/min, stop at 1000", ">unlimited<", `name="rate"`, `name="stop"`, `action="/admin/keys/limits"`, `id="key-`} {
+	for _, want := range []string{"<th>rate limit</th>", "<th>expires</th>", "30/min", ">unlimited<", ">never<", "2031-12-31 23:59", `name="rate"`, `name="expires"`,
+		`data-expiry-url="/admin/keys/expiry"`, "Rate limit (requests per minute", `action="/admin/keys/limits"`, `id="key-`, "expires 2031-12-31"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("keys page lacks %q", want)
 		}
 	}
-	br.post("/admin/keys/limits", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["free"].ID, 10)}, "rate": {"5"}})
+	for _, gone := range []string{"hard stop", "Hard stop", `name="stop"`, "stop at"} {
+		if strings.Contains(page, gone) {
+			t.Errorf("keys page still has %q", gone)
+		}
+	}
+	// the dialog of a key with an expiration is prefilled with a text that reads back to the same moment
+	if !strings.Contains(page, `name="expires" value="2031-12-31"`) {
+		t.Error("the Limits form must carry the current expiration")
+	}
+	br.post("/admin/keys/limits", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["free"].ID, 10)}, "rate": {"5"}, "expires": {"30d"}})
 	br.post("/admin/keys/limits", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["capped"].ID, 10)}})
+	br.post("/admin/keys/limits", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["capped"].ID, 10)}, "expires": {"yesterday"}})
 	ks, _ = a.Keys.List()
 	for _, k := range ks {
 		switch k.Label {
 		case "free":
-			if k.RatePerMin != 5 || k.HardStop != 0 {
+			if k.RatePerMin != 5 || time.Until(k.ExpiresAt) < 29*24*time.Hour || time.Until(k.ExpiresAt) > 31*24*time.Hour {
 				t.Errorf("free: %+v", k)
 			}
 		case "capped":
-			if k.Limited() {
-				t.Errorf("capped must be cleared: %+v", k)
+			if k.Limited() || !k.ExpiresAt.IsZero() {
+				t.Errorf("capped must be cleared (and a bad value changes nothing): %+v", k)
 			}
 		}
+	}
+}
+
+// An expired key shows "expired" in the table and Details, with the date; the date also shows in Details for a live one.
+func TestExpiredKeyShowsInTheKeysTable(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"old"}})
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"fresh"}, "expires": {"7d"}})
+	ks, _ := a.Keys.List()
+	for _, k := range ks {
+		if k.Label == "old" {
+			a.Keys.SetLimits(k.ID, 0, time.Now().Add(-time.Hour))
+		}
+	}
+	_, page := br.get("/admin/keys")
+	if !strings.Contains(page, `<span class="pill warn" title="expired `) || !strings.Contains(page, ">expired</span>") {
+		t.Errorf("an expired key must say so:\n%s", page)
+	}
+	if strings.Count(page, ">active</span>") < 2 { // fresh: table and Details
+		t.Error("a key that has not expired is active")
+	}
+}
+
+// The preview endpoint reads the text with the same parser the forms use.
+func TestExpiryPreviewEndpoint(t *testing.T) {
+	_, ts, br, _ := signedIn(t, nil)
+	get := func(q string) (ok, never bool, text string) {
+		_, body := br.get("/admin/keys/expiry?q=" + url.QueryEscape(q))
+		var j struct {
+			OK    bool   `json:"ok"`
+			Never bool   `json:"never"`
+			Text  string `json:"text"`
+		}
+		if err := json.Unmarshal([]byte(body), &j); err != nil {
+			t.Fatalf("%q: %v\n%s", q, err, body)
+		}
+		return j.OK, j.Never, j.Text
+	}
+	if ok, _, text := get("2031-12-31"); !ok || !strings.HasPrefix(text, "Expires Wed Dec 31, 2031, 11:59 PM ") {
+		t.Errorf("date: %v %q", ok, text)
+	}
+	if ok, _, text := get("30d"); !ok || !strings.HasPrefix(text, "Expires ") {
+		t.Errorf("relative: %v %q", ok, text)
+	}
+	if ok, never, text := get(""); !ok || !never || text != "Never expires" {
+		t.Errorf("empty: %v %v %q", ok, never, text)
+	}
+	for _, bad := range []string{"soonish", "12/31/2026", "2020-01-01"} {
+		if ok, _, text := get(bad); ok || text == "" {
+			t.Errorf("%q must be refused with a hint: %q", bad, text)
+		}
+	}
+	if ok, _, text := get("soonish"); ok || !strings.Contains(text, "30d") {
+		t.Errorf("the hint names examples: %q", text)
+	}
+	// admin only, GET only
+	anon := newBrowser(t, ts)
+	if resp, _ := anon.get("/admin/keys/expiry?q=1d"); resp.StatusCode == 200 {
+		t.Error("the preview must need an admin session")
 	}
 }

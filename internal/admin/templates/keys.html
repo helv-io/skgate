@@ -1,13 +1,13 @@
 {{define "body"}}{{with .Data}}
 <h2>Virtual keys</h2>
 {{if .NewKey}}<div class="card"><p class="ok">New key, shown once</p><div class="row"><code class="code" id="new-token">{{.NewKey}}</code><button type="button" class="act" data-copy="#new-token">Copy</button></div></div>{{end}}
-<div class="card"><form method="post" action="/admin/keys/create" class="row form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<input type="text" name="label" placeholder="label" maxlength="80">
-<input type="number" name="rate" min="0" placeholder="requests/min" title="Rate limit: requests per minute. Empty = unlimited.">
-<input type="number" name="stop" min="0" placeholder="hard stop" title="Hard stop: requests allowed in total; after that the key is rejected. Empty = none.">
-<button class="act">Create key</button></form></div>
+<div class="card"><form method="post" action="/admin/keys/create" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<div class="field"><label>Label<input type="text" name="label" maxlength="80"></label></div>
+<div class="field"><label>Rate limit (requests per minute, empty = unlimited)<input type="number" name="rate" min="0" inputmode="numeric"></label></div>
+{{template "expiry_field" neverExpires}}
+<div class="row"><button class="act">Create key</button></div></form></div>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Key</th><th>Label</th><th>Usage</th>{{template "th_actions"}}</tr></thead><tbody>
-{{range .Keys}}<tr><td class="status" data-label="Status">{{if .Revoked}}{{template "pill" (pill "off" "revoked" "")}}{{else}}{{template "pill" (pill "ok" "active" "")}}{{end}}</td><td class="primary" data-label="Key"><code>{{.Masked}}</code></td><td data-label="Label">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
+{{range .Keys}}<tr><td class="status" data-label="Status">{{template "pill" (keyStatus .)}}</td><td class="primary" data-label="Key"><code>{{.Masked}}</code></td><td data-label="Label">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
 <td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#key-{{.ID}}">details</button>{{if not .Revoked}}
 <form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">regenerate</button></form>
 <form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form>{{end}}</div></td></tr>
@@ -15,18 +15,19 @@
 {{range .Keys}}{{template "dialog_content" (dlg (printf "key-%d" .ID) "Virtual key")}}
 {{if not .Revoked}}<h4>Limits</h4>
 <form method="post" action="/admin/keys/limits" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
-<div class="field"><label>Requests per minute (empty = unlimited)</label><input type="number" name="rate" min="0" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></div>
-<div class="field"><label>Hard stop: total requests, then rejected (empty = none)</label><input type="number" name="stop" min="0" value="{{if .HardStop}}{{.HardStop}}{{end}}"></div>
+<div class="field"><label>Rate limit (requests per minute, empty = unlimited)<input type="number" name="rate" min="0" inputmode="numeric" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></label></div>
+{{template "expiry_field" (expiry .ExpiresAt)}}
 <div class="row"><button class="act">Save</button></div></form>{{end}}
 <h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 <tr><th>key</th><td><code>{{.Masked}}</code></td></tr>
 <tr><th>label</th><td>{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td></tr>
-<tr><th>limits</th><td>{{.LimitsText}}</td></tr>
+<tr><th>rate limit</th><td>{{.LimitsText}}</td></tr>
+<tr><th>expires</th><td>{{if .ExpiresAt.IsZero}}never{{else}}{{ts .ExpiresAt}}{{end}}</td></tr>
 <tr><th>created</th><td>{{ts .CreatedAt}}</td></tr>
 <tr><th>last used</th><td>{{ts .LastUsed}}</td></tr>
 <tr><th>usage</th><td>{{template "tip" (keyUsage .)}}</td></tr>
-<tr><th>status</th><td>{{if .Revoked}}{{template "pill" (pill "off" "revoked" "")}}{{else}}{{template "pill" (pill "ok" "active" "")}}{{end}}</td></tr>
+<tr><th>status</th><td>{{template "pill" (keyStatus .)}}</td></tr>
 </tbody></table></div>
 {{template "dialog_end"}}{{end}}
 <form method="post" action="/admin/settings/query-key" class="row"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act toggle {{if .QueryKey}}on{{else}}off{{end}}" title="accept the key as ?key= on MCP endpoints; it leaks into logs and history">?key= {{if .QueryKey}}accepted{{else}}refused{{end}}</button></form>
