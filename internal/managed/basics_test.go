@@ -226,3 +226,19 @@ func TestGoEnv(t *testing.T) {
 		t.Error("go is not offered as a command")
 	}
 }
+
+// An empty value is not a value: the variable stays unset so the program's own default applies.
+func TestBuildEnvSkipsEmptyValues(t *testing.T) {
+	env := BuildEnv([]string{"LANG=en_US.UTF-8"}, "/h", "/t", []KV{{"UNSET_ME", ""}, {"LANG", ""}, {"KEPT", "v"}})
+	m := map[string]string{}
+	for _, e := range env {
+		k, v, _ := strings.Cut(e, "=")
+		m[k] = v
+	}
+	if _, ok := m["UNSET_ME"]; ok {
+		t.Fatalf("an empty variable was passed: %v", env)
+	}
+	if m["LANG"] != "en_US.UTF-8" || m["KEPT"] != "v" {
+		t.Fatalf("an empty value overrode a default: %v", m)
+	}
+}

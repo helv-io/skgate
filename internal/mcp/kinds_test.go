@@ -142,3 +142,34 @@ func TestMergeSecretsKeepsHiddenSettings(t *testing.T) {
 		t.Fatalf("%q %d", got.WorkDir, got.IdleSecs)
 	}
 }
+
+// Rows left empty are not stored and not passed to the process, so nothing has to be deleted from the form.
+func TestEmptyEnvValuesAreNotStoredOrPassed(t *testing.T) {
+	e := newEnv(t, nil)
+	u := Upstream{Alias: "tools", Kind: KindStdio, Command: "npx", Lifecycle: "always", Enabled: true,
+		Env: []KV{{"API_BASE", "http://x"}, {"OPTIONAL_ONE", ""}, {"OPTIONAL_TWO", ""}}}
+	if err := e.srv.Upstreams.Create(u); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := e.srv.Upstreams.Get("tools")
+	if len(got.Env) != 1 || got.Env[0].Name != "API_BASE" {
+		t.Fatalf("stored: %+v", got.Env)
+	}
+	// an edit that blanks a row that has a stored value keeps the stored value (the masked-form rule);
+	// a new blank row is dropped
+	edit := got
+	edit.Env = []KV{{"API_BASE", ""}, {"ANOTHER", ""}}
+	edit = MergeSecrets(got, edit, false)
+	if err := e.srv.Upstreams.Update(edit, false); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = e.srv.Upstreams.Get("tools")
+	if len(got.Env) != 1 || got.Env[0].Value != "http://x" {
+		t.Fatalf("after edit: %+v", got.Env)
+	}
+	// rows stored empty by an earlier version never reach the process
+	legacy := Upstream{Kind: KindStdio, Env: []KV{{"A", ""}, {"B", "b"}}}
+	if sp := legacy.Spec(); len(sp.Env) != 1 || sp.Env[0].Name != "B" {
+		t.Fatalf("spec env: %+v", sp.Env)
+	}
+}
