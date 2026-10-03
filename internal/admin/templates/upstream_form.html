@@ -1,5 +1,5 @@
 {{define "upstream_fields"}}
-<div class="field"><label>Alias</label>{{if .New}}<input type="text" name="alias" required pattern="[a-z0-9-]+" maxlength="63" value="{{.U.Alias}}">{{else}}<code>{{.U.Alias}}</code>{{end}}</div>
+<div class="field"><label>Alias</label>{{if .New}}<input type="text" name="alias" required pattern="[a-z0-9\-]+" maxlength="63" value="{{.U.Alias}}">{{else}}<code>{{.U.Alias}}</code>{{end}}</div>
 <div class="field"><label>Type</label>
 {{if .New}}<select name="kind" data-kind-select>
 <option value="remote" {{if eq .U.Kind "remote"}}selected{{end}}>remote (URL)</option>
