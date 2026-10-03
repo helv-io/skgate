@@ -109,11 +109,47 @@ func OpenWith(path, secretsKey string) (*DB, error) {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	db := &DB{DB: sdb, Secrets: box, SecretsSource: src}
+	if err := db.SealSettings(SealedSettings...); err != nil {
+		sdb.Close()
+		return nil, fmt.Errorf("seal secrets: %w", err)
+	}
 	if err := db.sealLegacy(); err != nil {
 		sdb.Close()
 		return nil, fmt.Errorf("seal secrets: %w", err)
 	}
 	return db, nil
+}
+
+// SealedSettings are the settings holding credentials; they are stored sealed (see GetSecret).
+var SealedSettings = []string{"provider.grok.access", "provider.grok.refresh", "provider.grok.id"}
+
+// GetSecret reads a sealed setting and opens it. A value stored as plaintext by an older release is returned
+// as is. ok is false when the key is unset; err is set when the value cannot be decrypted (wrong key).
+func (d *DB) GetSecret(key string) (value string, ok bool, err error) {
+	raw, ok := d.GetSetting(key)
+	if !ok {
+		return "", false, nil
+	}
+	v, err := d.Secrets.Open(raw)
+	return v, true, err
+}
+
+// SetSecret stores value sealed.
+func (d *DB) SetSecret(key, value string) error { return d.SetSetting(key, d.Secrets.Seal(value)) }
+
+// SealSettings seals the given settings that are stored as plaintext. It is idempotent: sealed and empty
+// values are left alone.
+func (d *DB) SealSettings(keys ...string) error {
+	for _, k := range keys {
+		raw, ok := d.GetSetting(k)
+		if !ok || raw == "" || secrets.IsSealed(raw) {
+			continue
+		}
+		if err := d.SetSecret(k, raw); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // sealLegacy encrypts upstream credentials stored as plaintext by older releases. It is
