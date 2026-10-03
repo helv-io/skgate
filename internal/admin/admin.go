@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -224,6 +225,7 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/keys", a.guard(a.keys))
 	mux.HandleFunc("/admin/keys/create", a.guard(a.keyCreate))
 	mux.HandleFunc("/admin/keys/revoke", a.guard(a.postOnly(a.keyRevoke)))
+	mux.HandleFunc("/admin/keys/limits", a.guard(a.postOnly(a.keyLimits)))
 	mux.HandleFunc("/admin/keys/regenerate", a.guard(a.postOnly(a.keyRegenerate)))
 	mux.HandleFunc("/admin/upstreams", a.guard(a.upstreams))
 	mux.HandleFunc("/admin/upstreams/edit", a.guard(a.upstreamEdit))
@@ -360,13 +362,56 @@ func (a *Admin) keys(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) keyCreate(w http.ResponseWriter, r *http.Request) {
-	full, _, err := a.Keys.Create(r.PostFormValue("label"))
+	rate, stop, err := limitsOf(r)
+	if err != nil {
+		a.back(w, r, "/admin/keys", "", err.Error())
+		return
+	}
+	full, k, err := a.Keys.Create(r.PostFormValue("label"))
+	if err == nil && (rate > 0 || stop > 0) {
+		err = a.Keys.SetLimits(k.ID, rate, stop)
+	}
 	if err != nil {
 		a.back(w, r, "/admin/keys", "", "create failed")
 		return
 	}
 	ks, _ := a.Keys.List()
 	a.render(w, r, "keys", page{Title: "Virtual keys", Nav: "keys", Toasts: []toast{{toastOK, "key created"}}, Data: keysData{Keys: ks, NewKey: full, QueryKey: a.Cfg.QueryKeyAllowed()}})
+}
+
+// limitsOf reads the optional limits of the key forms; empty means unlimited.
+func limitsOf(r *http.Request) (rate, stop int64, err error) {
+	bad := fmt.Errorf("limits must be whole numbers from 0 to %d (empty = unlimited)", vkeys.MaxLimit)
+	one := func(name string) (int64, error) {
+		v := strings.TrimSpace(r.PostFormValue(name))
+		if v == "" {
+			return 0, nil
+		}
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || n < 0 || n > vkeys.MaxLimit {
+			return 0, bad
+		}
+		return n, nil
+	}
+	if rate, err = one("rate"); err != nil {
+		return
+	}
+	stop, err = one("stop")
+	return
+}
+
+func (a *Admin) keyLimits(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PostFormValue("id"), 10, 64)
+	rate, stop, err := limitsOf(r)
+	if err == nil {
+		err = a.Keys.SetLimits(id, rate, stop)
+	}
+	if err != nil {
+		a.back(w, r, "/admin/keys", "", err.Error())
+		return
+	}
+	log.Printf("admin: key id=%d limits set: rate=%d/min hard_stop=%d", id, rate, stop)
+	a.back(w, r, "/admin/keys", "key limits saved", "")
 }
 
 // keyRegenerate swaps the secret of an active key and shows the new one once (rendered directly,

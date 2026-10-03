@@ -1,6 +1,8 @@
 package app
 
 import (
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -54,5 +56,47 @@ func TestKeysPageUsageColumn(t *testing.T) {
 	}
 	if id := row("idle"); !strings.Contains(id, "<span class=\"tip\">\u2014</span>") {
 		t.Errorf("unused key shows a bare em-dash:\n%s", id)
+	}
+}
+
+// Limits are optional: the create form and the per-key dialog set them, an empty value means unlimited, bad
+// values are refused, and the table shows them.
+func TestKeyLimitsInAdmin(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"free"}})
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"capped"}, "rate": {"30"}, "stop": {"1000"}})
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"bad"}, "rate": {"-4"}})
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"bad2"}, "stop": {"lots"}})
+	ks, _ := a.Keys.List()
+	if len(ks) != 2 {
+		t.Fatalf("invalid limits must not create a key: %d keys", len(ks))
+	}
+	by := map[string]vkeys.Key{}
+	for _, k := range ks {
+		by[k.Label] = k
+	}
+	if by["free"].Limited() || by["capped"].RatePerMin != 30 || by["capped"].HardStop != 1000 {
+		t.Fatalf("%+v", by)
+	}
+	_, page := br.get("/admin/keys")
+	for _, want := range []string{"<th>Limits</th>", "30/min, stop at 1000", ">unlimited<", `name="rate"`, `name="stop"`, `action="/admin/keys/limits"`, `id="key-limits-`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("keys page lacks %q", want)
+		}
+	}
+	br.post("/admin/keys/limits", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["free"].ID, 10)}, "rate": {"5"}})
+	br.post("/admin/keys/limits", url.Values{"csrf": {csrf}, "id": {strconv.FormatInt(by["capped"].ID, 10)}})
+	ks, _ = a.Keys.List()
+	for _, k := range ks {
+		switch k.Label {
+		case "free":
+			if k.RatePerMin != 5 || k.HardStop != 0 {
+				t.Errorf("free: %+v", k)
+			}
+		case "capped":
+			if k.Limited() {
+				t.Errorf("capped must be cleared: %+v", k)
+			}
+		}
 	}
 }
