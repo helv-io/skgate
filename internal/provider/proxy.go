@@ -9,10 +9,12 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/helv-io/skgate/internal/httputil"
+	"github.com/helv-io/skgate/internal/reqlog"
 	"github.com/helv-io/skgate/internal/vkeys"
 )
 
@@ -99,6 +101,18 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("WWW-Authenticate", `Bearer realm="skgate"`)
 		errJSON(w, http.StatusUnauthorized, "invalid_api_key", "missing or invalid skgate API key")
+		return
+	}
+	if rej := p.Keys.Check(key); rej != nil {
+		log.Printf("provider %s: key id=%d label=%q rejected %s %s: %s", p.Backend.ID(), key.ID, key.Label, r.Method, r.URL.Path, rej.Code)
+		reqlog.Reject(r, "key %d: %s", key.ID, rej.Code)
+		typ := "rate_limit_error"
+		if rej.Code == "key_hard_stop" {
+			typ = "insufficient_quota"
+		} else {
+			w.Header().Set("Retry-After", strconv.Itoa(rej.RetryAfterSeconds()))
+		}
+		httputil.JSON(w, http.StatusTooManyRequests, map[string]any{"error": map[string]any{"message": rej.Message, "type": typ, "code": rej.Code}})
 		return
 	}
 	var body []byte
