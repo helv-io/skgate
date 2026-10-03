@@ -48,6 +48,10 @@
 // Confirmation: a form with data-confirm="text" opens the shared modal (<dialog data-modal>) on submit
 // instead of submitting. Title and confirm label are the submit button's label; a button with class
 // "danger" makes the confirm button destructive. Escape, Cancel and a click on the backdrop close it.
+// Content dialogs are addressed by the URL fragment (#id of their <template>): opening one sets it, a load or
+// hashchange with that fragment opens it, closing it by any route takes the fragment out of the URL again, and
+// the Back button closes it. A dialog opened by a click adds one history entry that closing it by hand removes
+// (history.back); a dialog opened by the address itself has none to remove, so its fragment is replaced.
 (function () {
   var dlg = document.querySelector("[data-modal]");
   if (!dlg) return;
@@ -60,6 +64,8 @@
   var actionsEl = dlg.querySelector("[data-modal-actions]");
   var pending = null; // { form, submitter, opener }
   var opener = null; // the button that opened content
+  var shownId = null; // id of the content dialog in view (its fragment is in the URL)
+  var pushed = false; // opening it added a history entry
 
   // mode switches the one dialog between a confirmation and content copied from a template.
   function mode(content) {
@@ -68,9 +74,29 @@
     textEl.hidden = actionsEl.hidden = content;
     if (!content) bodyEl.textContent = "";
   }
-  function close() {
+  function fragmentId() {
+    var h = location.hash.slice(1);
+    try { return decodeURIComponent(h); } catch (err) { return h; }
+  }
+  function urlWith(id) {
+    return location.pathname + location.search + (id ? "#" + encodeURIComponent(id) : "");
+  }
+  // clearHash takes the fragment of the shown content dialog out of the URL. byBack removes the history entry
+  // the click added; it is asynchronous, so a close that is followed by a navigation replaces the entry instead.
+  function clearHash(byBack) {
+    if (shownId === null) return;
+    shownId = null;
+    var had = pushed;
+    pushed = false;
+    try {
+      if (byBack && had) { history.back(); return; }
+      if (location.hash) history.replaceState(history.state, "", urlWith(""));
+    } catch (err) { /* a document without a real address has no fragment to clear */ }
+  }
+  function close(replace) {
     if (dlg.close && dlg.open) dlg.close(); else dlg.removeAttribute("open");
     mode(false);
+    clearHash(replace !== true);
   }
   function restoreFocus() {
     var p = pending, o = opener;
@@ -78,23 +104,47 @@
     var f = (p && p.opener) || o;
     if (f && f.focus) f.focus();
     mode(false);
+    clearHash(false); // closed some other way than close(): never leave the fragment behind
   }
-  function openContent(sel, from) {
-    var tpl = null;
-    try { tpl = document.querySelector(sel); } catch (err) {}
+  // openContent shows the content dialog whose template has this id. A click records the fragment as a new
+  // history entry (or replaces the one of the dialog it swaps out); a fragment already in the URL is left alone.
+  function openContent(id, from, record) {
+    var tpl = id ? document.getElementById(id) : null;
     if (!tpl || !tpl.hasAttribute("data-dialog-content")) return;
     mode(true);
+    bodyEl.textContent = "";
     titleEl.textContent = tpl.getAttribute("data-title") || "";
     bodyEl.appendChild(tpl.content.cloneNode(true));
     opener = from || null;
+    if (record && fragmentId() !== id) {
+      try {
+        if (shownId === null) { history.pushState(null, "", urlWith(id)); pushed = true; }
+        else history.replaceState(history.state, "", urlWith(id));
+      } catch (err) { /* no real address: the dialog still opens */ }
+    }
+    shownId = id;
     if (dlg.showModal) { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute("open", "");
+  }
+  // The address changed (Back, Forward, a typed fragment): show the dialog it names, or close the one in view.
+  function follow() {
+    var id = fragmentId();
+    var tpl = id ? document.getElementById(id) : null;
+    if (tpl && tpl.hasAttribute("data-dialog-content")) {
+      if (shownId !== id) openContent(id, null, false);
+    } else if (shownId !== null) {
+      shownId = null; pushed = false; // the address is already clear
+      if (dlg.close && dlg.open) dlg.close(); else dlg.removeAttribute("open");
+      mode(false);
+    }
   }
   document.addEventListener("click", function (e) {
     var o = e.target && e.target.closest ? e.target.closest("[data-dialog-open]") : null;
-    if (o) openContent(o.getAttribute("data-dialog-open"), o);
+    if (o) openContent((o.getAttribute("data-dialog-open") || "").replace(/^#/, ""), o, true);
   });
-  closeBtn.addEventListener("click", close);
-  if (location.hash.length > 1) openContent(location.hash, null);
+  closeBtn.addEventListener("click", function () { close(); });
+  window.addEventListener("hashchange", follow);
+  window.addEventListener("popstate", follow);
+  follow();
   function label(btn) { return ((btn && btn.textContent) || "").trim(); }
 
   document.addEventListener("submit", function (e) {
@@ -119,7 +169,7 @@
   okBtn.addEventListener("click", function () {
     var p = pending;
     if (!p) return close();
-    close();
+    close(true); // the form submit navigates away: replace the fragment, do not go back
     p.form._confirmed = true;
     if (p.form.requestSubmit) {
       try { p.form.requestSubmit(p.submitter && p.submitter.form === p.form ? p.submitter : undefined); } catch (err) { p.form.requestSubmit(); }
@@ -128,7 +178,7 @@
     }
     pending = null;
   });
-  cancelBtn.addEventListener("click", close);
+  cancelBtn.addEventListener("click", function () { close(); });
   // A click on the backdrop lands on the dialog element itself; clicks inside land on its children.
   dlg.addEventListener("click", function (e) { if (e.target === dlg) close(); });
   // Escape fires cancel (native) and then close; both end up here.

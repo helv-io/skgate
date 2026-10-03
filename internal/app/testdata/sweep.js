@@ -74,6 +74,30 @@ const measure = () => {
           checks++;
           if (res.length) { bad++; console.log("FAIL", p.name, "dialog", width, JSON.stringify(res)); }
           if (shots && (width === 390 || width === 1280)) await pg.screenshot({ path: shots + "/" + p.name + "-dialog-" + width + ".png" });
+          // the fragment follows the dialog: set on open, gone after Escape, backdrop or the close button, and a
+          // reload then shows no dialog; Back closes it
+          const open = () => pg.evaluate(() => document.querySelector("[data-modal]").open);
+          const hash = () => pg.evaluate(() => location.hash);
+          const settle = () => new Promise(r => setTimeout(r, 120));
+          const reopen = async () => { await pg.evaluate(() => document.querySelector("[data-dialog-open]").click()); await settle(); };
+          checks++;
+          if (!(await open()) || !/^#.+/.test(await hash())) { bad++; console.log("FAIL", p.name, width, "opening sets the fragment", await hash()); }
+          await pg.keyboard.press("Escape"); await settle();
+          checks++;
+          if ((await open()) || (await hash()) !== "") { bad++; console.log("FAIL", p.name, width, "Escape leaves the fragment", await hash()); }
+          await reopen();
+          await pg.mouse.click(2, 2); await settle(); // the backdrop, outside the dialog box
+          checks++;
+          if ((await open()) || (await hash()) !== "") { bad++; console.log("FAIL", p.name, width, "backdrop click leaves the fragment", await hash(), await open()); }
+          await reopen();
+          await pg.evaluate(() => document.querySelector("[data-modal-close]").click()); await settle();
+          await pg.reload({ waitUntil: "load" }); await settle();
+          checks++;
+          if ((await open()) || (await hash()) !== "") { bad++; console.log("FAIL", p.name, width, "a reload after closing reopens the dialog", await hash()); }
+          await reopen();
+          await pg.goBack(); await settle();
+          checks++;
+          if ((await open()) || (await hash()) !== "") { bad++; console.log("FAIL", p.name, width, "Back leaves the dialog open", await hash()); }
         }
       }
       await pg.close();
