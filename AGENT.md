@@ -39,6 +39,7 @@ skgate must work out of the box. Users are not security experts.
 - Dates are typed as plain text, never a native date picker: use the shared `expiry_field` (parsed by `vkeys.ParseExpiry`, live preview from `/admin/keys/expiry`, quick buttons). Add new accepted forms to the parser and its test, not to the script.
 - List tables head their button column with `th_actions` ("Actions") and put Status first.
 - No JS `alert`, `confirm` or `prompt`. One shared modal (`data-modal` for confirmations, `dialog` for content).
+- A `data-confirm` form may sit inside a content dialog (regenerate and revoke are in the key dialog): the content is hidden, not removed, while it asks, so the form can still submit; Cancel and Escape go back to the content. Never clear the body of a dialog whose form is pending.
 - Values with details (usage counts, and the like) use the `tip` component: short visible text, the rest in the hover tooltip. Large counts go through `numfmt.Compact` (K, M, B, T), exact numbers through `numfmt.Exact`; never format counts in a template.
 - Status pills carry their details in a hover tooltip. No subtitle or parenthesis beside a pill. Use the `pill` component.
 - Tokens are shown masked: asterisks plus the last 4 characters; under 8 characters, asterisks only. Refresh tokens appear only in the provider dialog.
