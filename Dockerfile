@@ -2,7 +2,7 @@
 #
 # Targets:
 #   slim  proxy only (static binary on distroless); managed upstreams are unavailable.
-#   full  slim + managed runtimes: Node.js (npm, npx), Python 3 (pip, venv), uv/uvx, .NET 10 SDK, git, tini.
+#   full  slim + managed runtimes: Node.js (npm, npx), Python 3 (pip, venv), uv/uvx, .NET 10 SDK, Go, git, tini.
 # The last stage is the default target, so a plain `docker build .` produces `full`.
 #   docker build --target slim -t skgate:slim .
 #   docker build -t skgate:latest .
@@ -11,6 +11,7 @@ ARG GO_VERSION=1.24
 ARG NODE_VERSION=22
 ARG UV_VERSION=0.12
 ARG DOTNET_VERSION=10.0
+ARG GO_RUNTIME_VERSION=1.25
 
 FROM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
@@ -40,6 +41,10 @@ FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS dotnet
 
+# Go toolchain for managed Go servers, without the docs, tests and samples.
+FROM golang:${GO_RUNTIME_VERSION}-bookworm AS gotool
+RUN rm -rf /usr/local/go/doc /usr/local/go/test /usr/local/go/misc /usr/local/go/api
+
 FROM node:${NODE_VERSION}-bookworm-slim AS full
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates git libgcc-s1 libssl3 libstdc++6 python3 python3-pip python3-venv tini zlib1g \
@@ -47,6 +52,8 @@ RUN apt-get update \
 COPY --from=uv /uv /uvx /usr/local/bin/
 COPY --from=dotnet /usr/share/dotnet /usr/share/dotnet
 RUN ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet
+COPY --from=gotool /usr/local/go /usr/local/go
+RUN ln -s /usr/local/go/bin/go /usr/local/bin/go
 COPY --from=build /out/skgate-full /skgate
 COPY --from=build --chown=1000:1000 /out/data /data
 # Managed children inherit only an allow list of these (see README). Package caches live on the
@@ -65,7 +72,12 @@ ENV DB_PATH=/data/skgate.db LISTEN_ADDR=:8080 \
     DOTNET_NOLOGO=1 \
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
     DOTNET_GENERATE_ASPNET_CERTIFICATE=false \
-    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 \
+    GOROOT=/usr/local/go \
+    GOCACHE=/data/cache/go-build \
+    GOPATH=/data/cache/gopath \
+    GOMODCACHE=/data/cache/gomod \
+    CGO_ENABLED=0
 VOLUME /data
 EXPOSE 8080
 # Same root start and PUID/PGID drop as slim. tini is PID 1 and reaps orphaned grandchildren.

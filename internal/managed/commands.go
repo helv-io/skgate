@@ -26,6 +26,7 @@ var commonCommands = []Command{
 	{"python3", "run a Python file"},
 	{"python", "run a Python file"},
 	{"dotnet", "build and run a .NET project"},
+	{"go", "build and run a Go module (go run)"},
 	{"git", "git"},
 	{"docker", "run a container"},
 	{"sh", "POSIX shell"},

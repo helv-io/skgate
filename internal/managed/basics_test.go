@@ -206,3 +206,23 @@ func TestDotnetEnv(t *testing.T) {
 		t.Error("dotnet is not offered as a command")
 	}
 }
+
+// Go children get build and module caches of their own, writable so the cache can be removed.
+func TestGoEnv(t *testing.T) {
+	got := strings.Join(BuildEnv([]string{"GOROOT=/usr/local/go", "GOCACHE=/shared", "GITHUB_TOKEN=x"}, "/h", "/t", CacheEnv("/c")), "\n")
+	for _, want := range []string{"GOROOT=/usr/local/go", "GOCACHE=/c/go-build", "GOMODCACHE=/c/gomod", "GOPATH=/c/gopath", "GOFLAGS=-modcacherw"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s in\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "GITHUB_TOKEN") || strings.Contains(got, "/shared") {
+		t.Error("an unrelated or shared value leaked into the child")
+	}
+	found := false
+	for _, c := range commonCommands {
+		found = found || c.Name == "go"
+	}
+	if !found {
+		t.Error("go is not offered as a command")
+	}
+}

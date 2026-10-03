@@ -15,6 +15,7 @@ var inheritKeys = []string{
 	"SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
 	"NPM_CONFIG_CACHE", "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR", "UV_TOOL_DIR", "XDG_CACHE_HOME", "PIP_CACHE_DIR",
 	"DOTNET_ROOT", "DOTNET_CLI_TELEMETRY_OPTOUT", "DOTNET_NOLOGO", "DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "DOTNET_GENERATE_ASPNET_CERTIFICATE", "NUGET_PACKAGES",
+	"GOROOT", "GOTOOLCHAIN", "GOPROXY", "GOSUMDB", "CGO_ENABLED",
 	"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
 }
 
@@ -26,6 +27,10 @@ func CacheEnv(cacheDir string) []KV {
 		{"PIP_CACHE_DIR", filepath.Join(cacheDir, "pip")},
 		{"XDG_CACHE_HOME", filepath.Join(cacheDir, "xdg")},
 		{"NUGET_PACKAGES", filepath.Join(cacheDir, "nuget")},
+		{"GOCACHE", filepath.Join(cacheDir, "go-build")},
+		{"GOPATH", filepath.Join(cacheDir, "gopath")},
+		{"GOMODCACHE", filepath.Join(cacheDir, "gomod")},
+		{"GOFLAGS", "-modcacherw"}, // writable module cache, so removing an upstream's cache works
 	}
 }
 

@@ -3,6 +3,8 @@ package mcp
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -122,4 +124,63 @@ func TestE2EUvxServer(t *testing.T) {
 	if tr := e.srv.Test(t.Context(), "clock"); !tr.OK {
 		t.Fatalf("%+v", tr)
 	}
+}
+
+// A dependency-free Go stdio MCP server, built and started by the go runner like a git upstream would be.
+const goServerSrc = `package main
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+func main() {
+	in := bufio.NewScanner(os.Stdin)
+	in.Buffer(make([]byte, 1<<20), 1<<20)
+	for in.Scan() {
+		var m struct {
+			ID     json.RawMessage ` + "`json:\"id\"`" + `
+			Method string          ` + "`json:\"method\"`" + `
+		}
+		if json.Unmarshal(in.Bytes(), &m) != nil || len(m.ID) == 0 {
+			continue
+		}
+		var res string
+		switch m.Method {
+		case "initialize":
+			res = ` + "`" + `{"protocolVersion":"2025-06-18","capabilities":{"tools":{}},"serverInfo":{"name":"gosrv","version":"1"}}` + "`" + `
+		case "tools/list":
+			res = ` + "`" + `{"tools":[{"name":"hello","description":"says hello","inputSchema":{"type":"object"}}]}` + "`" + `
+		default:
+			res = "{}"
+		}
+		fmt.Printf("{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":%s}\n", m.ID, res)
+	}
+}
+`
+
+func TestE2EGoServer(t *testing.T) {
+	e := e2eEnv(t)
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go is not installed")
+	}
+	dir := t.TempDir()
+	for name, body := range map[string]string{"go.mod": "module example.com/gosrv\n\ngo 1.21\n", "main.go": goServerSrc} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.srv.Upstreams.Create(Upstream{Alias: "gosrv", Kind: KindStdio, Command: "go", Args: []string{"run", "."}, WorkDir: dir,
+		Install: "go build ./...", Enabled: true, IncludeInMCP: true, StartupSecs: 240}); err != nil {
+		t.Fatal(err)
+	}
+	key, _, _ := e.keys.Create("t")
+	hdr := e2eSession(t, e, key, "gosrv")
+	names := toolNames(t, readJSON(t, e.do("POST", "/mcp/gosrv", hdr, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)))
+	if strings.Join(names, ",") != "hello" {
+		t.Fatalf("tools: %v", names)
+	}
+	e.srv.ShutdownManaged()
 }
