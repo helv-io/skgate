@@ -3,7 +3,7 @@
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
---sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
+--z-toast:2147483647;--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
 *{box-sizing:border-box;border-radius:0}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans)}
 a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
@@ -157,7 +157,7 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .stack>*+*{margin-top:12px}
 
 /* toasts: fixed at the bottom right, one shared component for every notification; app.js expires and dismisses them */
-.toasts{position:fixed;bottom:14px;right:14px;z-index:50;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 28px))}
+.toasts{position:fixed;bottom:14px;right:14px;z-index:var(--z-toast);display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 28px))}
 .toast{border:1px solid var(--line);background:var(--panel);padding:9px 14px;cursor:pointer;box-shadow:0 4px 16px #0009;overflow-wrap:anywhere;transition:opacity .25s}
 .toast.ok{border-color:#2f4a33;color:var(--ok)}
 .toast.bad{border-color:#5a3532;color:var(--bad)}
