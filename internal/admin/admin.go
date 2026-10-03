@@ -41,6 +41,8 @@ type Admin struct {
 	tries     modelTries
 	// SuggestFetch replaces the public fetcher (tests).
 	SuggestFetch *suggest.Fetcher
+	// SuggestIdle and SuggestCap override the silence and overall limits of a suggestion (tests).
+	SuggestIdle, SuggestCap time.Duration
 	Keys         *vkeys.Manager
 	MCP          *mcp.Server
 	tpl          map[string]*template.Template

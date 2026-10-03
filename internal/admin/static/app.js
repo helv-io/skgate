@@ -296,9 +296,20 @@ document.addEventListener("click", function (e) {
     var d = form.querySelector("[data-manual]");
     if (d) d.open = true;
   }
-  function show(form, cls, label, lines) {
+  function show(form, cls, label, lines, action) {
     var out = form.querySelector("[data-suggest-out]");
     var pill = out.querySelector("[data-suggest-pill]");
+    var act = out.querySelector("[data-suggest-action]");
+    if (act) act.remove();
+    if (action && document.getElementById("helper-model")) { // the dialog of the MCP helper model, where the effort is set
+      act = document.createElement("button");
+      act.type = "button";
+      act.className = "act";
+      act.setAttribute("data-suggest-action", "");
+      act.setAttribute("data-dialog-open", "#helper-model");
+      act.textContent = "Lower effort";
+      pill.parentNode.appendChild(act);
+    }
     var ul = out.querySelector("[data-suggest-list]");
     pill.className = "pill " + cls;
     pill.textContent = label;
@@ -309,9 +320,18 @@ document.addEventListener("click", function (e) {
   function sourceLine(s) {
     return [s.name, s.language, (s.files || []).join(", ")].filter(Boolean).join(" \u00b7 ");
   }
-  function done(form, b, timer, x) {
+  function done(form, b, timer, x, secs) {
     clearInterval(timer);
     b.disabled = false;
+    if (x.timeout) { // a limit was hit: say where and after how long, and offer the effort setting when the model was slow
+      var t = x.timeout, slow = t.stage === "model";
+      var why = t.kind === "idle" ? "No data for " + t.secs + "s." : "The overall limit of " + t.secs + "s was reached.";
+      var lines = [why];
+      if (slow) lines.push("Lower the MCP helper model's effort (now: " + (t.effort || "default") + "), or pick a faster model.");
+      show(form, "bad", "Timed out while " + t.where + " \u00b7 " + secs + "s", lines, slow);
+      if (window.skgateToast) window.skgateToast("bad", x.error);
+      return;
+    }
     if (x.error) {
       show(form, "bad", "failed", [x.error]);
       if (window.skgateToast) window.skgateToast("bad", x.error);
@@ -334,16 +354,19 @@ document.addEventListener("click", function (e) {
     if (form.elements.mode && form.elements.mode.value === "edit" && form.elements.alias) body.set("alias_existing", form.elements.alias.value);
     b.disabled = true;
     var t0 = Date.now(), stage = "Starting", info = [];
-    function tick() { show(form, "warn", stage + " \u00b7 " + Math.round((Date.now() - t0) / 1000) + "s", info); }
+    var chars = 0;
+    function tick() { show(form, "warn", stage + (chars ? " \u00b7 " + (chars >= 1000 ? (chars / 1000).toFixed(1) + "k" : chars) + " chars" : "") + " \u00b7 " + Math.round((Date.now() - t0) / 1000) + "s", info); }
     var timer = setInterval(tick, 1000);
     tick();
     var finished = false;
-    function finish(x) { if (!finished) { finished = true; done(form, b, timer, x); } }
+    function finish(x) { if (!finished) { finished = true; done(form, b, timer, x, Math.round((Date.now() - t0) / 1000)); } }
     function line(l) {
       var m;
       try { m = JSON.parse(l); } catch (err) { return; }
       if (m.stage) {
+        if (m.label && m.label !== stage) chars = 0;
         stage = m.label || stage;
+        if (m.chars) chars = m.chars;
         if (m.source) info = [sourceLine(m.source)];
         tick();
       } else if (m.result || m.error) {

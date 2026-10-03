@@ -8,9 +8,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // postJSON posts like the page script does: Accept application/json, answered in place.
@@ -232,5 +235,152 @@ func TestSuggestStreamsStages(t *testing.T) {
 	_, css := r.br.get("/admin/static/app.css")
 	if !strings.Contains(js, "application/x-ndjson") || !strings.Contains(css, "prefers-reduced-motion") || !strings.Contains(css, "reveal-in") {
 		t.Error("stream reader or reveal style missing")
+	}
+}
+
+// Both model dialogs carry the effort dropdown directly under the model dropdown (same form, so Save covers
+// both), low unless chosen; the chat effort has its own control and its own setting.
+func TestEffortSelectorsInModelDialogs(t *testing.T) {
+	r := newSuggestRig(t, true, true)
+	for _, path := range []string{"/admin", "/admin/upstreams"} {
+		_, page := r.br.get(path)
+		m, e, reload := strings.Index(page, `<select name="model">`), strings.Index(page, `<select name="effort"`), strings.Index(page, "Reload models")
+		if m < 0 || e < m || reload < e {
+			t.Errorf("%s: model select at %d, effort at %d, reload at %d", path, m, e, reload)
+		}
+		if !strings.Contains(page, `<option value="low" selected>Effort: low</option>`) || !strings.Contains(page, "Effort: default (provider decides)") {
+			t.Errorf("%s: effort options missing or not defaulting to low", path)
+		}
+	}
+	_, status := r.br.get("/admin")
+	if !strings.Contains(status, `action="/admin/providers/grok/chat-effort"`) || !strings.Contains(status, `<option value="default" selected>Effort: default (provider decides)</option>`) {
+		t.Error("the chat effort control is missing or not defaulting to the provider's choice")
+	}
+	_, css := r.br.get("/admin/static/app.css")
+	if !strings.Contains(css, ".pick{display:grid") {
+		t.Error("shared pick style missing")
+	}
+
+	ask := func() string {
+		r.suggest(url.Values{"source": {"https://gitlab.com/grp/thing"}, "git_token": {tokenSecret}})
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		return r.prompt[len(r.prompt)-1]
+	}
+	if body := ask(); !strings.Contains(body, `"reasoning_effort":"low"`) {
+		t.Errorf("default effort not sent: %.200s", body)
+	}
+	_, ok := r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"high"}})
+	if ok["toast"].(map[string]any)["m"] != "MCP helper model: helper-2, effort high" {
+		t.Errorf("toast %v", ok["toast"])
+	}
+	if body := ask(); !strings.Contains(body, `"reasoning_effort":"high"`) {
+		t.Errorf("stored effort not sent: %.200s", body)
+	}
+	r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"default"}})
+	if body := ask(); strings.Contains(body, "reasoning_effort") {
+		t.Errorf("default must send nothing: %.200s", body)
+	}
+	if _, bad := r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"extreme"}}); bad["toast"].(map[string]any)["k"] != "bad" {
+		t.Error("an unknown effort must be refused")
+	}
+	if got := r.a.Admin.Set.ChatEffort("grok"); got != "default" {
+		t.Errorf("helper dialog must not touch the chat effort: %s", got)
+	}
+	r.br.post("/admin/providers/grok/chat-effort", url.Values{"csrf": {r.csrf}, "effort": {"medium"}})
+	if r.a.Admin.Set.ChatEffort("grok") != "medium" || r.a.Admin.Set.Effort("grok") != "default" {
+		t.Errorf("settings are not separate: chat %s helper %s", r.a.Admin.Set.ChatEffort("grok"), r.a.Admin.Set.Effort("grok"))
+	}
+}
+
+// A silent model ends the suggestion with a timed-out error that names the stage and the effort, in the log, the
+// stream and the plain JSON answer; the page script shows the state and the button to lower the effort.
+func TestSuggestTimeoutIsVisible(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+	r := newSuggestRig(t, true, true)
+	r.mu.Lock()
+	r.hang = true
+	r.mu.Unlock()
+	r.a.Admin.SuggestIdle = 150 * time.Millisecond
+	form := url.Values{"source": {"https://gitlab.com/grp/thing"}, "git_token": {tokenSecret}, "csrf": {r.csrf}}
+
+	req, _ := http.NewRequest("POST", r.br.ts.URL+"/admin/upstreams/suggest", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/x-ndjson")
+	_, body := r.br.do(req)
+	lines := strings.Split(strings.TrimSpace(body), "\n")
+	var last map[string]any
+	if err := json.Unmarshal([]byte(lines[len(lines)-1]), &last); err != nil {
+		t.Fatal(err)
+	}
+	to, _ := last["timeout"].(map[string]any)
+	if to == nil || to["kind"] != "idle" || to["stage"] != "model" || to["where"] != "asking the model" || to["effort"] != "low" {
+		t.Fatalf("timeout object: %v", last)
+	}
+	if msg, _ := last["error"].(string); !strings.Contains(msg, "timed out while asking the model") || !strings.Contains(msg, "lower the effort") {
+		t.Errorf("reason: %v", last["error"])
+	}
+
+	resp, plain := r.postJSON("/admin/upstreams/suggest", url.Values{"source": {"https://gitlab.com/grp/thing"}, "git_token": {tokenSecret}})
+	if resp.StatusCode != http.StatusGatewayTimeout || plain["timeout"] == nil {
+		t.Errorf("plain answer: %d %v", resp.StatusCode, plain)
+	}
+
+	// the overall cap is reported as such
+	r.a.Admin.SuggestIdle, r.a.Admin.SuggestCap = time.Minute, 200*time.Millisecond
+	_, capped := r.postJSON("/admin/upstreams/suggest", url.Values{"source": {"https://gitlab.com/grp/thing"}, "git_token": {tokenSecret}})
+	if c, _ := capped["timeout"].(map[string]any); c == nil || c["kind"] != "cap" {
+		t.Errorf("cap: %v", capped)
+	}
+
+	out := buf.String()
+	for _, want := range []string{"suggest: model call timed out (idle) stage=model effort=low", "suggest: model call timed out (cap)", "suggest: failed source=https://gitlab.com/grp/thing"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("log lacks %q", want)
+		}
+	}
+	if strings.Contains(out, tokenSecret) {
+		t.Error("the token reached the log")
+	}
+
+	_, js := r.br.get("/admin/static/app.js")
+	_, page := r.br.get("/admin/upstreams")
+	if !strings.Contains(js, "Timed out while ") || !strings.Contains(js, `"Lower effort"`) || !strings.Contains(js, `"#helper-model"`) || !strings.Contains(page, `id="helper-model"`) {
+		t.Error("the timed-out state or the Lower effort button is missing")
+	}
+}
+
+// The page script turns a timeout into a distinct state with the elapsed time and the Lower effort button, and
+// shows streamed activity while the model works. Needs node and jsdom (see TestModalBehaviorInJSDOM).
+func TestSuggestTimeoutStateInJSDOM(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	env := os.Environ()
+	if d := os.Getenv("SKGATE_JSDOM"); d != "" {
+		env = append(env, "NODE_PATH="+filepath.Join(d, "node_modules"))
+	}
+	probe := exec.Command(node, "-e", `require("jsdom")`)
+	probe.Env = env
+	if err := probe.Run(); err != nil {
+		t.Skip("jsdom is not available (set SKGATE_JSDOM to a directory with node_modules/jsdom)")
+	}
+	r := newSuggestRig(t, true, true)
+	_, page := r.br.get("/admin/upstreams")
+	dir := t.TempDir()
+	file := filepath.Join(dir, "upstreams.html")
+	if err := os.WriteFile(file, []byte(page), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	js, _ := filepath.Abs(filepath.Join("..", "admin", "static", "app.js"))
+	script, _ := filepath.Abs(filepath.Join("testdata", "suggest_timeout.js"))
+	cmd := exec.Command(node, script, file, js)
+	cmd.Env = env
+	out, err := cmd.CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "ALL OK") {
+		t.Fatalf("%v\n%s", err, out)
 	}
 }
