@@ -222,6 +222,60 @@ func TestUnauthorized401(t *testing.T) {
 	resp.Body.Close()
 }
 
+// Unusable redirect URIs are dropped as long as one usable URI remains.
+func TestDCRIgnoresUnusableRedirects(t *testing.T) {
+	e := newEnv(t, nil)
+	post := func(body string) map[string]any {
+		r := e.do("POST", "/register", map[string]string{"Content-Type": "application/json"}, body)
+		if r.StatusCode != 201 {
+			t.Fatalf("%s: status %d", body, r.StatusCode)
+		}
+		return readJSON(t, r)
+	}
+	m := post(`{"redirect_uris":["cursor://anysphere.cursor-mcp/oauth/callback","` + hostedRedirect + `","http://evil.example/cb","https://u:p@x.example/cb","http://127.0.0.1:5555/cb"]}`)
+	uris, _ := m["redirect_uris"].([]any)
+	if len(uris) != 2 || uris[0] != hostedRedirect || uris[1] != "http://127.0.0.1:5555/cb" {
+		t.Fatalf("only the usable URIs should be kept: %v", uris)
+	}
+	c, _ := e.srv.Clients.Get(m["client_id"].(string))
+	if len(c.RedirectURIs) != 2 {
+		t.Fatalf("stored: %v", c.RedirectURIs)
+	}
+}
+
+// Grant types, response types and auth methods are reduced to the supported subset.
+func TestDCRNegotiatesDown(t *testing.T) {
+	e := newEnv(t, nil)
+	post := func(body string) *http.Response {
+		return e.do("POST", "/register", map[string]string{"Content-Type": "application/json"}, body)
+	}
+	r := post(`{"redirect_uris":["` + hostedRedirect + `"],"token_endpoint_auth_method":"private_key_jwt",` +
+		`"grant_types":["authorization_code","client_credentials","refresh_token","refresh_token"],"response_types":["code","token"]}`)
+	if r.StatusCode != 201 {
+		t.Fatalf("status %d", r.StatusCode)
+	}
+	m := readJSON(t, r)
+	if m["token_endpoint_auth_method"] != "none" || m["client_secret"] != nil {
+		t.Errorf("unsupported method should fall back to a public client: %v", m)
+	}
+	if g, _ := json.Marshal(m["grant_types"]); string(g) != `["authorization_code","refresh_token"]` {
+		t.Errorf("grants: %s", g)
+	}
+	if g, _ := json.Marshal(m["response_types"]); string(g) != `["code"]` {
+		t.Errorf("response types: %s", g)
+	}
+	// nothing usable left: still refused, with the invalid_client_metadata error
+	for _, bad := range []string{
+		`{"redirect_uris":["` + hostedRedirect + `"],"grant_types":["client_credentials"]}`,
+		`{"redirect_uris":["` + hostedRedirect + `"],"response_types":["token"]}`,
+	} {
+		r := post(bad)
+		if r.StatusCode != 400 || readJSON(t, r)["error"] != "invalid_client_metadata" {
+			t.Errorf("%s: %d", bad, r.StatusCode)
+		}
+	}
+}
+
 func TestDCR(t *testing.T) {
 	e := newEnv(t, nil)
 	post := func(body string) *http.Response {
@@ -248,7 +302,7 @@ func TestDCR(t *testing.T) {
 		`{"redirect_uris":["http://hosted.example/r/x"]}`,
 		`{"redirect_uris":["https://hosted.example@evil.com/"]}`,
 		`{"redirect_uris":["https://u:p@hosted.example/r/x"]}`,
-		`{"redirect_uris":["` + hostedRedirect + `","ftp://evil.example.com/cb"]}`,
+		`{"redirect_uris":["cursor://anysphere.cursor-mcp/oauth/callback","ftp://evil.example.com/cb"]}`,
 		`{"redirect_uris":[]}`,
 		`{}`,
 	} {
@@ -259,10 +313,6 @@ func TestDCR(t *testing.T) {
 		if m := readJSON(t, r); m["error"] != "invalid_redirect_uri" {
 			t.Errorf("%s: error=%v", bad, m["error"])
 		}
-	}
-	r := post(`{"redirect_uris":["` + hostedRedirect + `"],"token_endpoint_auth_method":"private_key_jwt"}`)
-	if m := readJSON(t, r); m["error"] != "invalid_client_metadata" {
-		t.Errorf("bad auth method error=%v", m["error"])
 	}
 	if g := e.do("GET", "/register", nil, ""); g.StatusCode != 405 {
 		t.Errorf("GET /register: %d", g.StatusCode)
