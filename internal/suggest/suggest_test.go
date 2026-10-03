@@ -10,9 +10,11 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestParseSource(t *testing.T) {
@@ -678,5 +680,70 @@ func TestGitHubTokenOnAPrivateRepositoryAsksForAnUpstreamToken(t *testing.T) {
 	_, err := f.Fetch(context.Background(), src, "")
 	if err == nil || !strings.Contains(err.Error(), "access token") {
 		t.Fatalf("%v", err)
+	}
+}
+
+func rateLimitServer(t *testing.T, remaining, reset string) *Fetcher {
+	f, _ := fetcherFor(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-RateLimit-Remaining", remaining)
+		if reset != "" {
+			w.Header().Set("X-RateLimit-Reset", reset)
+		}
+		w.WriteHeader(403)
+	})
+	return f
+}
+
+func TestGitHubRateLimitNamesTheResetTime(t *testing.T) {
+	loc := time.FixedZone("test", -5*3600)
+	old := time.Local
+	time.Local = loc
+	t.Cleanup(func() { time.Local = old })
+	reset := time.Date(2026, 10, 3, 14, 7, 0, 0, loc)
+	f := rateLimitServer(t, "0", strconv.FormatInt(reset.Unix(), 10))
+	src, _ := ParseSource("https://github.com/acme/tool")
+
+	_, err := f.Fetch(context.Background(), src, "")
+	if err == nil || err.Error() != "GitHub rate limit reached, try again at 14:07 or set GITHUB_TOKEN" {
+		t.Fatalf("no token: %v", err)
+	}
+	// with a token (the upstream's or GITHUB_TOKEN) setting GITHUB_TOKEN is no advice
+	_, err = f.Fetch(context.Background(), src, "own")
+	if err == nil || err.Error() != "GitHub rate limit reached, try again at 14:07" {
+		t.Fatalf("own token: %v", err)
+	}
+	f.GitHubToken = "shared"
+	_, err = f.Fetch(context.Background(), src, "")
+	if err == nil || err.Error() != "GitHub rate limit reached, try again at 14:07" {
+		t.Fatalf("shared token: %v", err)
+	}
+}
+
+func TestGitHubRateLimitWithoutResetHeader(t *testing.T) {
+	f := rateLimitServer(t, "0", "")
+	src, _ := ParseSource("https://github.com/acme/tool")
+	_, err := f.Fetch(context.Background(), src, "")
+	if err == nil || err.Error() != "GitHub rate limit reached, try again later or set GITHUB_TOKEN" {
+		t.Fatalf("%v", err)
+	}
+}
+
+func TestForbiddenWithRequestsLeftIsStillAnAuthProblem(t *testing.T) {
+	f := rateLimitServer(t, "42", "1")
+	src, _ := ParseSource("https://github.com/acme/private")
+	_, err := f.Fetch(context.Background(), src, "")
+	if err == nil || strings.Contains(err.Error(), "rate limit") || !strings.Contains(err.Error(), "access token") {
+		t.Fatalf("%v", err)
+	}
+	// other hosts keep their own handling even with those headers
+	g, _ := ParseSource("https://gitlab.com/g/p")
+	_, err = f.Fetch(context.Background(), g, "")
+	if err == nil || strings.Contains(err.Error(), "rate limit") {
+		t.Fatalf("gitlab: %v", err)
+	}
+	h := rateLimitServer(t, "0", "1")
+	_, err = h.Fetch(context.Background(), g, "")
+	if err == nil || strings.Contains(err.Error(), "rate limit") {
+		t.Fatalf("gitlab with remaining 0: %v", err)
 	}
 }
