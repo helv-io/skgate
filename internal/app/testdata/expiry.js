@@ -29,8 +29,14 @@ const type=(v)=>{ input.value=v; input.dispatchEvent(new w.Event("input",{bubble
   ok(prev.textContent==="Expires 30d","the answer is shown");
   type("bad"); await tick(250);
   ok(prev.classList.contains("bad")&&!prev.classList.contains("muted")&&/Try 30d/.test(prev.textContent),"an unreadable text shows the hint in the error colour");
+  ok(input.getAttribute("aria-invalid")==="true"&&!input.validity.valid&&!input.form.checkValidity(),"an unreadable text marks the field invalid and blocks the form");
   type("1d"); await tick(250);
   ok(!prev.classList.contains("bad")&&prev.classList.contains("muted"),"a good text clears the error colour");
+  ok(!input.hasAttribute("aria-invalid")&&input.validity.valid&&input.form.checkValidity(),"a good text clears the block");
+  type("bad"); await tick(250); box.querySelector("[data-expiry-set='never']").click(); await tick(20);
+  ok(!input.hasAttribute("aria-invalid")&&input.form.checkValidity(),"clearing the field with Never lifts the block");
+  type("bad"); await tick(250); type(""); await tick(250);
+  ok(!input.hasAttribute("aria-invalid")&&input.form.checkValidity(),"an empty field is valid again");
   // quick buttons
   const chips=[...box.querySelectorAll("[data-expiry-set]")].map(b=>b.textContent.trim());
   ok(chips.join()==="1 day,7 days,30 days,90 days,1 year,Never","quick buttons: "+chips);
@@ -56,5 +62,6 @@ const type=(v)=>{ input.value=v; input.dispatchEvent(new w.Event("input",{bubble
   // a failed check does not block anything
   mode="fail"; type("5d"); await tick(250);
   ok(!prev.classList.contains("bad")&&/server reads it when you save/.test(prev.textContent),"a failed check says the server will read it");
+  ok(!input.hasAttribute("aria-invalid")&&input.form.checkValidity(),"a failed check never blocks the form");
   console.log(fails?("FAILED "+fails):"ALL OK"); process.exit(fails?1:0);
 })();
