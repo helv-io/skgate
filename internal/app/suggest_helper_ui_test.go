@@ -186,3 +186,51 @@ func TestModelPickerShowsTimeBeforeReload(t *testing.T) {
 		}
 	}
 }
+
+// The suggest endpoint streams stage lines and then the result (or the error) when asked for NDJSON; plain
+// JSON callers are unchanged.
+func TestSuggestStreamsStages(t *testing.T) {
+	r := newSuggestRig(t, true, true)
+	post := func(v url.Values) (*http.Response, []map[string]any) {
+		v.Set("csrf", r.csrf)
+		req, _ := http.NewRequest("POST", r.br.ts.URL+"/admin/upstreams/suggest", strings.NewReader(v.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept", "application/x-ndjson")
+		resp, body := r.br.do(req)
+		var out []map[string]any
+		for _, l := range strings.Split(strings.TrimSpace(body), "\n") {
+			var m map[string]any
+			if json.Unmarshal([]byte(l), &m) != nil {
+				t.Fatalf("not a JSON line: %q", l)
+			}
+			out = append(out, m)
+		}
+		return resp, out
+	}
+	resp, lines := post(url.Values{"source": {"https://gitlab.com/grp/thing"}, "git_token": {tokenSecret}})
+	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/x-ndjson") || len(lines) != 5 {
+		t.Fatalf("%s %v", resp.Header.Get("Content-Type"), lines)
+	}
+	for i, st := range []string{"fetch", "read", "model", "check"} {
+		if lines[i]["stage"] != st {
+			t.Errorf("line %d: %v", i, lines[i])
+		}
+	}
+	if src := lines[1]["source"].(map[string]any); src["name"] != "grp/thing" {
+		t.Errorf("source %v", src)
+	}
+	if res, ok := lines[4]["result"].(map[string]any); !ok || res["command"] != "node" {
+		t.Errorf("result %v", lines[4])
+	}
+	// a failure arrives as an error line
+	_, lines = post(url.Values{"source": {"https://gitlab.com/grp/thing"}})
+	if last := lines[len(lines)-1]; last["error"] == nil || !strings.Contains(last["error"].(string), "token") {
+		t.Errorf("error line %v", lines)
+	}
+	// the script and styles carry the stream reader and honor reduced motion
+	_, js := r.br.get("/admin/static/app.js")
+	_, css := r.br.get("/admin/static/app.css")
+	if !strings.Contains(js, "application/x-ndjson") || !strings.Contains(css, "prefers-reduced-motion") || !strings.Contains(css, "reveal-in") {
+		t.Error("stream reader or reveal style missing")
+	}
+}

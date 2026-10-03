@@ -515,3 +515,25 @@ func TestSuggestLogsStagesAndFailureReasons(t *testing.T) {
 		t.Errorf("fetch failure: %v\n%s", err, got)
 	}
 }
+
+// Stages are reported in order, with what was found after the fetch.
+func TestSuggestReportsProgress(t *testing.T) {
+	llm := &mockLLM{reply: func(string) (int, string) { return 200, chat(goodReply()) }}
+	svc := npmService(t, llm)
+	var ev []Event
+	svc.Progress = func(e Event) { ev = append(ev, e) }
+	src, _ := ParseSource("mcp-thing")
+	if _, err := svc.Suggest(context.Background(), "m1", src, "", runners); err != nil {
+		t.Fatal(err)
+	}
+	var stages []string
+	for _, e := range ev {
+		stages = append(stages, e.Stage+":"+e.Label)
+	}
+	if got := strings.Join(stages, ","); got != "fetch:Fetching repo,read:Reading README,model:Asking the model,check:Checking the config" {
+		t.Fatalf("stages %s", got)
+	}
+	if s := ev[1].Source; s == nil || s.Name != "mcp-thing" || s.Language != "Node.js" || len(s.Files) == 0 {
+		t.Fatalf("source %+v", ev[1].Source)
+	}
+}
