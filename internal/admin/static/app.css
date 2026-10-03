@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -177,6 +177,14 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .dialog-body h4,.card h3{margin:16px 0 6px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
 .card h3{margin:0;font-size:15px;text-transform:none;letter-spacing:0;color:var(--fg)}
 .row.spread{justify-content:space-between;margin:0 0 8px}
+/* dialog sections: each one saves on its own; the heading shows a chip while it holds unsaved edits */
+.dsec{display:block;padding:0 0 12px;border-top:1px solid var(--line2)}
+.dsec:first-child{border-top:0}
+.dsec>summary{margin:12px 0 4px;color:var(--dim)}
+.dsec>h4:first-child{margin-top:14px}
+.dsec h4 .chip{margin-left:8px;text-transform:none;letter-spacing:0}
+.row.bottom{align-items:flex-end}
+.row.bottom>.field{flex:1 1 160px;margin:0}
 
 /* suggest: output area of the configuration helper */
 .suggest-out{margin:0 0 12px}
