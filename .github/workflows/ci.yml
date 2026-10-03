@@ -27,11 +27,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Build and vet run with shard 1; the slow internal/app tests are dealt out to the shards (tools/test-shard.sh).
   check:
+    name: check (shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/go
-      - run: go build ./...
-      - run: go vet ./...
-      - run: go test ./...
+      - run: tools/test-shard.sh ${{ matrix.shard }} 3

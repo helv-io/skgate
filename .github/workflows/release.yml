@@ -5,7 +5,7 @@
 #   slim            vX.Y.Z-slim  X.Y.Z-slim  slim  <sha12>-slim
 #
 # How it runs:
-#   test    go test, in parallel with the builds.
+#   test    go build, vet and test in three shards (tools/test-shard.sh), in parallel with the builds.
 #   build   four jobs (full and slim, each on a native amd64 and a native arm64 runner, no emulation) push their image
 #           by digest only, with no tag, and keep their layers in a registry cache that every ref can read.
 #   merge   after test AND build succeeded: puts the tags on one multi-arch manifest per variant. Until this job runs
@@ -42,11 +42,16 @@ env:
 
 jobs:
   test:
+    name: test (shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/go
-      - run: go test ./...
+      - run: tools/test-shard.sh ${{ matrix.shard }} 3
 
   build:
     name: build ${{ matrix.variant }} ${{ matrix.arch }}
