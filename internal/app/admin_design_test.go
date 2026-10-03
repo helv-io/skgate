@@ -65,7 +65,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 		}
 	}
 	// the table keeps the at-a-glance columns; the rest is in the Details dialog
-	for _, want := range []string{`<th>Name</th><th>Type</th><th>Enabled</th><th>In /mcp</th>`, `data-dialog-open="#upstream-`, `<th>outbound auth</th>`} {
+	for _, want := range []string{`<th>Status</th><th>Name</th><th>Type</th><th>Enabled</th><th>In /mcp</th>`, `data-dialog-open="#upstream-`, `<th>outbound auth</th>`} {
 		if !strings.Contains(ups, want) {
 			t.Errorf("upstreams page lacks %q", want)
 		}
@@ -77,7 +77,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 			t.Errorf("upstreams page still has %q", gone)
 		}
 	}
-	for _, want := range []string{"type: remote\nurl: " + up.URL + "/a/very/long/path", "type: stdio\ncommand: " + os.Args[0], "type: git\nsource: https://git.example.com/org/repo.git\ncommand: python3 -m srv", ">detect</button>"} {
+	for _, want := range []string{"type: remote\nurl: " + up.URL + "/a/very/long/path", "type: managed \u00b7 command\ncommand: " + os.Args[0], "type: managed \u00b7 git\nsource: https://git.example.com/org/repo.git\ncommand: python3 -m srv", ">detect</button>"} {
 		if !strings.Contains(ups, want) {
 			t.Errorf("upstreams page lacks %q", want)
 		}

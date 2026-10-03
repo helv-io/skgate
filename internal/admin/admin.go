@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -566,6 +567,9 @@ type upstreamView struct {
 	Effective string
 	// Target is the URL of a remote upstream or the command line of a managed one.
 	Target string
+	// TypeLabel names the kind the way every screen does: "remote", "managed · git", "managed · npm", "managed · pypi"
+	// or "managed · command" (a managed server that runs a program of its own).
+	TypeLabel string
 	// Tip is the hover text of the alias: type, target, source and revision, host override.
 	Tip string
 	// Facts are the same lines for the Details dialog.
@@ -921,7 +925,7 @@ func (a *Admin) view(u mcp.Upstream) upstreamView {
 	if u.AuthKind == mcp.AuthAuto {
 		eff = "auto: " + orDash(u.DetectedKind, "pending")
 	}
-	v := upstreamView{Upstream: u, Masked: mask(u), Effective: eff, Target: u.URL}
+	v := upstreamView{Upstream: u, Masked: mask(u), Effective: eff, Target: u.URL, TypeLabel: typeLabel(u)}
 	if u.Kind == "" {
 		v.Kind = mcp.KindRemote
 	}
@@ -958,6 +962,23 @@ func (a *Admin) view(u mcp.Upstream) upstreamView {
 	return v
 }
 
+// typeLabel is the one name of an upstream's kind. A package server is told from the runner that starts it.
+func typeLabel(u mcp.Upstream) string {
+	switch {
+	case !u.Managed():
+		return "remote"
+	case u.Kind == mcp.KindGit:
+		return "managed \u00b7 git"
+	}
+	switch path.Base(u.Command) {
+	case "npx", "bunx", "pnpm", "npm":
+		return "managed \u00b7 npm"
+	case "uvx", "uv":
+		return "managed \u00b7 pypi"
+	}
+	return "managed \u00b7 command"
+}
+
 // redactURL drops any user info from a URL shown in the UI.
 func redactURL(s string) string {
 	if u, err := url.Parse(s); err == nil && u.User != nil {
@@ -976,7 +997,7 @@ type fact struct {
 
 // aliasFacts lists what the table does not show in columns: one fact per line.
 func aliasFacts(v upstreamView) []fact {
-	facts := []fact{{Name: "type", Value: v.Kind}}
+	facts := []fact{{Name: "type", Value: v.TypeLabel}}
 	if v.Managed() {
 		if v.Kind == mcp.KindGit {
 			facts = append(facts, fact{Name: "source", Value: redactURL(v.GitURL), Code: true})

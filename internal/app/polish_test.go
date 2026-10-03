@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/helv-io/skgate/internal/mcp"
 	"net/http"
 	"net/url"
 	"os"
@@ -222,5 +223,59 @@ func TestAddUpstreamHasItsOwnPage(t *testing.T) {
 	resp, _ = br.post("/admin/upstreams/ok/save", url.Values{"csrf": {csrf}, "kind": {"remote"}, "url": {"not a url"}, "auth_kind": {"none"}})
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/admin/upstreams/ok/edit" {
 		t.Errorf("a refused edit goes back to its form: %d %q", resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
+// The list says what an upstream is (Type) and how it is doing (Status) in separate columns, with one vocabulary:
+// remote, managed · git, managed · npm, managed · pypi, managed · command. The name opens the details.
+func TestUpstreamListSplitsTypeAndStatus(t *testing.T) {
+	a, br, _ := managedApp(t)
+	for _, u := range []mcp.Upstream{
+		{Alias: "rem", URL: "http://127.0.0.1:1/mcp", AuthKind: mcp.AuthNone, Enabled: true},
+		{Alias: "gitsrv", Kind: mcp.KindGit, Command: "python3", GitURL: "https://git.example.com/org/repo.git", Enabled: true},
+		{Alias: "nodepkg", Kind: mcp.KindStdio, Command: "npx", Args: []string{"-y", "thing@1.0.0"}, Enabled: true},
+		{Alias: "pypkg", Kind: mcp.KindStdio, Command: "uvx", Args: []string{"thing==1.0.0"}, Enabled: true},
+		{Alias: "prog", Kind: mcp.KindStdio, Command: "cat", Enabled: true},
+	} {
+		if err := a.MCP.Upstreams.Create(u); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, list := br.get("/admin/upstreams")
+	if !strings.Contains(list, `<th>Status</th><th>Name</th><th>Type</th><th>Enabled</th>`) {
+		t.Error("the columns are Status, Name, Type, Enabled, ...")
+	}
+	row := func(alias string) string {
+		for _, r := range strings.Split(list, "<tr>")[1:] {
+			if i := strings.Index(r, "</tr>"); i >= 0 && strings.Contains(r[:i], ">"+alias+"</code>") {
+				return r[:i]
+			}
+		}
+		t.Fatalf("no row for %s", alias)
+		return ""
+	}
+	for alias, want := range map[string]string{"rem": "remote", "gitsrv": "managed \u00b7 git", "nodepkg": "managed \u00b7 npm", "pypkg": "managed \u00b7 pypi", "prog": "managed \u00b7 command"} {
+		r := row(alias)
+		if !strings.Contains(r, `<td data-label="Type"><span class="chip">`+want+`</span></td>`) {
+			t.Errorf("%s: type is not %q:\n%s", alias, want, r)
+		}
+		if !strings.Contains(r, `data-label="Status"`) || !strings.Contains(r, `<a class="name" href="#upstream-`+alias+`" data-dialog-open="#upstream-`+alias+`"`) {
+			t.Errorf("%s: no status cell or the name does not open the details", alias)
+		}
+		st := r[strings.Index(r, `data-label="Status"`):]
+		st = st[:strings.Index(st, "</td>")]
+		if strings.Contains(st, want) || strings.Contains(st, "managed") {
+			t.Errorf("%s: the type is repeated in the status cell: %s", alias, st)
+		}
+	}
+	if st := row("rem"); !strings.Contains(st, ">no calls yet</span>") {
+		t.Error("a remote upstream nobody called yet says so in its status")
+	}
+	if st := row("prog"); !strings.Contains(st, ">stopped</span>") {
+		t.Error("a managed upstream shows its process state in the status")
+	}
+	_, edit := br.get("/admin/upstreams/nodepkg/edit")
+	if !strings.Contains(edit, "<span class=\"chip\">managed \u00b7 npm</span>") {
+		t.Error("the edit page uses the same name for the type")
 	}
 }
