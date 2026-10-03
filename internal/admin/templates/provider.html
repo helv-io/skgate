@@ -23,39 +23,41 @@
 {{end}}
 </div>{{end}}
 
-{{/* provider_dialog: technical details and settings of a provider, shown in the shared modal. */}}
+{{/* provider_dialog: technical details and settings of a provider, shown in the shared modal. Every part that can be
+   changed is a section (data-section) with its own form(s); a form with data-save posts in place (see app.js), so saving
+   one section never reloads the others and never loses what is typed in them. Read-only information is last, folded. */}}
 {{define "provider_dialog"}}{{$p := .}}{{template "dialog_content" (dlg (printf "provider-%s" .ID) .Name)}}
-{{/* Everything the user can change comes first (helper model, reasoning, timeout, settings, aliases, actions);
-   read-only information comes last. */}}
-{{if .CanModels}}<h4>MCP helper model</h4>
+{{if .CanModels}}<div class="dsec" data-section="model">{{template "section_head" "MCP helper model"}}
 {{template "model_picker" .}}
-
+</div>
 {{end}}
 
-<h4>Upstream</h4>
-<form method="post" action="/admin/providers/{{.ID}}/settings" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<div class="dsec" data-section="upstream">{{template "section_head" "Upstream URLs"}}
+<form method="post" action="/admin/providers/{{.ID}}/settings" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>Base URL<input type="url" name="base" value="{{.Base}}" placeholder="{{.DefaultBase}}"></label></div>
 <div class="field"><label>Fallback on 402/403 (empty = off)<input type="url" name="fallback" value="{{.Fallback}}"></label></div>
 <div class="row"><button class="act">Save</button></div></form>
+</div>
 
-{{if .CanModels}}<h4>Model aliases</h4>
+{{if .CanModels}}<div class="dsec" data-section="aliases">{{template "section_head" "Model aliases"}}
 <div class="tablewrap"><table class="table"><thead><tr><th>Status</th><th>Alias</th><th>Target</th>{{template "th_actions"}}</tr></thead><tbody>
 {{range .Aliases}}<tr><td class="status" data-label="Status">{{template "pill" .Pill}}</td><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Target"><code>{{.Target}}</code></td>
-<td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
+<td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
 {{else}}<tr><td colspan="4" class="empty">none</td></tr>{{end}}</tbody></table></div>
-<form method="post" action="/admin/providers/{{.ID}}/aliases/put" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<div class="row"><input type="text" name="name" aria-label="Alias name" placeholder="alias" maxlength="64" autocomplete="off" spellcheck="false">
-<select name="target" aria-label="Target model">{{range .Models}}<option value="{{.}}">{{.}}</option>{{end}}</select>
-<button class="act" {{if not .ModelsKnown}}disabled title="load the model list first"{{end}}>Save</button></div></form>{{end}}
+<form method="post" action="/admin/providers/{{.ID}}/aliases/put" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<div class="row bottom"><div class="field"><label>New alias<input type="text" name="name" maxlength="64" autocomplete="off" spellcheck="false"></label></div>
+<div class="field"><label>Target model<select name="target">{{range .Models}}<option value="{{.}}"{{if eq . $p.AliasTarget}} selected{{end}}>{{.}}</option>{{end}}</select></label></div>
+<button class="act" {{if not .ModelsKnown}}disabled title="load the model list first"{{end}}>Add alias</button></div></form>
+</div>{{end}}
 
-<h4>Sign-in</h4>
-{{if .S.SignedIn}}<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/refresh"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Refresh now</button></form></div>{{end}}
-<details><summary class="muted">Browser sign-in</summary>
-<p class="muted">The default client only allows a loopback redirect. After the redirect fails, paste the address of the failed page.</p>
-<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/browser/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Start</button></form></div>
-<form method="post" action="/admin/providers/{{.ID}}/browser/paste" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="field"><label>Callback URL or code<input type="text" name="callback" autocomplete="off"></label></div><div class="row"><button class="act">Finish</button></div></form>
-</details>
+<div class="dsec" data-section="signin">{{template "section_head" "Sign-in"}}
+<p class="muted">Refresh now renews the access token before it expires. Browser sign-in is for when the device sign-in does not work: start it, sign in, then paste the address of the page that fails to load.</p>
+<div class="actions">{{if .S.SignedIn}}<form method="post" action="/admin/providers/{{.ID}}/refresh" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Refresh now</button></form>{{end}}
+<form method="post" action="/admin/providers/{{.ID}}/browser/start" target="_blank"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Browser sign-in</button></form></div>
+<form method="post" action="/admin/providers/{{.ID}}/browser/paste" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="field"><label>Callback URL or code<input type="text" name="callback" autocomplete="off"></label></div><div class="row"><button class="act">Finish sign-in</button></div></form>
+</div>
 
+<details class="dsec" data-section="technical"><summary>Technical details</summary>
 <h4>Tokens</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 <tr><th>Access token</th><td>{{if .S.SignedIn}}<code>{{.S.AccessMasked}}</code>{{else}}-{{end}}</td></tr>
@@ -64,11 +66,11 @@
 {{if .S.State}}<tr><th>State</th><td>{{.S.State}}</td></tr>{{end}}
 {{if .S.LastError}}<tr><th>Last error</th><td class="bad">{{.S.LastError}}</td></tr>{{end}}
 </tbody></table></div>
-
 <h4>Sign-in details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 {{range .Info}}<tr><th>{{.Name}}</th><td class="wrap">{{.Value}}</td></tr>{{end}}
 </tbody></table></div>
+</details>
 {{template "dialog_end"}}{{end}}
 
 {{/* effort_select: the reasoning dropdown. Takes an effortView. */}}
@@ -76,14 +78,14 @@
 
 {{/* model_picker: choose the MCP helper model of a provider and reload its model list. Takes a providerView.
    Inline forms post in place (see app.js, data-inline) and the page re-renders the Suggest controls. */}}
-{{define "model_picker"}}{{$p := .}}<form method="post" action="/admin/providers/{{.ID}}/model" class="form"{{if .Inline}} data-inline=""{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><div class="pick">
-<select name="model" aria-label="Model"><option value="">none</option>{{range .Choices}}<option value="{{.Value}}"{{if .Frontier}} data-frontier{{end}}{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+{{define "model_picker"}}{{$p := .}}<form method="post" action="/admin/providers/{{.ID}}/model" class="form"{{if .Inline}} data-inline=""{{else}} data-save{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><div class="pick">
+<select name="model" aria-label="Model"><option value="">none</option>{{range .Groups}}<optgroup label="{{.Label}}">{{range .Choices}}<option value="{{.Value}}"{{if .Frontier}} data-frontier{{end}}{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</optgroup>{{end}}</select>
 <button class="act">Save</button>
 {{template "effort_select" .Effort}}</div>
 <div class="field"><label>Timeout, seconds without an answer<input type="number" name="timeout" value="{{.Timeout}}" min="1" max="86400" step="1" inputmode="numeric"></label></div>
 <p class="muted">More capable models take longer, so a timeout is more likely with a heavy reasoning model.</p>
 <p class="muted" data-frontier-hint="{{.Frontier}}" {{if not (and .ModelHeavy (lt .Timeout .Frontier))}}hidden{{end}}>This looks like a heavy reasoning model: {{.Frontier}} seconds is a reasonable timeout. Nothing changes until you save it.</p></form>
-<div class="actions">{{if .ModelsKnown}}<span class="muted">{{len .Models}} models, loaded {{.ModelsAt}}</span>{{else}}<span class="muted">not loaded{{if not .S.SignedIn}}: sign in first{{end}}</span>{{end}}<form method="post" action="/admin/providers/{{.ID}}/models/reload"{{if .Inline}} data-inline="#helper-model"{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">Reload models</button></form></div>{{end}}
+<div class="actions">{{if .ModelsKnown}}<span class="muted">{{len .Models}} models, loaded {{.ModelsAt}}</span>{{else}}<span class="muted">not loaded{{if not .S.SignedIn}}: sign in first{{end}}</span>{{end}}<form method="post" action="/admin/providers/{{.ID}}/models/reload"{{if .Inline}} data-inline="#helper-model"{{else}} data-save{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">Reload models</button></form></div>{{end}}
 
 {{/* helper_dialog: the model_picker in the shared modal, for pages that need a helper model without going to the
    status page. Takes a providerView. */}}

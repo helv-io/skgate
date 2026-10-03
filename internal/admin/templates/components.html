@@ -37,6 +37,9 @@
 <p class="muted" data-expiry-preview aria-live="polite">{{.Preview}}</p>
 <div class="quick"><button type="button" class="act" data-expiry-set="1d" aria-pressed="false">1 day</button><button type="button" class="act" data-expiry-set="7d" aria-pressed="false">7 days</button><button type="button" class="act" data-expiry-set="30d" aria-pressed="false">30 days</button><button type="button" class="act" data-expiry-set="90d" aria-pressed="false">90 days</button><button type="button" class="act" data-expiry-set="1y" aria-pressed="false">1 year</button><button type="button" class="act" data-expiry-set="never" aria-pressed="{{if .Value}}false{{else}}true{{end}}">Never</button></div></div>{{end}}
 
+{{/* section_head: the heading of a section of a dialog. app.js shows the chip while the section has unsaved edits. */}}
+{{define "section_head"}}<h4>{{.}} <span class="chip warn" data-dirty-chip hidden>unsaved</span></h4>{{end}}
+
 {{/* th_actions: the header of the column of row buttons. Every list table with row actions ends with it. */}}
 {{define "th_actions"}}<th class="actions-th">Actions</th>{{end}}
 

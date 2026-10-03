@@ -3,6 +3,7 @@ package admin
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/helv-io/skgate/internal/provider"
@@ -27,6 +28,7 @@ type providerView struct {
 	CanModels   bool
 	Models      []string
 	Choices     []modelChoice // Models, then the aliases defined in skgate (Model aliases), each with the model it selects
+	Groups      []choiceGroup // the same choices as the picker shows them: Your aliases, Models, Vendor aliases
 	ModelHeavy  bool          // the chosen helper model (or the model its alias selects) looks like a heavy reasoning model
 	ModelsKnown bool
 	ModelsAt    string
@@ -36,6 +38,7 @@ type providerView struct {
 	EffortPill  pillView   // the same, as shown next to the helper model
 	Timeout     int        // seconds the MCP helper model may stay silent
 	Frontier    int        // the timeout suggested for heavy models, shown for those only
+	AliasTarget string     // the model a new alias points at by default: the one the helper model uses
 	Aliases     []aliasView
 	AliasPill   pillView
 }
@@ -116,6 +119,13 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	}
 	v.Model = a.Set.Model(id)
 	v.Choices = modelChoices(v.Models, a.Set.Aliases(id), v.Model)
+	v.Groups = groupChoices(v.Choices)
+	v.AliasTarget = v.Model
+	for _, al := range a.Set.Aliases(id) {
+		if al.Name == v.Model {
+			v.AliasTarget = al.Target
+		}
+	}
 	for _, c := range v.Choices {
 		v.ModelHeavy = v.ModelHeavy || c.Selected && c.Frontier
 	}
@@ -172,6 +182,41 @@ type modelChoice struct {
 	Value, Label string
 	Frontier     bool
 	Selected     bool
+	Own          bool // an alias defined in skgate
+}
+
+// choiceGroup is one <optgroup> of the helper model picker.
+type choiceGroup struct {
+	Label   string
+	Choices []modelChoice
+}
+
+// vendorAlias matches the ids a provider lists as moving names for another model ("grok-4-latest").
+var vendorAlias = regexp.MustCompile(`-latest(-|$)`)
+
+// groupChoices sorts the picker's choices into Your aliases (defined in skgate), Models, and Vendor aliases (the
+// provider's own "-latest" names), in that order, leaving out an empty group. The order inside a group is kept.
+func groupChoices(list []modelChoice) []choiceGroup {
+	own := choiceGroup{Label: "Your aliases"}
+	models := choiceGroup{Label: "Models"}
+	vendor := choiceGroup{Label: "Vendor aliases"}
+	for _, c := range list {
+		switch {
+		case c.Own:
+			own.Choices = append(own.Choices, c)
+		case vendorAlias.MatchString(c.Value):
+			vendor.Choices = append(vendor.Choices, c)
+		default:
+			models.Choices = append(models.Choices, c)
+		}
+	}
+	var out []choiceGroup
+	for _, g := range []choiceGroup{own, models, vendor} {
+		if len(g.Choices) > 0 {
+			out = append(out, g)
+		}
+	}
+	return out
 }
 
 // modelChoices lists the provider's models followed by the aliases defined in skgate (the Model aliases of the same
@@ -194,7 +239,7 @@ func modelChoices(ids []string, aliases []provider.Alias, chosen string) []model
 		}
 		seen[al.Name] = true
 		out = append(out, modelChoice{Value: al.Name, Label: al.Name + " (alias of " + al.Target + ")",
-			Frontier: provider.LooksFrontier(al.Name) || provider.LooksFrontier(al.Target), Selected: al.Name == chosen})
+			Frontier: provider.LooksFrontier(al.Name) || provider.LooksFrontier(al.Target), Selected: al.Name == chosen, Own: true})
 	}
 	if chosen != "" && !seen[chosen] {
 		out = append(out, modelChoice{Value: chosen, Label: chosen + " (unlisted)", Frontier: provider.LooksFrontier(chosen), Selected: true})

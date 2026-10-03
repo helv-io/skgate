@@ -58,11 +58,12 @@ func TestHelperPickerListsSkgateAliases(t *testing.T) {
 	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"grok-latest"}, "target": {"grok-4.7-reasoning"}})
 	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"fast"}, "target": {"grok-mini"}})
 	_, page := br.get("/admin")
-	// canonical models first, then the skgate aliases; the frontier hint follows the target model
-	want := []string{`<option value="grok-4.7-reasoning" data-frontier>grok-4.7-reasoning</option>`,
-		`<option value="grok-mini">grok-mini</option>`, `<option value="plain">plain</option>`,
+	// the skgate aliases first (Your aliases), then the models; the frontier hint follows the target model
+	want := []string{`<optgroup label="Your aliases">`,
 		`<option value="grok-latest" data-frontier>grok-latest (alias of grok-4.7-reasoning)</option>`,
-		`<option value="fast">fast (alias of grok-mini)</option>`, "3 models, loaded"}
+		`<option value="fast">fast (alias of grok-mini)</option>`, `<optgroup label="Models">`,
+		`<option value="grok-4.7-reasoning" data-frontier>grok-4.7-reasoning</option>`,
+		`<option value="grok-mini">grok-mini</option>`, `<option value="plain">plain</option>`, "3 models, loaded"}
 	last := -1
 	for _, w := range want {
 		i := strings.Index(page, w)
