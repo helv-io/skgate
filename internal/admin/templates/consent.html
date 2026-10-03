@@ -3,7 +3,8 @@
 <p class="solo-name">{{.Client}}</p>
 <div class="tablewrap"><table class="table kv"><tbody>
 <tr><th>Access</th><td>MCP servers on this gateway</td></tr>
-<tr><th>Scope</th><td>{{if .Scope}}{{.Scope}}{{else}}<span class="muted">-</span>{{end}}</td></tr>
+{{if .ClientHost}}<tr><th>Client host</th><td><code>{{.ClientHost}}</code></td></tr>
+{{end}}<tr><th>Scope</th><td>{{if .Scope}}{{.Scope}}{{else}}<span class="muted">-</span>{{end}}</td></tr>
 <tr><th>Redirect host</th><td><code>{{.RedirectHost}}</code></td></tr>
 <tr><th>Redirect URI</th><td><code>{{.RedirectURI}}</code></td></tr>
 <tr><th>Signed in as</th><td>{{$.User}}</td></tr>
