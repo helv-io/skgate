@@ -26,7 +26,7 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 		t.Skip("set SKGATE_CHROME and SKGATE_PUPPETEER (and install node) to run the browser layout check")
 	}
 	longName := strings.Repeat("segment-", 8) + "end"
-	up := aliasUpstream(t, true, false) // models with provider aliases, so the picker's long labels are swept too
+	up, _ := aliasUpstream(t) // the long skgate alias below is listed in the picker, so its label is swept too
 	a, _, br, csrf, _ := signedInProvider(t, up)
 	gh, _ := fakeGitHub(t, 200, release("v99.0.0", false)) // a newer release, so the header link is swept in its yellow state
 	a.Admin.Releases = admin.NewReleaseWatch(gh.URL, config.Version)

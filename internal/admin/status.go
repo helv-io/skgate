@@ -3,7 +3,6 @@ package admin
 import (
 	"fmt"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/helv-io/skgate/internal/provider"
@@ -27,9 +26,8 @@ type providerView struct {
 
 	CanModels   bool
 	Models      []string
-	Choices     []modelChoice // Models with the provider's own aliases listed right after the model they select
-	Native      map[string]string
-	ModelHeavy  bool // the chosen helper model (or the model its alias selects) looks like a heavy reasoning model
+	Choices     []modelChoice // Models, then the aliases defined in skgate (Model aliases), each with the model it selects
+	ModelHeavy  bool          // the chosen helper model (or the model its alias selects) looks like a heavy reasoning model
 	ModelsKnown bool
 	ModelsAt    string
 	Model       string
@@ -116,10 +114,7 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 		}
 	}
 	v.Model = a.Set.Model(id)
-	if px := a.proxyFor(id); px != nil {
-		v.Native = px.Models.Aliases(id)
-	}
-	v.Choices = modelChoices(v.Models, v.Native, v.Model)
+	v.Choices = modelChoices(v.Models, a.Set.Aliases(id), v.Model)
 	for _, c := range v.Choices {
 		v.ModelHeavy = v.ModelHeavy || c.Selected && c.Frontier
 	}
@@ -128,7 +123,7 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	switch {
 	case v.Model == "":
 		v.ModelPill = pillView{"off", "no model", "pick a model in the details to enable Suggest configuration"}
-	case v.ModelsKnown && !contains(v.Models, v.Model) && v.Native[v.Model] == "":
+	case v.ModelsKnown && !contains(v.Models, v.Model) && !isAlias(a.Set.Aliases(id), v.Model):
 		v.ModelPill = pillView{"warn", v.Model, "no longer in the provider's model list"}
 	default:
 		v.ModelPill = pillView{"ok", v.Model, "used as the MCP helper model"}
@@ -173,13 +168,11 @@ type modelChoice struct {
 	Selected     bool
 }
 
-// modelChoices lists the models, each followed by its aliases ("alias (alias of model)"), so an alias can be picked
-// and is then stored and sent as it is. A chosen value the provider no longer lists stays selectable as "(unlisted)".
-func modelChoices(ids []string, aliases map[string]string, chosen string) []modelChoice {
-	byModel := map[string][]string{}
-	for al, m := range aliases {
-		byModel[m] = append(byModel[m], al)
-	}
+// modelChoices lists the provider's models followed by the aliases defined in skgate (the Model aliases of the same
+// screen), each as "alias (alias of model)". Choosing an alias stores it as it is; skgate resolves it to the model
+// when the helper calls the provider, as it does for /v1 requests. A chosen value that is neither stays selectable as
+// "(unlisted)".
+func modelChoices(ids []string, aliases []provider.Alias, chosen string) []modelChoice {
 	var out []modelChoice
 	seen := map[string]bool{}
 	for _, id := range ids {
@@ -188,19 +181,27 @@ func modelChoices(ids []string, aliases map[string]string, chosen string) []mode
 		}
 		seen[id] = true
 		out = append(out, modelChoice{Value: id, Label: id, Frontier: provider.LooksFrontier(id), Selected: id == chosen})
-		al := byModel[id]
-		sort.Strings(al)
-		for _, a := range al {
-			if seen[a] {
-				continue
-			}
-			seen[a] = true
-			out = append(out, modelChoice{Value: a, Label: a + " (alias of " + id + ")",
-				Frontier: provider.LooksFrontier(a) || provider.LooksFrontier(id), Selected: a == chosen})
+	}
+	for _, al := range aliases {
+		if seen[al.Name] {
+			continue
 		}
+		seen[al.Name] = true
+		out = append(out, modelChoice{Value: al.Name, Label: al.Name + " (alias of " + al.Target + ")",
+			Frontier: provider.LooksFrontier(al.Name) || provider.LooksFrontier(al.Target), Selected: al.Name == chosen})
 	}
 	if chosen != "" && !seen[chosen] {
 		out = append(out, modelChoice{Value: chosen, Label: chosen + " (unlisted)", Frontier: provider.LooksFrontier(chosen), Selected: true})
 	}
 	return out
+}
+
+// isAlias reports whether name is one of the skgate-defined aliases.
+func isAlias(aliases []provider.Alias, name string) bool {
+	for _, al := range aliases {
+		if al.Name == name {
+			return true
+		}
+	}
+	return false
 }
