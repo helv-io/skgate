@@ -40,6 +40,11 @@ type TestResult struct {
 	ToolsCapped bool
 	Warnings    []string
 	Error       string
+	// Detail and Hint are for the admin Test screen only: Detail is what the network stack said (it can
+	// name the host and port); Hint says what to try, with the ports found open on the host.
+	Detail string
+	Hint   string
+	Diag   *Diagnosis
 }
 
 // Test performs initialize, notifications/initialized and tools/list against the upstream with
@@ -73,6 +78,7 @@ func (s *Server) Test(ctx context.Context, alias string) (tr TestResult) {
 	}
 	if err != nil && rep == nil {
 		tr.Error = err.Error()
+		s.explain(ctx, &tr, up, err)
 		return tr
 	}
 	switch {
@@ -128,6 +134,7 @@ func (s *Server) Test(ctx context.Context, alias string) (tr TestResult) {
 	switch {
 	case lerr != nil && lrep == nil:
 		tr.Error = "tools/list: " + lerr.Error()
+		s.explain(ctx, &tr, up, lerr)
 		return tr
 	case lrep.Status/100 != 2:
 		tr.Error = fmt.Sprintf("tools/list: upstream answered HTTP %d", lrep.Status)
@@ -164,6 +171,19 @@ func (s *Server) Test(ctx context.Context, alias string) (tr TestResult) {
 	}
 	tr.OK = true
 	return tr
+}
+
+// explain adds the admin-only detail and hint for a transport failure.
+func (s *Server) explain(ctx context.Context, tr *TestResult, up Upstream, err error) {
+	nf, ok := AsNetFail(err)
+	if !ok {
+		return
+	}
+	tr.Detail = nf.Detail
+	if nf.Kind == NetRefused || nf.Kind == NetDNS {
+		tr.Diag = s.Diagnose(ctx, up, nf.Kind)
+		tr.Hint = tr.Diag.Hint(true)
+	}
 }
 
 func (s *Server) endSession(ctx context.Context, up Upstream, sid, protocol string) {
