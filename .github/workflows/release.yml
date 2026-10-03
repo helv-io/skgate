@@ -101,7 +101,8 @@ jobs:
       - run: |
           mkdir -p "$RUNNER_TEMP/digests"
           digest="${{ steps.build.outputs.digest }}"
-          touch "$RUNNER_TEMP/digests/${digest#sha256:}"
+          # amd64.<hex> sorts before arm64.<hex>, so the manifest lists the platforms in the same order as before
+          touch "$RUNNER_TEMP/digests/${{ matrix.arch }}.${digest#sha256:}"
       - uses: actions/upload-artifact@v4
         with:
           name: digests-${{ matrix.variant }}-${{ matrix.arch }}
@@ -153,5 +154,5 @@ jobs:
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+            $(for f in *; do printf '${{ env.IMAGE }}@sha256:%s ' "${f#*.}"; done)
       - run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ env.VERSION }}${{ matrix.sfx }}
