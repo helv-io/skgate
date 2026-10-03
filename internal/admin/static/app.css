@@ -137,6 +137,7 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .toast.ok{border-color:#2f4a33;color:var(--ok)}
 .toast.bad{border-color:#5a3532;color:var(--bad)}
 .toast.gone{opacity:0}
+.toasts[popover]{inset:auto 14px 14px auto;margin:0;padding:0;border:0;background:none;color:inherit;overflow:visible}
 /* modal: the one shared dialog, confirmation or content (native <dialog>; Escape and focus handling come with it) */
 .modal{border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:16px 18px;width:min(440px,calc(100vw - 28px));box-shadow:0 8px 32px #000c}
 .modal::backdrop{background:#000a}

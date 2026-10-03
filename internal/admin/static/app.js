@@ -36,6 +36,12 @@
     el.textContent = text;
     box.appendChild(el);
     arm(el);
+    // A modal dialog sits in the top layer; a popover shown after it is drawn above it.
+    if (box.showPopover) {
+      box.setAttribute("popover", "manual");
+      try { box.hidePopover(); } catch (err) {}
+      try { box.showPopover(); } catch (err) {}
+    }
   };
 })();
 
@@ -133,18 +139,22 @@
   });
 })();
 
-// Copy buttons: data-copy="#id" copies that element's text. Clipboard API, with an execCommand fallback.
+// Copy buttons: data-copy="#id" copies that element's text, data-copy-text="value" copies the value itself.
+// Clipboard API, with an execCommand fallback for non-secure contexts. The result is a toast; the optional
+// data-copied attribute is its text.
 document.addEventListener("click", function (e) {
-  var b = e.target && e.target.closest ? e.target.closest("[data-copy]") : null;
+  var b = e.target && e.target.closest ? e.target.closest("[data-copy],[data-copy-text]") : null;
   if (!b) return;
-  var src = document.querySelector(b.getAttribute("data-copy"));
-  if (!src) return;
-  var text = src.textContent.trim();
+  var text;
+  if (b.hasAttribute("data-copy-text")) {
+    text = b.getAttribute("data-copy-text");
+  } else {
+    var src = document.querySelector(b.getAttribute("data-copy"));
+    if (!src) return;
+    text = src.textContent.trim();
+  }
   function done(ok) {
-    var old = b.getAttribute("data-label") || b.textContent;
-    b.setAttribute("data-label", old);
-    b.textContent = ok ? "Copied" : "Copy failed";
-    setTimeout(function () { b.textContent = old; }, 1500);
+    window.skgateToast(ok ? "ok" : "bad", ok ? (b.getAttribute("data-copied") || "Copied") : "Copy failed");
   }
   function fallback() {
     var ta = document.createElement("textarea");
