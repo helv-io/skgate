@@ -31,6 +31,14 @@ const measure = () => {
   const ch = [...document.querySelectorAll(".choices button")];
   window.__choices = ch.map(e => { const c = getComputedStyle(e); return [e.textContent.trim(), c.backgroundColor, c.borderTopColor, c.color, c.fontSize, c.borderTopWidth, c.minHeight].join("|"); });
   ch.forEach(e => { if (e.getBoundingClientRect().height < 48) out.push(e.textContent.trim() + " button is shorter than 48px"); });
+  // the version link is the yellow warning colour when an update is known, the dim one otherwise, and stays on screen
+  const ver = document.querySelector("header a.ver");
+  if (ver) {
+    const r = ver.getBoundingClientRect(), col = getComputedStyle(ver).color;
+    if (r.right > vw + 0.5 || r.left < 0) out.push("version link outside the screen");
+    if (ver.classList.contains("new") !== (col === "rgb(230, 192, 123)")) out.push("version link colour " + col + " does not match its update state");
+    if (ver.target !== "_blank" || !/noopener/.test(ver.rel) || !/noreferrer/.test(ver.rel)) out.push("version link must open in a new tab with rel noopener noreferrer");
+  }
   // the expiration presets are finger-sized on phones and the field and its preview fit the screen
   [...document.querySelectorAll(".quick .act")].filter(e => e.offsetParent !== null).forEach(e => {
     const r = e.getBoundingClientRect();

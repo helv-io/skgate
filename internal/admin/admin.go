@@ -41,7 +41,9 @@ type Admin struct {
 	Proxy     *provider.Proxy
 	Set       provider.Settings
 	tries     modelTries
-	results   results
+	// Releases decides whether the header's version link shows an update hint.
+	Releases *ReleaseWatch
+	results  results
 	// SuggestFetch replaces the public fetcher (tests).
 	SuggestFetch *suggest.Fetcher
 	// SuggestIdle and SuggestCap override the silence and overall limits of a suggestion (tests).
@@ -99,7 +101,7 @@ var funcs = template.FuncMap{
 
 // New builds the Admin and parses templates.
 func New(cfg *config.Config, db *store.DB, reg *provider.Registry, px *provider.Proxy, k *vkeys.Manager, m *mcp.Server) *Admin {
-	a := &Admin{Cfg: cfg, DB: db, Providers: reg, Proxy: px, Set: provider.Settings{KV: db}, Keys: k, MCP: m, tpl: map[string]*template.Template{}}
+	a := &Admin{Releases: NewReleaseWatch(cfg.UpdateCheckURL, config.Version), Cfg: cfg, DB: db, Providers: reg, Proxy: px, Set: provider.Settings{KV: db}, Keys: k, MCP: m, tpl: map[string]*template.Template{}}
 	for _, p := range []string{"status", "keys", "upstreams", "upstream_edit", "upstream_test", "upstream_logs", "upstream_import", "clients", "signedout", "autherror", "notconfigured", "consent"} {
 		a.tpl[p] = template.Must(template.New(p).Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/components.html", "templates/provider.html", "templates/upstream_form.html", "templates/"+p+".html"))
 	}
@@ -117,6 +119,7 @@ func New(cfg *config.Config, db *store.DB, reg *provider.Registry, px *provider.
 
 type page struct {
 	Title, Nav, CSRF, User, Version string
+	Update                          string // newest release tag when GitHub has a newer one than Version
 	// Toasts are transient notices (flash from the previous request plus any set by the handler).
 	Toasts []toast
 	Data   any
@@ -134,6 +137,7 @@ func (a *Admin) render(w http.ResponseWriter, r *http.Request, name string, p pa
 	if csrf, ok := a.Session(r); ok {
 		p.CSRF = csrf
 		p.User = a.Label(r)
+		p.Update = a.Releases.Newer()
 	}
 	if t, ok := a.takeFlash(w, r); ok {
 		p.Toasts = append(p.Toasts, t)

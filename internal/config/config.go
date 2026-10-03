@@ -51,6 +51,7 @@ type Config struct {
 	ManagedStopGrace  time.Duration // SIGTERM to SIGKILL delay (internal default)
 	ManagedLogLines   int           // stderr lines kept per process (internal default)
 	ManagedInstallMax time.Duration // limit for one install step (internal default)
+	UpdateCheckURL    string        // GitHub latest-release API polled for the header's update hint; empty = no check (UPDATE_CHECK=false)
 	SecretsKey        string        // SECRETS_KEY: encryption key for stored secrets (empty: key file next to the database)
 	kv                KV
 }
@@ -71,6 +72,17 @@ func boolEnv(name string, def bool) bool {
 		return false
 	}
 	return def
+}
+
+// ReleasesURL is where the running version is compared with the newest release.
+const ReleasesURL = "https://api.github.com/repos/helv-io/skgate/releases/latest"
+
+// updateCheckURL is ReleasesURL unless UPDATE_CHECK is switched off.
+func updateCheckURL() string {
+	if boolEnv("UPDATE_CHECK", true) {
+		return ReleasesURL
+	}
+	return ""
 }
 
 func truthy(s string) bool {
@@ -139,6 +151,7 @@ func Load() *Config {
 		RequireConsent:    boolEnv("MCP_OAUTH_REQUIRE_CONSENT", true),
 		LogLevel:          strings.ToLower(env("LOG_LEVEL", "info")),
 		SecretsKey:        strings.TrimSpace(os.Getenv("SECRETS_KEY")),
+		UpdateCheckURL:    updateCheckURL(),
 		ManagedDir:        strings.TrimSpace(os.Getenv("MANAGED_DIR")),
 		ManagedMaxProcs:   intEnv("MANAGED_MAX_PROCS", DefaultManagedMaxProcs, 0, 100000),
 		ManagedStopGrace:  DefaultManagedStopGrace,
