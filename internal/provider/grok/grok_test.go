@@ -3,14 +3,19 @@ package grok
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/helv-io/skgate/internal/config"
+	"github.com/helv-io/skgate/internal/httputil"
+	"github.com/helv-io/skgate/internal/secrets"
 	"github.com/helv-io/skgate/internal/store"
 	"github.com/helv-io/skgate/internal/vkeys"
 )
@@ -109,7 +114,7 @@ func TestDeviceFlowAndRefresh(t *testing.T) {
 	if err != nil || tok != "acc-2" {
 		t.Fatalf("on-demand refresh: %q %v", tok, err)
 	}
-	if v, _ := c.DB.GetSetting("provider.grok.refresh"); v != "ref-2" {
+	if v, _, _ := c.DB.GetSecret("provider.grok.refresh"); v != "ref-2" {
 		t.Fatal("refresh token not rotated")
 	}
 	// invalid_grant clears tokens and asks for re-login
@@ -142,10 +147,115 @@ func TestLegacyTokenKeysMigrate(t *testing.T) {
 	db.SetSetting("xai_access", "a")
 	db.SetSetting("xai_refresh", "r")
 	New(&config.Config{}, db)
-	if v, _ := db.GetSetting("provider.grok.refresh"); v != "r" {
+	if v, _, _ := db.GetSecret("provider.grok.refresh"); v != "r" {
 		t.Fatal("refresh token not migrated")
+	}
+	if raw, _ := db.GetSetting("provider.grok.refresh"); !secrets.IsSealed(raw) {
+		t.Fatal("the migrated token must be sealed")
 	}
 	if _, ok := db.GetSetting("xai_refresh"); ok {
 		t.Fatal("old key left behind")
+	}
+}
+
+// Tokens are sealed in the database; the settings table never holds them in the clear.
+func TestTokensAreSealedAtRest(t *testing.T) {
+	c, _, _ := setup(t)
+	c.SetTokens("access-plain-1", "refresh-plain-1", time.Now().Add(time.Hour))
+	for _, k := range store.SealedSettings {
+		raw, _ := c.DB.GetSetting(k)
+		if k == "provider.grok.id" {
+			continue // SetTokens stores no id token
+		}
+		if !secrets.IsSealed(raw) || strings.Contains(raw, "plain-1") {
+			t.Fatalf("%s is not sealed: %q", k, raw)
+		}
+	}
+	tok, err := c.Token(context.Background())
+	if err != nil || tok != "access-plain-1" {
+		t.Fatalf("%q %v", tok, err)
+	}
+	st := c.Status()
+	if !st.SignedIn || st.AccessMasked == "" || strings.Contains(st.AccessMasked, "access-plain") {
+		t.Fatalf("%+v", st)
+	}
+	if st.AccessMasked != httputil.Mask("access-plain-1") {
+		t.Errorf("masking must use the opened value: %q", st.AccessMasked)
+	}
+}
+
+// Plaintext tokens of an older release keep working and are sealed at the next open and on first use.
+func TestLegacyPlaintextTokensAreSealed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "t.db")
+	db, _ := store.Open(path)
+	db.SetSetting("provider.grok.access", "old-access")
+	db.SetSetting("provider.grok.refresh", "old-refresh")
+	db.SetSetting("provider.grok.id", "old-id")
+	db.SetSetting("provider.grok.expires", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
+	db.Close()
+
+	db, err := store.Open(path) // the open step seals them
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, k := range store.SealedSettings {
+		if raw, _ := db.GetSetting(k); !secrets.IsSealed(raw) {
+			t.Fatalf("%s still plaintext after open: %q", k, raw)
+		}
+	}
+	c := New(&config.Config{}, db)
+	if tok, err := c.Token(context.Background()); err != nil || tok != "old-access" {
+		t.Fatalf("migrated tokens must keep working: %q %v", tok, err)
+	}
+	// the lazy safety net: a plaintext value written behind the store's back is sealed on use
+	db.SetSetting("provider.grok.refresh", "late-plain")
+	if _, err := c.Token(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := db.GetSetting("provider.grok.refresh"); !secrets.IsSealed(raw) {
+		t.Fatalf("lazy re-seal missing: %q", raw)
+	}
+	if v, _, _ := db.GetSecret("provider.grok.refresh"); v != "late-plain" {
+		t.Fatalf("value changed by re-sealing: %q", v)
+	}
+}
+
+// A different SECRETS_KEY degrades cleanly: signed out with a clear reason, nothing is rewritten, nothing retried.
+func TestWrongSecretsKeyDegradesCleanly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "t.db")
+	db, err := store.OpenWith(path, "first-key-for-the-test-database")
+	if err != nil {
+		t.Fatal(err)
+	}
+	New(&config.Config{}, db).SetTokens("acc", "ref", time.Now().Add(time.Hour))
+	before, _ := db.GetSetting("provider.grok.refresh")
+	db.Close()
+
+	db, err = store.OpenWith(path, "another-key-entirely-different-x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	hits := 0
+	issuer := fakeIssuer(t, func(w http.ResponseWriter, r *http.Request) { hits++ })
+	cfg := &config.Config{}
+	c := New(cfg, db)
+	c.Issuer = issuer.URL
+	st := c.Status()
+	if st.SignedIn || st.State != "secret_error" || !strings.Contains(st.LastError, "SECRETS_KEY") {
+		t.Fatalf("%+v", st)
+	}
+	if _, err := c.Token(context.Background()); !errors.Is(err, ErrSecret) {
+		t.Fatalf("Token: %v", err)
+	}
+	if err := c.Refresh(context.Background()); !errors.Is(err, ErrSecret) {
+		t.Fatalf("Refresh: %v", err)
+	}
+	if hits != 0 {
+		t.Fatalf("the issuer was contacted %d times", hits)
+	}
+	if after, _ := db.GetSetting("provider.grok.refresh"); after != before {
+		t.Fatal("the stored token must not be touched")
 	}
 }
