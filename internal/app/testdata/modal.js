@@ -24,6 +24,8 @@ for (const native of [false,true]) {
   let {w,d,calls}=load("keys.html",native);
   const dlg=d.querySelector("[data-modal]");
   ok(!!dlg,"modal present");
+  // the key forms live in the key dialog's template: put copies on the page to test the confirmation on its own
+  for (const f of d.querySelector("template[data-dialog-content]").content.querySelectorAll("form[data-confirm]")) d.body.appendChild(d.importNode(f,true));
   const rev=[...d.querySelectorAll("form[data-confirm]")].find(f=>f.action.endsWith("/keys/revoke"));
   const btn=rev.querySelector("button");
   btn.focus();
@@ -65,6 +67,31 @@ for (const native of [false,true]) {
   ok(!d.querySelector("[data-modal-ok]").classList.contains("confirm-danger") && d.activeElement===d.querySelector("[data-modal-ok]"),"non-destructive: plain confirm, focused");
   ok(d.querySelector("[data-modal-title]").textContent==="Regenerate","title regenerate");
   d.querySelector("[data-modal-cancel]").click();
+  // asked from inside the key dialog: the dialog stays (hidden) and Cancel and Escape go back to it
+  {
+    const body=d.querySelector("[data-modal-body]"), title=d.querySelector("[data-modal-title]");
+    d.querySelector("[data-dialog-open]").dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+    const dialogTitle=title.textContent;
+    ok(dlg.hasAttribute("open")&&!body.hidden&&!!body.querySelector("input[name=label]"),"the key dialog is open");
+    const inner=[...body.querySelectorAll("form[data-confirm]")].find(f=>f.action.endsWith("/keys/revoke"));
+    const ib=inner.querySelector("button");
+    const submit=()=>{ const e=new w.Event("submit",{cancelable:true,bubbles:true}); e.submitter=ib; inner.dispatchEvent(e); };
+    submit();
+    ok(body.hidden&&!d.querySelector("[data-modal-text]").hidden&&title.textContent==="Revoke"&&body.contains(inner),"asking from the dialog hides it but keeps the form in the page");
+    d.querySelector("[data-modal-cancel]").click();
+    ok(dlg.hasAttribute("open")&&!body.hidden&&title.textContent===dialogTitle&&d.querySelector("[data-modal-text]").hidden&&dlg.classList.contains("wide"),"Cancel goes back to the dialog");
+    submit();
+    dlg.dispatchEvent(new w.KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}));
+    ok(dlg.hasAttribute("open")&&!body.hidden&&title.textContent===dialogTitle,"Escape goes back to the dialog, not out of it");
+    dlg.dispatchEvent(new w.KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}));
+    ok(!dlg.hasAttribute("open"),"a second Escape closes it");
+    d.querySelector("[data-dialog-open]").dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+    const inner2=[...d.querySelector("[data-modal-body]").querySelectorAll("form[data-confirm]")].find(f=>f.action.endsWith("/keys/revoke"));
+    const e2=new w.Event("submit",{cancelable:true,bubbles:true}); e2.submitter=inner2.querySelector("button"); inner2.dispatchEvent(e2);
+    d.querySelector("[data-modal-ok]").click();
+    ok(inner2._submitted===1,"Confirm submits the form of the dialog once (got "+inner2._submitted+")");
+    ok(!dlg.hasAttribute("open"),"and the dialog goes away");
+  }
   // a form without data-confirm is untouched
   const lo=d.querySelector('form[action="/admin/logout"]'); ev=new w.Event("submit",{cancelable:true,bubbles:true}); ok(lo.dispatchEvent(ev),"plain forms submit normally");
   ok(calls.confirm+calls.alert+calls.prompt===0,"no window.confirm/alert/prompt used");
