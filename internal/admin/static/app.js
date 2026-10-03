@@ -274,10 +274,19 @@
       .then(function (j) { if (box._seq === mine) show(box, j.ok, j.text); })
       .catch(function () { if (box._seq === mine) show(box, true, "Could not check this now; the server reads it when you save."); });
   }
+  // The quick button whose value is what the field says is pressed; typing anything else releases it.
+  function mark(box) {
+    var v = box.querySelector("[data-expiry-input]").value.trim().toLowerCase();
+    box.querySelectorAll("[data-expiry-set]").forEach(function (b) {
+      var set = b.getAttribute("data-expiry-set");
+      b.setAttribute("aria-pressed", String(set === "never" ? v === "" || v === "never" : v === set));
+    });
+  }
   document.addEventListener("input", function (e) {
     var input = e.target && e.target.closest ? e.target.closest("[data-expiry-input]") : null;
     var box = input && input.closest("[data-expiry]");
     if (!box) return;
+    mark(box);
     clearTimeout(timers.get(box));
     timers.set(box, setTimeout(function () { check(box); }, 150));
   });
@@ -287,6 +296,7 @@
     if (!box) return;
     var input = box.querySelector("[data-expiry-input]");
     input.value = b.getAttribute("data-expiry-set") === "never" ? "" : b.getAttribute("data-expiry-set");
+    mark(box);
     clearTimeout(timers.get(box));
     check(box);
   });
