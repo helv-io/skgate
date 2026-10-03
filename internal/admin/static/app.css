@@ -105,8 +105,9 @@ button.pill.swap{font:inherit;font-size:12px;line-height:20px;padding:1px 9px;ba
 .act,button,input[type=submit]{font:inherit;font-size:13px;color:var(--fg);background:#131518;border:1px solid var(--line);padding:3px 10px;line-height:20px;cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap}
 .act:hover,button:hover{border-color:var(--acc);color:var(--acc);text-decoration:none;background:var(--hover)}
 .act.accent,button.accent{color:var(--acc);border-color:var(--acc)}
-.act.danger,button.danger{color:var(--dim)}
-.act.danger:hover,button.danger:hover{border-color:var(--bad);color:var(--bad)}
+/* danger: red at rest (touch screens have no hover), brighter border and a red wash on hover */
+.act.danger,button.danger{color:var(--bad);border-color:#5a3532}
+.act.danger:hover,button.danger:hover{border-color:var(--bad);color:var(--bad);background:#211514}
 .act.small,button.small{padding:1px 8px;font-size:12px}
 .act.plain,button.link{border:0;background:none;padding:0;color:var(--acc)}
 /* toggle: a button whose state is its color (green on, red off) */
