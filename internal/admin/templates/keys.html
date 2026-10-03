@@ -6,11 +6,9 @@
 <div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit"></label></div>
 {{template "expiry_field" neverExpires}}
 <div class="row"><button class="act">Create key</button></div></form></div>
-<div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Key</th><th>Label</th><th>Usage</th>{{template "th_actions"}}</tr></thead><tbody>
-{{range .Keys}}<tr{{if .URLKey}} class="geturl" title="?key= is allowed for this key"{{end}}><td class="status" data-label="Status">{{template "pill" (keyStatus .)}}</td><td class="primary" data-label="Key"><code>{{.Masked}}</code></td><td data-label="Label">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
-<td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#key-{{.ID}}">details</button>{{if not .Revoked}}
-<form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">regenerate</button></form>
-<form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form>{{end}}</div></td></tr>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Name</th><th>Key</th><th>Usage</th>{{template "th_actions"}}</tr></thead><tbody>
+{{range .Keys}}<tr{{if .URLKey}} class="geturl" title="?key= is allowed for this key"{{end}}><td class="status" data-label="Status">{{template "pill" (keyStatus .)}}</td><td class="primary" data-label="Name">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td data-label="Key"><code>{{.Masked}}</code></td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
+<td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#key-{{.ID}}">{{if .Revoked}}details{{else}}edit{{end}}</button></div></td></tr>
 {{else}}<tr><td colspan="5" class="empty">none</td></tr>{{end}}</tbody></table></div>
 {{range .Keys}}{{template "dialog_content" (dlg (printf "key-%d" .ID) "Virtual key")}}
 {{if not .Revoked}}<form method="post" action="/admin/keys/update" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">

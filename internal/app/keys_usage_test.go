@@ -23,14 +23,14 @@ func TestKeysPageUsageColumn(t *testing.T) {
 	a.Keys.Record(mcpOnly.ID, vkeys.Usage{MCPRequests: 3})
 	_, page := br.get("/admin/keys")
 
-	if !strings.Contains(page, "<th>Status</th><th>Key</th><th>Label</th><th>Usage</th><th class=\"actions-th\">Actions</th>") {
+	if !strings.Contains(page, "<th>Status</th><th>Name</th><th>Key</th><th>Usage</th><th class=\"actions-th\">Actions</th>") {
 		t.Fatal("Status is the first column and the buttons column is headed Actions")
 	}
 	i := strings.Index(page, "<tbody>")
 	rows := strings.Split(page[i:], "</tr>")
 	row := func(label string) string {
 		for _, r := range rows {
-			if strings.Contains(r, `data-label="Label">`+label+"</td>") {
+			if strings.Contains(r, `data-label="Name">`+label+"</td>") {
 				return r
 			}
 		}
