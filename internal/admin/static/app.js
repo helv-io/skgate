@@ -65,6 +65,50 @@
   };
 })();
 
+// Unsaved edits: a dialog is made of sections ([data-section]), each with its own form(s). A section is dirty
+// while one of its controls differs from the value the server rendered (the control's default). The heading's chip
+// shows it, and window.skgateDirty(root) names the dirty sections under root, which the modal asks about before it
+// closes and the page asks about before it unloads.
+(function () {
+  function dirtyControl(el) {
+    if (!el.name || el.name === "csrf" || el.disabled) return false;
+    var t = (el.type || "").toLowerCase();
+    if (t === "hidden" || t === "submit" || t === "button") return false;
+    if (t === "checkbox" || t === "radio") return el.checked !== el.defaultChecked;
+    if (el.tagName === "SELECT") { // the default is the option the server marked, or the first when none is
+      var def = 0;
+      Array.prototype.forEach.call(el.options, function (o, i) { if (o.defaultSelected) def = i; });
+      return el.options.length > 0 && el.selectedIndex !== def;
+    }
+    return el.value !== el.defaultValue;
+  }
+  function dirty(sec) { return Array.prototype.some.call(sec.querySelectorAll("input,select,textarea"), dirtyControl); }
+  function title(sec) {
+    var h = sec.querySelector("h4,summary");
+    return h ? Array.prototype.filter.call(h.childNodes, function (n) { return n.nodeType === 3; }).map(function (n) { return n.textContent; }).join("").trim() || h.textContent.trim() : "this section";
+  }
+  function mark(sec) {
+    var d = dirty(sec), chip = sec.querySelector("[data-dirty-chip]");
+    if (d) sec.setAttribute("data-dirty", ""); else sec.removeAttribute("data-dirty");
+    if (chip) chip.hidden = !d;
+  }
+  ["input", "change"].forEach(function (ev) {
+    document.addEventListener(ev, function (e) {
+      var sec = e.target && e.target.closest ? e.target.closest("[data-section]") : null;
+      if (sec) mark(sec);
+    });
+  });
+  window.skgateDirty = function (root) {
+    return Array.prototype.filter.call((root || document).querySelectorAll("[data-section]"), dirty).map(title);
+  };
+  window.skgateDirtyMark = mark;
+  window.skgateDirtyControl = dirtyControl;
+  window.addEventListener("beforeunload", function (e) {
+    var body = document.querySelector("[data-modal-body]");
+    if (body && !body.hidden && window.skgateDirty(body).length) { e.preventDefault(); e.returnValue = ""; }
+  });
+})();
+
 // Confirmation: a form with data-confirm="text" opens the shared modal (<dialog data-modal>) on submit
 // instead of submitting. Title and confirm label are the submit button's label; a button with class
 // "danger" makes the confirm button destructive.
@@ -119,6 +163,25 @@
       if (location.hash) history.replaceState(history.state, "", urlWith(""));
     } catch (err) { /* a document without a real address has no fragment to clear */ }
   }
+  // requestClose closes the content dialog, unless a section holds unsaved edits: then it asks first, in place of the
+  // content (which stays, hidden, with every edit in it). Cancel goes back to the edits; Discard closes.
+  function requestClose() {
+    var names = shownId !== null && !stack && window.skgateDirty ? window.skgateDirty(bodyEl) : [];
+    if (!names.length) { close(); return true; }
+    var from = document.activeElement; // taken before the content is hidden, which takes the focus away
+    stack = { title: titleEl.textContent, informational: informational };
+    bodyEl.hidden = closeBtn.hidden = true;
+    textEl.hidden = actionsEl.hidden = false;
+    dlg.classList.remove("wide");
+    informational = false;
+    pending = { discard: true, opener: from };
+    titleEl.textContent = "Discard changes";
+    textEl.textContent = "Unsaved changes in " + names.join(", ") + " will be lost.";
+    okBtn.textContent = "Discard";
+    okBtn.classList.add("confirm-danger");
+    cancelBtn.focus();
+    return false;
+  }
   function close(replace) {
     if (dlg.close && dlg.open) dlg.close(); else dlg.removeAttribute("open");
     mode(false);
@@ -160,6 +223,11 @@
     if (tpl && tpl.hasAttribute("data-dialog-content")) {
       if (shownId !== id) openContent(id, null, false);
     } else if (shownId !== null) {
+      if (!stack && window.skgateDirty && window.skgateDirty(bodyEl).length) { // Back with unsaved edits: keep the dialog and ask
+        try { history.pushState(null, "", urlWith(shownId)); pushed = true; } catch (err) { /* no real address */ }
+        requestClose();
+        return;
+      }
       shownId = null; pushed = false; // the address is already clear
       if (dlg.close && dlg.open) dlg.close(); else dlg.removeAttribute("open");
       mode(false);
@@ -169,7 +237,7 @@
     var o = e.target && e.target.closest ? e.target.closest("[data-dialog-open]") : null;
     if (o) openContent((o.getAttribute("data-dialog-open") || "").replace(/^#/, ""), o, true);
   });
-  closeBtn.addEventListener("click", function () { close(); });
+  closeBtn.addEventListener("click", function () { requestClose(); });
   window.addEventListener("hashchange", follow);
   window.addEventListener("popstate", follow);
   follow();
@@ -218,6 +286,7 @@
     titleEl.textContent = s.title;
     informational = s.informational;
     if (p && p.opener && p.opener.isConnected && p.opener.focus) p.opener.focus();
+    if (!dlg.contains(document.activeElement) && closeBtn.focus) closeBtn.focus(); // never leave the focus outside: Escape would then close the dialog natively
     return true;
   }
   function submitPending(p) {
@@ -232,6 +301,7 @@
     var p = pending;
     if (!p) return close();
     pending = null;
+    if (p.discard) { stack = null; close(true); return; }
     if (stack) { // the form lives in the content: submit it first, then take the dialog away
       stack = null;
       submitPending(p);
@@ -247,10 +317,108 @@
   // starts in a field and ends outside must not throw the input away). Escape and the buttons always close.
   dlg.addEventListener("click", function (e) { if (e.target === dlg && informational) close(); });
   // Escape fires cancel (native) and then close; both end up here.
-  dlg.addEventListener("cancel", function () { /* native close follows */ });
+  // With the focus outside the dialog Escape reaches it as a native cancel, not as a key press: content with unsaved
+  // edits still asks. Anything else closes natively and restoreFocus tidies up.
+  dlg.addEventListener("cancel", function (e) {
+    if (shownId === null || (!stack && !(window.skgateDirty && window.skgateDirty(bodyEl).length))) return;
+    e.preventDefault();
+    if (!unstack()) requestClose();
+  });
   dlg.addEventListener("close", restoreFocus);
   dlg.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { e.preventDefault(); if (unstack()) return; close(); restoreFocus(); }
+    if (e.key === "Escape") { e.preventDefault(); if (unstack()) return; if (requestClose()) restoreFocus(); }
+  });
+})();
+
+// In-place saves: a form with data-save posts by fetch (Accept: application/json) and the page stays where it is, so
+// saving one section of a dialog never reloads the others. The answer is a toast. After a save the page is read again
+// and what the server renders replaces the parts that show its state: elements with data-live and an id (the cards
+// behind the dialog), the dialog templates (so reopening shows the new state), and the sections of the open dialog.
+// A section keeps what the user typed that differs from the server's value (carry), so an edit in one section
+// survives a save in another.
+(function () {
+  function same(root, el) { // the control in root that is el's counterpart: same name, same position among them
+    var q = '[name="' + el.name + '"]';
+    var from = el.closest("[data-section]");
+    var i = Array.prototype.indexOf.call(from.querySelectorAll(q), el);
+    return root.querySelectorAll(q)[i] || null;
+  }
+  function carry(old, fresh) {
+    Array.prototype.forEach.call(old.querySelectorAll("input,select,textarea"), function (el) {
+      if (!window.skgateDirtyControl(el)) return;
+      var to = same(fresh, el);
+      if (!to) return;
+      if (el.type === "checkbox" || el.type === "radio") to.checked = el.checked;
+      else if (el.tagName !== "SELECT" || Array.prototype.some.call(to.options, function (o) { return o.value === el.value; })) to.value = el.value;
+    });
+    var a = old.matches("details") ? [old] : [], b = fresh.matches("details") ? [fresh] : [];
+    a = a.concat(Array.prototype.slice.call(old.querySelectorAll("details")));
+    b = b.concat(Array.prototype.slice.call(fresh.querySelectorAll("details")));
+    a.forEach(function (d, i) { if (b[i]) b[i].open = d.open; });
+  }
+  function merge(body, tpl) {
+    var active = document.activeElement, act = null;
+    if (active && body.contains(active)) {
+      var f = active.closest("form");
+      act = { action: f && f.getAttribute("action"), name: active.name, tag: active.tagName };
+    }
+    Array.prototype.forEach.call(body.querySelectorAll("[data-section]"), function (old) {
+      var fresh = tpl.content.querySelector('[data-section="' + old.getAttribute("data-section") + '"]');
+      if (!fresh) return;
+      fresh = document.importNode(fresh, true);
+      carry(old, fresh);
+      old.replaceWith(fresh);
+      window.skgateDirtyMark(fresh);
+    });
+    if (!act) return;
+    var forms = body.querySelectorAll("form"), form = null;
+    Array.prototype.forEach.call(forms, function (x) { if (!form && x.getAttribute("action") === act.action) form = x; });
+    var el = form && ((act.name && form.querySelector('[name="' + act.name + '"]')) || form.querySelector("button"));
+    if (el && el.focus) el.focus();
+  }
+  function refresh() {
+    return fetch(location.pathname + location.search, { credentials: "same-origin", headers: { Accept: "text/html" } })
+      .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        Array.prototype.forEach.call(doc.querySelectorAll("[data-live][id]"), function (f) {
+          var o = document.getElementById(f.id);
+          if (o) o.replaceWith(document.importNode(f, true));
+        });
+        Array.prototype.forEach.call(doc.querySelectorAll("template[data-dialog-content][id]"), function (f) {
+          var o = document.getElementById(f.id);
+          if (o) o.replaceWith(document.importNode(f, true));
+        });
+        var body = document.querySelector("[data-modal-body]"), id = decodeURIComponent(location.hash.slice(1)), tpl = id && document.getElementById(id);
+        if (body && !body.hidden && tpl && tpl.content) merge(body, tpl);
+      });
+  }
+  // settle makes what was just saved the form's own value, so it no longer counts as unsaved.
+  function settle(form) {
+    Array.prototype.forEach.call(form.querySelectorAll("input,select,textarea"), function (el) {
+      if (el.type === "checkbox" || el.type === "radio") el.defaultChecked = el.checked;
+      else if (el.tagName === "SELECT") Array.prototype.forEach.call(el.options, function (o) { o.defaultSelected = o.selected; });
+      else el.defaultValue = el.value;
+    });
+    var sec = form.closest("[data-section]");
+    if (sec) window.skgateDirtyMark(sec);
+  }
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form || !form.hasAttribute || !form.hasAttribute("data-save") || e.defaultPrevented) return;
+    e.preventDefault();
+    var btns = form.querySelectorAll("button:not([type=button])");
+    Array.prototype.forEach.call(btns, function (b) { b.disabled = true; });
+    fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
+      .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.json(); })
+      .then(function (j) {
+        window.skgateToast(j.toast.k, j.toast.m);
+        if (j.toast.k !== "ok") return;
+        if (form.isConnected) settle(form);
+        return refresh().catch(function () { /* the saved state shows on the next load */ });
+      })
+      .catch(function () { window.skgateToast("bad", "Couldn't reach skgate. Check your connection and try again."); })
+      .then(function () { Array.prototype.forEach.call(btns, function (b) { if (b.isConnected) b.disabled = false; }); });
   });
 })();
 

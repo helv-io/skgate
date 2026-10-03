@@ -1,5 +1,5 @@
 {{/* provider_card: a provider on the status page. Status at a glance; everything technical is in its dialog. */}}
-{{define "provider_card"}}<div class="card" id="{{.ID}}">
+{{define "provider_card"}}<div class="card" id="{{.ID}}" data-live>
 <div class="row spread"><h3>{{.Name}}</h3>{{template "pill" .State}}</div>
 <div class="tablewrap"><table class="table kv"><tbody>
 {{if .S.Account}}<tr><th>Account</th><td>{{.S.Account}}</td></tr>{{end}}
