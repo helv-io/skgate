@@ -62,6 +62,17 @@ func env(k, def string) string {
 	return def
 }
 
+// boolEnv reads a switch: on/off words are honored, unset or anything else gives def.
+func boolEnv(name string, def bool) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(name))) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	}
+	return def
+}
+
 func truthy(s string) bool {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "1", "true", "yes", "on":
@@ -119,7 +130,7 @@ func Load() *Config {
 		OIDCRedirectURL:   strings.TrimSpace(os.Getenv("OIDC_REDIRECT_URL")),
 		OIDCEmails:        splitList(os.Getenv("OIDC_ALLOWED_EMAILS")),
 		OIDCGroups:        splitList(os.Getenv("OIDC_ALLOWED_GROUPS")),
-		RequireConsent:    truthy(os.Getenv("MCP_OAUTH_REQUIRE_CONSENT")),
+		RequireConsent:    boolEnv("MCP_OAUTH_REQUIRE_CONSENT", true),
 		LogLevel:          strings.ToLower(env("LOG_LEVEL", "info")),
 		SecretsKey:        strings.TrimSpace(os.Getenv("SECRETS_KEY")),
 		ManagedDir:        strings.TrimSpace(os.Getenv("MANAGED_DIR")),

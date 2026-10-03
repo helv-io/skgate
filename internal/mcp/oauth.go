@@ -260,7 +260,7 @@ func (s *Server) parseAuth(w http.ResponseWriter, r *http.Request, get func(stri
 //  3. Without a valid admin/OIDC session, the browser is redirected to /admin/oidc/login with the
 //     original /authorize URL as next. After the IdP round trip (and the OIDC_ALLOWED_* checks)
 //     the browser returns here and the request resumes. With a session, login is skipped.
-//  4. With MCP_OAUTH_REQUIRE_CONSENT=true an extra consent page follows; otherwise the code is
+//  4. Unless MCP_OAUTH_REQUIRE_CONSENT=false, an extra consent page follows; otherwise the code is
 //     issued straight away, recording the OIDC subject and email on it.
 func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
