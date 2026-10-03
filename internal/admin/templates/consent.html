@@ -1,0 +1,13 @@
+{{define "body"}}{{with .Data}}<div class="login"><div class="card">{{template "brandmark"}}
+<h2>Authorize MCP access</h2>
+<p class="solo-name">{{.Client}}</p>
+<div class="tablewrap"><table class="table kv"><tbody>
+<tr><th>Access</th><td>MCP servers on this gateway</td></tr>
+<tr><th>Scope</th><td>{{if .Scope}}{{.Scope}}{{else}}<span class="muted">-</span>{{end}}</td></tr>
+<tr><th>Redirect host</th><td><code>{{.RedirectHost}}</code></td></tr>
+<tr><th>Redirect URI</th><td><code>{{.RedirectURI}}</code></td></tr>
+<tr><th>Signed in as</th><td>{{$.User}}</td></tr>
+</tbody></table></div>
+<form method="post" action="/authorize"><input type="hidden" name="csrf" value="{{.CSRF}}">{{range .Fields}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}
+<div class="choices"><button class="act" name="decision" value="deny">Deny</button><button class="btn" name="decision" value="approve">Approve</button></div></form>
+</div></div>{{end}}{{end}}

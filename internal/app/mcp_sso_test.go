@@ -297,7 +297,7 @@ func TestConsentAfterLogin(t *testing.T) {
 	br := newBrowser(t, ts)
 	r, _ := br.get(followToIdP(t, br, idp, authPath))
 	r, body := br.get(r.Header.Get("Location"))
-	if r.StatusCode != 200 || !strings.Contains(body, "Authorize MCP access?") {
+	if r.StatusCode != 200 || !strings.Contains(body, "Authorize MCP access") {
 		t.Fatalf("consent page expected after login: %d", r.StatusCode)
 	}
 	csrf := between(body, `name="csrf" value="`, `"`)

@@ -1,3 +1,3 @@
-{{define "body"}}<div class="login"><h2>Sign-in error</h2><div class="card">
+{{define "body"}}<div class="login"><div class="card">{{template "brandmark"}}<h2>Sign-in error</h2>
 <p class="bad">{{.Data}}</p>
-<p><a class="btn" href="/admin/oidc/login">Sign in</a></p></div></div>{{end}}
+<div class="choices"><a class="btn" href="/admin/oidc/login">Sign in</a></div></div></div>{{end}}
