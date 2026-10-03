@@ -64,6 +64,8 @@ type aliasView struct {
 // stateOf renders the sign-in state as one pill; every detail goes in the hover text.
 func stateOf(s provider.Status) pillView {
 	switch {
+	case s.State == "secret_error":
+		return pillView{"bad", "cannot decrypt", tipJoin("", s.LastError)}
 	case s.State == "tier_blocked":
 		return pillView{"bad", "blocked", tipJoin("the account is not entitled to this API", s.LastError)}
 	case s.State == "reauth" && !s.SignedIn:

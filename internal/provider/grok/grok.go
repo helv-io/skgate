@@ -22,6 +22,7 @@ import (
 	"github.com/helv-io/skgate/internal/config"
 	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/provider"
+	"github.com/helv-io/skgate/internal/secrets"
 	"github.com/helv-io/skgate/internal/store"
 )
 
@@ -37,6 +38,7 @@ const (
 var (
 	ErrNotSignedIn = errors.New("not signed in to Grok")
 	ErrReauth      = errors.New("grok sign-in expired, sign in again")
+	ErrSecret      = errors.New("stored Grok tokens cannot be decrypted: SECRETS_KEY or the key file changed; restore it or sign in again")
 	ErrTierBlocked = errors.New("grok account is not entitled to this OAuth surface (HTTP 403)")
 )
 
@@ -95,6 +97,7 @@ func migrateKeys(db *store.DB) {
 			_ = db.DeleteSetting(old)
 		}
 	}
+	_ = db.SealSettings(store.SealedSettings...) // a copied plaintext value is sealed right away
 }
 
 // Grok CLI headers, required by the subscription proxy hosts.
@@ -195,8 +198,8 @@ func (c *Client) Status() provider.Status {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	s := provider.Status{}
-	acc, _ := c.DB.GetSetting("provider.grok.access")
-	ref, _ := c.DB.GetSetting("provider.grok.refresh")
+	acc, _, aerr := c.DB.GetSecret("provider.grok.access")
+	ref, _, rerr := c.DB.GetSecret("provider.grok.refresh")
 	s.SignedIn = acc != "" && ref != ""
 	s.AccessMasked, s.RefreshMasked = httputil.Mask(acc), httputil.Mask(ref)
 	if v, ok := c.DB.GetSetting("provider.grok.expires"); ok {
@@ -208,6 +211,9 @@ func (c *Client) Status() provider.Status {
 	s.Account, _ = c.DB.GetSetting("provider.grok.account")
 	s.State, _ = c.DB.GetSetting("provider.grok.state")
 	s.LastError, _ = c.DB.GetSetting("provider.grok.last_error")
+	if aerr != nil || rerr != nil { // the stored tokens cannot be opened: signed out until the key is right or the user signs in again
+		s.SignedIn, s.State, s.LastError = false, "secret_error", ErrSecret.Error()
+	}
 	return s
 }
 
@@ -216,23 +222,33 @@ type tokens struct {
 	Expires             time.Time
 }
 
-func (c *Client) load() tokens {
-	a, _ := c.DB.GetSetting("provider.grok.access")
-	r, _ := c.DB.GetSetting("provider.grok.refresh")
-	i, _ := c.DB.GetSetting("provider.grok.id")
+// load reads the stored tokens. A token stored as plaintext by an older release is sealed on the spot. If a
+// stored token cannot be opened (SECRETS_KEY changed), it returns ErrSecret and touches nothing.
+func (c *Client) load() (tokens, error) {
+	var out [3]string
+	for i, k := range store.SealedSettings {
+		v, ok, err := c.DB.GetSecret(k)
+		if err != nil {
+			return tokens{}, ErrSecret
+		}
+		if raw, _ := c.DB.GetSetting(k); ok && raw != "" && !secrets.IsSealed(raw) {
+			_ = c.DB.SetSecret(k, v)
+		}
+		out[i] = v
+	}
 	var exp time.Time
 	if v, ok := c.DB.GetSetting("provider.grok.expires"); ok {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
 			exp = time.Unix(n, 0)
 		}
 	}
-	return tokens{a, r, i, exp}
+	return tokens{out[0], out[1], out[2], exp}, nil
 }
 
 func (c *Client) save(t tokens) {
-	_ = c.DB.SetSetting("provider.grok.access", t.Access)
-	_ = c.DB.SetSetting("provider.grok.refresh", t.Refresh)
-	_ = c.DB.SetSetting("provider.grok.id", t.ID)
+	_ = c.DB.SetSecret("provider.grok.access", t.Access)
+	_ = c.DB.SetSecret("provider.grok.refresh", t.Refresh)
+	_ = c.DB.SetSecret("provider.grok.id", t.ID)
 	_ = c.DB.SetSetting("provider.grok.expires", strconv.FormatInt(t.Expires.Unix(), 10))
 	_ = c.DB.SetSetting("provider.grok.state", "ok")
 	_ = c.DB.SetSetting("provider.grok.last_error", "")
@@ -337,7 +353,11 @@ func (c *Client) Refresh(ctx context.Context) error {
 }
 
 func (c *Client) refreshLocked(ctx context.Context) error {
-	prev := c.load()
+	prev, err := c.load()
+	if err != nil {
+		log.Printf("xai: %v", err)
+		return err
+	}
 	if prev.Refresh == "" {
 		return ErrNotSignedIn
 	}
@@ -390,7 +410,10 @@ func firstNonEmpty(ss ...string) string {
 func (c *Client) Token(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	t := c.load()
+	t, err := c.load()
+	if err != nil {
+		return "", err
+	}
 	if t.Access == "" {
 		if st, _ := c.DB.GetSetting("provider.grok.state"); st == "reauth" {
 			return "", ErrReauth
@@ -401,7 +424,9 @@ func (c *Client) Token(ctx context.Context) (string, error) {
 		if err := c.refreshLocked(ctx); err != nil {
 			return "", err
 		}
-		t = c.load()
+		if t, err = c.load(); err != nil {
+			return "", err
+		}
 	}
 	return t.Access, nil
 }
@@ -413,7 +438,8 @@ func (c *Client) ForceRefresh(ctx context.Context) (string, error) {
 	if err := c.refreshLocked(ctx); err != nil {
 		return "", err
 	}
-	return c.load().Access, nil
+	t, err := c.load()
+	return t.Access, err
 }
 
 // Run refreshes tokens in the background about five minutes before they expire.
