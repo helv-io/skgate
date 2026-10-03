@@ -96,3 +96,17 @@ func TestErrorPagesAreBranded(t *testing.T) {
 		t.Errorf("signed out: %d %s", resp.StatusCode, body)
 	}
 }
+
+// Destructive buttons (delete, revoke, stop, clear logs) are red at rest, not only on hover: touch screens
+// have no hover, and a dim button reads as disabled.
+func TestDangerButtonsAreRedAtRest(t *testing.T) {
+	css := appCSS(t)
+	i := strings.Index(css, ".act.danger,button.danger{")
+	if i < 0 {
+		t.Fatal("no danger rule")
+	}
+	rule := css[i : i+strings.Index(css[i:], "}")]
+	if !strings.Contains(rule, "color:var(--bad)") || !strings.Contains(rule, "border-color:") || strings.Contains(rule, "var(--dim)") {
+		t.Errorf("the resting danger rule must be red: %s", rule)
+	}
+}
