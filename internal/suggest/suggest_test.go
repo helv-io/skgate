@@ -231,7 +231,7 @@ func chat(content string) string {
 
 func goodReply() string {
 	return `{"alias":"mcp-thing","transport":"stdio","command":"npx","args":["-y","mcp-thing"],
-"env":[{"name":"THING_KEY","value":"YOUR_THING_KEY","description":"API key"}],"headers":[],"install":"",
+"env":[{"name":"THING_KEY","description":"API key","secret":true,"required":true},{"name":"THING_URL","description":"Base URL","secret":false,"required":false}],"headers":[],"install":"",
 "startup_secs":45,"notes":["needs an account"],"warnings":["can delete files"],"confidence":"high"}`
 }
 
@@ -259,7 +259,7 @@ func TestSuggestStructuredOutputEndToEnd(t *testing.T) {
 	if res.Command != "npx" || strings.Join(res.Args, " ") != "-y mcp-thing@3.1.0" || res.Alias != "mcp-thing" || res.StartupSec != 45 || res.Confidence != "high" || res.Kind != "stdio" {
 		t.Fatalf("%+v", res)
 	}
-	if len(res.Env) != 1 || res.Env[0].Name != "THING_KEY" || res.Env[0].Value != "YOUR_THING_KEY" || len(res.Warnings) == 0 {
+	if len(res.Env) != 1 || res.Env[0].Name != "THING_KEY" || !res.Env[0].Secret || !res.Env[0].Required || len(res.Warnings) == 0 {
 		t.Fatalf("env/warnings: %+v", res)
 	}
 	// the request: fixed system prompt, strict json schema, model, documents as data
@@ -365,16 +365,16 @@ func TestValidateRepairs(t *testing.T) {
 	if r.Alias != "my-cool-server" || r.Args[0] != "mcp-thing@3.1.0" || r.StartupSec != 600 || r.Install != "" {
 		t.Fatalf("%+v", r)
 	}
-	if len(r.Env) != 1 || r.Env[0].Value != "YOUR_THING_KEY" {
+	if len(r.Env) != 1 || r.Env[0].Name != "THING_KEY" {
 		t.Fatalf("env = %+v", r.Env)
 	}
 	all := strings.Join(r.Warnings, "|")
-	for _, want := range []string{"INVENTED_VAR was dropped", "replaced by a placeholder", "alias was adjusted", "pinned", "install command was dropped"} {
+	for _, want := range []string{"INVENTED_VAR was dropped", "alias was adjusted", "pinned", "install command was dropped"} {
 		if !strings.Contains(all, want) {
 			t.Errorf("warning %q missing in %q", want, all)
 		}
 	}
-	if strings.Contains(all+r.Env[0].Value, "sk-live") {
+	if strings.Contains(all+r.Env[0].Name+r.Env[0].Description, "sk-live") {
 		t.Fatal("a real-looking secret survived")
 	}
 	// an already pinned version is kept
@@ -395,7 +395,7 @@ func TestValidateRepairs(t *testing.T) {
 func TestGitSuggestionCarriesRepoAndInstall(t *testing.T) {
 	src, _ := ParseSource("https://github.com/acme/tool/tree/v2/app")
 	doc := Context{Kind: KindGit, Name: "acme/tool", Files: []File{{"README.md", "Set TOOL_TOKEN"}}}
-	in := `{"alias":"tool","transport":"stdio","command":"node","args":["dist/index.js"],"env":[{"name":"TOOL_TOKEN","value":"YOUR_TOOL_TOKEN","description":""}],
+	in := `{"alias":"tool","transport":"stdio","command":"node","args":["dist/index.js"],"env":[{"name":"TOOL_TOKEN","description":"","secret":true,"required":true}],
 "headers":[],"install":"npm ci && npm run build","startup_secs":120,"notes":[],"warnings":[],"confidence":"medium"}`
 	r, err := Validate(in, src, doc, runners)
 	if err != nil {
@@ -745,5 +745,76 @@ func TestForbiddenWithRequestsLeftIsStillAnAuthProblem(t *testing.T) {
 	_, err = h.Fetch(context.Background(), g, "")
 	if err == nil || strings.Contains(err.Error(), "rate limit") {
 		t.Fatalf("gitlab with remaining 0: %v", err)
+	}
+}
+
+// The model says which variables are secret and which are required; the name decides only when it is silent.
+// A value from the model is never passed on.
+func TestEnvSecretAndRequiredFlags(t *testing.T) {
+	src, _ := ParseSource("mcp-thing")
+	doc := Context{Kind: KindNPM, Name: "mcp-thing", Files: []File{{"README", "THING_URL THING_TOKEN THING_MODE THING_PASSWORD THING_HOST"}}}
+	in := `{"alias":"thing","transport":"stdio","command":"npx","args":["mcp-thing"],"env":[
+{"name":"THING_URL","value":"https://real.example/key","description":"u","secret":false,"required":true},
+{"name":"THING_TOKEN","description":"t","secret":true,"required":false},
+{"name":"THING_MODE","description":"m"},
+{"name":"THING_PASSWORD","description":"p"},
+{"name":"THING_HOST","description":"h","secret":true}],
+"headers":[],"install":"","startup_secs":30,"notes":[],"warnings":[],"confidence":"high"}`
+	r, err := Validate(in, src, doc, runners)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][2]bool{ // secret, required
+		"THING_URL": {false, true}, "THING_TOKEN": {true, false}, "THING_MODE": {false, false},
+		"THING_PASSWORD": {true, false}, "THING_HOST": {true, false},
+	}
+	if len(r.Env) != len(want) {
+		t.Fatalf("%+v", r.Env)
+	}
+	for _, e := range r.Env {
+		if w := want[e.Name]; e.Secret != w[0] || e.Required != w[1] {
+			t.Errorf("%s: secret=%v required=%v, want %v", e.Name, e.Secret, e.Required, w)
+		}
+	}
+	b, _ := json.Marshal(r)
+	if strings.Contains(string(b), "real.example") || strings.Contains(string(b), `"value"`) {
+		t.Fatalf("a model value reached the result: %s", b)
+	}
+}
+
+func TestNameLooksSecret(t *testing.T) {
+	for n, want := range map[string]bool{"API_KEY": true, "GITHUB_TOKEN": true, "CLIENT_SECRET": true, "DB_PASSWORD": true, "PGPASSWD": true,
+		"BASE_URL": false, "HOST": false, "PORT": false, "LOG_LEVEL": false, "DATA_DIR": false} {
+		if NameLooksSecret(n) != want {
+			t.Errorf("%s: want %v", n, want)
+		}
+	}
+}
+
+// The schema asks for the flags and not for a value.
+func TestSchemaAsksForSecretAndRequired(t *testing.T) {
+	b, _ := json.Marshal(Schema)
+	var m struct {
+		Properties struct {
+			Env struct {
+				Items struct {
+					Required   []string                  `json:"required"`
+					Properties map[string]map[string]any `json:"properties"`
+				} `json:"items"`
+			} `json:"env"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	it := m.Properties.Env.Items
+	if it.Properties["secret"]["type"] != "boolean" || it.Properties["required"]["type"] != "boolean" || it.Properties["value"] != nil {
+		t.Fatalf("%v", it.Properties)
+	}
+	if strings.Join(it.Required, ",") != "name,description,secret,required" {
+		t.Fatalf("%v", it.Required)
+	}
+	if !strings.Contains(SystemPrompt, "secret is true") || !strings.Contains(SystemPrompt, "required is true") {
+		t.Fatal("the prompt must explain both flags")
 	}
 }

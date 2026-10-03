@@ -51,12 +51,12 @@ type Upstream struct {
 	// Headers are extra outbound headers for a remote upstream (values sealed at rest, masked in the UI).
 	Headers []KV
 	// Managed process settings (Env values are sealed at rest and masked in the UI).
-	Command        string
-	Args           []string
-	Env            []KV
+	Command string
+	Args    []string
+	Env     []KV
 	// PlainEnv names the Env variables known not to be secret (URLs, hosts, ports); their values show in
 	// clear in the UI. Every other variable, and every one stored before this list existed, is masked.
-	PlainEnv []string
+	PlainEnv       []string
 	Shell          bool   // run Command through /bin/sh -c
 	WorkDir        string // absolute; empty means the per-alias directory
 	Install        string // shell command run before start when its inputs changed or on Update

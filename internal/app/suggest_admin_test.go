@@ -33,7 +33,7 @@ type suggestRig struct {
 }
 
 func newSuggestRig(t *testing.T, signIn, pickModel bool) *suggestRig {
-	r := &suggestRig{reply: `{"alias":"mcp-thing","transport":"stdio","command":"node","args":["dist/index.js"],"env":[{"name":"THING_KEY","value":"YOUR_THING_KEY","description":"key"}],"headers":[],"install":"npm ci && npm run build","startup_secs":90,"notes":["n"],"warnings":["w"],"confidence":"high"}`}
+	r := &suggestRig{reply: `{"alias":"mcp-thing","transport":"stdio","command":"node","args":["dist/index.js"],"env":[{"name":"THING_KEY","description":"key","secret":true,"required":true}],"headers":[],"install":"npm ci && npm run build","startup_secs":90,"notes":["n"],"warnings":["w"],"confidence":"high"}`}
 	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		b, _ := io.ReadAll(req.Body)
 		switch req.URL.Path {
@@ -119,7 +119,7 @@ func TestSuggestEndpointFillsResultAndSavesNothing(t *testing.T) {
 		t.Fatalf("%d %v", st, m)
 	}
 	env := m["env"].([]any)[0].(map[string]any)
-	if env["name"] != "THING_KEY" || env["value"] != "YOUR_THING_KEY" {
+	if env["name"] != "THING_KEY" || env["secret"] != true || env["required"] != true || env["value"] != nil {
 		t.Fatalf("env %v", env)
 	}
 	if list, _ := r.a.MCP.Upstreams.List(); len(list) != 0 {
