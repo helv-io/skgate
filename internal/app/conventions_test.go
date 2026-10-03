@@ -48,7 +48,7 @@ func TestAgentDocAndReadmePointer(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"Product principle", "out of the box", "not security experts", "adapt automatically", "PKCE", "Minimize per-client and per-upstream settings",
-		"public clients", "5 s", "hover tooltip", "uid 1000", "stack YAML", "semver", "go test -race", "chk.sh", "Authentik", "never sent to a model"} {
+		"public clients", "5 s", "hover tooltip", "nobody", "stack YAML", "semver", "go test -race", "chk.sh", "Authentik", "never sent to a model"} {
 		if !strings.Contains(string(b), want) && !strings.Contains(strings.ToLower(string(b)), strings.ToLower(want)) {
 			t.Errorf("AGENT.md lacks %q", want)
 		}
