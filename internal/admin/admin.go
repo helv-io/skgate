@@ -69,8 +69,9 @@ var funcs = template.FuncMap{
 		}
 		return timefmt.DateTime(t)
 	},
-	"dur":  func(d time.Duration) string { return d.Round(time.Second).String() },
-	"list": func(v ...string) []string { return v },
+	"dur":     func(d time.Duration) string { return d.Round(time.Second).String() },
+	"latency": timefmt.Latency,
+	"list":    func(v ...string) []string { return v },
 	// pairRow and pair feed the "pair_row" component (see templates/components.html).
 	"pairRow": func(l pairList, r pair, removable bool) pairRowData {
 		return pairRowData{NameKey: l.NameKey, ValueKey: l.ValueKey, SecretKey: l.SecretKey, NamePH: l.NamePH, ValuePH: l.ValuePH, Row: r, Removable: removable}

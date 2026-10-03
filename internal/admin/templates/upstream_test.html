@@ -8,7 +8,7 @@
 {{if .U.Managed}}<tr><th>Type</th><td><span class="chip">{{.U.Kind}}</span> {{template "proc_pill" .U.Proc}}</td></tr>
 {{else}}<tr><th>HTTP status</th><td>{{if .R.Status}}{{.R.Status}}{{else}}<span class="muted">no response</span>{{end}}</td></tr>
 <tr><th>Auth</th><td><span class="chip">{{.R.Auth}}</span> <span class="muted">(mode {{.R.AuthMode}}{{if .R.Detected}}, detected: {{.R.Detected}}{{end}})</span></td></tr>{{end}}
-<tr><th>Latency</th><td>{{.R.Latency}}</td></tr>
+<tr><th>Latency</th><td>{{latency .R.Latency}}</td></tr>
 {{if .R.Server}}<tr><th>Server</th><td>{{.R.Server}} <span class="muted">(protocol {{.R.Protocol}}{{if .R.SessionID}}, Mcp-Session-Id issued{{end}})</span></td></tr>{{end}}
 {{range .R.Warnings}}<tr><th>Warning</th><td class="warn">{{.}}</td></tr>{{end}}
 </tbody></table></div>
