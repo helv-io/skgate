@@ -185,3 +185,24 @@ func TestCacheEnvIsPerAlias(t *testing.T) {
 		t.Fatal("the cache dir must exist before the first run")
 	}
 }
+
+// .NET children find the SDK, skip telemetry and keep NuGet packages in their own cache.
+func TestDotnetEnv(t *testing.T) {
+	env := BuildEnv([]string{"DOTNET_ROOT=/usr/share/dotnet", "DOTNET_CLI_TELEMETRY_OPTOUT=1", "SECRETS_KEY=x"}, "/h", "/t", CacheEnv("/c"))
+	got := strings.Join(env, "\n")
+	for _, want := range []string{"DOTNET_ROOT=/usr/share/dotnet", "DOTNET_CLI_TELEMETRY_OPTOUT=1", "NUGET_PACKAGES=/c/nuget"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s", want)
+		}
+	}
+	if strings.Contains(got, "SECRETS_KEY") {
+		t.Error("a secret leaked into the child")
+	}
+	found := false
+	for _, c := range commonCommands {
+		found = found || c.Name == "dotnet"
+	}
+	if !found {
+		t.Error("dotnet is not offered as a command")
+	}
+}

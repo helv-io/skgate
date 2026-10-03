@@ -537,3 +537,53 @@ func TestSuggestReportsProgress(t *testing.T) {
 		t.Fatalf("source %+v", ev[1].Source)
 	}
 }
+
+func TestTrimReadmeDropsBadgesAndImages(t *testing.T) {
+	in := "# Tool\n\n[![CI](https://x/ci.svg)](https://x/ci) [![npm](https://x/n.svg)](https://x/n)\n\n![logo](logo.png)\n<img src=\"a.png\" width=\"10\">\n<!-- hidden -->\n<picture><source srcset=\"a\"><img src=\"b\"></picture>\n\n\n\nRun `npx tool`.\n"
+	got := trimReadme(in)
+	for _, bad := range []string{"![", "<img", "<picture", "hidden", "ci.svg"} {
+		if strings.Contains(got, bad) {
+			t.Errorf("%q survived:\n%s", bad, got)
+		}
+	}
+	if !strings.Contains(got, "Run `npx tool`.") || strings.Contains(got, "\n\n\n") {
+		t.Errorf("text or spacing lost:\n%q", got)
+	}
+	if long := trimReadme(strings.Repeat("word ", 10000)); len(long) > maxReadme+40 || !strings.HasSuffix(long, "[README truncated]") {
+		t.Errorf("not capped: %d", len(long))
+	}
+}
+
+// A repository with a solution file gets its .csproj read, and the language is reported as .NET.
+func TestFetchGitFindsDotnetProjects(t *testing.T) {
+	f, _ := fetcherFor(t, func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		switch {
+		case strings.HasSuffix(p, "/contents") || strings.HasSuffix(p, "/contents/"):
+			io.WriteString(w, `[{"name":"README.md","type":"file"},{"name":"Thing.sln","type":"file"},{"name":"Thing","type":"dir"}]`)
+		case strings.HasSuffix(p, "/contents/README.md"):
+			io.WriteString(w, "# Thing\nRun `dotnet run --project Thing -- --stdio`.")
+		case strings.HasSuffix(p, "/contents/Thing.sln"):
+			io.WriteString(w, "Project(\"{FAE04EC0}\") = \"Thing\", \"Thing\\Thing.csproj\", \"{1}\"\nProject(\"{FAE04EC0}\") = \"Thing.Tests\", \"Thing.Tests\\Thing.Tests.csproj\", \"{2}\"\n")
+		case strings.HasSuffix(p, "/contents/Thing/Thing.csproj"):
+			io.WriteString(w, `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>`)
+		default:
+			w.WriteHeader(404)
+		}
+	})
+	src, _ := ParseSource("https://github.com/acme/thing")
+	doc, err := f.Fetch(context.Background(), src, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := doc.info()
+	if info.Language != ".NET" || strings.Join(info.Files, ",") != "README.md,Thing/Thing.csproj" {
+		t.Fatalf("%+v", info)
+	}
+}
+
+func TestPromptNamesDotnetRule(t *testing.T) {
+	if !strings.Contains(SystemPrompt, "dotnet build") || !strings.Contains(SystemPrompt, "--no-build") {
+		t.Fatal("the system prompt lacks the .NET rule")
+	}
+}

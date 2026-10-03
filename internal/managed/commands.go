@@ -25,6 +25,7 @@ var commonCommands = []Command{
 	{"pipx", "run a Python package"},
 	{"python3", "run a Python file"},
 	{"python", "run a Python file"},
+	{"dotnet", "build and run a .NET project"},
 	{"git", "git"},
 	{"docker", "run a container"},
 	{"sh", "POSIX shell"},
