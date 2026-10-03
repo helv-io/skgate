@@ -22,6 +22,8 @@ Part of the [skgate README](../README.md).
 | Scripts, mcp-proxy | Bearer key or `X-API-Key`. |
 | SSE-only | `GET /sse[/alias]` then `POST /messages`, bridged to Streamable HTTP. |
 
+Registration is forgiving: redirect URIs that cannot be used (custom schemes such as `cursor://`, plain `http` off loopback) are ignored as long as one usable URI remains, and requested grant types, response types and authentication methods that skgate does not support are dropped. The response states what was granted. A client that asks only for unsupported things is refused.
+
 Discovery: `PUBLIC_URL/.well-known/oauth-authorization-server`. Protected-resource metadata is served per endpoint (`/.well-known/oauth-protected-resource/mcp` and `/mcp/<alias>`, `resource` equal to the URL); there is none at the root.
 
 PKCE: a `code_challenge` that is sent must be `S256` and is always verified. Without one, `/authorize` accepts only confidential clients (`client_secret_post`/`basic`, secret checked at `/token`) that have not used PKCE yet; after a client's first successful PKCE exchange it needs PKCE. Public and dynamically registered clients always need it.
