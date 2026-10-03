@@ -52,6 +52,9 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	for _, n := range []string{"Home Assistant " + strings.Repeat("with a very long client name ", 3), "c2"} {
 		post("/admin/clients/create", url.Values{"name": {n}, "redirects": {"https://my.home-assistant.io/redirect/" + strings.Repeat("oauth/", 15) + "callback\nhttps://x.example/cb"}, "method": {"client_secret_post"}})
 	}
+	if ks, _ := a.Keys.List(); len(ks) > 0 { // one key may be sent as ?key=: its row/card is tinted
+		a.Keys.SetURLKey(ks[0].ID, true)
+	}
 	type page struct {
 		Name   string `json:"name"`
 		Dialog bool   `json:"dialog"`

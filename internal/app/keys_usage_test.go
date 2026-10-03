@@ -236,3 +236,31 @@ func TestVersionLinkHasNoHoverStyling(t *testing.T) {
 		t.Error("the version link must not change color on hover")
 	}
 }
+
+// A key that may be sent as ?key= gets the geturl marker on its row (and so on its card on phones); the tint is one
+// shared token used by one rule for the table row and one for the mobile card.
+func TestURLKeyRowIsMarked(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"plain"}})
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"geturl"}})
+	ks, _ := a.Keys.List()
+	for _, k := range ks {
+		if k.Label == "geturl" {
+			a.Keys.SetURLKey(k.ID, true)
+		}
+	}
+	_, page := br.get("/admin/keys")
+	if n := strings.Count(page, `<tr class="geturl"`); n != 1 {
+		t.Fatalf("exactly the enabled key's row carries the marker, got %d", n)
+	}
+	css, _ := os.ReadFile("../admin/static/app.css")
+	c := string(css)
+	if !strings.Contains(c, "--tint-url:") || strings.Count(c, "var(--tint-url)") < 3 {
+		t.Error("the tint must be a shared token used by the table and the card rules")
+	}
+	for _, sel := range []string{".table tbody tr.geturl", ".table:not(.kv) tbody tr.geturl"} {
+		if !strings.Contains(c, sel) {
+			t.Errorf("no rule for %q", sel)
+		}
+	}
+}
