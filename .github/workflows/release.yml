@@ -23,11 +23,6 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
-    inputs:
-      cleanup:
-        description: "TRIAL ONLY: delete the ci-test-* tags instead of building"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -47,7 +42,6 @@ env:
 
 jobs:
   test:
-    if: ${{ !inputs.cleanup }}
     name: test (shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     strategy:
@@ -60,7 +54,6 @@ jobs:
       - run: tools/test-shard.sh ${{ matrix.shard }} 3
 
   build:
-    if: ${{ !inputs.cleanup }}
     name: build ${{ matrix.variant }} ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -123,7 +116,6 @@ jobs:
           retention-days: 1
 
   merge:
-    if: ${{ !inputs.cleanup }}
     name: tag ${{ matrix.variant }}
     needs: [test, build]
     runs-on: ubuntu-latest
@@ -169,25 +161,3 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(for f in *; do printf '${{ env.IMAGE }}@sha256:%s ' "${f#*.}"; done)
       - run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ env.VERSION }}${{ matrix.sfx }}
-
-  cleanup:
-    if: ${{ inputs.cleanup }}
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
-    steps:
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          kind=$(gh api /users/${{ github.repository_owner }} --jq '.type' | sed 's/Organization/orgs/;s/User/users/')
-          base=/$kind/${{ github.repository_owner }}/packages/container/skgate/versions
-          gh api --paginate "$base?per_page=100" --jq '.[] | {id, created_at, tags: .metadata.container.tags}' > versions.jsonl
-          jq -r '"\(.id) \(.created_at) \(.tags | join(","))"' versions.jsonl | tail -n 40
-          # tagged trial versions, then the untagged per-arch digests the trial runs pushed (nothing before this afternoon's trials)
-          jq -r 'select(.tags | length > 0) | select(any(.tags[]; test("^(ci-test-|v0\\.0\\.0-citest)"))) | .id' versions.jsonl > delete.txt
-          jq -r 'select(.tags | length == 0) | select(.created_at >= "2026-10-03T18:20:00Z") | .id' versions.jsonl >> delete.txt
-          while read -r id; do
-            echo "deleting version $id"
-            gh api -X DELETE "$base/$id" && echo "  deleted" || echo "  FAILED"
-          done < delete.txt
