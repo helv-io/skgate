@@ -131,6 +131,7 @@ button.pill.swap{font:inherit;font-size:12px;line-height:20px;padding:1px 9px;ba
 .field{margin:0 0 12px}
 /* quick: a row of preset buttons under a field (expiration); finger-sized on phones */
 .quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.quick .act[aria-pressed=true]{color:var(--acc);border-color:var(--acc);background:#14202e}
 .field>p{margin:6px 0 0}
 .field>label,label{display:block;margin:10px 0 4px;color:var(--dim);font-size:13px}
 .field>label:first-child{margin-top:0}

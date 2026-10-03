@@ -39,6 +39,15 @@ const type=(v)=>{ input.value=v; input.dispatchEvent(new w.Event("input",{bubble
   box.querySelector("[data-expiry-set='never']").click(); await tick(20);
   ok(input.value===""&&prev.textContent==="Never expires","Never empties the field");
   ok(box.querySelectorAll("button[type=button]").length===6,"presets never submit the form");
+  // the pressed state follows the text: a preset is pressed while the field holds its value, nothing else is
+  const pressed=()=>[...box.querySelectorAll("[data-expiry-set]")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.getAttribute("data-expiry-set")).join();
+  ok(pressed()==="never","an empty field starts with Never pressed: "+pressed());
+  box.querySelector("[data-expiry-set='30d']").click(); await tick(20);
+  ok(pressed()==="30d","a preset is pressed once clicked: "+pressed());
+  type("next friday"); await tick(20);
+  ok(pressed()==="","typing something else releases it: "+pressed());
+  type("30D"); ok(pressed()==="30d","typing the value of a preset presses it: "+pressed());
+  type(""); ok(pressed()==="never","an empty field is Never: "+pressed());
   // a slow answer for older text never overwrites a newer one
   mode="slow-first"; calls.length=0;
   type("7d"); await tick(200); type("2w"); await tick(200);
