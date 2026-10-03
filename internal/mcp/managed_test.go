@@ -101,7 +101,7 @@ func TestManagedDisabledUpstreamAndUnknownAliasAre404(t *testing.T) {
 
 func TestManagedAggregatorPrefixesAndRoutes(t *testing.T) {
 	e := managedEnv(t)
-	addFake(t, e, "mgd", nil)
+	addFake(t, e, "mgd", func(u *Upstream) { u.Lifecycle = "always" })
 	remote := newAggUp(t, "none", "rt")
 	e.srv.Upstreams.Create(Upstream{Alias: "rem", URL: remote.URL, AuthKind: AuthNone, Enabled: true, IncludeInMCP: true})
 	key, _, _ := e.keys.Create("t")
@@ -134,8 +134,8 @@ func mustJSONt(v any) []byte { b, _ := json.Marshal(v); return b }
 
 func TestManagedAggregatorSkipsUnavailableManagedUpstream(t *testing.T) {
 	e := managedEnv(t)
-	addFake(t, e, "good", nil)
-	addFake(t, e, "broken", func(u *Upstream) { u.Command = "definitely-not-installed-xyz"; u.Env = nil })
+	addFake(t, e, "good", func(u *Upstream) { u.Lifecycle = "always" })
+	addFake(t, e, "broken", func(u *Upstream) { u.Lifecycle = "always"; u.Command = "definitely-not-installed-xyz"; u.Env = nil })
 	key, _, _ := e.keys.Create("t")
 	_, m := e.rpc(key, "/mcp", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
 	got := strings.Join(toolNames(t, m), ",")

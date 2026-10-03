@@ -163,8 +163,11 @@ func TestStoreImportConflictsAndManagedSwitch(t *testing.T) {
 		t.Fatalf("%+v", res)
 	}
 	u, ok := e.srv.Upstreams.Get("new")
-	if !ok || !u.IncludeInMCP || (u.Command != "y" && u.Command != "z") {
+	if !ok || u.IncludeInMCP || (u.Command != "y" && u.Command != "z") { // managed + on-demand: never on /mcp
 		t.Fatalf("%+v", u)
+	}
+	if r, _ := e.srv.Upstreams.Get("r"); !r.IncludeInMCP {
+		t.Fatalf("remote import keeps the flag: %+v", r)
 	}
 	// slim edition: managed entries are refused, remote ones still import
 	slimEdition(t)

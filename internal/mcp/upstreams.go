@@ -108,6 +108,9 @@ func (u *Upstream) Validate() error {
 	if u.Lifecycle == "" {
 		u.Lifecycle = "on-demand"
 	}
+	if (u.Kind == KindStdio || u.Kind == KindGit) && u.Lifecycle != "always" {
+		u.IncludeInMCP = false // on-demand servers are never on /mcp
+	}
 	switch u.Kind {
 	case "", KindRemote:
 		u.Kind = KindRemote
@@ -234,9 +237,10 @@ func (s *Upstreams) Get(alias string) (Upstream, bool) {
 	return u, err == nil
 }
 
-// Included returns the enabled upstreams flagged "Include in /mcp", ordered by alias.
+// Included returns the enabled upstreams flagged "Include in /mcp", ordered by alias. Managed upstreams count only
+// when always-on: on-demand ones are never included, whatever the flag says.
 func (s *Upstreams) Included() ([]Upstream, error) {
-	rows, err := s.db.Query(`SELECT ` + upCols + ` FROM upstreams WHERE include_in_mcp=1 AND enabled=1 ORDER BY alias`)
+	rows, err := s.db.Query(`SELECT ` + upCols + ` FROM upstreams WHERE include_in_mcp=1 AND enabled=1 AND NOT (kind IN ('stdio','git') AND lifecycle<>'always') ORDER BY alias`)
 	if err != nil {
 		return nil, err
 	}
@@ -337,6 +341,9 @@ func (s *Upstreams) Update(u Upstream, keepSecret bool) error {
 	return tx.Commit()
 }
 
+// ErrOnDemandInMCP is returned when an on-demand managed upstream is asked to join /mcp.
+var ErrOnDemandInMCP = errors.New("only always-on servers can be on /mcp; on-demand servers are excluded automatically")
+
 // Flag names accepted by SetFlag.
 const (
 	FlagEnabled = "enabled"
@@ -354,6 +361,11 @@ func (s *Upstreams) SetFlag(alias, flag string, on bool) (Upstream, error) {
 		col = "include_in_mcp"
 	default:
 		return Upstream{}, errors.New("unknown flag")
+	}
+	if flag == FlagInclude && on {
+		if cur, ok := s.Get(alias); ok && cur.Managed() && cur.Lifecycle != "always" {
+			return Upstream{}, ErrOnDemandInMCP
+		}
 	}
 	res, err := s.db.Exec(`UPDATE upstreams SET `+col+`=? WHERE alias=?`, b2i(on), alias)
 	if err != nil {

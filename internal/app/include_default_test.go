@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-var addFormInclude = regexp.MustCompile(`name="include" value="1" (checked)?>\s*include in /mcp`)
+var addFormInclude = regexp.MustCompile(`name="include" value="1" data-include (checked)?[^>]*>\s*include in /mcp`)
 
 func includePreselected(t *testing.T, br *browser) bool {
 	t.Helper()

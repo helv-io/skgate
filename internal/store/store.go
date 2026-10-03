@@ -236,6 +236,10 @@ func migrate(db *sql.DB) error {
 			}
 		}
 	}
+	// Only always-on managed upstreams may be on /mcp (on-demand ones would all start at once). Idempotent.
+	if _, err := db.Exec(`UPDATE upstreams SET include_in_mcp=0 WHERE include_in_mcp=1 AND kind IN ('stdio','git') AND lifecycle<>'always'`); err != nil {
+		return err
+	}
 	return nil
 }
 
