@@ -29,6 +29,10 @@ Auto detection runs on save, on **detect**, and lazily on first use. 401/403 cou
 
 **Test** runs `initialize`, `notifications/initialized` and `tools/list` with the effective auth and shows status, auth, latency, server, protocol and tools (first 100). Passthrough upstreams are tested without credentials.
 
+When the connection is refused or the name does not resolve, Test says so in words and adds a hint. For an upstream on a private network (a container name, a private address, `localhost`) it also looks for the usual MCP ports (3000, 8000, 8080 and similar) that are open on that host and asks each for an `initialize` on the configured path, so a wrong port is named with the port that answers. This runs only after a failure and never on public hosts. Saving a remote upstream that cannot be reached shows the same hint, without the host name, in the confirmation. Addresses appear only on the Test screen; MCP clients and the other admin screens get the failure in words (`connection refused`, `host name not found`, `timed out`).
+
+**Health.** Remote upstreams show a pill in the list: `ok`, `failing` (with the last error under it) or `no calls yet` (nothing has called it since skgate started). It follows the real calls, from clients and from Test. Managed upstreams show their process state instead.
+
 **Custom headers** (remote): name/value rows (up to 32), sent on every outbound request after the auth header. Values are encrypted at rest and shown masked.
 
 ### Trailing slashes and redirects
