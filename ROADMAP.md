@@ -6,8 +6,6 @@ What is planned for MCP client authentication (how MCP clients register with and
 
 Small fixes to dynamic client registration (DCR) and discovery.
 
-- **Ignore unusable redirect URIs.** A registration that lists several redirect URIs, some of them unusable (custom schemes, for example), is accepted with the usable ones as long as at least one remains. Today the whole registration is refused.
-- **Negotiate instead of refusing.** Requested grant types and token endpoint authentication methods are reduced to the supported subset, and the response states what was granted, instead of answering 400 for any extra entry.
 - **Protected-resource metadata for every endpoint.** `/sse` gets its own protected-resource document like `/mcp` and `/mcp/<alias>`, and the `resource` value is consistent with and without a trailing slash.
 
 ## Planned
