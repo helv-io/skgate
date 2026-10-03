@@ -94,6 +94,11 @@ type Service struct {
 	Logf func(format string, args ...any)
 	// Progress, when set, is called synchronously as each stage starts, so a caller can stream it.
 	Progress func(Event)
+	// Effort is the reasoning effort sent as reasoning_effort ("" sends nothing: the provider decides). If the
+	// provider rejects the parameter, the request is repeated without it.
+	Effort string
+	// Idle is how long the model may stay silent (default DefaultIdle). The overall limit is the ctx deadline.
+	Idle time.Duration
 }
 
 // Stage names of a suggestion, in order.
@@ -109,6 +114,7 @@ type Event struct {
 	Stage  string      `json:"stage"`
 	Label  string      `json:"label"`
 	Source *SourceInfo `json:"source,omitempty"`
+	Chars  int         `json:"chars,omitempty"` // StageModel: characters received so far
 }
 
 // SourceInfo describes the fetched source: its name, the language its manifests suggest, and the files read.
@@ -203,28 +209,42 @@ func (s *Service) Suggest(ctx context.Context, model string, src Source, token s
 	doc, err := s.Fetch.Fetch(ctx, src, token)
 	if err != nil {
 		s.logf("suggest: fetch failed source=%s after %s: %s", label, since(t), scrub(err.Error(), token))
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return nil, &TimeoutError{Kind: "cap", Stage: StageFetch, After: time.Since(t0)}
+		}
 		return nil, errors.New(scrub(err.Error(), token))
 	}
 	s.logf("suggest: fetched kind=%s name=%s version=%s files=%s in %s", doc.Kind, doc.Name, orNone(doc.Version), doc.Summary(), since(t))
 	si := doc.info()
 	s.progress(Event{Stage: StageRead, Label: "Reading README", Source: &si})
-	body, err := buildRequest(model, src, doc, runners, token)
+	body, err := buildRequest(model, s.Effort, src, doc, runners, token)
 	if err != nil {
 		return nil, err
 	}
 	s.progress(Event{Stage: StageModel, Label: "Asking the model"})
 	t = time.Now()
-	s.logf("suggest: model call start model=%q request=%d bytes", model, len(body))
-	status, reply, err := s.LLM.Post(ctx, "/chat/completions", body)
-	if err == nil && (status == 400 || status == 422) { // provider without structured output: ask again in plain JSON mode
-		s.logf("suggest: model refused structured output (HTTP %d: %s); retrying in JSON mode", status, replyReason(reply, token))
-		status, reply, err = s.LLM.Post(ctx, "/chat/completions", withoutSchema(body))
+	s.logf("suggest: model call start model=%q effort=%s request=%d bytes idle=%s", model, orDefault(s.Effort), len(body), s.idle())
+	c, err := s.call(ctx, body, t0)
+	if err == nil && s.Effort != "" && effortRejected(c.status, c.reply) {
+		s.logf("suggest: model refused reasoning_effort (HTTP %d: %s); retrying without it", c.status, replyReason(c.reply, token))
+		body = withoutEffort(body)
+		c, err = s.call(ctx, body, t0)
+	}
+	if err == nil && (c.status == 400 || c.status == 422) { // provider without structured output: ask again in plain JSON mode
+		s.logf("suggest: model refused structured output (HTTP %d: %s); retrying in JSON mode", c.status, replyReason(c.reply, token))
+		c, err = s.call(ctx, withoutSchema(body), t0)
+	}
+	status, reply := c.status, c.reply
+	var te *TimeoutError
+	if errors.As(err, &te) {
+		s.logf("suggest: model call timed out (%s) stage=%s effort=%s after %s, %d chars received, first token %s", te.Kind, te.Stage, orDefault(s.Effort), since(t), c.chars, firstToken(c.first))
+		return nil, te
 	}
 	if err != nil {
 		s.logf("suggest: model call failed after %s: %s", since(t), scrub(err.Error(), token))
 		return nil, errors.New("the model request failed: " + cause(err, token))
 	}
-	s.logf("suggest: model call end status=%d reply=%d bytes in %s", status, len(reply), since(t))
+	s.logf("suggest: model call end status=%d reply=%d bytes chars=%d first token %s in %s", status, len(reply), c.chars, firstToken(c.first), since(t))
 	if status != 200 {
 		reason := replyReason(reply, token)
 		s.logf("suggest: model call rejected HTTP %d: %s", status, reason)
@@ -243,6 +263,20 @@ func (s *Service) Suggest(ctx context.Context, model string, src Source, token s
 	}
 	res.scrub(token)
 	return res, nil
+}
+
+func orDefault(s string) string {
+	if s == "" {
+		return "default"
+	}
+	return s
+}
+
+func firstToken(d time.Duration) string {
+	if d == 0 {
+		return "never"
+	}
+	return d.Round(time.Millisecond).String()
 }
 
 func since(t time.Time) string { return time.Since(t).Round(time.Millisecond).String() }
@@ -324,7 +358,7 @@ type chatMsg struct {
 	Content string `json:"content"`
 }
 
-func buildRequest(model string, src Source, doc Context, runners []string, token string) ([]byte, error) {
+func buildRequest(model, effort string, src Source, doc Context, runners []string, token string) ([]byte, error) {
 	var u strings.Builder
 	fmt.Fprintf(&u, "Source: %s (%s)\n", src.Raw, doc.Kind)
 	if doc.Version != "" {
@@ -354,6 +388,9 @@ func buildRequest(model string, src Source, doc Context, runners []string, token
 		"messages": []chatMsg{{"system", SystemPrompt}, {"user", u.String()}},
 		"response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{
 			"name": "mcp_upstream", "strict": true, "schema": Schema}},
+	}
+	if effort != "" {
+		req["reasoning_effort"] = effort
 	}
 	return json.Marshal(req)
 }
