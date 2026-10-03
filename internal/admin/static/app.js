@@ -259,9 +259,22 @@
 // the quick buttons fill the text in. A response that arrives late for older text is ignored.
 (function () {
   var timers = new WeakMap(), seq = 0;
+  // An unreadable text marks the field invalid (aria-invalid, red border) and blocks the form's submit through the
+  // browser's own validation until it is fixed or cleared; the preview line says why.
+  function validity(box, ok) {
+    var input = box.querySelector("[data-expiry-input]");
+    if (ok) input.removeAttribute("aria-invalid"); else input.setAttribute("aria-invalid", "true");
+    input.setCustomValidity(ok ? "" : "Fix or clear the expiration");
+  }
+  // A blocked submit opens the folded section that holds the field, so the browser can show it.
+  document.addEventListener("invalid", function (e) {
+    var d = e.target && e.target.closest ? e.target.closest("details") : null;
+    if (d && !d.open) d.open = true;
+  }, true);
   function show(box, ok, text) {
     var p = box.querySelector("[data-expiry-preview]");
     if (!p) return;
+    validity(box, ok);
     p.textContent = text;
     p.classList.toggle("bad", !ok);
     p.classList.toggle("muted", ok);
