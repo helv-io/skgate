@@ -364,7 +364,10 @@ func TestAutoUpdate(t *testing.T) {
 		pid := pin.Status().PID
 		free := mk("free", "pkg")
 		fpid := free.Status().PID
-		waitFor2(t, "unpinned updated", 15*time.Second, func() bool { return free.Status().PID != fpid && free.Status().State == StateRunning })
+		// the "update auto" line is logged once the restart is done, after the new pid already shows
+		waitFor2(t, "unpinned updated", 15*time.Second, func() bool {
+			return free.Status().PID != fpid && free.Status().State == StateRunning && strings.Contains(ls.String(), "managed[free]: update auto")
+		})
 		if pin.Status().PID != pid {
 			t.Fatal("a pinned version was auto-updated")
 		}
