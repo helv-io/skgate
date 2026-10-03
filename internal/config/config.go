@@ -109,6 +109,12 @@ func (c *Config) OIDCEnabled() bool {
 	return c.OIDCIssuer != "" && c.OIDCClientID != "" && c.OIDCClientSecret != ""
 }
 
+// AllOIDCUsersAdmin reports whether sign-in is configured without an allow-list, so every user the
+// provider admits is an admin.
+func (c *Config) AllOIDCUsersAdmin() bool {
+	return c.OIDCEnabled() && len(c.OIDCEmails) == 0 && len(c.OIDCGroups) == 0
+}
+
 // OIDCRedirect returns the callback URL registered at the identity provider.
 func (c *Config) OIDCRedirect() string {
 	if c.OIDCRedirectURL != "" {

@@ -45,6 +45,9 @@ func main() {
 	defer db.Close()
 	privateDB(cfg.DBPath)
 	log.Printf("secrets: encryption key from %s", db.SecretsSource)
+	for _, line := range startupNotes(cfg) {
+		log.Print(line)
+	}
 	a := app.New(cfg, db) // also moves the old global upstream settings to the provider
 	config.MigrateLegacyEnv(db)
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
