@@ -512,6 +512,48 @@ document.addEventListener("input", function (e) {
     });
   }
   function set(form, name, v) { var f = form.elements[name]; if (f) f.value = v; }
+  // The Suggest button needs a source (and a helper model, which the server marks with data-suggest-off), so it is
+  // disabled while the source is empty or a request is running; its tooltip says what is missing.
+  var NEED_SOURCE = "Enter a source first";
+  function sync(form) {
+    var src = form.elements.source;
+    Array.prototype.forEach.call(form.querySelectorAll("[data-suggest]"), function (b) {
+      var empty = !src || !src.value.trim(), off = b.hasAttribute("data-suggest-off");
+      b.disabled = off || empty || !!b._busy;
+      if (!off) { if (empty) b.title = NEED_SOURCE; else b.removeAttribute("title"); }
+    });
+  }
+  // Fields that only apply to one kind of source follow the source: the access token and the ref belong to a git
+  // repository, the install command is hidden for a package (npm, PyPI) unless it already holds something.
+  // sourceKind reads the address the way the server does, loosely: it only decides what is shown.
+  function sourceKind(v) {
+    v = v.trim();
+    if (!v) return "";
+    if (/^(npm|pypi|uvx):/i.test(v) || /^@/.test(v) || /==/.test(v)) return "package";
+    if (/^git@/i.test(v) || /^https?:\/\/(www\.)?(npmjs\.com|pypi\.org)\//i.test(v)) return /^git@/i.test(v) ? "git" : "package";
+    if (/^https?:\/\//i.test(v)) return "git";
+    if (/^[^\/@\s]+\.[^\/\s]+\//.test(v)) return "git"; // github.com/owner/repo
+    return "package";
+  }
+  function kinds(form) {
+    var src = form.elements.source, k = src ? sourceKind(src.value) : "";
+    Array.prototype.forEach.call(form.querySelectorAll("[data-show-for]"), function (el) { el.hidden = el.getAttribute("data-show-for") !== k; });
+    Array.prototype.forEach.call(form.querySelectorAll("[data-hide-for]"), function (el) {
+      var f = el.querySelector("textarea,input");
+      el.hidden = el.getAttribute("data-hide-for") === k && !(f && f.value.trim());
+    });
+  }
+  function refresh(form) { sync(form); kinds(form); }
+  window.skgateSuggestSync = function () {
+    Array.prototype.forEach.call(document.querySelectorAll("form"), function (f) { if (f.querySelector("[data-suggest-source]")) refresh(f); });
+  };
+  document.addEventListener("input", function (e) {
+    var el = e.target;
+    if (!el || !el.closest) return;
+    var form = el.closest("form");
+    if (form && (el.matches("[data-suggest-source]") || el.matches("[data-hide-for] textarea,[data-hide-for] input"))) refresh(form);
+  });
+  window.skgateSuggestSync();
   function apply(form, r) {
     if (form.elements.alias && form.elements.alias.type !== "hidden" && !form.elements.alias.value) set(form, "alias", r.alias);
     var pick = form.elements.command_pick;
@@ -528,6 +570,7 @@ document.addEventListener("input", function (e) {
     if (r.kind === "git") { set(form, "source", r.git_url || ""); set(form, "git_ref", r.git_ref || ""); }
     var d = form.querySelector("[data-manual]");
     if (d) d.open = true;
+    refresh(form);
   }
   function show(form, cls, label, lines, action) {
     var out = form.querySelector("[data-suggest-out]");
@@ -546,6 +589,7 @@ document.addEventListener("input", function (e) {
     var ul = out.querySelector("[data-suggest-list]");
     pill.className = "pill " + cls;
     pill.textContent = label;
+    pill.hidden = !label;
     ul.textContent = "";
     lines.forEach(function (l) { var li = document.createElement("li"); li.textContent = l; ul.appendChild(li); });
     out.hidden = false;
@@ -555,19 +599,18 @@ document.addEventListener("input", function (e) {
   }
   function done(form, b, timer, x, secs) {
     clearInterval(timer);
-    b.disabled = false;
+    b._busy = false;
+    sync(form);
     if (x.timeout) { // a limit was hit: say where and after how long, and offer the reasoning setting when the model was slow
       var t = x.timeout, slow = t.stage === "model";
       var why = t.kind === "idle" ? "No data for " + t.secs + "s." : "The overall limit of " + t.secs + "s was reached.";
       var lines = [why];
       if (slow) lines.push("Lower the MCP helper model's reasoning (now: " + (t.effort || "auto") + "), or pick a faster model.");
       show(form, "bad", "Timed out while " + t.where + " \u00b7 " + secs + "s", lines, slow);
-      if (window.skgateToast) window.skgateToast("bad", x.error);
       return;
     }
-    if (x.error) {
-      show(form, "bad", "failed", [x.error]);
-      if (window.skgateToast) window.skgateToast("bad", x.error);
+    if (x.error) { // said once, here: no pill, no toast
+      show(form, "bad", "", [x.error]);
       return;
     }
     apply(form, x.result);
@@ -579,12 +622,14 @@ document.addEventListener("input", function (e) {
     var b = e.target && e.target.closest ? e.target.closest("[data-suggest]") : null;
     if (!b || b.disabled) return;
     var form = b.form || b.closest("form");
+    if (!form.elements.source || !form.elements.source.value.trim()) return;
     var csrf = form.elements.csrf ? form.elements.csrf.value : "";
     var body = new URLSearchParams();
     body.set("csrf", csrf);
     body.set("source", form.elements.source ? form.elements.source.value : "");
     body.set("git_token", form.elements.git_token ? form.elements.git_token.value : "");
     if (form.elements.mode && form.elements.mode.value === "edit" && form.elements.alias) body.set("alias_existing", form.elements.alias.value);
+    b._busy = true;
     b.disabled = true;
     var t0 = Date.now(), stage = "Starting", info = [];
     var chars = 0;
@@ -610,7 +655,7 @@ document.addEventListener("input", function (e) {
       .then(function (r) {
         var type = r.headers.get("Content-Type") || "";
         if (type.indexOf("x-ndjson") < 0 || !r.body || !r.body.getReader) { // refused before streaming, or no stream support
-          return r.json().then(function (j) { finish(r.ok ? { result: j } : { error: j.error || "request failed" }); });
+          return r.json().then(function (j) { finish(r.ok ? { result: j } : { error: j.error || "The request failed (HTTP " + r.status + ")." }); });
         }
         var rd = r.body.getReader(), dec = new TextDecoder(), buf = "";
         function pump() {
@@ -625,7 +670,7 @@ document.addEventListener("input", function (e) {
         }
         return pump();
       })
-      .catch(function () { finish({ error: "request failed" }); })
+      .catch(function () { finish({ error: "Couldn't reach skgate. Check your connection and try again." }); })
       .then(function () { finish({ error: "the answer ended early" }); });
   });
 })();
@@ -665,6 +710,7 @@ function frontierHint(form) {
         var fresh = tpl.content.firstElementChild;
         var old = document.querySelector("[data-suggest-controls]");
         if (fresh && old) old.replaceWith(fresh);
+        if (window.skgateSuggestSync) window.skgateSuggestSync();
         var dlg = document.querySelector("[data-modal]");
         if (j.toast.k === "ok" && !again) {
           var close = dlg && dlg.querySelector("[data-modal-close]");
