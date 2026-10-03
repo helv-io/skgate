@@ -346,15 +346,18 @@ func (c *Client) refreshLocked(ctx context.Context) error {
 		"grant_type": {"refresh_token"}, "client_id": {c.ClientID}, "refresh_token": {prev.Refresh},
 	})
 	if err != nil {
+		log.Printf("xai: token refresh request failed: %v", err)
 		_ = c.DB.SetSetting("provider.grok.last_error", "refresh: "+err.Error())
 		return err
 	}
 	switch {
 	case code == http.StatusForbidden:
+		log.Printf("xai: token refresh refused: HTTP 403, the account is not entitled to this OAuth surface")
 		_ = c.DB.SetSetting("provider.grok.state", "tier_blocked")
 		_ = c.DB.SetSetting("provider.grok.last_error", "refresh returned HTTP 403")
 		return ErrTierBlocked
 	case code == 400 || code == 401 || tr.Error == "invalid_grant":
+		log.Printf("xai: token refresh rejected (HTTP %d %s): signed out, sign in again", code, firstNonEmpty(tr.Error, "-"))
 		for _, k := range []string{"provider.grok.access", "provider.grok.refresh", "provider.grok.expires"} {
 			_ = c.DB.DeleteSetting(k)
 		}
@@ -362,6 +365,7 @@ func (c *Client) refreshLocked(ctx context.Context) error {
 		_ = c.DB.SetSetting("provider.grok.last_error", "refresh rejected: "+firstNonEmpty(tr.Error, strconv.Itoa(code)))
 		return ErrReauth
 	case code < 200 || code > 299:
+		log.Printf("xai: token refresh failed: HTTP %d", code)
 		_ = c.DB.SetSetting("provider.grok.last_error", fmt.Sprintf("refresh HTTP %d", code))
 		return fmt.Errorf("refresh: HTTP %d", code)
 	}
@@ -470,6 +474,7 @@ func (c *Client) StartDevice(ctx context.Context) (DeviceFlow, error) {
 	req.Header.Set("Accept", "application/json")
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
+		log.Printf("xai: device authorization request failed: %v", err)
 		return DeviceFlow{}, err
 	}
 	defer resp.Body.Close()
@@ -486,6 +491,7 @@ func (c *Client) StartDevice(ctx context.Context) (DeviceFlow, error) {
 	}
 	_ = json.Unmarshal(body, &d)
 	if resp.StatusCode/100 != 2 || d.DeviceCode == "" {
+		log.Printf("xai: device authorization failed: HTTP %d %s", resp.StatusCode, d.Error)
 		return DeviceFlow{}, fmt.Errorf("device authorization failed: HTTP %d %s", resp.StatusCode, d.Error)
 	}
 	if d.ExpiresIn <= 0 {
@@ -537,6 +543,9 @@ func (c *Client) setDev(f *DeviceFlow, state, errMsg string) {
 	defer c.devMu.Unlock()
 	if c.dev == f {
 		f.State, f.Err = state, errMsg
+		if state == "error" {
+			log.Printf("xai: device sign-in failed: %s", errMsg)
+		}
 	}
 }
 
@@ -553,6 +562,7 @@ func (c *Client) pollDevice(ctx context.Context, f *DeviceFlow, tokenURL string)
 			"grant_type": {deviceGrant}, "client_id": {c.ClientID}, "device_code": {f.DeviceCode},
 		})
 		if err != nil {
+			log.Printf("xai: device sign-in poll failed, retrying: %v", err)
 			continue
 		}
 		if code == http.StatusForbidden {
@@ -633,7 +643,12 @@ func (c *Client) StartBrowser(ctx context.Context) string {
 }
 
 // FinishBrowser exchanges the authorization code for tokens.
-func (c *Client) FinishBrowser(ctx context.Context, code, state string) error {
+func (c *Client) FinishBrowser(ctx context.Context, code, state string) (err error) {
+	defer func() {
+		if err != nil {
+			log.Printf("xai: browser sign-in failed: %v", err)
+		}
+	}()
 	c.devMu.Lock()
 	p := c.pkce
 	c.devMu.Unlock()

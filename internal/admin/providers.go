@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -221,6 +222,7 @@ func (a *Admin) helperDone(w http.ResponseWriter, r *http.Request, id, ok, errMs
 	}
 	t := toast{toastOK, ok}
 	if errMsg != "" {
+		log.Printf("admin: %s %s refused: %s", r.Method, r.URL.Path, clip(errMsg))
 		t = toast{toastBad, errMsg}
 	}
 	t.Msg = clip(t.Msg)

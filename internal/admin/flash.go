@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -73,6 +74,7 @@ func (a *Admin) takeFlash(w http.ResponseWriter, r *http.Request) (toast, bool) 
 func (a *Admin) back(w http.ResponseWriter, r *http.Request, to, ok, errMsg string) {
 	switch {
 	case errMsg != "":
+		log.Printf("admin: %s %s refused: %s", r.Method, r.URL.Path, clip(errMsg))
 		a.setFlash(w, toast{toastBad, errMsg})
 	case ok != "":
 		a.setFlash(w, toast{toastOK, ok})
