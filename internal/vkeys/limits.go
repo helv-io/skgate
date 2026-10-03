@@ -54,6 +54,18 @@ func (m *Manager) SetLimits(id, ratePerMin int64, expires time.Time) error {
 	return nil
 }
 
+// SetLabel renames an active key.
+func (m *Manager) SetLabel(id int64, label string) error {
+	res, err := m.db.Exec(`UPDATE vkeys SET label=? WHERE id=? AND revoked_at=0`, CleanLabel(label), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return errors.New("key not found or revoked")
+	}
+	return nil
+}
+
 // Rejection says why a request was refused. RetryAfter is set for a rate limit.
 type Rejection struct {
 	Code       string // "rate_limit_exceeded"

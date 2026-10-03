@@ -204,3 +204,26 @@ func TestGlobalQueryKeySettingMigratesToEveryKey(t *testing.T) {
 		}
 	}
 }
+
+func TestSetLabelRenamesActiveKeysOnly(t *testing.T) {
+	m := New(newDB(t))
+	_, k, _ := m.Create("old")
+	if err := m.SetLabel(k.ID, "  Home Assistant "); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SetLabel(k.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	ks, _ := m.List()
+	if ks[0].Label != "unnamed" {
+		t.Fatalf("an empty name falls back to unnamed: %q", ks[0].Label)
+	}
+	m.SetLabel(k.ID, strings.Repeat("é", 60))
+	if ks, _ = m.List(); len(ks[0].Label) > 80 || strings.ContainsRune(ks[0].Label, '\ufffd') {
+		t.Fatalf("a long name is cut at a character boundary: %q", ks[0].Label)
+	}
+	m.Revoke(k.ID)
+	if m.SetLabel(k.ID, "late") == nil {
+		t.Fatal("a revoked key cannot be renamed")
+	}
+}
