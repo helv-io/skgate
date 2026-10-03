@@ -4,13 +4,12 @@ What is planned for MCP client authentication (how MCP clients register with and
 
 ## Next
 
-Small fixes to dynamic client registration (DCR) and discovery.
+Small fixes to discovery.
 
 - **Protected-resource metadata for every endpoint.** `/sse` gets its own protected-resource document like `/mcp` and `/mcp/<alias>`, and the `resource` value is consistent with and without a trailing slash.
 
 ## Planned
 
-- **Client ID Metadata Documents.** A client may use an HTTPS URL as its client ID; skgate fetches the document it points to and treats it as the registration. Includes SSRF protection (public addresses only, no redirects to private ranges, size and time limits, caching) and an admin switch.
 - **`client_credentials` grant** for confidential clients created by an admin, for machine-to-machine use without a browser sign-in.
 - **`private_key_jwt`** client authentication, with the client's public key or key set registered by the admin.
 

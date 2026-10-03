@@ -17,12 +17,17 @@ Part of the [skgate README](../README.md).
 | --- | --- |
 | Hosted MCP connectors | URL `PUBLIC_URL/mcp/<alias>`, empty client ID and secret (DCR, public, PKCE). |
 | Native / CLI | DCR with a loopback redirect (`127.0.0.1`, `localhost`, `[::1]`, any port). |
+| Client ID metadata document | The client sends an `https` URL as its client ID; nothing to register (see below). |
 | No DCR | Manual client with its exact redirect URI. |
 | Home Assistant | Steps below. |
 | Scripts, mcp-proxy | Bearer key or `X-API-Key`. |
 | SSE-only | `GET /sse[/alias]` then `POST /messages`, bridged to Streamable HTTP. |
 
 Registration is forgiving: redirect URIs that cannot be used (custom schemes such as `cursor://`, plain `http` off loopback) are ignored as long as one usable URI remains, and requested grant types, response types and authentication methods that skgate does not support are dropped. The response states what was granted. A client that asks only for unsupported things is refused.
+
+**Client ID metadata documents.** A client may use an `https` URL with a path as its client ID. skgate fetches the JSON document there (it must repeat the URL as `client_id` and list `redirect_uris`; `client_name` is optional) and treats it as the registration: public client, PKCE required, redirect URIs checked like registered ones. Discovery advertises `client_id_metadata_document_supported`. The client appears in the client list with source `cimd`, and the consent page shows the host of the client ID next to the name, which is the document's own claim. A document with a client secret, a shared-secret auth method or no usable redirect URI is refused.
+
+The fetch is made by skgate on behalf of whoever opens `/authorize`, so it is restricted: only globally routable addresses (private, loopback, link-local and similar ranges are refused, checked on the address actually connected to), no redirects, no proxy, 5 seconds, 64 KB, JSON only. A copy is kept for the `Cache-Control` max-age (between 5 minutes and 24 hours, one hour by default) and, if the document becomes unreachable, the last good copy keeps working. A failed fetch is not repeated for a minute. The newest 500 such clients are kept. There is no setting for any of this; an instance that cannot reach the client's host simply does not accept that client ID.
 
 Discovery: `PUBLIC_URL/.well-known/oauth-authorization-server`. Protected-resource metadata is served per endpoint (`/.well-known/oauth-protected-resource/mcp` and `/mcp/<alias>`, `resource` equal to the URL); there is none at the root.
 
