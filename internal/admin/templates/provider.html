@@ -24,25 +24,12 @@
 
 {{/* provider_dialog: technical details and settings of a provider, shown in the shared modal. */}}
 {{define "provider_dialog"}}{{$p := .}}{{template "dialog_content" (dlg (printf "provider-%s" .ID) .Name)}}
-<h4>Tokens</h4>
-<div class="tablewrap"><table class="table kv"><tbody>
-<tr><th>Access token</th><td>{{if .S.SignedIn}}<code>{{.S.AccessMasked}}</code>{{else}}-{{end}}</td></tr>
-<tr><th>Refresh token</th><td>{{if .S.SignedIn}}<code>{{.S.RefreshMasked}}</code>{{else}}-{{end}}</td></tr>
-<tr><th>Expires</th><td>{{if .S.SignedIn}}{{ts .S.Expires}}{{else}}-{{end}}</td></tr>
-{{if .S.State}}<tr><th>State</th><td>{{.S.State}}</td></tr>{{end}}
-{{if .S.LastError}}<tr><th>Last error</th><td class="bad">{{.S.LastError}}</td></tr>{{end}}
-</tbody></table></div>
-{{if .S.SignedIn}}<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/refresh"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Refresh now</button></form></div>{{end}}
+{{/* Everything the user can change comes first (helper model, reasoning, timeout, settings, aliases, actions);
+   read-only information comes last. */}}
+{{if .CanModels}}<h4>MCP helper model</h4>
+{{template "model_picker" .}}
 
-<h4>Sign-in</h4>
-<div class="tablewrap"><table class="table kv"><tbody>
-{{range .Info}}<tr><th>{{.Name}}</th><td class="wrap">{{.Value}}</td></tr>{{end}}
-</tbody></table></div>
-<details><summary class="muted">Browser sign-in</summary>
-<p class="muted">The default client only allows a loopback redirect. After the redirect fails, paste the address of the failed page.</p>
-<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/browser/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Start</button></form></div>
-<form method="post" action="/admin/providers/{{.ID}}/browser/paste" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="field"><label>Callback URL or code</label><input type="text" name="callback" autocomplete="off"></div><div class="row"><button class="act">Finish</button></div></form>
-</details>
+{{end}}
 
 <h4>Upstream</h4>
 <form method="post" action="/admin/providers/{{.ID}}/settings" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
@@ -50,10 +37,7 @@
 <div class="field"><label>Fallback on 402/403 (empty = off)</label><input type="url" name="fallback" value="{{.Fallback}}"></div>
 <div class="row"><button class="act">Save</button></div></form>
 
-{{if .CanModels}}<h4>MCP helper model</h4>
-{{template "model_picker" .}}
-
-<h4>Model aliases</h4>
+{{if .CanModels}}<h4>Model aliases</h4>
 <div class="tablewrap"><table class="table"><thead><tr><th>Alias</th><th>Target</th><th>Status</th><th></th></tr></thead><tbody>
 {{range .Aliases}}<tr><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Target"><code>{{.Target}}</code></td><td class="status" data-label="Status">{{template "pill" .Pill}}</td>
 <td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
@@ -62,6 +46,28 @@
 <div class="row"><input type="text" name="name" placeholder="alias" maxlength="64" autocomplete="off" spellcheck="false">
 <select name="target">{{range .Models}}<option value="{{.}}">{{.}}</option>{{end}}</select>
 <button class="act" {{if not .ModelsKnown}}disabled title="load the model list first"{{end}}>Save</button></div></form>{{end}}
+
+<h4>Sign-in</h4>
+{{if .S.SignedIn}}<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/refresh"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Refresh now</button></form></div>{{end}}
+<details><summary class="muted">Browser sign-in</summary>
+<p class="muted">The default client only allows a loopback redirect. After the redirect fails, paste the address of the failed page.</p>
+<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/browser/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Start</button></form></div>
+<form method="post" action="/admin/providers/{{.ID}}/browser/paste" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="field"><label>Callback URL or code</label><input type="text" name="callback" autocomplete="off"></div><div class="row"><button class="act">Finish</button></div></form>
+</details>
+
+<h4>Tokens</h4>
+<div class="tablewrap"><table class="table kv"><tbody>
+<tr><th>Access token</th><td>{{if .S.SignedIn}}<code>{{.S.AccessMasked}}</code>{{else}}-{{end}}</td></tr>
+<tr><th>Refresh token</th><td>{{if .S.SignedIn}}<code>{{.S.RefreshMasked}}</code>{{else}}-{{end}}</td></tr>
+<tr><th>Expires</th><td>{{if .S.SignedIn}}{{ts .S.Expires}}{{else}}-{{end}}</td></tr>
+{{if .S.State}}<tr><th>State</th><td>{{.S.State}}</td></tr>{{end}}
+{{if .S.LastError}}<tr><th>Last error</th><td class="bad">{{.S.LastError}}</td></tr>{{end}}
+</tbody></table></div>
+
+<h4>Sign-in details</h4>
+<div class="tablewrap"><table class="table kv"><tbody>
+{{range .Info}}<tr><th>{{.Name}}</th><td class="wrap">{{.Value}}</td></tr>{{end}}
+</tbody></table></div>
 {{template "dialog_end"}}{{end}}
 
 {{/* effort_select: the reasoning dropdown. Takes an effortView. */}}

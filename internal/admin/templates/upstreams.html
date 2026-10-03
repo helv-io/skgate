@@ -11,13 +11,14 @@
 <form method="post" action="/admin/upstreams/{{.Alias}}/delete" data-confirm="Delete this upstream?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">delete</button></form></div></td></tr>
 {{else}}<tr><td colspan="5" class="empty">none</td></tr>{{end}}</tbody></table></div>
 {{range .List}}{{template "dialog_content" (dlg (printf "upstream-%s" .Alias) (printf "Upstream %s" .Alias))}}
+<div class="actions"><a class="act" href="/admin/upstreams/{{.Alias}}/test">test</a>
+{{if .Managed}}<a class="act" href="/admin/upstreams/{{.Alias}}/logs">process</a>{{else}}<form method="post" action="/admin/upstreams/{{.Alias}}/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">detect</button></form>{{end}}</div>
+<h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 {{range .Facts}}<tr><th>{{.Name}}</th><td>{{if .Code}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}</td></tr>{{end}}
 <tr><th>outbound auth</th><td><span class="chip">{{.Effective}}{{if .AuthName}} <span class="mono">{{.AuthName}}</span>{{end}}{{if .Masked}} <span class="mono">{{.Masked}}</span>{{end}}</span>{{if and (eq .AuthKind "auto") .DetectedNote}}<br><span class="muted">{{.DetectedNote}}</span>{{end}}</td></tr>
 <tr><th>client URL</th><td>{{if .Enabled}}<code>{{$.Public}}/mcp/{{.Alias}}</code>{{else}}<span class="muted">disabled</span>{{end}}</td></tr>
 </tbody></table></div>
-<div class="actions"><a class="act" href="/admin/upstreams/{{.Alias}}/test">test</a>
-{{if .Managed}}<a class="act" href="/admin/upstreams/{{.Alias}}/logs">process</a>{{else}}<form method="post" action="/admin/upstreams/{{.Alias}}/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">detect</button></form>{{end}}</div>
 {{template "dialog_end"}}{{end}}
 <h2>Add upstream</h2><div class="card">
 <form method="post" action="/admin/upstreams/save" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="mode" value="new">

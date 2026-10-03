@@ -130,3 +130,32 @@ func TestSoloLayoutRulesInSharedStylesheet(t *testing.T) {
 		}
 	}
 }
+
+// Details dialogs list what can be changed first (forms and buttons) and the read-only information last.
+func TestDetailsDialogsPutEditableFirstAndInfoLast(t *testing.T) {
+	up, _ := modelsUpstream(t, "grok-4", "grok-mini")
+	_, _, br, csrf, _ := signedInProvider(t, up)
+	br.post("/admin/providers/grok/models/reload", url.Values{"csrf": {csrf}})
+	br.post("/admin/upstreams/save", stdioForm(csrf, "m", nil))
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
+	br.post("/admin/clients/create", url.Values{"csrf": {csrf}, "name": {"c"}, "redirects": {"https://x.example/cb"}, "method": {"client_secret_post"}})
+	seen := 0
+	for _, path := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/clients"} {
+		_, page := br.get(path)
+		for _, d := range strings.Split(page, `<template data-dialog-content`)[1:] {
+			d = d[:strings.Index(d, "</template>")]
+			seen++
+			info := strings.Index(d, `<table class="table kv"`)
+			lastEdit := max(strings.LastIndex(d, "<form"), strings.LastIndex(d, `class="act"`), strings.LastIndex(d, `<select`))
+			if info < 0 {
+				continue
+			}
+			if lastEdit > info {
+				t.Errorf("%s: a control comes after the read-only information:\n%.300s", path, d[info:])
+			}
+		}
+	}
+	if seen < 4 {
+		t.Fatalf("saw only %d dialogs", seen)
+	}
+}
