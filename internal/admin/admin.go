@@ -546,6 +546,30 @@ type upstreamView struct {
 	// Proc is set for managed upstreams.
 	Proc      *procView
 	ProcClass string
+	// Health is set for remote upstreams only: how the latest calls to them went.
+	Health *healthView
+}
+
+// healthView is the health pill of a remote upstream and its last error.
+type healthView struct {
+	Class, Text, Tip string
+	LastErr          string // short text, shown under the pill while the upstream is failing
+}
+
+// healthOf describes the latest calls to a remote upstream. Nothing has been called since start: "no calls yet".
+func healthOf(h mcp.Health, known bool) *healthView {
+	if !known {
+		return &healthView{Class: "off", Text: "no calls yet", Tip: "skgate has not called this upstream since it started"}
+	}
+	v := &healthView{Class: "ok", Text: "ok", Tip: "last call worked at " + stamp(h.At)}
+	if !h.OK {
+		v.Class, v.Text, v.LastErr = "bad", "failing", h.LastErr
+		v.Tip = "last call failed at " + stamp(h.LastErrAt) + ": " + h.LastErr
+		if !h.LastOK.IsZero() {
+			v.Tip += "\nlast success at " + stamp(h.LastOK)
+		}
+	}
+	return v
 }
 
 // procView is the process status shown for a managed upstream.
@@ -861,6 +885,14 @@ func (a *Admin) view(u mcp.Upstream) upstreamView {
 	}
 	v.Facts = aliasFacts(v)
 	v.Tip = aliasTip(v)
+	if !u.Managed() {
+		h, known := a.MCP.HealthOf(u.Alias)
+		v.Health = healthOf(h, known)
+		v.Facts = append(v.Facts, fact{Name: "health", Value: v.Health.Text + map[bool]string{true: " (" + v.Health.Tip + ")", false: ""}[known]})
+		if known && !h.OK {
+			v.Facts = append(v.Facts, fact{Name: "last error", Value: h.LastErr})
+		}
+	}
 	return v
 }
 
@@ -1172,6 +1204,7 @@ func (a *Admin) upstreamSave(w http.ResponseWriter, r *http.Request) {
 		_ = a.DB.SetSetting(settingLastInclude, map[bool]string{true: "1", false: "0"}[u.IncludeInMCP])
 	}
 	a.MCP.SyncManaged(u.Alias)
+	a.MCP.ForgetHealth(u.Alias) // the address or credentials may have changed
 	msg := fmt.Sprintf("%s saved", u.Alias)
 	if u.AuthKind == mcp.AuthAuto && !u.Managed() {
 		// Detect right away so the list shows the result (the probe has its own timeouts).
@@ -1263,6 +1296,7 @@ func (a *Admin) upstreamDelete(w http.ResponseWriter, r *http.Request) {
 	alias := r.PathValue("alias")
 	_ = a.MCP.Upstreams.Delete(alias)
 	a.MCP.SyncManaged(alias)
+	a.MCP.ForgetHealth(alias)
 	a.back(w, r, "/admin/upstreams", "upstream deleted", "")
 }
 

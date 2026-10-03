@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/helv-io/skgate/internal/mcp"
 	"net"
 	"net/url"
 	"strings"
@@ -38,5 +39,46 @@ func TestRefusedUpstreamHints(t *testing.T) {
 	_, list := br.get("/admin/upstreams")
 	if !strings.Contains(list, `class="act" href="/admin/upstreams/nobody/test"`) {
 		t.Errorf("the row needs a Test button")
+	}
+}
+
+// Health and the last error appear on the list for remote upstreams only.
+func TestUpstreamListShowsHealthOfRemoteOnly(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	up := fakeUpstream(t)
+	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"fine"}, "url": {up.URL}, "auth_kind": {"none"}, "enabled": {"1"}})
+	host, port := deadHostPort(t)
+	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"broken"}, "url": {"http://" + host + ":" + port + "/mcp"}, "auth_kind": {"none"}, "enabled": {"1"}})
+	br.get("/admin/upstreams/broken/test")
+	br.get("/admin/upstreams/fine/test")
+	_, list := br.get("/admin/upstreams")
+	row := func(alias string) string {
+		i := strings.Index(list, `<code title=`)
+		for i >= 0 {
+			j := strings.Index(list[i:], "</tr>")
+			if strings.Contains(list[i:i+j], ">"+alias+"</code>") {
+				return list[i : i+j]
+			}
+			k := strings.Index(list[i+1:], `<code title=`)
+			if k < 0 {
+				break
+			}
+			i += 1 + k
+		}
+		return ""
+	}
+	if r := row("fine"); !strings.Contains(r, ">ok</span>") || strings.Contains(r, "connection refused") {
+		t.Errorf("healthy remote row: %s", r)
+	}
+	if r := row("broken"); !strings.Contains(r, ">failing</span>") || !strings.Contains(r, "connection refused") || strings.Contains(r, host+":"+port+"</") {
+		t.Errorf("failing remote row: %s", r)
+	}
+	// a managed upstream shows its process state and no health
+	if err := a.MCP.Upstreams.Create(mcp.Upstream{Alias: "proc", Kind: mcp.KindStdio, Command: "cat", Lifecycle: "on-demand"}); err != nil {
+		t.Fatal(err)
+	}
+	_, list = br.get("/admin/upstreams")
+	if r := row("proc"); r == "" || (strings.Contains(r, "failing") || strings.Contains(r, "no calls yet")) {
+		t.Errorf("managed row shows health: %s", r)
 	}
 }
