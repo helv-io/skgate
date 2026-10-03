@@ -87,7 +87,7 @@ var funcs = template.FuncMap{
 // New builds the Admin and parses templates.
 func New(cfg *config.Config, db *store.DB, reg *provider.Registry, px *provider.Proxy, k *vkeys.Manager, m *mcp.Server) *Admin {
 	a := &Admin{Cfg: cfg, DB: db, Providers: reg, Proxy: px, Set: provider.Settings{KV: db}, Keys: k, MCP: m, tpl: map[string]*template.Template{}}
-	for _, p := range []string{"status", "keys", "upstreams", "upstream_edit", "upstream_test", "upstream_logs", "upstream_import", "clients", "signedout", "autherror", "notconfigured"} {
+	for _, p := range []string{"status", "keys", "upstreams", "upstream_edit", "upstream_test", "upstream_logs", "upstream_import", "clients", "signedout", "autherror", "notconfigured", "consent"} {
 		a.tpl[p] = template.Must(template.New(p).Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/components.html", "templates/provider.html", "templates/upstream_form.html", "templates/"+p+".html"))
 	}
 	if cfg.OIDCEnabled() {
@@ -98,6 +98,7 @@ func New(cfg *config.Config, db *store.DB, reg *provider.Registry, px *provider.
 	}
 	m.AdminSession = a.Session
 	m.AdminIdentity = a.Identity
+	m.Consent = a.consent
 	return a
 }
 
@@ -107,6 +108,11 @@ type page struct {
 	Toasts []toast
 	Data   any
 	Public string
+	// Solo pages (sign-in states, consent) are one centered card without the top bar.
+	Solo bool
+	// Redirects marks a page whose form may be answered by a redirect to another site (the consent POST),
+	// so the content security policy leaves form-action open.
+	Redirects bool
 }
 
 func (a *Admin) render(w http.ResponseWriter, r *http.Request, name string, p page) {
@@ -123,7 +129,11 @@ func (a *Admin) render(w http.ResponseWriter, r *http.Request, name string, p pa
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Referrer-Policy", "same-origin")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self'")
+	csp := "default-src 'self'; style-src 'self'; script-src 'self'; frame-ancestors 'none'"
+	if !p.Redirects {
+		csp += "; form-action 'self'"
+	}
+	w.Header().Set("Content-Security-Policy", csp)
 	if err := a.tpl[name].ExecuteTemplate(w, "layout", p); err != nil {
 		http.Error(w, "template error", 500)
 	}
@@ -246,7 +256,7 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 
 func (a *Admin) notConfigured(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusServiceUnavailable)
-	a.render(w, r, "notconfigured", page{Title: "OIDC not configured"})
+	a.render(w, r, "notconfigured", page{Title: "OIDC not configured", Solo: true})
 }
 
 // login is kept as an alias: it never renders a welcome page, it goes straight to the OIDC flow
@@ -268,7 +278,7 @@ func (a *Admin) login(w http.ResponseWriter, r *http.Request) {
 // denied account cannot bounce between skgate and the identity provider.
 func (a *Admin) authError(w http.ResponseWriter, r *http.Request, code int, msg string) {
 	w.WriteHeader(code)
-	a.render(w, r, "autherror", page{Title: "Sign-in error", Data: msg})
+	a.render(w, r, "autherror", page{Title: "Sign-in error", Data: msg, Solo: true})
 }
 
 func (a *Admin) oidcLogin(w http.ResponseWriter, r *http.Request) {
@@ -310,7 +320,7 @@ func (a *Admin) signedOut(w http.ResponseWriter, r *http.Request) {
 		a.notConfigured(w, r)
 		return
 	}
-	a.render(w, r, "signedout", page{Title: "Signed out"})
+	a.render(w, r, "signedout", page{Title: "Signed out", Solo: true})
 }
 
 // logout (POST needs the CSRF token) clears the session and, if the IdP advertises end_session_endpoint,
@@ -1148,3 +1158,7 @@ func (a *Admin) clientDelete(w http.ResponseWriter, r *http.Request) {
 	a.back(w, r, "/admin/clients", "client deleted", "")
 }
 
+// consent renders the /authorize Approve/Deny page in the admin design.
+func (a *Admin) consent(w http.ResponseWriter, r *http.Request, v mcp.ConsentView) {
+	a.render(w, r, "consent", page{Title: "Authorize MCP access", Data: v, Solo: true, Redirects: true})
+}

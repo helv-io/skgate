@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -286,7 +287,7 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if s.Cfg.RequireConsent {
-			s.consentPage(w, ap, csrf)
+			s.consentPage(w, r, ap, csrf)
 			return
 		}
 		s.issueCode(w, r, ap)
@@ -328,20 +329,38 @@ func (s *Server) oidcReady() bool {
 	return s.Cfg.OIDCEnabled() && s.AdminSession != nil && s.AdminIdentity != nil
 }
 
-func (s *Server) consentPage(w http.ResponseWriter, ap authParams, csrf string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("X-Frame-Options", "DENY")
-	var hidden strings.Builder
-	for k, v := range ap.query() {
-		fmt.Fprintf(&hidden, `<input type="hidden" name="%s" value="%s">`, html.EscapeString(k), html.EscapeString(v[0]))
+// ConsentView is what the consent page shows and posts back.
+type ConsentView struct {
+	Client       string // client name
+	RedirectURI  string
+	RedirectHost string
+	Scope        string
+	CSRF         string
+	Fields       []ConsentField // hidden fields that repeat the authorization request
+}
+
+// ConsentField is one hidden form field.
+type ConsentField struct{ Name, Value string }
+
+func (s *Server) consentPage(w http.ResponseWriter, r *http.Request, ap authParams, csrf string) {
+	if s.Consent == nil {
+		errorPage(w, http.StatusInternalServerError, "consent page unavailable")
+		return
 	}
-	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>skgate consent</title><body style="font:14px monospace;background:#111;color:#ddd;padding:2em">
-<h3>Authorize MCP access?</h3><p>Client: %s<br>Redirect: %s<br>Scope: %s</p>
-<form method="post" action="/authorize">%s<input type="hidden" name="csrf" value="%s">
-<button name="decision" value="approve" style="background:#111;color:#ddd;border:1px solid #888;padding:.4em 1em">Approve</button>
-<button name="decision" value="deny" style="background:#111;color:#ddd;border:1px solid #888;padding:.4em 1em">Deny</button></form>`,
-		html.EscapeString(ap.Client.Name), html.EscapeString(ap.RedirectURI), html.EscapeString(ap.Scope), hidden.String(), html.EscapeString(csrf))
+	v := ConsentView{Client: ap.Client.Name, RedirectURI: ap.RedirectURI, Scope: ap.Scope, CSRF: csrf}
+	if u, err := url.Parse(ap.RedirectURI); err == nil {
+		v.RedirectHost = u.Host
+	}
+	q := ap.query()
+	names := make([]string, 0, len(q))
+	for k := range q {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	for _, k := range names {
+		v.Fields = append(v.Fields, ConsentField{Name: k, Value: q[k][0]})
+	}
+	s.Consent(w, r, v)
 }
 
 func (s *Server) issueCode(w http.ResponseWriter, r *http.Request, ap authParams) {

@@ -42,6 +42,8 @@ type Server struct {
 	AdminSession func(r *http.Request) (csrf string, ok bool)
 	// AdminIdentity returns the OIDC subject and email of that session.
 	AdminIdentity func(r *http.Request) (sub, email string, ok bool)
+	// Consent renders the Approve/Deny page (the admin layout owns the design).
+	Consent func(w http.ResponseWriter, r *http.Request, v ConsentView)
 
 	sessMu   sync.Mutex
 	sessions map[string]*sseSession
