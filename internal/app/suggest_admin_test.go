@@ -29,6 +29,7 @@ type suggestRig struct {
 	mu     sync.Mutex
 	prompt []string // every body sent to the model
 	reply  string
+	hang   bool // the model never answers (until the request ends)
 }
 
 func newSuggestRig(t *testing.T, signIn, pickModel bool) *suggestRig {
@@ -41,8 +42,12 @@ func newSuggestRig(t *testing.T, signIn, pickModel bool) *suggestRig {
 		case "/v1/chat/completions":
 			r.mu.Lock()
 			r.prompt = append(r.prompt, string(b))
-			reply := r.reply
+			reply, hang := r.reply, r.hang
 			r.mu.Unlock()
+			if hang {
+				<-req.Context().Done()
+				return
+			}
 			c, _ := json.Marshal(map[string]any{"choices": []map[string]any{{"message": map[string]any{"content": reply}}}})
 			w.Write(c)
 		}

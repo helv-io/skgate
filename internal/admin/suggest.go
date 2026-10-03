@@ -3,12 +3,14 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/helv-io/skgate/internal/httputil"
+	"github.com/helv-io/skgate/internal/provider"
 	"github.com/helv-io/skgate/internal/suggest"
 )
 
@@ -42,6 +44,9 @@ func (a *Admin) controlsHTML(r *http.Request) (string, error) {
 	return b.String(), err
 }
 
+// suggestCap is the overall limit of one suggestion; the model call also stops after a silent spell.
+const suggestCap = 5 * time.Minute
+
 // ndjson is the streamed form of the answer: stage events, then a result or an error line.
 const ndjson = "application/x-ndjson"
 
@@ -71,9 +76,14 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 	for _, c := range a.MCP.Commands() {
 		runners = append(runners, c.Name)
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
+	limit := suggestCap
+	if a.SuggestCap > 0 {
+		limit = a.SuggestCap
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), limit)
 	defer cancel()
-	svc := suggest.Service{Fetch: suggest.NewFetcher(), LLM: a.Proxy}
+	svc := suggest.Service{Fetch: suggest.NewFetcher(), LLM: a.Proxy, Idle: a.SuggestIdle,
+		Effort: provider.EffortParam(a.Set.Effort(a.Providers.Default().ID()))}
 	if a.SuggestFetch != nil {
 		svc.Fetch = a.SuggestFetch
 	}
@@ -100,12 +110,23 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("suggest: request source=%s token=%t", src.Label(), token != "")
 	res, err := svc.Suggest(ctx, a.Set.Model(a.Providers.Default().ID()), src, token, runners)
+	var te *suggest.TimeoutError
+	timeout := func() map[string]any {
+		return map[string]any{"kind": te.Kind, "stage": te.Stage, "where": te.Where(), "secs": int(te.After.Round(time.Second) / time.Second), "effort": svc.Effort}
+	}
 	if stream {
-		if err != nil {
+		if errors.As(err, &te) {
+			send(map[string]any{"error": err.Error(), "timeout": timeout()})
+		} else if err != nil {
 			send(map[string]string{"error": err.Error()})
 		} else {
 			send(map[string]any{"result": res})
 		}
+		return
+	}
+	if errors.As(err, &te) {
+		log.Printf("suggest: request refused HTTP %d after %s: %s", http.StatusGatewayTimeout, time.Since(t0).Round(time.Millisecond), err)
+		httputil.JSON(w, http.StatusGatewayTimeout, map[string]any{"error": err.Error(), "timeout": timeout()})
 		return
 	}
 	if err != nil {
