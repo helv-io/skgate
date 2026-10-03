@@ -71,9 +71,10 @@ var funcs = template.FuncMap{
 	"pairRow": func(l pairList, r pair, removable bool) pairRowData {
 		return pairRowData{NameKey: l.NameKey, ValueKey: l.ValueKey, NamePH: l.NamePH, Row: r, Removable: removable}
 	},
-	"pair":   func() pair { return pair{} },
-	"dlg":    func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
-	"inList": contains,
+	"pair":     func() pair { return pair{} },
+	"dlg":      func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
+	"inList":   contains,
+	"frontier": provider.LooksFrontier,
 	// pill feeds the "pill" component: class, label and hover text.
 	"pill": func(class, text, tip string) pillView { return pillView{Class: class, Text: text, Tip: tip} },
 	// tip feeds the "tip" component: visible text with a hover tooltip. usage builds the Usage cell of a key.

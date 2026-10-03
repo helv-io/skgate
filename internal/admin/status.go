@@ -31,6 +31,8 @@ type providerView struct {
 	Model       string
 	ModelPill   pillView   // MCP helper model summary
 	Effort      effortView // reasoning effort of the MCP helper model's calls
+	Timeout     int        // seconds the MCP helper model may stay silent
+	Frontier    int        // the timeout suggested for heavy models, shown for those only
 	ChatEffort  effortView // reasoning effort added to proxied chat requests
 	Aliases     []aliasView
 	AliasPill   pillView
@@ -112,6 +114,7 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	}
 	v.Model = a.Set.Model(id)
 	v.Effort = effortOf("effort", a.Set.Effort(id))
+	v.Timeout, v.Frontier = int(a.Set.HelperTimeout(id)/time.Second), provider.FrontierTimeoutSecs
 	v.ChatEffort = effortOf("effort", a.Set.ChatEffort(id))
 	switch {
 	case v.Model == "":

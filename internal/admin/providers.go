@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -265,6 +266,15 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 		a.helperDone(w, r, p.ID(), "", "not a valid effort")
 		return
 	}
+	timeout := 0
+	if t := r.PostFormValue("timeout"); t != "" {
+		n, err := provider.ParseTimeout(t)
+		if err != nil {
+			a.helperDone(w, r, p.ID(), "", err.Error())
+			return
+		}
+		timeout = n
+	}
 	_ = a.Set.SetModel(p.ID(), m)
 	msg := "MCP helper model cleared"
 	if m != "" {
@@ -273,6 +283,10 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 	if effort != "" {
 		_ = a.Set.SetEffort(p.ID(), effort)
 		msg += ", effort " + effort
+	}
+	if timeout > 0 {
+		_ = a.Set.SetHelperTimeout(p.ID(), timeout)
+		msg += ", timeout " + strconv.Itoa(timeout) + " s"
 	}
 	a.helperDone(w, r, p.ID(), msg, "")
 }

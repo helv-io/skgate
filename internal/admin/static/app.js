@@ -424,6 +424,21 @@ document.addEventListener("click", function (e) {
   });
 })();
 
+// Heavy-model hint: the model picker shows its timeout suggestion (data-frontier-hint) only while the chosen model
+// is marked data-frontier and the timeout is below the suggested one. The suggestion is never applied.
+function frontierHint(form) {
+  var hint = form.querySelector("[data-frontier-hint]"), sel = form.querySelector('select[name="model"]'), t = form.querySelector('input[name="timeout"]');
+  if (!hint || !sel || !t) return;
+  var opt = sel.options[sel.selectedIndex];
+  hint.hidden = !(opt && opt.hasAttribute("data-frontier") && Number(t.value) < Number(hint.getAttribute("data-frontier-hint")));
+}
+["change", "input"].forEach(function (ev) {
+  document.addEventListener(ev, function (e) {
+    var form = e.target && e.target.closest ? e.target.closest("form") : null;
+    if (form && form.querySelector("[data-frontier-hint]")) frontierHint(form);
+  });
+});
+
 // Inline forms: a form with data-inline posts by fetch and the page updates in place, without a reload. The
 // server answers {toast, html}: the toast is shown, and html (the element with data-suggest-controls)
 // replaces the current one. data-inline="" closes the open dialog on success; data-inline="#id" keeps it open
