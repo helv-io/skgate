@@ -21,7 +21,10 @@ Rules:
 - Pick the stdio transport. Use an HTTP-mode server only if the source offers no stdio mode; then set transport to "http" and say so in warnings.
 - command must be one of the allowed commands and a bare program name. args is a list of single arguments, one per item, no shell syntax.
 - Pin the version when the documents give one (npx pkg@1.2.3, uvx pkg==1.2.3). Do not invent versions.
-- List every environment variable the documents say the server requires or commonly uses, each with an ALL_UPPERCASE_PLACEHOLDER value such as YOUR_API_KEY. Never put a real secret or example key in a value. Use headers only for HTTP-mode servers.
+- List every environment variable the documents say the server requires or commonly uses. Give each a name, a short description, secret and required. Leave value an empty string: never put a real secret, example key or sample value in it.
+- secret is true for API keys, tokens, passwords, client secrets and other credentials. It is false for URLs, hosts, ports, paths, flags, modes and other settings.
+- required is true when the documents say the server cannot work without the variable, false when it is optional or has a default.
+- Use headers only for HTTP-mode servers, with ALL_UPPERCASE_PLACEHOLDER values such as YOUR_API_KEY.
 - Do not invent environment variables, flags, commands or package names that the documents do not support. If something is unknown, leave it out and add a warning.
 - install is a shell command to run before start, or an empty string. Use it only when the documents require a build or dependency step for a git source.
 - A .NET project (a .csproj file) uses the command dotnet when it is allowed. Build once in install (dotnet build PATH/Project.csproj -c Release) and start with args run --no-build -c Release --project PATH/Project.csproj -- followed by the stdio flag the documents name (usually --stdio). Use a startup_secs of at least 120.
@@ -42,8 +45,9 @@ var Schema = map[string]any{
 		"command":   map[string]any{"type": "string"},
 		"args":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 		"env": map[string]any{"type": "array", "items": map[string]any{
-			"type": "object", "additionalProperties": false, "required": []string{"name", "value", "description"},
-			"properties": map[string]any{"name": map[string]any{"type": "string"}, "value": map[string]any{"type": "string"}, "description": map[string]any{"type": "string"}}}},
+			"type": "object", "additionalProperties": false, "required": []string{"name", "description", "secret", "required"},
+			"properties": map[string]any{"name": map[string]any{"type": "string"}, "description": map[string]any{"type": "string"},
+				"secret": map[string]any{"type": "boolean"}, "required": map[string]any{"type": "boolean"}}}},
 		"headers": map[string]any{"type": "array", "items": map[string]any{
 			"type": "object", "additionalProperties": false, "required": []string{"name", "value"},
 			"properties": map[string]any{"name": map[string]any{"type": "string"}, "value": map[string]any{"type": "string"}}}},
@@ -62,6 +66,24 @@ type Pair struct {
 	Description string `json:"description,omitempty"`
 }
 
+// EnvVar is a suggested environment variable. It carries no value: the user types it. Secret tells the
+// UI to mask the field; Required that the server needs it (the field says "Required" or "Optional").
+type EnvVar struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Secret      bool   `json:"secret"`
+	Required    bool   `json:"required"`
+}
+
+// SecretNamePattern matches the variable names treated as secret when the model does not say. The admin
+// script gets the same pattern, so a row typed by hand is masked as soon as its name matches.
+const SecretNamePattern = "KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|PRIVATE"
+
+var secretNameRE = regexp.MustCompile("(?i)" + SecretNamePattern)
+
+// NameLooksSecret is the fallback for secret when the model leaves it out.
+func NameLooksSecret(name string) bool { return secretNameRE.MatchString(name) }
+
 // Result is a validated suggestion. It only fills the form; nothing is saved.
 type Result struct {
 	Alias      string   `json:"alias"`
@@ -69,7 +91,7 @@ type Result struct {
 	Transport  string   `json:"transport"`
 	Command    string   `json:"command"`
 	Args       []string `json:"args"`
-	Env        []Pair   `json:"env"`
+	Env        []EnvVar `json:"env"`
 	Headers    []Pair   `json:"headers"`
 	Install    string   `json:"install"`
 	StartupSec int      `json:"startup_secs"`
@@ -419,13 +441,23 @@ func messageContent(reply []byte) (string, error) {
 	return r.Choices[0].Message.Content, nil
 }
 
+// rawEnv is a variable as the model sends it. Value is read and ignored (older prompts asked for
+// placeholders); a missing secret or required is not an error.
+type rawEnv struct {
+	Name        string `json:"name"`
+	Value       string `json:"value"`
+	Description string `json:"description"`
+	Secret      *bool  `json:"secret"`
+	Required    *bool  `json:"required"`
+}
+
 // raw mirrors Schema; unknown fields are rejected.
 type raw struct {
 	Alias      string   `json:"alias"`
 	Transport  string   `json:"transport"`
 	Command    string   `json:"command"`
 	Args       []string `json:"args"`
-	Env        []Pair   `json:"env"`
+	Env        []rawEnv `json:"env"`
 	Headers    []Pair   `json:"headers"`
 	Install    string   `json:"install"`
 	StartupSec int      `json:"startup_secs"`
@@ -450,7 +482,7 @@ func Validate(content string, src Source, doc Context, runners []string) (*Resul
 	if dec.More() {
 		return nil, errors.New("trailing data after the JSON object")
 	}
-	r := &Result{Transport: in.Transport, Kind: "stdio", Args: []string{}, Env: []Pair{}, Headers: []Pair{}, Notes: []string{}, Warnings: []string{}}
+	r := &Result{Transport: in.Transport, Kind: "stdio", Args: []string{}, Env: []EnvVar{}, Headers: []Pair{}, Notes: []string{}, Warnings: []string{}}
 	switch in.Transport {
 	case "stdio":
 	case "http":
@@ -498,7 +530,7 @@ func Validate(content string, src Source, doc Context, runners []string) (*Resul
 		}
 	}
 
-	// env: only names the documents mention; values are always placeholders
+	// env: only names the documents mention; the model's values are never used
 	text := docText(doc)
 	if len(in.Env) > maxEnvCount {
 		return nil, errors.New("too many environment variables")
@@ -516,12 +548,11 @@ func Validate(content string, src Source, doc Context, runners []string) (*Resul
 			r.Warnings = append(r.Warnings, e.Name+" was dropped: the documents do not mention it")
 			continue
 		}
-		v := e.Value
-		if !placeholderRE.MatchString(v) {
-			v = "YOUR_" + e.Name
-			r.Warnings = append(r.Warnings, e.Name+": the value was replaced by a placeholder")
+		secret := NameLooksSecret(e.Name)
+		if e.Secret != nil {
+			secret = *e.Secret
 		}
-		r.Env = append(r.Env, Pair{Name: e.Name, Value: v, Description: clipText(e.Description, maxText)})
+		r.Env = append(r.Env, EnvVar{Name: e.Name, Description: clipText(e.Description, maxText), Secret: secret, Required: e.Required != nil && *e.Required})
 	}
 	if len(in.Headers) > maxList {
 		return nil, errors.New("too many headers")

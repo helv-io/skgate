@@ -410,7 +410,7 @@ document.addEventListener("click", function (e) {
       if (!known) set(form, "command", r.command);
     }
     fill(rows(form, "args"), r.args || [], false, false);
-    fill(rows(form, "env_name"), (r.env || []).map(function (e) { return [e.name, e.value]; }), true, true);
+    fill(rows(form, "env_name"), (r.env || []).map(function (e) { return [e.name, ""]; }), true, true);
     set(form, "install", r.install || "");
     set(form, "startup_secs", r.startup_secs || "");
     if (r.kind === "git") { set(form, "source", r.git_url || ""); set(form, "git_ref", r.git_ref || ""); }
