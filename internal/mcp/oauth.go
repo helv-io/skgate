@@ -222,11 +222,18 @@ func (s *Server) parseAuth(w http.ResponseWriter, r *http.Request, get func(stri
 		Method: get("code_challenge_method"), Resource: get("resource"), Scope: get("scope"), ResponseType: get("response_type")}
 	reqlog.Client(r, ap.ClientID)
 	reqlog.Redirect(r, ap.RedirectURI)
-	c, found := s.Clients.Get(ap.ClientID)
-	if ap.ClientID == "" || !found {
-		if ap.ClientID == "" {
+	var c Client
+	var lerr error
+	if ap.ClientID != "" {
+		c, lerr = s.lookupClient(r.Context(), ap.ClientID)
+	}
+	if ap.ClientID == "" || lerr != nil {
+		switch {
+		case ap.ClientID == "":
 			reqlog.Reject(r, "unknown client: client_id is missing")
-		} else {
+		case strings.HasPrefix(ap.ClientID, "https://"):
+			reqlog.Reject(r, "unknown client: %s", lerr)
+		default:
 			reqlog.Reject(r, "unknown client: client_id is not registered (the client must register again via /register)")
 		}
 		errorPage(w, 400, "unknown client_id")
@@ -353,6 +360,7 @@ func (s *Server) oidcReady() bool {
 // ConsentView is what the consent page shows and posts back.
 type ConsentView struct {
 	Client       string // client name
+	ClientHost   string // host of a client ID metadata document, empty for other clients
 	RedirectURI  string
 	RedirectHost string
 	Scope        string
@@ -368,7 +376,7 @@ func (s *Server) consentPage(w http.ResponseWriter, r *http.Request, ap authPara
 		errorPage(w, http.StatusInternalServerError, "consent page unavailable")
 		return
 	}
-	v := ConsentView{Client: ap.Client.Name, RedirectURI: ap.RedirectURI, Scope: ap.Scope, CSRF: csrf}
+	v := ConsentView{Client: ap.Client.Name, ClientHost: ClientHost(ap.Client), RedirectURI: ap.RedirectURI, Scope: ap.Scope, CSRF: csrf}
 	if u, err := url.Parse(ap.RedirectURI); err == nil {
 		v.RedirectHost = u.Host
 	}
@@ -429,10 +437,11 @@ func (s *Server) clientAuth(w http.ResponseWriter, r *http.Request) (Client, boo
 		httputil.OAuthError(w, 400, "invalid_request", "client_id is required")
 		return Client{}, false
 	}
-	c, ok := s.Clients.Get(id)
+	c, lerr := s.lookupClient(r.Context(), id)
+	ok := lerr == nil
 	if !ok || (c.Confidential() && !c.CheckSecret(secret)) {
 		if !ok {
-			reqlog.Reject(r, "unknown client: client_id is not registered")
+			reqlog.Reject(r, "unknown client: %s", lerr)
 		} else {
 			reqlog.Reject(r, "invalid client: client secret is missing or wrong (client %s is confidential)", c.AuthMethod)
 		}

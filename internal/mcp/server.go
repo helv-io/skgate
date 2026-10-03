@@ -112,6 +112,7 @@ func (s *Server) asMetadataDoc() map[string]any {
 		"token_endpoint_auth_methods_supported":          []string{"none", "client_secret_post", "client_secret_basic"},
 		"scopes_supported":                               SupportedScopes,
 		"authorization_response_iss_parameter_supported": true,
+		"client_id_metadata_document_supported":          true,
 	}
 }
 
