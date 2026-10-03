@@ -75,8 +75,9 @@ func TestCopyURLOnlyForEnabledUpstreams(t *testing.T) {
 	_, page := br.get("/admin/upstreams")
 	copyBtn := regexp.MustCompile(`data-copy-text="([^"]*)"`)
 	got := copyBtn.FindAllStringSubmatch(page, -1)
-	if len(got) != 1 || !strings.HasSuffix(got[0][1], "/mcp/on") {
-		t.Fatalf("want one copy button, for the enabled upstream: %v", got)
+	// one on the row and one in the details dialog, both for the enabled upstream
+	if len(got) != 2 || !strings.HasSuffix(got[0][1], "/mcp/on") || got[0][1] != got[1][1] {
+		t.Fatalf("want a copy button on the row and in the dialog, for the enabled upstream: %v", got)
 	}
 	if strings.ContainsAny(got[0][1], "?&=") || strings.Contains(got[0][1], "sk-") || strings.Contains(got[0][1], "super-secret") {
 		t.Fatalf("copied URL must not carry a key or secret: %q", got[0][1])

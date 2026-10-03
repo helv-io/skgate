@@ -40,6 +40,13 @@
 {{/* section_head: the heading of a section of a dialog. app.js shows the chip while the section has unsaved edits. */}}
 {{define "section_head"}}<h4>{{.}} <span class="chip warn" data-dirty-chip hidden>unsaved</span></h4>{{end}}
 
+{{/* menu_start / menu_end: a "more actions" menu, the ⋯ button of a row. Takes a menuHead (build one with "menu": id, label).
+   Items go between the two, each with role="menuitem": an <a class="act">, a <button type="button" class="act"> or a
+   <form role="none"> holding a <button class="act">. app.js opens it below the button, moves with the arrow keys, and
+   closes it on Escape, on a click outside, on Tab and when an item is chosen. */}}
+{{define "menu_start"}}<div class="menu" data-menu><button type="button" class="act menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="{{.ID}}" aria-label="{{.Label}}" title="More actions" data-menu-button>&#8943;</button><div class="menu-list" id="{{.ID}}" role="menu" aria-label="{{.Label}}" hidden>{{end}}
+{{define "menu_end"}}</div></div>{{end}}
+
 {{/* th_actions: the header of the column of row buttons. Every list table with row actions ends with it. */}}
 {{define "th_actions"}}<th class="actions-th">Actions</th>{{end}}
 
