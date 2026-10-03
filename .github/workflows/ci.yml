@@ -1,23 +1,37 @@
-# Build, vet and test on every push and pull request (same checks as tools/chk.sh).
+# Build, vet and test on every push to main and every pull request (same checks as tools/chk.sh).
+# Skipped for changes that cannot affect the code or its tests. README.md, docs/ and AGENT.md are NOT skipped:
+# tests read them.
 
 name: CI
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - ROADMAP.md
+      - LICENSE
+      - .gitignore
   pull_request:
+    paths-ignore:
+      - ROADMAP.md
+      - LICENSE
+      - .gitignore
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# A newer push to the same branch or pull request replaces the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - uses: ./.github/actions/go
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...

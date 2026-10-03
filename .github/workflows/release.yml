@@ -4,6 +4,16 @@
 #   full (default)  vX.Y.Z  X.Y.Z  latest  <sha12>
 #   slim            vX.Y.Z-slim  X.Y.Z-slim  slim  <sha12>-slim
 #
+# How it runs:
+#   test    go test, in parallel with the builds.
+#   build   four jobs (full and slim, each on a native amd64 and a native arm64 runner, no emulation) push their image
+#           by digest only, with no tag, and keep their layers in a registry cache that every ref can read.
+#   merge   after test AND build succeeded: puts the tags on one multi-arch manifest per variant. Until this job runs
+#           nothing is tagged, so a failing test never publishes.
+#
+# A manual run (workflow_dispatch) does the same but tags the result ci-test-<run id> (and ci-test-<run id>-slim)
+# only, never a version, latest or slim, so a change to this file can be proven without releasing.
+#
 # Uses the built-in GITHUB_TOKEN; no other secret is needed.
 # The first push creates the package; set its visibility under the repository's Packages settings.
 
@@ -12,37 +22,48 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# A second run on the same ref replaces the first, except for tags: a release is never cancelled.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+  CACHE: ghcr.io/${{ github.repository }}-buildcache
+  IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+  # A pre-release tag such as v1.0.0-rc1 does not move latest / slim.
+  STABLE: ${{ startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') }}
+  VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('ci-test-{0}', github.run_id) }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - uses: ./.github/actions/go
       - run: go test ./...
 
-  publish:
-    needs: test
-    runs-on: ubuntu-latest
+  build:
+    name: build ${{ matrix.variant }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
-    env:
-      IMAGE: ghcr.io/${{ github.repository }}
-      # A pre-release tag such as v1.0.0-rc1 does not move latest / slim.
-      STABLE: ${{ !contains(github.ref_name, '-') }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { variant: full, sfx: '', arch: amd64, runner: ubuntu-latest }
+          - { variant: full, sfx: '', arch: arm64, runner: ubuntu-24.04-arm }
+          - { variant: slim, sfx: -slim, arch: amd64, runner: ubuntu-latest }
+          - { variant: slim, sfx: -slim, arch: arm64, runner: ubuntu-24.04-arm }
     steps:
       - uses: actions/checkout@v7
-
-      - id: vars
-        run: echo "sha12=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
@@ -50,52 +71,87 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - id: meta_full
+      - id: vars
+        run: echo "sha12=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      # Only for the labels: the same inputs as the merge job, so the labels match the tags.
+      - id: meta
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE }}
           flavor: latest=false
           tags: |
-            type=raw,value=${{ github.ref_name }}
-            type=semver,pattern={{version}}
-            type=raw,value=latest,enable=${{ env.STABLE }}
-            type=raw,value=${{ steps.vars.outputs.sha12 }}
+            type=raw,value=${{ env.VERSION }}${{ matrix.sfx }}
+            type=semver,pattern={{version}},suffix=${{ matrix.sfx }}
+            type=raw,value=${{ matrix.variant == 'slim' && 'slim' || 'latest' }},enable=${{ env.STABLE }}
+            type=raw,value=${{ steps.vars.outputs.sha12 }}${{ matrix.sfx }},enable=${{ env.IS_TAG }}
 
-      - id: meta_slim
+      - id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: ${{ matrix.variant }}
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.CACHE }}:${{ matrix.variant }}-${{ matrix.arch }}
+          cache-to: type=registry,ref=${{ env.CACHE }}:${{ matrix.variant }}-${{ matrix.arch }},mode=max,image-manifest=true,oci-mediatypes=true
+          provenance: false
+          sbom: false
+
+      - run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "$RUNNER_TEMP/digests/${digest#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.variant }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: tag ${{ matrix.variant }}
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { variant: full, sfx: '' }
+          - { variant: slim, sfx: -slim }
+    steps:
+      - uses: actions/checkout@v7
+      - id: vars
+        run: echo "sha12=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.variant }}-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE }}
           flavor: latest=false
           tags: |
-            type=raw,value=${{ github.ref_name }}-slim
-            type=semver,pattern={{version}},suffix=-slim
-            type=raw,value=slim,enable=${{ env.STABLE }}
-            type=raw,value=${{ steps.vars.outputs.sha12 }}-slim
+            type=raw,value=${{ env.VERSION }}${{ matrix.sfx }}
+            type=semver,pattern={{version}},suffix=${{ matrix.sfx }}
+            type=raw,value=${{ matrix.variant == 'slim' && 'slim' || 'latest' }},enable=${{ env.STABLE }}
+            type=raw,value=${{ steps.vars.outputs.sha12 }}${{ matrix.sfx }},enable=${{ env.IS_TAG }}
 
-      - name: Build and push (slim)
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          target: slim
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta_slim.outputs.tags }}
-          labels: ${{ steps.meta_slim.outputs.labels }}
-          cache-from: type=gha,scope=slim
-          cache-to: type=gha,scope=slim,mode=max
-          provenance: false
-          sbom: false
-
-      - name: Build and push (full)
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          target: full
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta_full.outputs.tags }}
-          labels: ${{ steps.meta_full.outputs.labels }}
-          cache-from: type=gha,scope=full
-          cache-to: type=gha,scope=full,mode=max
-          provenance: false
-          sbom: false
+      - name: Tag one multi-arch manifest from the per-arch images
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+      - run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ env.VERSION }}${{ matrix.sfx }}

@@ -1,0 +1,23 @@
+name: Go toolchain with caches
+description: Installs the Go version from go.mod and restores the module and build caches (saved per commit, restored from the newest earlier one).
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+        cache: false
+    - id: paths
+      shell: bash
+      run: |
+        echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+        echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ${{ steps.paths.outputs.mod }}
+          ${{ steps.paths.outputs.build }}
+        key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+        restore-keys: |
+          go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go.sum') }}-
+          go-${{ runner.os }}-${{ runner.arch }}-
