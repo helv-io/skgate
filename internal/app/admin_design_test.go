@@ -137,7 +137,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 			t.Errorf("class %q is used by a template but has no rule in app.css", c)
 		}
 	}
-	for _, want := range []string{"white-space:nowrap", "text-overflow:ellipsis", "overflow-x:auto", "@media", "header form:last-child{margin-right:", "max-width:1600px", ".hide-md{display:none}", ".hide-sm{display:none}", "td.trunc{width:32%;max-width:0"} {
+	for _, want := range []string{"white-space:nowrap", "text-overflow:ellipsis", "overflow-x:auto", "@media", "header form:last-child{margin-right:", "max-width:1200px", ".hide-md{display:none}", ".hide-sm{display:none}", "td.trunc{width:32%;max-width:0"} {
 		if !strings.Contains(css, want) {
 			t.Errorf("app.css lacks %q", want)
 		}
