@@ -29,7 +29,7 @@ func TestNoBrowserDialogsAndOneSharedModal(t *testing.T) {
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
 	_ = a
 	confirm := regexp.MustCompile(`<form[^>]*data-confirm="([^"]*)"`)
-	for _, path := range []string{"/admin", "/admin/keys", "/admin/clients", "/admin/upstreams", "/admin/upstreams/logs?alias=m"} {
+	for _, path := range []string{"/admin", "/admin/keys", "/admin/clients", "/admin/upstreams", "/admin/upstreams/m/logs"} {
 		_, page := br.get(path)
 		if strings.Count(page, "<dialog") != 1 || !strings.Contains(page, "data-modal-ok") {
 			t.Errorf("%s must carry exactly one shared modal", path)
@@ -43,10 +43,10 @@ func TestNoBrowserDialogsAndOneSharedModal(t *testing.T) {
 	// destructive actions ask first
 	_, keys := br.get("/admin/keys")
 	_, list := br.get("/admin/upstreams")
-	_, logs := br.get("/admin/upstreams/logs?alias=m")
+	_, logs := br.get("/admin/upstreams/m/logs")
 	for name, want := range map[string]struct{ page, action string }{
 		"revoke key": {keys, "/admin/keys/revoke"}, "regenerate key": {keys, "/admin/keys/regenerate"},
-		"delete upstream": {list, "/admin/upstreams/delete"},
+		"delete upstream": {list, "/admin/upstreams/m/delete"},
 	} {
 		if !regexp.MustCompile(`<form method="post" action="` + regexp.QuoteMeta(want.action) + `"[^>]*data-confirm=`).MatchString(want.page) {
 			t.Errorf("%s has no confirmation", name)
@@ -78,7 +78,7 @@ func TestModalBehaviorInJSDOM(t *testing.T) {
 	br.post("/admin/upstreams/save", stdioForm(csrf, "m", url.Values{"lifecycle": {"always"}}))
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
 	dir := t.TempDir()
-	for file, path := range map[string]string{"keys.html": "/admin/keys", "logs.html": "/admin/upstreams/logs?alias=m", "list.html": "/admin/upstreams", "clients.html": "/admin/clients", "status.html": "/admin"} {
+	for file, path := range map[string]string{"keys.html": "/admin/keys", "logs.html": "/admin/upstreams/m/logs", "list.html": "/admin/upstreams", "clients.html": "/admin/clients", "status.html": "/admin"} {
 		_, page := br.get(path)
 		if err := os.WriteFile(filepath.Join(dir, file), []byte(page), 0o600); err != nil {
 			t.Fatal(err)

@@ -45,7 +45,7 @@ func TestAdminManagedCreateEditMaskAndKeepSecret(t *testing.T) {
 		t.Fatalf("%+v", u)
 	}
 	_, list := br.get("/admin/upstreams")
-	_, edit := br.get("/admin/upstreams/edit?alias=tools")
+	_, edit := br.get("/admin/upstreams/tools/edit")
 	for name, page := range map[string]string{"list": list, "edit": edit} {
 		if strings.Contains(page, "super-secret-token-4321") {
 			t.Errorf("%s page shows a secret env value", name)
@@ -94,7 +94,7 @@ func TestAdminManagedHiddenSettingsKept(t *testing.T) {
 	if err := a.MCP.Upstreams.Update(u, true); err != nil {
 		t.Fatal(err)
 	}
-	_, edit := br.get("/admin/upstreams/edit?alias=w")
+	_, edit := br.get("/admin/upstreams/w/edit")
 	if strings.Contains(strings.ToLower(edit), "working dir") || strings.Contains(edit, `name="workdir"`) || strings.Contains(edit, custom) {
 		t.Fatal("the edit form must not show a working dir")
 	}
@@ -102,7 +102,7 @@ func TestAdminManagedHiddenSettingsKept(t *testing.T) {
 	if err := a.MCP.Upstreams.Update(u, true); err != nil {
 		t.Fatal(err)
 	}
-	_, edit = br.get("/admin/upstreams/edit?alias=w")
+	_, edit = br.get("/admin/upstreams/w/edit")
 	if strings.Contains(edit, `name="idle_secs"`) || strings.Contains(strings.ToLower(edit), "startup timeout") || strings.Contains(edit, `type="number" name="startup_secs"`) {
 		t.Fatal("the edit form must not show an idle or startup timeout")
 	}
@@ -168,7 +168,7 @@ func TestAdminManagedProcessActionsAndLogsPage(t *testing.T) {
 	a, br, csrf := managedApp(t)
 	br.post("/admin/upstreams/save", stdioForm(csrf, "tools", url.Values{"lifecycle": {"always"}}))
 	act := func(action string) *string {
-		r, _ := br.post("/admin/upstreams/process", url.Values{"csrf": {csrf}, "alias": {"tools"}, "action": {action}, "to": {"logs"}})
+		r, _ := br.post("/admin/upstreams/tools/process", url.Values{"csrf": {csrf}, "action": {action}, "to": {"logs"}})
 		_, m := flashOf(r)
 		return &m
 	}
@@ -184,7 +184,7 @@ func TestAdminManagedProcessActionsAndLogsPage(t *testing.T) {
 		t.Fatalf("state never became %s", want)
 	}
 	waitState("running") // always-on: started by the save
-	_, page := br.get("/admin/upstreams/logs?alias=tools")
+	_, page := br.get("/admin/upstreams/tools/logs")
 	if !pillRE("ok", "running").MatchString(page) {
 		t.Fatalf("logs page must show the running pill")
 	}
@@ -231,14 +231,14 @@ func TestAdminManagedProcessActionsAndLogsPage(t *testing.T) {
 		t.Fatal("logs not cleared")
 	}
 	// GET must never trigger an action
-	r, _ := br.get("/admin/upstreams/process?alias=tools&action=stop")
+	r, _ := br.get("/admin/upstreams/tools/process?action=stop")
 	if r.StatusCode != 405 {
 		t.Fatalf("GET action: %d", r.StatusCode)
 	}
 	// a remote upstream has no process page
 	up := fakeUpstream(t)
 	a.MCP.Upstreams.Create(mcp.Upstream{Alias: "rem", URL: up.URL, AuthKind: mcp.AuthNone, Enabled: true})
-	if r, _ := br.get("/admin/upstreams/logs?alias=rem"); r.StatusCode != 303 {
+	if r, _ := br.get("/admin/upstreams/rem/logs"); r.StatusCode != 303 {
 		t.Fatalf("remote logs page: %d", r.StatusCode)
 	}
 }
@@ -246,7 +246,7 @@ func TestAdminManagedProcessActionsAndLogsPage(t *testing.T) {
 func TestAdminManagedTestButtonAndStderrOnLogsPage(t *testing.T) {
 	a, br, csrf := managedApp(t)
 	br.post("/admin/upstreams/save", stdioForm(csrf, "tools", nil))
-	_, page := br.post("/admin/upstreams/test", url.Values{"csrf": {csrf}, "alias": {"tools"}})
+	_, page := br.get("/admin/upstreams/tools/test")
 	if !strings.Contains(page, `class="pill ok">OK`) || !strings.Contains(page, "<code>echo</code>") || !strings.Contains(page, "fake-stdio") {
 		t.Fatalf("test page: %.400s", page)
 	}
@@ -256,7 +256,7 @@ func TestAdminManagedTestButtonAndStderrOnLogsPage(t *testing.T) {
 	p := a.MCP.Managed.Lookup("tools")
 	p.Call(t.Context(), "tools/call", map[string]any{"name": "log"})
 	time.Sleep(100 * time.Millisecond)
-	_, logs := br.get("/admin/upstreams/logs?alias=tools")
+	_, logs := br.get("/admin/upstreams/tools/logs")
 	if !strings.Contains(logs, "fake log line from tool") {
 		t.Fatal("stderr must appear on the logs page")
 	}
@@ -298,7 +298,7 @@ func TestAdminImportExport(t *testing.T) {
 	if r, _ := br.post("/admin/upstreams/import", url.Values{"json": {doc}}); r.StatusCode != 403 {
 		t.Fatalf("import without CSRF: %d", r.StatusCode)
 	}
-	if r, _ := br.post("/admin/upstreams/process", url.Values{"alias": {"files"}, "action": {"start"}}); r.StatusCode != 403 {
+	if r, _ := br.post("/admin/upstreams/files/process", url.Values{"action": {"start"}}); r.StatusCode != 403 {
 		t.Fatalf("process without CSRF: %d", r.StatusCode)
 	}
 }
@@ -306,7 +306,7 @@ func TestAdminImportExport(t *testing.T) {
 func TestAdminManagedRoutesRequireSession(t *testing.T) {
 	_, ts, _, _ := signedIn(t, nil)
 	anon := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	for _, p := range []string{"/admin/upstreams/logs?alias=x", "/admin/upstreams/import", "/admin/upstreams/export", "/admin/upstreams/process"} {
+	for _, p := range []string{"/admin/upstreams/x/logs", "/admin/upstreams/import", "/admin/upstreams/export", "/admin/upstreams/x/process"} {
 		resp, err := anon.Get(ts.URL + p)
 		if err != nil {
 			t.Fatal(err)
@@ -333,7 +333,7 @@ func TestAdminRemoteCustomHeadersRoundTripMasked(t *testing.T) {
 	if len(u.Headers) != 2 || u.Headers[0].Value != "header-secret-abcd" {
 		t.Fatalf("%+v", u.Headers)
 	}
-	_, edit := br.get("/admin/upstreams/edit?alias=r")
+	_, edit := br.get("/admin/upstreams/r/edit")
 	if strings.Contains(edit, "header-secret-abcd") || !strings.Contains(edit, "************abcd") {
 		t.Fatal("header values must be masked on the edit page")
 	}
@@ -362,7 +362,7 @@ func TestProcessStatusIsAPillWithDetailsInTheTooltip(t *testing.T) {
 	}
 	pid := a.MCP.Managed.Lookup("tools").Status().PID
 	_, list := br.get("/admin/upstreams")
-	_, logs := br.get("/admin/upstreams/logs?alias=tools")
+	_, logs := br.get("/admin/upstreams/tools/logs")
 	tip := regexp.MustCompile(`<span class="pill ok" title="([^"]*)">running</span>`)
 	for name, page := range map[string]string{"list": list, "process": logs} {
 		m := tip.FindStringSubmatch(page)
@@ -411,7 +411,7 @@ func TestRemoteFormAdvancedAndHeaderName(t *testing.T) {
 	if u.AuthName != "X-Api-Key" || u.HostOverride != "svc:8000" {
 		t.Fatalf("%+v", u)
 	}
-	_, edit := br.get("/admin/upstreams/edit?alias=r")
+	_, edit := br.get("/admin/upstreams/r/edit")
 	if !strings.Contains(edit, `<details open><summary class="muted">Advanced</summary>`) || !strings.Contains(edit, `data-when="header auto"`) {
 		t.Fatal("stored host override must open Advanced; header name must be conditional")
 	}
@@ -439,8 +439,8 @@ func TestIncludeInMCPControlExplainsAndEnforces(t *testing.T) {
 	if u, _ := a.MCP.Upstreams.Get("ao"); !u.IncludeInMCP {
 		t.Fatal("an always-on one may")
 	}
-	_, od := br.get("/admin/upstreams/edit?alias=od")
-	_, ao := br.get("/admin/upstreams/edit?alias=ao")
+	_, od := br.get("/admin/upstreams/od/edit")
+	_, ao := br.get("/admin/upstreams/ao/edit")
 	box := regexp.MustCompile(`<input type="checkbox" name="include"[^>]*>`)
 	if !strings.Contains(od, inMCPHelp) || !strings.Contains(box.FindString(od), "disabled") || strings.Contains(box.FindString(od), "checked") {
 		t.Errorf("on-demand edit page: %s", box.FindString(od))
@@ -453,7 +453,7 @@ func TestIncludeInMCPControlExplainsAndEnforces(t *testing.T) {
 		t.Error("the list must explain the disabled toggle")
 	}
 	// the toggle endpoint refuses too, with the reason
-	r, _ := br.post("/admin/upstreams/toggle", url.Values{"csrf": {csrf}, "alias": {"od"}, "flag": {"include"}})
+	r, _ := br.post("/admin/upstreams/od/toggle", url.Values{"csrf": {csrf}, "flag": {"include"}})
 	if _, msg := flashOf(r); !strings.Contains(msg, "always-on") {
 		t.Errorf("toggle reason: %q", msg)
 	}

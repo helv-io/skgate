@@ -77,7 +77,7 @@ func TestAdminUpdateTrackingAutoUpdateAndCheck(t *testing.T) {
 	if !strings.Contains(list, "\ninstalled: "+rev+" main") || strings.Contains(list, "update available") || strings.Contains(list, ">update</span>") {
 		t.Fatalf("list must show the installed commit and ref:\n%s", list)
 	}
-	_, page := br.get("/admin/upstreams/logs?alias=repo")
+	_, page := br.get("/admin/upstreams/repo/logs")
 	if !strings.Contains(page, "<code>"+rev+"</code>") || !strings.Contains(page, "hourly") || strings.Contains(page, `class="act accent"`) {
 		t.Fatal("process page: installed commit and interval, update not emphasized")
 	}
@@ -85,20 +85,20 @@ func TestAdminUpdateTrackingAutoUpdateAndCheck(t *testing.T) {
 	os.WriteFile(filepath.Join(wc, "v"), []byte("2"), 0o644)
 	gitRun(t, wc, "commit", "-q", "-am", "2")
 	gitRun(t, wc, "push", "-q", "origin", "main")
-	res, _ := br.post("/admin/upstreams/process", url.Values{"csrf": {csrf}, "alias": {"repo"}, "action": {"check"}, "to": {"logs"}})
+	res, _ := br.post("/admin/upstreams/repo/process", url.Values{"csrf": {csrf}, "action": {"check"}, "to": {"logs"}})
 	if _, m := flashOf(res); !strings.Contains(m, "update available") {
 		t.Fatalf("check: %q", m)
 	}
 	_, list = br.get("/admin/upstreams")
-	_, page = br.get("/admin/upstreams/logs?alias=repo")
+	_, page = br.get("/admin/upstreams/repo/logs")
 	if !strings.Contains(list, "\nupdate available") || !strings.Contains(list, `class="pill warn" title="the remote ref is ahead of the installed commit">update</span>`) || !regexp.MustCompile(`class="act accent">update</button>`).MatchString(page) {
 		t.Fatal("update available must show on the list and emphasize the button")
 	}
-	if r, _ := br.get("/admin/upstreams/process?alias=repo&action=check"); r.StatusCode != 405 {
+	if r, _ := br.get("/admin/upstreams/repo/process?action=check"); r.StatusCode != 405 {
 		t.Fatalf("GET check: %d", r.StatusCode)
 	}
 	// update applies it
-	br.post("/admin/upstreams/process", url.Values{"csrf": {csrf}, "alias": {"repo"}, "action": {"update"}, "to": {"logs"}})
+	br.post("/admin/upstreams/repo/process", url.Values{"csrf": {csrf}, "action": {"update"}, "to": {"logs"}})
 	end = time.Now().Add(20 * time.Second)
 	for a.MCP.Managed.Lookup("repo").Rev() == rev && time.Now().Before(end) {
 		time.Sleep(50 * time.Millisecond)
@@ -107,7 +107,7 @@ func TestAdminUpdateTrackingAutoUpdateAndCheck(t *testing.T) {
 		t.Fatal("update did not apply")
 	}
 	// edit form keeps the interval; a value below the minimum is refused
-	_, edit := br.get("/admin/upstreams/edit?alias=repo")
+	_, edit := br.get("/admin/upstreams/repo/edit")
 	if !regexp.MustCompile(`<option value="3600" selected>`).MatchString(edit) {
 		t.Fatal("edit form must preselect the interval")
 	}
@@ -175,11 +175,11 @@ func TestCommandFieldIsADropdownOfInstalledCommandsWithCustom(t *testing.T) {
 		t.Fatal("save with a custom path")
 	}
 	// existing upstreams: listed loads selected, unlisted loads as Custom with the value kept
-	_, e1 := br.get("/admin/upstreams/edit?alias=listed")
+	_, e1 := br.get("/admin/upstreams/listed/edit")
 	if !regexp.MustCompile(`<option value="sh" selected>`).MatchString(e1) || !strings.Contains(e1, `data-pick-custom hidden`) {
 		t.Error("a listed command loads selected")
 	}
-	_, e2 := br.get("/admin/upstreams/edit?alias=custom")
+	_, e2 := br.get("/admin/upstreams/custom/edit")
 	if !regexp.MustCompile(`<option value="" selected>Custom path…`).MatchString(e2) || !strings.Contains(e2, `value="/opt/tool/bin/run"`) || strings.Contains(e2, `data-pick-custom hidden`) {
 		t.Error("an unlisted command loads as Custom with its value")
 	}

@@ -12,28 +12,38 @@ func TestUpstreamTestButton(t *testing.T) {
 	up := fakeUpstream(t)
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"fake"}, "url": {up.URL}, "auth_kind": {"auto"}, "enabled": {"1"}})
 	_, list := br.get("/admin/upstreams")
-	if !strings.Contains(list, "/admin/upstreams/test") {
-		t.Fatal("list must have the Test action")
+	if !strings.Contains(list, `href="/admin/upstreams/fake/test"`) {
+		t.Fatal("list must have the Test action, a plain link")
 	}
-	path := "/admin/upstreams/test"
-	if r, _ := br.post(path, url.Values{"alias": {"fake"}}); r.StatusCode != 403 {
-		t.Fatalf("%s without csrf: %d", path, r.StatusCode)
+	// a screen: GET only, refreshable, no CSRF needed; anything that is not GET is refused
+	path := "/admin/upstreams/fake/test"
+	if r, _ := br.post(path, url.Values{"csrf": {csrf}}); r.StatusCode != 405 {
+		t.Fatalf("POST %s: %d", path, r.StatusCode)
 	}
-	if r, _ := br.post(path, url.Values{"alias": {"fake"}, "csrf": {"wrong"}}); r.StatusCode != 403 {
-		t.Fatalf("%s with bad csrf: %d", path, r.StatusCode)
+	anon := newBrowser(t, br.ts)
+	if r, _ := anon.get(path); r.StatusCode != 302 && r.StatusCode != 303 {
+		t.Fatalf("%s without a session: %d", path, r.StatusCode)
 	}
-	if r, _ := br.get(path + "?alias=fake"); r.StatusCode != 405 {
-		t.Fatalf("GET %s: %d", path, r.StatusCode)
+	for _, bad := range []string{"/admin/upstreams/UP/test", "/admin/upstreams/a_b/test", "/admin/upstreams/" + strings.Repeat("a", 64) + "/test"} {
+		if r, _ := br.get(bad); r.StatusCode != 404 {
+			t.Errorf("%s is not an alias: %d", bad, r.StatusCode)
+		}
 	}
-	r, body := br.post(path, url.Values{"alias": {"fake"}, "csrf": {csrf}})
-	if r.StatusCode != 200 || !strings.Contains(body, "list_things") || !strings.Contains(body, "Lists things.") || strings.Contains(body, "More text.") ||
-		!strings.Contains(body, "200") || !strings.Contains(body, "OK") || !strings.Contains(body, "Latency") || strings.Contains(body, "Trailing slash") {
-		t.Fatalf("test page: %d\n%s", r.StatusCode, body)
+	for i := 0; i < 2; i++ { // a refresh shows the same screen
+		r, body := br.get(path)
+		if r.StatusCode != 200 || !strings.Contains(body, "list_things") || !strings.Contains(body, "Lists things.") || strings.Contains(body, "More text.") ||
+			!strings.Contains(body, "200") || !strings.Contains(body, "OK") || !strings.Contains(body, "Latency") || strings.Contains(body, "Trailing slash") {
+			t.Fatalf("test page: %d\n%s", r.StatusCode, body)
+		}
 	}
 	// errors are shown plainly
 	a.MCP.Upstreams.Create(mcp.Upstream{Alias: "dead", URL: "http://127.0.0.1:1/mcp", AuthKind: mcp.AuthNone, Enabled: true})
-	_, body = br.post(path, url.Values{"alias": {"dead"}, "csrf": {csrf}})
+	_, body := br.get("/admin/upstreams/dead/test")
 	if !strings.Contains(body, "unreachable") || !strings.Contains(body, "failed") {
 		t.Fatalf("error not shown: %s", body)
+	}
+	// an unknown alias goes back to the list with a message
+	if r, _ := br.get("/admin/upstreams/nope/test"); r.StatusCode != 303 || flashKind(r) != "bad" {
+		t.Errorf("unknown alias: %d %q", r.StatusCode, flashKind(r))
 	}
 }

@@ -11,7 +11,7 @@ import (
 func TestAdminTrailingSlash(t *testing.T) {
 	_, ts, idp := newApp(t, nil)
 	anon := newBrowser(t, ts)
-	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/clients", "/admin/upstreams/edit", "/admin/providers/grok/device/state"} {
+	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/clients", "/admin/upstreams/x/edit", "/admin/providers/grok/device/state"} {
 		r1, _ := anon.get(p)
 		r2, _ := anon.get(p + "/")
 		if r1.StatusCode != 302 || r2.StatusCode != r1.StatusCode || r2.Header.Get("Location") != r1.Header.Get("Location") {
@@ -26,7 +26,7 @@ func TestAdminTrailingSlash(t *testing.T) {
 	br.sso(idp, "/admin")
 	_, home := br.get("/admin")
 	csrf := between(home, `name="csrf" value="`, `"`)
-	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/clients", "/admin/upstreams/edit?alias=x"} {
+	for _, p := range []string{"/admin", "/admin/keys", "/admin/upstreams", "/admin/clients", "/admin/upstreams/x/edit"} {
 		path, q, _ := strings.Cut(p, "?")
 		if q != "" {
 			q = "?" + q
@@ -34,7 +34,7 @@ func TestAdminTrailingSlash(t *testing.T) {
 		r1, b1 := br.get(path + q)
 		r2, b2 := br.get(path + "/" + q)
 		r3, b3 := br.get(path + "//" + q)
-		if r1.StatusCode != r2.StatusCode || r1.StatusCode != r3.StatusCode || r1.StatusCode == 404 && path != "/admin/upstreams/edit" {
+		if r1.StatusCode != r2.StatusCode || r1.StatusCode != r3.StatusCode || r1.StatusCode == 404 {
 			t.Errorf("%s: %d / %d / %d", p, r1.StatusCode, r2.StatusCode, r3.StatusCode)
 		}
 		if t1, t2 := between(b1, "<title>", "</title>"), between(b2, "<title>", "</title>"); t1 != t2 || t1 != between(b3, "<title>", "</title>") {

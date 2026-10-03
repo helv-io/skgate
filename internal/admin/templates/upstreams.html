@@ -3,12 +3,12 @@
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Type</th><th>Enabled</th><th>In /mcp</th><th></th></tr></thead><tbody>
 {{range .List}}<tr><td class="primary" data-label="Name"><code title="{{.Tip}}">{{.Alias}}</code></td>
 <td class="status" data-label="Type"><span class="chip">{{.Kind}}</span>{{if .Proc}} {{template "proc_pill" .Proc}}{{if .Proc.Upd.Available}} {{template "pill" (pill "warn" "update" "the remote ref is ahead of the installed commit")}}{{end}}{{end}}</td>
-<td data-label="Enabled"><form method="post" action="/admin/upstreams/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><input type="hidden" name="flag" value="enabled"><button class="act toggle {{if .Enabled}}on{{else}}off{{end}}" title="toggle enabled">{{if .Enabled}}enabled{{else}}disabled{{end}}</button></form></td>
-<td data-label="In /mcp"><form method="post" action="/admin/upstreams/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><input type="hidden" name="flag" value="include"><button class="act toggle {{if .IncludeInMCP}}on{{else}}off{{end}}" title="{{if and .Managed (ne .Lifecycle "always")}}on-demand servers are not on /mcp; only always-on servers can be{{else}}toggle in /mcp{{end}}"{{if and .Managed (ne .Lifecycle "always")}} disabled{{end}}>{{if .IncludeInMCP}}in /mcp{{else}}not in /mcp{{end}}</button></form></td>
+<td data-label="Enabled"><form method="post" action="/admin/upstreams/{{.Alias}}/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="flag" value="enabled"><button class="act toggle {{if .Enabled}}on{{else}}off{{end}}" title="toggle enabled">{{if .Enabled}}enabled{{else}}disabled{{end}}</button></form></td>
+<td data-label="In /mcp"><form method="post" action="/admin/upstreams/{{.Alias}}/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="flag" value="include"><button class="act toggle {{if .IncludeInMCP}}on{{else}}off{{end}}" title="{{if and .Managed (ne .Lifecycle "always")}}on-demand servers are not on /mcp; only always-on servers can be{{else}}toggle in /mcp{{end}}"{{if and .Managed (ne .Lifecycle "always")}} disabled{{end}}>{{if .IncludeInMCP}}in /mcp{{else}}not in /mcp{{end}}</button></form></td>
 <td class="actions-cell"><div class="actions">{{if .Enabled}}<button type="button" class="act" data-copy-text="{{$.Public}}/mcp/{{.Alias}}" data-copied="URL copied" title="copy the client URL of this upstream">copy URL</button>{{end}}
 <button type="button" class="act" data-dialog-open="#upstream-{{.Alias}}">details</button>
-<a class="act" href="/admin/upstreams/edit?alias={{.Alias}}">edit</a>
-<form method="post" action="/admin/upstreams/delete" data-confirm="Delete this upstream?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><button class="act danger">delete</button></form></div></td></tr>
+<a class="act" href="/admin/upstreams/{{.Alias}}/edit">edit</a>
+<form method="post" action="/admin/upstreams/{{.Alias}}/delete" data-confirm="Delete this upstream?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">delete</button></form></div></td></tr>
 {{else}}<tr><td colspan="5" class="empty">none</td></tr>{{end}}</tbody></table></div>
 {{range .List}}{{template "dialog_content" (dlg (printf "upstream-%s" .Alias) (printf "Upstream %s" .Alias))}}
 <div class="tablewrap"><table class="table kv"><tbody>
@@ -16,8 +16,8 @@
 <tr><th>outbound auth</th><td><span class="chip">{{.Effective}}{{if .AuthName}} <span class="mono">{{.AuthName}}</span>{{end}}{{if .Masked}} <span class="mono">{{.Masked}}</span>{{end}}</span>{{if and (eq .AuthKind "auto") .DetectedNote}}<br><span class="muted">{{.DetectedNote}}</span>{{end}}</td></tr>
 <tr><th>client URL</th><td>{{if .Enabled}}<code>{{$.Public}}/mcp/{{.Alias}}</code>{{else}}<span class="muted">disabled</span>{{end}}</td></tr>
 </tbody></table></div>
-<div class="actions"><form method="post" action="/admin/upstreams/test"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><button class="act">test</button></form>
-{{if .Managed}}<a class="act" href="/admin/upstreams/logs?alias={{.Alias}}">process</a>{{else}}<form method="post" action="/admin/upstreams/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="alias" value="{{.Alias}}"><button class="act">detect</button></form>{{end}}</div>
+<div class="actions"><a class="act" href="/admin/upstreams/{{.Alias}}/test">test</a>
+{{if .Managed}}<a class="act" href="/admin/upstreams/{{.Alias}}/logs">process</a>{{else}}<form method="post" action="/admin/upstreams/{{.Alias}}/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">detect</button></form>{{end}}</div>
 {{template "dialog_end"}}{{end}}
 <h2>Add upstream</h2><div class="card">
 <form method="post" action="/admin/upstreams/save" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="mode" value="new">

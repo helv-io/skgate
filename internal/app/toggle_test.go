@@ -18,13 +18,13 @@ func TestUpstreamToggleButtons(t *testing.T) {
 		t.Fatalf("toggle buttons missing:\n%s", page)
 	}
 	// POST + CSRF only
-	if r, _ := br.get("/admin/upstreams/toggle?alias=t1&flag=include"); r.StatusCode != 405 {
+	if r, _ := br.get("/admin/upstreams/t1/toggle?flag=include"); r.StatusCode != 405 {
 		t.Errorf("GET: %d", r.StatusCode)
 	}
-	if r, _ := br.post("/admin/upstreams/toggle", url.Values{"alias": {"t1"}, "flag": {"include"}}); r.StatusCode != 403 {
+	if r, _ := br.post("/admin/upstreams/t1/toggle", url.Values{"flag": {"include"}}); r.StatusCode != 403 {
 		t.Errorf("no csrf: %d", r.StatusCode)
 	}
-	r, _ := br.post("/admin/upstreams/toggle", url.Values{"csrf": {csrf}, "alias": {"t1"}, "flag": {"include"}})
+	r, _ := br.post("/admin/upstreams/t1/toggle", url.Values{"csrf": {csrf}, "flag": {"include"}})
 	if r.StatusCode != 303 || r.Header.Get("Location") != "/admin/upstreams" {
 		t.Fatalf("toggle include: %d %q", r.StatusCode, r.Header.Get("Location"))
 	}
@@ -39,7 +39,7 @@ func TestUpstreamToggleButtons(t *testing.T) {
 	if !strings.Contains(page, `class="act toggle on" title="toggle in /mcp">in /mcp<`) {
 		t.Error("included must render as green 'on'")
 	}
-	r, _ = br.post("/admin/upstreams/toggle", url.Values{"csrf": {csrf}, "alias": {"t1"}, "flag": {"enabled"}})
+	r, _ = br.post("/admin/upstreams/t1/toggle", url.Values{"csrf": {csrf}, "flag": {"enabled"}})
 	if _, m := flashOf(r); m != "t1: enabled off" {
 		t.Fatalf("toast %q", m)
 	}
@@ -53,7 +53,7 @@ func TestUpstreamToggleButtons(t *testing.T) {
 	}
 	for _, v := range []url.Values{{"alias": {"nope"}, "flag": {"enabled"}}, {"alias": {"t1"}, "flag": {"x"}}} {
 		v.Set("csrf", csrf)
-		if r, _ := br.post("/admin/upstreams/toggle", v); r.StatusCode != 303 || flashKind(r) != "bad" {
+		if r, _ := br.post("/admin/upstreams/"+v.Get("alias")+"/toggle", v); r.StatusCode != 303 || flashKind(r) != "bad" {
 			t.Errorf("%v: %d %q", v, r.StatusCode, flashKind(r))
 		}
 	}

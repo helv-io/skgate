@@ -141,7 +141,7 @@ func TestAddFormDefaultType(t *testing.T) {
 	if resp, _ := r.br.post("/admin/upstreams/save", form); flashKind(resp) != "ok" {
 		t.Fatal("save failed")
 	}
-	_, edit := r.br.get("/admin/upstreams/edit?alias=ed")
+	_, edit := r.br.get("/admin/upstreams/ed/edit")
 	if strings.Contains(edit, `<select name="kind"`) || !strings.Contains(edit, `<input type="hidden" name="kind" value="stdio"`) {
 		t.Error("edit page must not offer a type")
 	}

@@ -65,7 +65,7 @@ func TestPairListRendersEveryStoredRow(t *testing.T) {
 	if u, _ := a.MCP.Upstreams.Get("many"); len(u.Env) != 10 {
 		t.Fatalf("stored %d env vars, want 10", len(u.Env))
 	}
-	_, edit := br.get("/admin/upstreams/edit?alias=many")
+	_, edit := br.get("/admin/upstreams/many/edit")
 	rows, _ := pairBlocks(t, edit)
 	if n, rm := countRows(rows[2]); n != 10 || rm != 9 {
 		t.Fatalf("env: %d rows, %d deletable; want 10 and 9", n, rm)
@@ -128,7 +128,7 @@ func TestPairListAllBlankStoresNothing(t *testing.T) {
 	if u, _ := a.MCP.Upstreams.Get("none"); len(u.Env) != 0 {
 		t.Fatalf("%+v", u.Env)
 	}
-	_, edit := br.get("/admin/upstreams/edit?alias=none")
+	_, edit := br.get("/admin/upstreams/none/edit")
 	rows, _ := pairBlocks(t, edit)
 	if n, rm := countRows(rows[2]); n != 1 || rm != 0 {
 		t.Fatalf("%d rows, %d deletable", n, rm)
@@ -152,7 +152,7 @@ func TestPairListCustomHeadersManyRows(t *testing.T) {
 	if u, _ := a.MCP.Upstreams.Get("hdrs"); len(u.Headers) != 7 {
 		t.Fatalf("%d headers stored", len(u.Headers))
 	}
-	_, edit := br.get("/admin/upstreams/edit?alias=hdrs")
+	_, edit := br.get("/admin/upstreams/hdrs/edit")
 	rows, _ := pairBlocks(t, edit)
 	if n, rm := countRows(rows[0]); n != 7 || rm != 6 {
 		t.Fatalf("headers: %d rows, %d deletable; want 7 and 6", n, rm)
@@ -171,7 +171,7 @@ func TestArgsRowsRenderSaveAndOrder(t *testing.T) {
 	if got := strings.Join(u.Args, "|"); got != "-y|@scope/pkg@1.2.3|--flag=a b|--x|--y|--z|--w" {
 		t.Fatalf("%q", got)
 	}
-	_, edit := br.get("/admin/upstreams/edit?alias=argy")
+	_, edit := br.get("/admin/upstreams/argy/edit")
 	rows, _ := pairBlocks(t, edit)
 	if n, rm := countRows(rows[1]); n != 7 || rm != 6 {
 		t.Fatalf("args: %d rows, %d deletable; want 7 and 6", n, rm)
@@ -187,7 +187,7 @@ func TestArgsRowsRenderSaveAndOrder(t *testing.T) {
 	if u, _ := a.MCP.Upstreams.Get("noargs"); len(u.Args) != 0 {
 		t.Fatalf("%q", u.Args)
 	}
-	_, e2 := br.get("/admin/upstreams/edit?alias=noargs")
+	_, e2 := br.get("/admin/upstreams/noargs/edit")
 	r2, _ := pairBlocks(t, e2)
 	if n, rm := countRows(r2[1]); n != 1 || rm != 0 {
 		t.Fatalf("empty args: %d rows, %d deletable", n, rm)

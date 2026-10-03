@@ -47,7 +47,7 @@ func TestIncludeDefaultRemembersLastChoice(t *testing.T) {
 	}
 	// a failed save (duplicate alias) must not change it, and neither does the toggle button
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"a"}, "url": {up.URL}, "auth_kind": {"none"}})
-	br.post("/admin/upstreams/toggle", url.Values{"csrf": {csrf}, "alias": {"a"}, "flag": {"include"}})
+	br.post("/admin/upstreams/a/toggle", url.Values{"csrf": {csrf}, "flag": {"include"}})
 	if !includePreselected(t, br) {
 		t.Error("only successful saves update the remembered choice")
 	}
