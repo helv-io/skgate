@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -211,5 +212,27 @@ func TestURLKeySwitchInKeyDialog(t *testing.T) {
 	}
 	if resp, _ := br.post("/admin/settings/query-key", url.Values{"csrf": {csrf}}); resp.StatusCode == 200 || resp.StatusCode == 303 {
 		t.Errorf("the global route must be gone: %d", resp.StatusCode)
+	}
+}
+
+// The header version link only gets a pointer cursor on hover: no box, underline or color change.
+func TestVersionLinkHasNoHoverStyling(t *testing.T) {
+	css, err := os.ReadFile("../admin/static/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(css)
+	i := strings.Index(s, "header a.ver,header a.ver:hover{")
+	if i < 0 {
+		t.Fatal("version link hover rule missing")
+	}
+	rule := s[i : i+strings.Index(s[i:], "}")]
+	for _, want := range []string{"background:none", "color:var(--dim)", "text-decoration:none", "cursor:pointer"} {
+		if !strings.Contains(rule, want) {
+			t.Errorf("version link hover rule lacks %q", want)
+		}
+	}
+	if strings.Contains(s, "a.ver:hover{background:none;color:var(--acc)") {
+		t.Error("the version link must not change color on hover")
 	}
 }
