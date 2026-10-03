@@ -162,3 +162,15 @@ func TestSuggestEndpointLogs(t *testing.T) {
 		t.Error("the token reached the log")
 	}
 }
+
+// A refused admin action is logged with its reason, whatever toast the user got.
+func TestRefusedAdminActionIsLogged(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+	_, _, br, csrf := signedIn(t, nil)
+	br.post("/admin/providers/grok/settings", url.Values{"csrf": {csrf}, "base": {"bad"}})
+	if !strings.Contains(buf.String(), "admin: POST /admin/providers/grok/settings refused: URLs must be absolute http(s)") {
+		t.Errorf("not logged:\n%s", buf.String())
+	}
+}
