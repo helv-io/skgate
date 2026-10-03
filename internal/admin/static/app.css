@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .compact .tip .pill .chip .code .actions .act .toggle .btn .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal
+   Components: .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -92,6 +92,9 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 /* primary */
 .btn,a.btn{display:inline-block;padding:5px 16px;border:1px solid var(--acc);background:#14202e;color:var(--acc);font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
 .btn:hover,a.btn:hover{background:#1b2c40;color:#fff;text-decoration:none}
+/* fill: the one primary choice of a screen (Approve, Allow); solid accent, dark text */
+.btn.fill,a.btn.fill{background:var(--acc);color:#0b1117;font-weight:600}
+.btn.fill:hover,a.btn.fill:hover{background:#a6cdff;color:#0b1117}
 
 .offscreen{position:fixed;left:-9999px;top:0;opacity:0}
 

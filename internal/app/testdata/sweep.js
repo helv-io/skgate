@@ -28,6 +28,9 @@ const measure = () => {
     } else if (r.top < 0) out.push("card clipped at the top: " + r.top);
     if (r.left < 0 || r.right > vw) out.push("card outside the viewport");
   }
+  const ch = [...document.querySelectorAll(".choices button")];
+  window.__choices = ch.map(e => { const c = getComputedStyle(e); return [e.textContent.trim(), c.backgroundColor, c.borderTopColor, c.color, c.fontSize, c.borderTopWidth, c.minHeight].join("|"); });
+  ch.forEach(e => { if (e.getBoundingClientRect().height < 48) out.push(e.textContent.trim() + " button is shorter than 48px"); });
   if (out.length) {
     const bad = [];
     for (const el of document.querySelectorAll("body *")) {
@@ -42,7 +45,7 @@ const measure = () => {
 
 (async () => {
   const b = await puppeteer.launch({ executablePath: chrome, args: ["--no-sandbox", "--headless=new"] });
-  let bad = 0, checks = 0;
+  let bad = 0, checks = 0, ref = null;
   for (const p of pages) {
     const solo = ["consent", "signed-out", "auth-error", "not-configured"].includes(p.name);
     for (const [width, height] of widths.flatMap(w => (solo ? [[w, 900], [w, 360]] : [[w, 900]]))) {
@@ -51,6 +54,14 @@ const measure = () => {
       await pg.goto("file://" + dir + "/" + p.name + ".html");
       let res = await pg.evaluate(measure);
       checks++;
+      const sig = await pg.evaluate(() => window.__choices || []);
+      if (sig.length) {
+        // Approve (primary) and Deny look the same at every width, and Approve is the filled one
+        ref = ref || sig;
+        if (JSON.stringify(sig) !== JSON.stringify(ref)) { bad++; console.log("FAIL", p.name, width + "x" + height, "buttons differ from the first width", JSON.stringify(sig), JSON.stringify(ref)); }
+        const [deny, approve] = sig.map(x => x.split("|"));
+        if (deny[0] !== "Deny" || approve[0] !== "Approve" || approve.slice(1, 4).join() === deny.slice(1, 4).join()) { bad++; console.log("FAIL", p.name, "Approve must be the filled primary", JSON.stringify(sig)); }
+      }
       if (res.length) { bad++; console.log("FAIL", p.name, width + "x" + height, JSON.stringify(res)); }
       if (shots && solo) await pg.screenshot({ path: shots + "/" + p.name + "-" + width + "x" + height + ".png" });
       else if (shots && (width === 390 || width === 1280)) await pg.screenshot({ path: shots + "/" + p.name + "-" + width + ".png", fullPage: true });

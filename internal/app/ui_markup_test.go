@@ -105,7 +105,7 @@ func TestSoloScreensUseSharedStyles(t *testing.T) {
 			}
 		}
 	}
-	for _, want := range []string{`action="/authorize"`, `name="decision" value="deny"`, `name="decision" value="approve"`, `class="choices"`, `class="solo-name"`, "Authorize MCP access"} {
+	for _, want := range []string{`action="/authorize"`, `name="decision" value="deny"`, `class="btn fill" name="decision" value="approve"`, `class="choices"`, `class="solo-name"`, "Authorize MCP access"} {
 		if !strings.Contains(consent, want) {
 			t.Errorf("consent: missing %s", want)
 		}
@@ -119,7 +119,7 @@ func TestSoloLayoutRulesInSharedStylesheet(t *testing.T) {
 		t.Fatal(err)
 	}
 	css := string(b)
-	for _, want := range []string{"main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center", ".login{width:min(460px,100%)", ".login .card{margin:0"} {
+	for _, want := range []string{"main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center", ".login{width:min(460px,100%)", ".login .card{margin:0", ".btn.fill,a.btn.fill{background:var(--acc)"} {
 		if !strings.Contains(css, want) {
 			t.Errorf("app.css lacks %q", want)
 		}
