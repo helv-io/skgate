@@ -29,7 +29,7 @@ type providerView struct {
 	ModelsKnown bool
 	ModelsAt    string
 	Model       string
-	ModelPill   pillView // MCP helper model summary
+	ModelPill   pillView   // MCP helper model summary
 	Effort      effortView // reasoning effort of the MCP helper model's calls
 	ChatEffort  effortView // reasoning effort added to proxied chat requests
 	Aliases     []aliasView

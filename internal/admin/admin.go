@@ -43,11 +43,11 @@ type Admin struct {
 	SuggestFetch *suggest.Fetcher
 	// SuggestIdle and SuggestCap override the silence and overall limits of a suggestion (tests).
 	SuggestIdle, SuggestCap time.Duration
-	Keys         *vkeys.Manager
-	MCP          *mcp.Server
-	tpl          map[string]*template.Template
-	oidc         *oidcauth.Client
-	sessions     sessionStore
+	Keys                    *vkeys.Manager
+	MCP                     *mcp.Server
+	tpl                     map[string]*template.Template
+	oidc                    *oidcauth.Client
+	sessions                sessionStore
 }
 
 var funcs = template.FuncMap{
