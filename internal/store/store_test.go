@@ -332,3 +332,32 @@ func TestMigrateAddsManagedColumns(t *testing.T) {
 		db.Close()
 	}
 }
+
+// A database from before the key limits keeps its keys, all unlimited, and migrating twice is harmless.
+func TestMigrateKeyLimitsStayUnlimited(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v075.db")
+	old, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`CREATE TABLE vkeys (id INTEGER PRIMARY KEY AUTOINCREMENT, prefix TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, label TEXT NOT NULL, created_at INTEGER NOT NULL, last_used INTEGER NOT NULL DEFAULT 0, revoked_at INTEGER NOT NULL DEFAULT 0, last4 TEXT NOT NULL DEFAULT '')`,
+		`INSERT INTO vkeys(prefix,hash,label,created_at) VALUES('sk-abcde','h','old',1)`,
+	} {
+		if _, err := old.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old.Close()
+	for i := 0; i < 2; i++ {
+		db, err := Open(path)
+		if err != nil {
+			t.Fatalf("open #%d: %v", i, err)
+		}
+		var rate, stop int64
+		if err := db.QueryRow(`SELECT rate_per_min,hard_stop FROM vkeys WHERE label='old'`).Scan(&rate, &stop); err != nil || rate != 0 || stop != 0 {
+			t.Fatalf("old key limits: %d %d %v", rate, stop, err)
+		}
+		db.Close()
+	}
+}
