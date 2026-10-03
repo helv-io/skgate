@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/store"
@@ -73,15 +74,22 @@ func LooksLikeKey(s string) bool {
 	return true
 }
 
-// Create mints a new key and returns the full secret exactly once.
-func (m *Manager) Create(label string) (string, Key, error) {
+// CleanLabel trims a key name, falls back to "unnamed" and cuts it to 80 bytes at a character boundary.
+func CleanLabel(label string) string {
 	label = strings.TrimSpace(label)
 	if label == "" {
-		label = "unnamed"
+		return "unnamed"
 	}
-	if len(label) > 80 {
-		label = label[:80]
+	for len(label) > 80 {
+		_, n := utf8.DecodeLastRuneInString(label)
+		label = label[:len(label)-n]
 	}
+	return strings.TrimSpace(label)
+}
+
+// Create mints a new key and returns the full secret exactly once.
+func (m *Manager) Create(label string) (string, Key, error) {
+	label = CleanLabel(label)
 	full := mint()
 	prefix := full[:8]
 	now := time.Now()
