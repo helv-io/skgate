@@ -1,9 +1,9 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .menu .inline
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
---z-toast:2147483647;--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
+--z-header:30;--z-menu:40;--z-toast:2147483647;--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
 *{box-sizing:border-box;border-radius:0}
 /* the scrollbar keeps its room, so the page does not shift sideways when a dialog hides it */
 html{scrollbar-gutter:stable}
@@ -19,8 +19,13 @@ p{margin:6px 0}
 ul{margin:6px 0;padding-left:20px}li{margin:3px 0}
 details summary{cursor:pointer;margin:8px 0}
 
-/* top bar */
-header{border-bottom:1px solid var(--line);display:flex;align-items:stretch;flex-wrap:wrap;background:var(--panel)}
+/* top bar: always sticky, opaque, above the page and below menus, dialogs (top layer) and toasts. app.js keeps
+   --header-h at its height so anchors and focus scrolling land below it. On phones it is one row (brand, current
+   page, Menu) and the links, version, user and logout fold into a panel under it. */
+html{scroll-padding-top:var(--header-h,44px)}
+header{position:sticky;top:0;z-index:var(--z-header);border-bottom:1px solid var(--line);display:flex;align-items:stretch;flex-wrap:wrap;background:var(--panel)}
+header .here,header .nav-btn{display:none}
+.nav-panel{display:contents}
 header .brand{display:flex;align-items:center;gap:8px;padding:9px 14px;border-right:1px solid var(--line);font-weight:700;letter-spacing:.04em}
 header .brand img{display:block}
 header a{padding:9px 14px;color:var(--dim);border-right:1px solid var(--line);white-space:nowrap}
@@ -108,7 +113,7 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 .menu{display:inline-flex}
 .menu .menu-btn{min-width:0;padding:3px 12px;font-weight:700;letter-spacing:.1em}
 .menu .menu-btn[aria-expanded=true]{border-color:var(--acc);color:var(--acc)}
-.menu-list{position:fixed;z-index:40;min-width:11em;max-width:calc(100vw - 16px);padding:4px 0;background:var(--panel);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.menu-list{position:fixed;z-index:var(--z-menu);min-width:11em;max-width:calc(100vw - 16px);padding:4px 0;background:var(--panel);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .menu-list form{display:block;margin:0}
 .menu .menu-list .act{display:block;width:100%;min-width:0;text-align:left;border:0;background:none;padding:7px 14px;line-height:22px}
 .menu .menu-list .act:hover,.menu .menu-list .act:focus-visible{background:var(--hover);color:var(--acc)}
@@ -282,14 +287,20 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   input,select,textarea{min-height:40px}
   input[type=checkbox]{min-height:0}
   .btn,a.btn{min-height:44px}
-  /* top bar: brand on its own line, links share the next one */
-  header .brand{flex:1 1 100%;border-right:0;border-bottom:1px solid var(--line)}
-  header a{flex:1 1 auto;text-align:center;border-right:0;border-bottom:1px solid var(--line);padding:11px 12px}
-  header .ver,header .who{padding:8px 12px}
-  header .ver{margin-left:0}
-  /* the user name gives way (ellipsis) so logout always stays on screen */
-  header .who{flex:1 1 0}
-  header form:last-child{margin-right:0;margin-left:auto}
+  /* top bar: one row, the rest in the panel */
+  header{flex-wrap:nowrap;align-items:center;min-height:52px}
+  header .brand{flex:0 0 auto;border-right:0;padding:4px 10px 4px 12px}
+  header .here{display:block;flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
+  header .nav-btn{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:72px;min-height:44px;margin:0 4px 0 0;border:1px solid var(--line);padding:0 14px}
+  header .nav-btn[aria-expanded=true]{border-color:var(--acc);color:var(--acc)}
+  .nav-panel{display:flex;flex-direction:column;position:absolute;top:100%;left:0;right:0;max-height:calc(100vh - 52px);overflow-y:auto;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  header[data-collapsed] .nav-panel{display:none}
+  .nav-panel a{display:flex;align-items:center;min-height:44px;padding:0 16px;text-align:left;border-right:0;border-bottom:1px solid var(--line2)}
+  .nav-panel a.on{box-shadow:inset 3px 0 0 var(--acc)}
+  .nav-panel a.ver{margin-left:0;padding:0 16px}
+  .nav-panel .who{align-self:stretch;display:flex;align-items:center;min-height:44px;padding:0 16px;border-bottom:1px solid var(--line2)}
+  .nav-panel form{display:block;margin:0}
+  .nav-panel form .act{display:flex;align-items:center;width:100%;min-height:44px;padding:0 16px;border:0}
   .toasts{left:10px;right:10px;bottom:10px;max-width:none}
   .toasts[popover]{inset:auto 10px 10px 10px}
   .table.kv th{width:36%;white-space:normal}

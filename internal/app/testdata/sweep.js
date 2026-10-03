@@ -31,6 +31,10 @@ const measure = () => {
   const ch = [...document.querySelectorAll(".choices button")];
   window.__choices = ch.map(e => { const c = getComputedStyle(e); return [e.textContent.trim(), c.backgroundColor, c.borderTopColor, c.color, c.fontSize, c.borderTopWidth, c.minHeight].join("|"); });
   ch.forEach(e => { if (e.getBoundingClientRect().height < 48) out.push(e.textContent.trim() + " button is shorter than 48px"); });
+  // on phones the version, user and logout live in the folded panel: unfold it for these checks, fold it after
+  const navBtn = document.querySelector("[data-nav-button]");
+  const navShown = navBtn && getComputedStyle(navBtn).display !== "none";
+  if (navShown && navBtn.getAttribute("aria-expanded") !== "true") navBtn.click();
   // the version link is the yellow warning colour when an update is known, the dim one otherwise, and stays on screen
   const ver = document.querySelector("header a.ver");
   if (ver) {
@@ -48,6 +52,7 @@ const measure = () => {
     const nav = [...document.querySelectorAll("header a")].filter(e => e.getBoundingClientRect().right > vw + 0.5);
     if (nav.length) out.push("header link past the screen: " + nav[0].textContent.trim());
   }
+  if (navShown && navBtn.getAttribute("aria-expanded") === "true") navBtn.click();
   // folded sections (the create form's Limits) are opened so what is inside is measured too
   document.querySelectorAll("details:not([open])").forEach(d => { d.open = true; });
   // the expiration presets are finger-sized on phones and the field and its preview fit the screen
@@ -106,11 +111,111 @@ const measure = () => {
   return out;
 };
 
+// The top bar: sticky and opaque on every page and width, never covered while scrolling, anchors land below it;
+// on phones one row (brand, current page, Menu) with the rest in a panel that folds with Escape, a click outside
+// and choosing a link; on wide windows the links are in the bar and there is no Menu button.
+const headerChecks = async (pg, vw) => {
+  const out = [];
+  await new Promise(r => setTimeout(r, 80)); // the observer that keeps --header-h runs after layout changes
+  const info = await pg.evaluate(() => {
+    const h = document.querySelector("header[data-nav]");
+    if (!h) return null;
+    const cs = getComputedStyle(h), r = h.getBoundingClientRect();
+    const bg = cs.backgroundColor.match(/[\d.]+/g).map(Number);
+    const bt = document.querySelector("[data-nav-button]"), here = h.querySelector("[data-nav-here]");
+    const z = parseInt(cs.zIndex, 10), zt = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--z-toast"), 10);
+    return { pos: cs.position, top: cs.top, alpha: bg.length > 3 ? bg[3] : 1, z, zt, height: r.height,
+      btn: getComputedStyle(bt).display, here: getComputedStyle(here).display, hereText: here.textContent.trim(),
+      hh: document.documentElement.style.getPropertyValue("--header-h"), collapsed: h.hasAttribute("data-collapsed"),
+      panel: getComputedStyle(h.querySelector(".nav-panel")).display, expanded: bt.getAttribute("aria-expanded") };
+  });
+  if (!info) return out;
+  if (info.pos !== "sticky" || info.top !== "0px") out.push("header is not sticky at the top: " + info.pos + " " + info.top);
+  if (info.alpha !== 1) out.push("header background is not opaque");
+  if (!(info.z > 0 && info.z < info.zt)) out.push("header z-index " + info.z + " must sit below the toast layer");
+  if (!info.hereText) out.push("the current page name is empty");
+  if (parseInt(info.hh, 10) !== Math.ceil(info.height)) out.push("--header-h " + info.hh + " does not follow the bar's height " + info.height);
+  // scrolling: add height and an anchor target far down, then scroll; the bar stays put, on top, and the anchor clears it
+  await pg.evaluate(() => {
+    const sp = document.createElement("div"); sp.id = "scroll-spacer"; sp.style.height = "3000px";
+    const t = document.createElement("div"); t.id = "anchor-test"; t.textContent = "anchor"; t.style.cssText = "height:20px;position:absolute;top:1500px";
+    document.body.appendChild(sp); document.body.appendChild(t);
+    window.scrollTo(0, 800);
+  });
+  const sc = await pg.evaluate(() => {
+    const h = document.querySelector("header[data-nav]"), r = h.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { y: window.scrollY, top: r.top, covered: !(hit && h.contains(hit)) };
+  });
+  if (sc.y < 100) out.push("the test page did not scroll");
+  if (Math.abs(sc.top) > 0.5) out.push("header moved while scrolling: top " + sc.top);
+  if (sc.covered) out.push("something is drawn over the header while scrolling");
+  const an = await pg.evaluate(() => {
+    location.hash = "#anchor-test";
+    const h = document.querySelector("header[data-nav]").getBoundingClientRect(), t = document.getElementById("anchor-test").getBoundingClientRect();
+    return { barBottom: h.bottom, targetTop: t.top };
+  });
+  await new Promise(r => setTimeout(r, 60));
+  const an2 = await pg.evaluate(() => ({ barBottom: document.querySelector("header[data-nav]").getBoundingClientRect().bottom, targetTop: document.getElementById("anchor-test").getBoundingClientRect().top }));
+  if (an2.targetTop < an2.barBottom - 0.5) out.push("an anchor scrolled behind the header: target top " + an2.targetTop + " < bar bottom " + an2.barBottom);
+  await pg.evaluate(() => { document.getElementById("scroll-spacer").remove(); document.getElementById("anchor-test").remove(); history.replaceState(null, "", location.pathname + location.search); window.scrollTo(0, 0); });
+  if (vw > 720) {
+    if (info.btn !== "none" || info.here !== "none") out.push("wide window shows the Menu button or page name");
+    const links = await pg.evaluate(() => [...document.querySelectorAll("header .nav-panel > a:not(.ver), header .nav-panel form")].map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; }));
+    if (links.some(l => l[1] === 0)) out.push("a header link is hidden on a wide window");
+    if (vw >= 1280 && new Set(links.map(l => l[0])).size > 1) out.push("header links wrap at " + vw + ": " + JSON.stringify(links));
+    return out;
+  }
+  // phones
+  if (info.height > 64) out.push("header is " + info.height + "px tall, expected one row");
+  if (info.btn === "none" || info.here === "none") out.push("phone header lacks the Menu button or page name");
+  if (!info.collapsed || info.panel !== "none" || info.expanded !== "false") out.push("the panel must start folded: " + JSON.stringify([info.collapsed, info.panel, info.expanded]));
+  const row = await pg.evaluate(() => {
+    const h = document.querySelector("header[data-nav]"), q = s => h.querySelector(s).getBoundingClientRect();
+    const b = q(".brand"), n = q("[data-nav-here]"), m = q("[data-nav-button]"), hr = h.getBoundingClientRect();
+    return { brand: [b.top, b.bottom], here: [n.top, n.bottom], btn: [m.top, m.bottom, m.width, m.height, m.right], bar: [hr.top, hr.bottom], vw: document.documentElement.clientWidth, hereW: n.width };
+  });
+  const mid = a => (a[0] + a[1]) / 2;
+  if (Math.abs(mid(row.brand) - mid(row.btn)) > 2 || Math.abs(mid(row.here) - mid(row.btn)) > 2) out.push("brand, page name and Menu are not on one row " + JSON.stringify(row));
+  if (row.btn[3] < 44 || row.btn[2] < 44) out.push("Menu button is under 44px: " + row.btn[2] + "x" + row.btn[3]);
+  if (row.btn[4] > row.vw + 0.5) out.push("Menu button is past the screen");
+  if (row.hereW < 20) out.push("the page name has no room: " + row.hereW);
+  // open: the panel holds the links, version, user and logout, all inside the window, tall enough to touch
+  await pg.click("[data-nav-button]");
+  const op = await pg.evaluate(() => {
+    const h = document.querySelector("header[data-nav]"), p = h.querySelector(".nav-panel"), pr = p.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+    const items = [...p.querySelectorAll("a, .who, form .act")].map(e => { const r = e.getBoundingClientRect(); return { t: e.textContent.trim().slice(0, 14), h: r.height, l: r.left, r: r.right }; });
+    const hit = document.elementFromPoint(pr.left + pr.width / 2, pr.top + 10);
+    return { shown: pr.height > 0, expanded: h.querySelector("[data-nav-button]").getAttribute("aria-expanded"), inside: pr.left >= 0 && pr.right <= vw + 0.5, items, onTop: !!hit && p.contains(hit), top: pr.top, barBottom: h.getBoundingClientRect().bottom };
+  });
+  if (!op.shown || op.expanded !== "true") out.push("Menu does not open the panel " + JSON.stringify([op.shown, op.expanded]));
+  if (!op.inside) out.push("the panel reaches past the screen");
+  if (!op.onTop) out.push("the panel is covered by the page");
+  if (Math.abs(op.top - op.barBottom) > 1.5) out.push("the panel is not attached under the bar");
+  if (op.items.length < 6) out.push("the panel is missing items: " + op.items.map(i => i.t));
+  op.items.forEach(i => { if (i.h < 43.5) out.push("panel item " + i.t + " is " + Math.round(i.h) + "px tall, under 44px"); if (i.r > vw + 0.5 || i.l < 0) out.push("panel item " + i.t + " is outside the screen"); });
+  const state = () => pg.evaluate(() => ({ exp: document.querySelector("[data-nav-button]").getAttribute("aria-expanded"), focus: document.activeElement === document.querySelector("[data-nav-button]") }));
+  await pg.keyboard.press("Escape");
+  let st = await state();
+  if (st.exp !== "false" || !st.focus) out.push("Escape must fold the panel and focus Menu " + JSON.stringify(st));
+  await pg.click("[data-nav-button]");
+  await pg.evaluate(() => document.querySelector("main").click());
+  st = await state();
+  if (st.exp !== "false") out.push("a click outside must fold the panel");
+  await pg.click("[data-nav-button]");
+  await pg.evaluate(() => document.querySelector(".nav-panel a").addEventListener("click", e => e.preventDefault(), { once: true }));
+  await pg.click(".nav-panel a");
+  st = await state();
+  if (st.exp !== "false") out.push("choosing a link must fold the panel");
+  // a sticky bar does not hide the panel's own scroll when many items: the panel never exceeds the window
+  return out;
+};
+
 (async () => {
   const b = await puppeteer.launch({ executablePath: chrome, args: ["--no-sandbox", "--headless=new"] });
   // headless Chrome reports no hover; a second browser that reports a mouse checks the hover behavior of the sign-out pill
   const bm = await puppeteer.launch({ executablePath: chrome, args: ["--no-sandbox", "--headless=new", "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4"] });
-  let bad = 0, checks = 0, ref = null;
+  let bad = 0, checks = 0, ref = null, headers = 0;
   for (const p of pages) {
     const solo = ["consent", "signed-out", "auth-error", "not-configured"].includes(p.name);
     for (const [width, height] of widths.flatMap(w => (solo ? [[w, 900], [w, 360]] : [[w, 900]]))) {
@@ -129,6 +234,15 @@ const measure = () => {
         if (deny[0] !== "Deny" || approve[0] !== "Approve" || approve.slice(1, 4).join() === deny.slice(1, 4).join()) { bad++; console.log("FAIL", p.name, "Approve must be the filled primary", JSON.stringify(sig)); }
       }
       if (res.length) { bad++; console.log("FAIL", p.name, width + "x" + height, JSON.stringify(res)); }
+      {
+        const hres = await headerChecks(pg, width); checks++; headers += solo ? 0 : 1;
+        if (hres.length) { bad++; console.log("FAIL", p.name, width + "x" + height, "top bar", JSON.stringify(hres)); }
+        if (solo && await pg.evaluate(() => !!document.querySelector("header"))) { bad++; console.log("FAIL", p.name, "a standalone page must not carry the top bar"); }
+      }
+      if (shots && width === 390 && p.name === "upstreams") {
+        await pg.click("[data-nav-button]"); await pg.screenshot({ path: shots + "/" + p.name + "-navmenu-390.png" }); await pg.click("[data-nav-button]");
+        await pg.evaluate(() => window.scrollTo(0, 400)); await pg.screenshot({ path: shots + "/" + p.name + "-scrolled-390.png" }); await pg.evaluate(() => window.scrollTo(0, 0));
+      }
       if (shots && solo) await pg.screenshot({ path: shots + "/" + p.name + "-" + width + "x" + height + ".png" });
       else if (shots && (width === 390 || width === 1280)) await pg.screenshot({ path: shots + "/" + p.name + "-" + width + ".png", fullPage: true });
       if (p.dialog) {
@@ -193,5 +307,6 @@ const measure = () => {
   }
   await b.close();
   await bm.close();
+  if (!headers) { bad++; console.log("FAIL no page with a top bar was swept"); }
   console.log(bad ? "FAILED " + bad + " of " + checks : "ALL OK " + checks + " checks"); process.exit(bad ? 1 : 0);
 })();
