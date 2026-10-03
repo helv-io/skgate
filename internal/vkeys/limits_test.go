@@ -132,3 +132,75 @@ func TestSetLimitsValidationAndRegenerate(t *testing.T) {
 		t.Error("a revoked key has no limits to edit")
 	}
 }
+
+func TestURLKeyIsPerKeyAndOffByDefault(t *testing.T) {
+	m := New(newDB(t))
+	a, ka, _ := m.Create("a")
+	b, _, _ := m.Create("b")
+	if va, _ := m.Verify(a); va.URLKey {
+		t.Fatal("?key= must be off for a new key")
+	}
+	if err := m.SetURLKey(ka.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	va, _ := m.Verify(a)
+	vb, _ := m.Verify(b)
+	if !va.URLKey || vb.URLKey {
+		t.Fatalf("only the chosen key may carry the switch: %v %v", va.URLKey, vb.URLKey)
+	}
+	ks, _ := m.List()
+	on := 0
+	for _, k := range ks {
+		if k.URLKey {
+			on++
+		}
+	}
+	if on != 1 {
+		t.Fatalf("List must report the switch: %d", on)
+	}
+	m.SetURLKey(ka.ID, false)
+	if va, _ = m.Verify(a); va.URLKey {
+		t.Fatal("switching off must stick")
+	}
+	m.Revoke(ka.ID)
+	if m.SetURLKey(ka.ID, true) == nil {
+		t.Fatal("a revoked key cannot be changed")
+	}
+}
+
+func TestGlobalQueryKeySettingMigratesToEveryKey(t *testing.T) {
+	for _, tc := range []struct {
+		setting string
+		want    bool
+	}{{"1", true}, {"0", false}} {
+		db := newDB(t)
+		m := New(db)
+		a, _, _ := m.Create("a")
+		b, _, _ := m.Create("b")
+		db.SetSetting("allow_query_key", tc.setting)
+		for i := 0; i < 2; i++ { // running it again is harmless
+			if err := m.MigrateGlobalURLKey(db); err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := db.GetSetting("allow_query_key"); ok {
+				t.Fatal("the global setting must be removed")
+			}
+		}
+		for _, full := range []string{a, b} {
+			if k, _ := m.Verify(full); k.URLKey != tc.want {
+				t.Errorf("setting %q: key flag %v, want %v", tc.setting, k.URLKey, tc.want)
+			}
+		}
+		// a key created afterwards starts off, whatever the old setting was
+		c, _, _ := m.Create("c")
+		if k, _ := m.Verify(c); k.URLKey {
+			t.Error("new keys start off")
+		}
+		// without the old setting nothing changes (a key switched on by hand stays that way)
+		m.SetURLKey(func() int64 { k, _ := m.Verify(c); return k.ID }(), true)
+		m.MigrateGlobalURLKey(db)
+		if k, _ := m.Verify(c); !k.URLKey {
+			t.Error("a later run must not undo a deliberate choice")
+		}
+	}
+}
