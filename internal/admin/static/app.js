@@ -14,16 +14,41 @@
 })();
 
 // Toasts: expire after 5 seconds, click to dismiss. window.skgateToast(kind, text) shows one from script.
+// They always sit in front of everything: the container is a popover, which lives in the top layer like a
+// modal dialog does, and it is raised again (hidden and shown, which moves it to the end of the top layer)
+// whenever a toast is added and whenever a dialog opens (window.skgateRaiseToasts). While a modal dialog is
+// open the container sits inside it, because everything outside a modal is inert and could not be clicked.
+// Browsers without popovers fall back to the shared z-index token --z-toast.
 (function () {
   function drop(el) {
     el.classList.add("gone");
-    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 250);
+    setTimeout(function () {
+      var box = el.parentNode;
+      if (box) box.removeChild(el);
+      if (box && !box.children.length && box.hidePopover) { try { box.hidePopover(); } catch (err) {} }
+    }, 250);
   }
   function arm(el) {
     el.addEventListener("click", function () { drop(el); });
     setTimeout(function () { drop(el); }, 5000);
   }
+  function raise() {
+    var box = document.querySelector(".toasts");
+    if (!box || !box.showPopover || !box.children.length) return;
+    // A modal dialog makes the rest of the page inert, so a toast outside it could be seen but not clicked.
+    // While one is open the container lives inside it (still a popover, so still in front); it moves back
+    // to the body when the dialog closes.
+    var dlg = document.querySelector("dialog[open]");
+    var home = dlg || document.body;
+    if (box.parentNode !== home) home.appendChild(box);
+    box.setAttribute("popover", "manual");
+    try { box.hidePopover(); } catch (err) {}
+    try { box.showPopover(); } catch (err) {}
+  }
   Array.prototype.forEach.call(document.querySelectorAll(".toast"), arm);
+  raise();
+  window.skgateRaiseToasts = raise;
+  document.addEventListener("close", raise, true); // a dialog closed: the toasts go back to the page
   window.skgateToast = function (kind, text) {
     var box = document.querySelector(".toasts");
     if (!box) {
@@ -36,12 +61,7 @@
     el.textContent = text;
     box.appendChild(el);
     arm(el);
-    // A modal dialog sits in the top layer; a popover shown after it is drawn above it.
-    if (box.showPopover) {
-      box.setAttribute("popover", "manual");
-      try { box.hidePopover(); } catch (err) {}
-      try { box.showPopover(); } catch (err) {}
-    }
+    raise();
   };
 })();
 
@@ -127,6 +147,7 @@
     }
     shownId = id;
     if (dlg.showModal) { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute("open", "");
+    if (window.skgateRaiseToasts) window.skgateRaiseToasts();
   }
   // The address changed (Back, Forward, a typed fragment): show the dialog it names, or close the one in view.
   function follow() {
@@ -167,6 +188,7 @@
     okBtn.textContent = form.getAttribute("data-confirm-ok") || (word ? word.charAt(0).toUpperCase() + word.slice(1) : "Confirm");
     okBtn.classList.toggle("confirm-danger", danger);
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+    if (window.skgateRaiseToasts) window.skgateRaiseToasts();
     (danger ? cancelBtn : okBtn).focus(); // a destructive action is never the default key press
   });
 

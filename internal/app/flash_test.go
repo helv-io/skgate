@@ -4,6 +4,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -103,6 +107,25 @@ func TestNoNotificationInRedirectQuery(t *testing.T) {
 	}
 }
 
+// Server-rendered toasts are popovers too, so they sit in the top layer above any dialog, and no stylesheet
+// rule gives anything a z-index above the toast token.
+func TestToastsAreInFrontOfEverything(t *testing.T) {
+	_, _, br, csrf := signedIn(t, nil)
+	br.post("/admin/upstreams/nope/delete", url.Values{"csrf": {csrf}})
+	_, page := br.get("/admin/upstreams")
+	if !strings.Contains(page, `<div class="toasts" popover="manual">`) {
+		t.Errorf("the toast container must be a popover:\n%s", page)
+	}
+	css, _ := os.ReadFile(filepath.Join("..", "admin", "static", "app.css"))
+	for _, m := range regexp.MustCompile(`z-index:\s*([^;}\s]+)`).FindAllStringSubmatch(string(css), -1) {
+		if m[1] != "var(--z-toast)" {
+			if n, err := strconv.Atoi(m[1]); err != nil || n >= 1000 {
+				t.Errorf("z-index %s competes with the toast layer", m[1])
+			}
+		}
+	}
+}
+
 func TestToastAssets(t *testing.T) {
 	_, ts, _, _ := signedIn(t, nil)
 	get := func(p string) string {
@@ -112,12 +135,12 @@ func TestToastAssets(t *testing.T) {
 		return string(b)
 	}
 	css, js := get("/admin/static/app.css"), get("/admin/static/app.js")
-	for _, want := range []string{".toasts{position:fixed;bottom:", ".toast.ok", ".toast.bad"} {
+	for _, want := range []string{".toasts{position:fixed;bottom:", "z-index:var(--z-toast)", "--z-toast:2147483647", ".toast.ok", ".toast.bad"} {
 		if !strings.Contains(css, want) {
 			t.Errorf("css lacks %q", want)
 		}
 	}
-	for _, want := range []string{"5000", `".toast"`, `"click"`} {
+	for _, want := range []string{"5000", `".toast"`, `"click"`, "showPopover", "skgateRaiseToasts"} {
 		if !strings.Contains(js, want) {
 			t.Errorf("js lacks %q", want)
 		}

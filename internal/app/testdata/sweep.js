@@ -155,6 +155,24 @@ const measure = () => {
           res = await pg.evaluate(measure);
           checks++;
           if (res.length) { bad++; console.log("FAIL", p.name, "dialog", width, JSON.stringify(res)); }
+          // a toast fired while a dialog is open is drawn in front of it
+          const front = await pg.evaluate(() => {
+            window.skgateToast("ok", "front check");
+            const t = document.querySelector(".toasts .toast:last-child");
+            if (!t) return "no toast";
+            const r = t.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return hit && t.contains(hit) ? "" : "toast is behind " + (hit ? hit.tagName + "." + hit.className : "nothing");
+          });
+          checks++;
+          if (front) { bad++; console.log("FAIL", p.name, "dialog", width, front); }
+          else {
+            // ... and it still takes a click (a modal makes everything outside it inert) and goes away
+            const box = await pg.$(".toasts .toast:last-child");
+            await box.click(); await new Promise(r => setTimeout(r, 450));
+            checks++;
+            if (await pg.evaluate(() => document.querySelectorAll(".toasts .toast").length)) { bad++; console.log("FAIL", p.name, "dialog", width, "a toast over a dialog cannot be dismissed by a click"); }
+          }
           if (shots && (width === 390 || width === 1280)) await pg.screenshot({ path: shots + "/" + p.name + "-dialog-" + width + ".png" });
           // the fragment follows the dialog: set on open, gone after Escape, backdrop or the close button, and a
           // reload then shows no dialog; Back closes it
