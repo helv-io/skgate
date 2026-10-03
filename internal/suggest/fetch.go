@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -236,6 +238,7 @@ var manifestNames = []string{"package.json", "pyproject.toml", "server.json", "s
 type forge struct {
 	url     func(path string) string
 	headers map[string]string
+	list    func(dir string) string // directory listing, to find .NET projects
 }
 
 func (f *Fetcher) forgeFor(s Source, token string) forge {
@@ -256,33 +259,39 @@ func (f *Fetcher) forgeFor(s Source, token string) forge {
 		if token != "" {
 			h["Authorization"] = "Bearer " + token
 		}
-		return forge{func(p string) string {
+		contents := func(p string) string {
 			return f.GitHubAPI + "/repos/" + s.Path + "/contents/" + esc(full(p)) + "?ref=" + url.QueryEscape(ref)
-		}, h}
+		}
+		return forge{url: contents, headers: h, list: func(d string) string { return strings.Replace(contents(d), "/contents/?", "/contents?", 1) }}
 	case strings.Contains(s.Host, "gitlab"):
 		h := map[string]string{}
 		if token != "" {
 			h["PRIVATE-TOKEN"] = token
 		}
-		return forge{func(p string) string {
+		return forge{url: func(p string) string {
 			return "https://" + s.Host + "/api/v4/projects/" + url.PathEscape(s.Path) + "/repository/files/" + url.PathEscape(full(p)) + "/raw?ref=" + url.QueryEscape(ref)
-		}, h}
+		}, headers: h, list: func(d string) string {
+			return "https://" + s.Host + "/api/v4/projects/" + url.PathEscape(s.Path) + "/repository/tree?path=" + url.QueryEscape(strings.TrimSuffix(full(d), "/")) + "&ref=" + url.QueryEscape(ref)
+		}}
 	case s.Host == "bitbucket.org":
 		h := map[string]string{}
 		if token != "" {
 			h["Authorization"] = "Bearer " + token
 		}
-		return forge{func(p string) string {
+		src := func(p string) string {
 			return f.BitbucketAPI + "/2.0/repositories/" + s.Path + "/src/" + url.PathEscape(ref) + "/" + esc(full(p))
-		}, h}
+		}
+		return forge{url: src, headers: h, list: src}
 	}
 	h := map[string]string{}
 	if token != "" {
 		h["Authorization"] = "token " + token
 	}
-	return forge{func(p string) string { // Gitea, Forgejo and compatible
+	return forge{url: func(p string) string { // Gitea, Forgejo and compatible
 		return "https://" + s.Host + "/api/v1/repos/" + s.Path + "/raw/" + esc(full(p)) + "?ref=" + url.QueryEscape(ref)
-	}, h}
+	}, headers: h, list: func(d string) string {
+		return "https://" + s.Host + "/api/v1/repos/" + s.Path + "/contents/" + esc(full(d)) + "?ref=" + url.QueryEscape(ref)
+	}}
 }
 
 func (f *Fetcher) fetchGit(ctx context.Context, s Source, token string) (Context, error) {
@@ -297,7 +306,7 @@ func (f *Fetcher) fetchGit(ctx context.Context, s Source, token string) (Context
 		}
 		if st == 200 {
 			reached = true
-			c.add(b, n, clip(body, maxFile))
+			c.add(b, n, trimReadme(clip(body, maxFile)))
 			break
 		}
 		if st == 401 || st == 403 {
@@ -317,6 +326,9 @@ func (f *Fetcher) fetchGit(ctx context.Context, s Source, token string) (Context
 			denied = true
 		}
 	}
+	if reached {
+		f.dotnetProjects(ctx, fg, &c, b)
+	}
 	if !reached {
 		switch {
 		case token == "" && denied:
@@ -329,4 +341,108 @@ func (f *Fetcher) fetchGit(ctx context.Context, s Source, token string) (Context
 		return Context{}, errors.New("no README or manifest found in the repository (check the URL, ref and token)")
 	}
 	return c, nil
+}
+
+var (
+	reImage    = regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)`)
+	reBadge    = regexp.MustCompile(`\[\s*(?:!\[[^\]]*\]\([^)]*\)\s*)+\]\([^)]*\)`)
+	reHTMLImg  = regexp.MustCompile(`(?is)<(?:img|picture|source|svg)\b[^>]*>(?:.*?</(?:picture|svg)>)?`)
+	reComment  = regexp.MustCompile(`(?s)<!--.*?-->`)
+	reBlank    = regexp.MustCompile(`\n{3,}`)
+	reRefImage = regexp.MustCompile(`(?m)^\[[^\]]+\]:\s*\S+\.(?:svg|png|gif|jpe?g)\S*\s*$`)
+)
+
+// maxReadme bounds the README sent to the model; the setup instructions come first in practice.
+const maxReadme = 16 << 10
+
+// trimReadme drops what only costs tokens: badges, images, HTML comments and blank runs, then caps the size.
+func trimReadme(s string) string {
+	s = reComment.ReplaceAllString(s, "")
+	s = reBadge.ReplaceAllString(s, "")
+	s = reImage.ReplaceAllString(s, "")
+	s = reHTMLImg.ReplaceAllString(s, "")
+	s = reRefImage.ReplaceAllString(s, "")
+	s = reBlank.ReplaceAllString(strings.TrimSpace(s), "\n\n")
+	if len(s) > maxReadme {
+		s = strings.ToValidUTF8(s[:maxReadme], "") + "\n[README truncated]"
+	}
+	return s
+}
+
+// dirEntries lists file names of a directory from the usual forge shapes (GitHub, Gitea and GitLab return an
+// array of objects with name; Bitbucket wraps them as values with path).
+func dirEntries(b []byte) []string {
+	var arr []struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(b, &arr) == nil {
+		var out []string
+		for _, e := range arr {
+			if e.Type == "" || e.Type == "file" || e.Type == "blob" {
+				out = append(out, e.Name)
+			}
+		}
+		return out
+	}
+	var bb struct {
+		Values []struct {
+			Path string `json:"path"`
+			Type string `json:"type"`
+		} `json:"values"`
+	}
+	if json.Unmarshal(b, &bb) == nil {
+		var out []string
+		for _, v := range bb.Values {
+			if v.Type == "commit_file" {
+				out = append(out, path.Base(v.Path))
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+var reSlnProject = regexp.MustCompile(`(?m)^Project\("[^"]*"\)\s*=\s*"[^"]*",\s*"([^"]+\.csproj)"`)
+
+// dotnetProjects finds .NET projects at the repository root (a .csproj, or the .csproj files a .sln lists) and
+// adds them to the documents, so the model sees the target framework and the output type.
+func (f *Fetcher) dotnetProjects(ctx context.Context, fg forge, c *Context, b *budget) {
+	if fg.list == nil {
+		return
+	}
+	st, body, err := f.get(ctx, fg.list(""), fg.headers, 256<<10)
+	if err != nil || st != 200 {
+		return
+	}
+	var sln string
+	var csproj []string
+	for _, n := range dirEntries(body) {
+		switch {
+		case strings.HasSuffix(n, ".sln"):
+			if sln == "" {
+				sln = n
+			}
+		case strings.HasSuffix(n, ".csproj"):
+			csproj = append(csproj, n)
+		}
+	}
+	if sln != "" {
+		if st, sb, err := f.get(ctx, fg.url(sln), fg.headers, maxFile); err == nil && st == 200 {
+			for _, m := range reSlnProject.FindAllStringSubmatch(string(sb), -1) {
+				p := strings.ReplaceAll(m[1], "\\", "/")
+				if !strings.Contains(strings.ToLower(p), "test") {
+					csproj = append(csproj, p)
+				}
+			}
+		}
+	}
+	for i, p := range csproj {
+		if i >= 2 {
+			break
+		}
+		if st, pb, err := f.get(ctx, fg.url(p), fg.headers, maxFile); err == nil && st == 200 {
+			c.add(b, p, clip(pb, 4<<10))
+		}
+	}
 }

@@ -24,6 +24,7 @@ Rules:
 - List every environment variable the documents say the server requires or commonly uses, each with an ALL_UPPERCASE_PLACEHOLDER value such as YOUR_API_KEY. Never put a real secret or example key in a value. Use headers only for HTTP-mode servers.
 - Do not invent environment variables, flags, commands or package names that the documents do not support. If something is unknown, leave it out and add a warning.
 - install is a shell command to run before start, or an empty string. Use it only when the documents require a build or dependency step for a git source.
+- A .NET project (a .csproj file) uses the command dotnet when it is allowed. Build once in install (dotnet build PATH/Project.csproj -c Release) and start with args run --no-build -c Release --project PATH/Project.csproj -- followed by the stdio flag the documents name (usually --stdio). Use a startup_secs of at least 120.
 - startup_secs is how long the first start may take (10 to 600).
 - alias is a short lowercase name using a-z, 0-9 and dashes.
 - warnings: destructive tools, required authentication or accounts, billing, network or filesystem access, and anything you could not determine.
@@ -136,7 +137,11 @@ func (c Context) info() SourceInfo {
 	}
 	for _, f := range c.Files {
 		i.Files = append(i.Files, f.Name)
-		if l := languages[f.Name]; l != "" && i.Language == "" {
+		l := languages[f.Name]
+		if strings.HasSuffix(f.Name, ".csproj") {
+			l = ".NET"
+		}
+		if l != "" && i.Language == "" {
 			i.Language = l
 		}
 	}
