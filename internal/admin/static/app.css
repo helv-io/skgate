@@ -5,10 +5,14 @@
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 --z-toast:2147483647;--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
 *{box-sizing:border-box;border-radius:0}
+/* the scrollbar keeps its room, so the page does not shift sideways when a dialog hides it */
+html{scrollbar-gutter:stable}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans)}
 a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 main{max-width:1600px;margin:0 auto;padding:16px clamp(12px,2.5vw,32px) 40px}
 h2{font-size:12px;font-weight:600;margin:22px 0 8px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)}
+/* an alias in a heading keeps its case: aliases are case-sensitive */
+h2 code{text-transform:none;letter-spacing:0}
 p{margin:6px 0}
 ul{margin:6px 0;padding-left:20px}li{margin:3px 0}
 details summary{cursor:pointer;margin:8px 0}
