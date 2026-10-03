@@ -30,8 +30,30 @@ type providerView struct {
 	ModelsAt    string
 	Model       string
 	ModelPill   pillView // MCP helper model summary
+	Effort      effortView // reasoning effort of the MCP helper model's calls
+	ChatEffort  effortView // reasoning effort added to proxied chat requests
 	Aliases     []aliasView
 	AliasPill   pillView
+}
+
+// effortView is one reasoning-effort dropdown.
+type effortView struct {
+	Name, Value string
+	Options     []effortOption
+}
+
+type effortOption struct{ Value, Label string }
+
+func effortOf(name, value string) effortView {
+	v := effortView{Name: name, Value: value}
+	for _, e := range provider.Efforts {
+		l := "Effort: " + e
+		if e == "default" {
+			l = "Effort: default (provider decides)"
+		}
+		v.Options = append(v.Options, effortOption{e, l})
+	}
+	return v
 }
 
 type aliasView struct {
@@ -87,6 +109,8 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 		}
 	}
 	v.Model = a.Set.Model(id)
+	v.Effort = effortOf("effort", a.Set.Effort(id))
+	v.ChatEffort = effortOf("effort", a.Set.ChatEffort(id))
 	switch {
 	case v.Model == "":
 		v.ModelPill = pillView{"off", "no model", "pick a model in the details to enable Suggest configuration"}

@@ -30,6 +30,7 @@ func (a *Admin) providerRoutes(mux *http.ServeMux) {
 		"settings":       a.providerSettings,
 		"models/reload":  a.modelsReload,
 		"model":          a.modelSelect,
+		"chat-effort":    a.chatEffort,
 		"aliases/put":    a.aliasPut,
 		"aliases/delete": a.aliasDelete,
 	}
@@ -259,12 +260,33 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	effort := r.PostFormValue("effort")
+	if effort != "" && !provider.ValidEffort(effort) {
+		a.helperDone(w, r, p.ID(), "", "not a valid effort")
+		return
+	}
 	_ = a.Set.SetModel(p.ID(), m)
 	msg := "MCP helper model cleared"
 	if m != "" {
 		msg = "MCP helper model: " + m
 	}
+	if effort != "" {
+		_ = a.Set.SetEffort(p.ID(), effort)
+		msg += ", effort " + effort
+	}
 	a.helperDone(w, r, p.ID(), msg, "")
+}
+
+// chatEffort stores the reasoning effort added to proxied chat requests that set none.
+func (a *Admin) chatEffort(w http.ResponseWriter, r *http.Request) {
+	p := providerOf(r)
+	effort := r.PostFormValue("effort")
+	if !provider.ValidEffort(effort) {
+		a.back(w, r, dialogHash(p.ID()), "", "not a valid effort")
+		return
+	}
+	_ = a.Set.SetChatEffort(p.ID(), effort)
+	a.back(w, r, dialogHash(p.ID()), "chat effort: "+effort, "")
 }
 
 func contains(l []string, s string) bool {
