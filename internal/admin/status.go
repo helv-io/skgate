@@ -3,6 +3,7 @@ package admin
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/helv-io/skgate/internal/provider"
@@ -26,6 +27,9 @@ type providerView struct {
 
 	CanModels   bool
 	Models      []string
+	Choices     []modelChoice // Models with the provider's own aliases listed right after the model they select
+	Native      map[string]string
+	ModelHeavy  bool // the chosen helper model (or the model its alias selects) looks like a heavy reasoning model
 	ModelsKnown bool
 	ModelsAt    string
 	Model       string
@@ -112,12 +116,19 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 		}
 	}
 	v.Model = a.Set.Model(id)
+	if px := a.proxyFor(id); px != nil {
+		v.Native = px.Models.Aliases(id)
+	}
+	v.Choices = modelChoices(v.Models, v.Native, v.Model)
+	for _, c := range v.Choices {
+		v.ModelHeavy = v.ModelHeavy || c.Selected && c.Frontier
+	}
 	v.Effort = effortOf("effort", a.Set.Effort(id))
 	v.Timeout, v.Frontier = int(a.Set.HelperTimeout(id)/time.Second), provider.FrontierTimeoutSecs
 	switch {
 	case v.Model == "":
 		v.ModelPill = pillView{"off", "no model", "pick a model in the details to enable Suggest configuration"}
-	case v.ModelsKnown && !contains(v.Models, v.Model):
+	case v.ModelsKnown && !contains(v.Models, v.Model) && v.Native[v.Model] == "":
 		v.ModelPill = pillView{"warn", v.Model, "no longer in the provider's model list"}
 	default:
 		v.ModelPill = pillView{"ok", v.Model, "used as the MCP helper model"}
@@ -153,4 +164,43 @@ func (a *Admin) status(w http.ResponseWriter, r *http.Request) {
 		d.Providers = append(d.Providers, v)
 	}
 	a.render(w, r, "status", page{Title: "Status", Nav: "status", Data: d})
+}
+
+// modelChoice is one option of the helper model picker: a model id, or an alias the provider offers for one.
+type modelChoice struct {
+	Value, Label string
+	Frontier     bool
+	Selected     bool
+}
+
+// modelChoices lists the models, each followed by its aliases ("alias (alias of model)"), so an alias can be picked
+// and is then stored and sent as it is. A chosen value the provider no longer lists stays selectable as "(unlisted)".
+func modelChoices(ids []string, aliases map[string]string, chosen string) []modelChoice {
+	byModel := map[string][]string{}
+	for al, m := range aliases {
+		byModel[m] = append(byModel[m], al)
+	}
+	var out []modelChoice
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, modelChoice{Value: id, Label: id, Frontier: provider.LooksFrontier(id), Selected: id == chosen})
+		al := byModel[id]
+		sort.Strings(al)
+		for _, a := range al {
+			if seen[a] {
+				continue
+			}
+			seen[a] = true
+			out = append(out, modelChoice{Value: a, Label: a + " (alias of " + id + ")",
+				Frontier: provider.LooksFrontier(a) || provider.LooksFrontier(id), Selected: a == chosen})
+		}
+	}
+	if chosen != "" && !seen[chosen] {
+		out = append(out, modelChoice{Value: chosen, Label: chosen + " (unlisted)", Frontier: provider.LooksFrontier(chosen), Selected: true})
+	}
+	return out
 }
