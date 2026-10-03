@@ -4,44 +4,47 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/helv-io/skgate/internal/timefmt"
 )
 
-// Limits are optional and per key; every key is unlimited until they are set.
+// Limits are optional and per key; every key is unlimited and never expires until they are set.
 //
 //   - RatePerMin: at most this many /v1 requests in each minute (a fixed one-minute window per key). 0 = no rate limit.
-//   - HardStop: after this many successful requests in total, every further /v1 request is rejected until the
-//     number is raised or cleared. Counted with the usage totals. 0 = no hard stop.
-//
-// A rejected request is answered with 429 and does not count.
+//     A request over it is answered with 429 and does not count.
+//   - ExpiresAt: from this moment the key is refused everywhere (/v1 and MCP) with 401 and a message that says it
+//     expired. The zero time = never expires. The date can be moved or cleared again.
 const MaxLimit = 1_000_000_000
 
-// Limited reports whether any limit is set.
-func (k Key) Limited() bool { return k.RatePerMin > 0 || k.HardStop > 0 }
+// Limited reports whether a rate limit is set.
+func (k Key) Limited() bool { return k.RatePerMin > 0 }
 
-// LimitsText is the short display form: "unlimited", "30/min", "stop at 1000" or "30/min, stop at 1000".
+// Expired reports whether the key's expiration has passed at now.
+func (k Key) Expired(now time.Time) bool { return !k.ExpiresAt.IsZero() && !now.Before(k.ExpiresAt) }
+
+// LimitsText is the short display form of the rate limit: "unlimited" or "30/min".
 func (k Key) LimitsText() string {
-	var parts []string
 	if k.RatePerMin > 0 {
-		parts = append(parts, fmt.Sprintf("%d/min", k.RatePerMin))
+		return fmt.Sprintf("%d/min", k.RatePerMin)
 	}
-	if k.HardStop > 0 {
-		parts = append(parts, fmt.Sprintf("stop at %d", k.HardStop))
-	}
-	if len(parts) == 0 {
-		return "unlimited"
-	}
-	if len(parts) == 2 {
-		return parts[0] + ", " + parts[1]
-	}
-	return parts[0]
+	return "unlimited"
 }
 
-// SetLimits stores the limits of an active key; 0 clears one.
-func (m *Manager) SetLimits(id, ratePerMin, hardStop int64) error {
-	if ratePerMin < 0 || hardStop < 0 || ratePerMin > MaxLimit || hardStop > MaxLimit {
-		return fmt.Errorf("limits must be whole numbers from 0 to %d", MaxLimit)
+// ExpiredMessage is what a client is told when it presents an expired key.
+func ExpiredMessage(at time.Time) string {
+	return "This API key expired on " + timefmt.Long(at) + ". Ask the administrator for a new expiration date or a new key."
+}
+
+// SetLimits stores the limits of an active key; 0 clears the rate limit and the zero time clears the expiration.
+func (m *Manager) SetLimits(id, ratePerMin int64, expires time.Time) error {
+	if ratePerMin < 0 || ratePerMin > MaxLimit {
+		return fmt.Errorf("the rate limit must be a whole number from 0 to %d", MaxLimit)
 	}
-	res, err := m.db.Exec(`UPDATE vkeys SET rate_per_min=?,hard_stop=? WHERE id=? AND revoked_at=0`, ratePerMin, hardStop, id)
+	var ex int64
+	if !expires.IsZero() {
+		ex = expires.Unix()
+	}
+	res, err := m.db.Exec(`UPDATE vkeys SET rate_per_min=?,expires_at=? WHERE id=? AND revoked_at=0`, ratePerMin, ex, id)
 	if err != nil {
 		return err
 	}
@@ -53,7 +56,7 @@ func (m *Manager) SetLimits(id, ratePerMin, hardStop int64) error {
 
 // Rejection says why a request was refused. RetryAfter is set for a rate limit.
 type Rejection struct {
-	Code       string // "rate_limit_exceeded" or "key_hard_stop"
+	Code       string // "rate_limit_exceeded"
 	Message    string
 	RetryAfter time.Duration
 }
@@ -63,46 +66,35 @@ type window struct {
 	n     int64
 }
 
-// Check applies k's limits to one /v1 request and returns nil if it may go on. k must come from Verify
-// (it carries the stored request total); requests recorded but not yet written count too.
+// Check applies k's rate limit to one /v1 request and returns nil if it may go on. k must come from Verify.
 func (m *Manager) Check(k Key) *Rejection {
-	if !k.Limited() {
+	if k.RatePerMin <= 0 {
 		return nil
 	}
-	if k.HardStop > 0 {
-		m.umu.Lock()
-		total := k.Usage.Requests + m.pending[k.ID].Requests
-		m.umu.Unlock()
-		if total >= k.HardStop {
-			return &Rejection{Code: "key_hard_stop", Message: fmt.Sprintf("This API key reached its hard stop of %d requests. Ask the administrator to raise or clear it.", k.HardStop)}
-		}
+	now := m.clock()
+	m.umu.Lock()
+	defer m.umu.Unlock()
+	if m.windows == nil {
+		m.windows = map[int64]*window{}
 	}
-	if k.RatePerMin > 0 {
-		now := m.clock()
-		m.umu.Lock()
-		defer m.umu.Unlock()
-		if m.windows == nil {
-			m.windows = map[int64]*window{}
-		}
-		if len(m.windows) > 512 { // forget windows that ended
-			for id, w := range m.windows {
-				if now.Sub(w.start) >= time.Minute {
-					delete(m.windows, id)
-				}
+	if len(m.windows) > 512 { // forget windows that ended
+		for id, w := range m.windows {
+			if now.Sub(w.start) >= time.Minute {
+				delete(m.windows, id)
 			}
 		}
-		w := m.windows[k.ID]
-		if w == nil || now.Sub(w.start) >= time.Minute {
-			w = &window{start: now}
-			m.windows[k.ID] = w
-		}
-		if w.n >= k.RatePerMin {
-			wait := w.start.Add(time.Minute).Sub(now)
-			return &Rejection{Code: "rate_limit_exceeded", RetryAfter: wait,
-				Message: fmt.Sprintf("Rate limit of %d requests per minute reached for this API key. Retry in %d seconds.", k.RatePerMin, secs(wait))}
-		}
-		w.n++
 	}
+	w := m.windows[k.ID]
+	if w == nil || now.Sub(w.start) >= time.Minute {
+		w = &window{start: now}
+		m.windows[k.ID] = w
+	}
+	if w.n >= k.RatePerMin {
+		wait := w.start.Add(time.Minute).Sub(now)
+		return &Rejection{Code: "rate_limit_exceeded", RetryAfter: wait,
+			Message: fmt.Sprintf("Rate limit of %d requests per minute reached for this API key. Retry in %d seconds.", k.RatePerMin, secs(wait))}
+	}
+	w.n++
 	return nil
 }
 

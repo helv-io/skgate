@@ -190,7 +190,8 @@ func (d *DB) sealLegacy() error {
 // upstreams.auto_update_secs is the opt-in auto-update interval of a managed upstream (0 = off).
 // key_usage holds cumulative per-key usage (tokens reported by the API proxy, request counts); its rows go with the key.
 // vkeys.last4 is the last 4 characters of a key, only for display (older keys have none).
-// vkeys.rate_per_min (requests per minute) and vkeys.hard_stop (total successful requests) are optional limits on /v1; 0 = unlimited, so old keys stay unlimited.
+// vkeys.rate_per_min (requests per minute) and vkeys.expires_at (unix time, 0 = never) are optional; old keys stay unlimited and never expire.
+// vkeys.hard_stop is no longer read or written; the column stays so older and newer files open alike.
 // oauth_clients.last_used_at is the unix time of the last /authorize or /token use (0 = never).
 // oauth_clients.pkce_seen is set (internal, not shown) after a client's first successful PKCE exchange; from then on the client needs PKCE.
 // sub and email hold the OIDC identity that approved an MCP authorization code and the tokens it minted.
@@ -212,7 +213,7 @@ func migrate(db *sql.DB) error {
 		{"upstreams", "git_token", "TEXT NOT NULL DEFAULT ''"},
 		{"upstreams", "auto_update_secs", "INTEGER NOT NULL DEFAULT 0"},
 		{"vkeys", "last4", "TEXT NOT NULL DEFAULT ''"},
-		{"vkeys", "rate_per_min", "INTEGER NOT NULL DEFAULT 0"}, {"vkeys", "hard_stop", "INTEGER NOT NULL DEFAULT 0"},
+		{"vkeys", "rate_per_min", "INTEGER NOT NULL DEFAULT 0"}, {"vkeys", "hard_stop", "INTEGER NOT NULL DEFAULT 0"}, {"vkeys", "expires_at", "INTEGER NOT NULL DEFAULT 0"},
 		{"oauth_clients", "last_used_at", "INTEGER NOT NULL DEFAULT 0"},
 		{"oauth_clients", "pkce_seen", "INTEGER NOT NULL DEFAULT 0"},
 	} {

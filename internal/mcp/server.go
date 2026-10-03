@@ -202,7 +202,11 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 				reqlog.Note(r, "auth=virtual-key")
 				return true, true
 			}
-			reqlog.Reject(r, "invalid token: virtual key is unknown or revoked (key ending %s)", tokTail(tok))
+			if at, late := s.Keys.ExpiredAt(tok); late {
+				reqlog.Reject(r, "invalid token: virtual key expired %s (key ending %s)", at.Local().Format(time.RFC3339), tokTail(tok))
+			} else {
+				reqlog.Reject(r, "invalid token: virtual key is unknown or revoked (key ending %s)", tokTail(tok))
+			}
 		} else if why := s.verifyAccessToken(tok, path); why == "" {
 			reqlog.Note(r, "auth=oauth-token")
 			return true, true
@@ -217,7 +221,11 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 			reqlog.Note(r, "auth=x-api-key")
 			return true, true
 		}
-		reqlog.Reject(r, "invalid token: X-API-Key is not a valid virtual key")
+		if at, late := s.Keys.ExpiredAt(k); late {
+			reqlog.Reject(r, "invalid token: X-API-Key is a virtual key that expired %s", at.Local().Format(time.RFC3339))
+		} else {
+			reqlog.Reject(r, "invalid token: X-API-Key is not a valid virtual key")
+		}
 	}
 	if s.Cfg.QueryKeyAllowed() {
 		if k := r.URL.Query().Get("key"); k != "" {
@@ -227,7 +235,11 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 				reqlog.Note(r, "auth=query-key")
 				return true, true
 			}
-			reqlog.Reject(r, "invalid token: ?key= is not a valid virtual key")
+			if at, late := s.Keys.ExpiredAt(k); late {
+				reqlog.Reject(r, "invalid token: ?key= is a virtual key that expired %s", at.Local().Format(time.RFC3339))
+			} else {
+				reqlog.Reject(r, "invalid token: ?key= is not a valid virtual key")
+			}
 		}
 	} else if r.URL.Query().Get("key") != "" {
 		reqlog.Note(r, "?key= was sent but it is refused (keys page switch)")

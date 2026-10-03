@@ -333,7 +333,7 @@ func TestMigrateAddsManagedColumns(t *testing.T) {
 	}
 }
 
-// A database from before the key limits keeps its keys, all unlimited, and migrating twice is harmless.
+// A database from before the key limits keeps its keys, all unlimited and never expiring (the unused hard_stop column stays), and migrating twice is harmless.
 func TestMigrateKeyLimitsStayUnlimited(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "v075.db")
 	old, err := sql.Open("sqlite", "file:"+path)
@@ -354,9 +354,9 @@ func TestMigrateKeyLimitsStayUnlimited(t *testing.T) {
 		if err != nil {
 			t.Fatalf("open #%d: %v", i, err)
 		}
-		var rate, stop int64
-		if err := db.QueryRow(`SELECT rate_per_min,hard_stop FROM vkeys WHERE label='old'`).Scan(&rate, &stop); err != nil || rate != 0 || stop != 0 {
-			t.Fatalf("old key limits: %d %d %v", rate, stop, err)
+		var rate, stop, expires int64
+		if err := db.QueryRow(`SELECT rate_per_min,hard_stop,expires_at FROM vkeys WHERE label='old'`).Scan(&rate, &stop, &expires); err != nil || rate != 0 || stop != 0 || expires != 0 {
+			t.Fatalf("old key limits: %d %d %d %v", rate, stop, expires, err)
 		}
 		db.Close()
 	}
