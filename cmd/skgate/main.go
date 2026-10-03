@@ -11,10 +11,13 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+	// Embeds the zone database so TZ works in images without tzdata.
+	_ "time/tzdata"
 
 	"github.com/helv-io/skgate/internal/app"
 	"github.com/helv-io/skgate/internal/config"
 	"github.com/helv-io/skgate/internal/store"
+	"github.com/helv-io/skgate/internal/timefmt"
 )
 
 func main() {
@@ -55,7 +58,7 @@ func main() {
 		_ = srv.Shutdown(sctx)
 		a.MCP.ShutdownManaged() // children stop even if a handler is still draining
 	}()
-	log.Printf("skgate %s listening on %s (public %s, log level %s, redirect origins: any https plus loopback http)", config.Version, cfg.Listen, cfg.PublicURL, cfg.LogLevel)
+	log.Printf("skgate %s listening on %s (public %s, log level %s, time zone %s, redirect origins: any https plus loopback http)", config.Version, cfg.Listen, cfg.PublicURL, cfg.LogLevel, timefmt.Zone())
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
