@@ -53,10 +53,6 @@
 {{if .CanModels}}<h4>MCP helper model</h4>
 {{template "model_picker" .}}
 
-<h4>Chat reasoning effort</h4>
-<p class="muted">Added to chat requests that set no effort themselves.</p>
-<form method="post" action="/admin/providers/{{.ID}}/chat-effort" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="pick">{{template "effort_select" .ChatEffort}}<button class="act">Save</button></div></form>
-
 <h4>Model aliases</h4>
 <div class="tablewrap"><table class="table"><thead><tr><th>Alias</th><th>Target</th><th>Status</th><th></th></tr></thead><tbody>
 {{range .Aliases}}<tr><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Target"><code>{{.Target}}</code></td><td class="status" data-label="Status">{{template "pill" .Pill}}</td>
@@ -68,8 +64,8 @@
 <button class="act" {{if not .ModelsKnown}}disabled title="load the model list first"{{end}}>Save</button></div></form>{{end}}
 {{template "dialog_end"}}{{end}}
 
-{{/* effort_select: the reasoning effort dropdown. Takes an effortView. */}}
-{{define "effort_select"}}<select name="{{.Name}}" aria-label="Reasoning effort" title="Reasoning effort">{{range .Options}}<option value="{{.Value}}" {{if eq .Value $.Value}}selected{{end}}>{{.Label}}</option>{{end}}</select>{{end}}
+{{/* effort_select: the reasoning dropdown. Takes an effortView. */}}
+{{define "effort_select"}}<select name="{{.Name}}" aria-label="Reasoning" title="Reasoning">{{range .Options}}<option value="{{.Value}}" {{if eq .Value $.Value}}selected{{end}}>{{.Label}}</option>{{end}}</select>{{end}}
 
 {{/* model_picker: choose the MCP helper model of a provider and reload its model list. Takes a providerView.
    Inline forms post in place (see app.js, data-inline) and the page re-renders the Suggest controls. */}}

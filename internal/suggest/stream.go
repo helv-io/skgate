@@ -42,7 +42,7 @@ func (e *TimeoutError) Error() string {
 		msg = fmt.Sprintf("timed out while %s: no data for %ds", e.Where(), secs)
 	}
 	if e.Stage == StageModel {
-		msg += "; lower the effort"
+		msg += "; lower the reasoning"
 	}
 	return msg
 }

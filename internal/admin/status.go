@@ -30,15 +30,14 @@ type providerView struct {
 	ModelsAt    string
 	Model       string
 	ModelPill   pillView   // MCP helper model summary
-	Effort      effortView // reasoning effort of the MCP helper model's calls
+	Effort      effortView // reasoning of the MCP helper model's calls
 	Timeout     int        // seconds the MCP helper model may stay silent
 	Frontier    int        // the timeout suggested for heavy models, shown for those only
-	ChatEffort  effortView // reasoning effort added to proxied chat requests
 	Aliases     []aliasView
 	AliasPill   pillView
 }
 
-// effortView is one reasoning-effort dropdown.
+// effortView is the reasoning dropdown of the helper model.
 type effortView struct {
 	Name, Value string
 	Options     []effortOption
@@ -49,9 +48,9 @@ type effortOption struct{ Value, Label string }
 func effortOf(name, value string) effortView {
 	v := effortView{Name: name, Value: value}
 	for _, e := range provider.Efforts {
-		l := "Effort: " + e
+		l := "Reasoning: " + e
 		if e == "default" {
-			l = "Effort: default (provider decides)"
+			l = "Reasoning: default (model decides)"
 		}
 		v.Options = append(v.Options, effortOption{e, l})
 	}
@@ -115,7 +114,6 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	v.Model = a.Set.Model(id)
 	v.Effort = effortOf("effort", a.Set.Effort(id))
 	v.Timeout, v.Frontier = int(a.Set.HelperTimeout(id)/time.Second), provider.FrontierTimeoutSecs
-	v.ChatEffort = effortOf("effort", a.Set.ChatEffort(id))
 	switch {
 	case v.Model == "":
 		v.ModelPill = pillView{"off", "no model", "pick a model in the details to enable Suggest configuration"}

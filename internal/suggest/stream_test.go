@@ -140,7 +140,7 @@ func TestSuggestIdleTimeout(t *testing.T) {
 	if !errors.As(err, &te) || te.Kind != "idle" || te.Stage != StageModel || te.Where() != "asking the model" {
 		t.Fatalf("%T %v", err, err)
 	}
-	if !strings.Contains(err.Error(), "lower the effort") || !strings.Contains(err.Error(), "no data") {
+	if !strings.Contains(err.Error(), "lower the reasoning") || !strings.Contains(err.Error(), "no data") {
 		t.Fatalf("reason: %v", err)
 	}
 }

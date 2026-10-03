@@ -328,13 +328,13 @@ document.addEventListener("click", function (e) {
     var pill = out.querySelector("[data-suggest-pill]");
     var act = out.querySelector("[data-suggest-action]");
     if (act) act.remove();
-    if (action && document.getElementById("helper-model")) { // the dialog of the MCP helper model, where the effort is set
+    if (action && document.getElementById("helper-model")) { // the dialog of the MCP helper model, where the reasoning is set
       act = document.createElement("button");
       act.type = "button";
       act.className = "act";
       act.setAttribute("data-suggest-action", "");
       act.setAttribute("data-dialog-open", "#helper-model");
-      act.textContent = "Lower effort";
+      act.textContent = "Lower reasoning";
       pill.parentNode.appendChild(act);
     }
     var ul = out.querySelector("[data-suggest-list]");
@@ -350,11 +350,11 @@ document.addEventListener("click", function (e) {
   function done(form, b, timer, x, secs) {
     clearInterval(timer);
     b.disabled = false;
-    if (x.timeout) { // a limit was hit: say where and after how long, and offer the effort setting when the model was slow
+    if (x.timeout) { // a limit was hit: say where and after how long, and offer the reasoning setting when the model was slow
       var t = x.timeout, slow = t.stage === "model";
       var why = t.kind === "idle" ? "No data for " + t.secs + "s." : "The overall limit of " + t.secs + "s was reached.";
       var lines = [why];
-      if (slow) lines.push("Lower the MCP helper model's effort (now: " + (t.effort || "default") + "), or pick a faster model.");
+      if (slow) lines.push("Lower the MCP helper model's reasoning (now: " + (t.effort || "default") + "), or pick a faster model.");
       show(form, "bad", "Timed out while " + t.where + " \u00b7 " + secs + "s", lines, slow);
       if (window.skgateToast) window.skgateToast("bad", x.error);
       return;
