@@ -20,7 +20,7 @@ func TestEnvExampleCoversEveryVariable(t *testing.T) {
 		documented[m[1]] = true
 	}
 	used := map[string]bool{}
-	re := regexp.MustCompile(`(?:env|Getenv|LookupEnv|intEnv|durEnv|truthy\(os\.Getenv|splitList\(os\.Getenv|parseID)\(\s*"([A-Z][A-Z0-9_]+)"`)
+	re := regexp.MustCompile(`(?:env|Getenv|LookupEnv|intEnv|durEnv|boolEnv|truthy\(os\.Getenv|splitList\(os\.Getenv|parseID)\(\s*"([A-Z][A-Z0-9_]+)"`)
 	for _, dir := range []string{"internal", "cmd"} {
 		filepath.Walk(filepath.Join(root, dir), func(p string, fi os.FileInfo, _ error) error {
 			// fakemcp is a test-only helper; its FAKE_* switches are not configuration. legacyenv.go only reads
@@ -76,6 +76,16 @@ func TestREADMEIsGenericAndReferencesEnvExample(t *testing.T) {
 	for v := range map[string]bool{"PUBLIC_URL": true, "LISTEN_ADDR": true, "DB_PATH": true, "LOG_LEVEL": true, "PUID": true, "PGID": true, "OIDC_ISSUER": true} {
 		if !strings.Contains(s, "`"+v) {
 			t.Errorf("README config table lacks %s", v)
+		}
+	}
+}
+
+// Consent is required unless explicitly switched off.
+func TestConsentDefaultsToRequired(t *testing.T) {
+	for val, want := range map[string]bool{"": true, "true": true, "garbage": true, "1": true, "false": false, "0": false, "off": false, "NO": false} {
+		t.Setenv("MCP_OAUTH_REQUIRE_CONSENT", val)
+		if got := Load().RequireConsent; got != want {
+			t.Errorf("MCP_OAUTH_REQUIRE_CONSENT=%q: RequireConsent=%v, want %v", val, got, want)
 		}
 	}
 }
