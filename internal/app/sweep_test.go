@@ -37,6 +37,8 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 		return body
 	}
 	post("/admin/providers/grok/models/reload", url.Values{})
+	post("/admin/providers/grok/aliases/put", url.Values{"name": {"grok-latest"}, "target": {"grok-4.7-reasoning"}})
+	post("/admin/providers/grok/model", url.Values{"model": {strings.Repeat("a", 60)}, "effort": {"medium"}}) // the long alias as helper model, with its reasoning pill
 	post("/admin/providers/grok/aliases/put", url.Values{"name": {strings.Repeat("a", 60)}, "target": {"grok-4.7-reasoning"}})
 	post("/admin/upstreams/save", stdioForm(csrf, "mgd", url.Values{"lifecycle": {"always"}, "args": {"--config", "/very/long/path/" + strings.Repeat("dir/", 20) + "file.json"}}))
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {longName[:63]},
