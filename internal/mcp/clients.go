@@ -66,6 +66,20 @@ func (s *Clients) Create(c Client, secret string) (Client, error) {
 	return c, err
 }
 
+// PutMetadataClient stores or refreshes a client described by a client ID metadata document. Its
+// name and redirect URIs follow the document; the last use and PKCE state stay. The newest 500 such
+// clients are kept. A stored client of another source with the same ID is left alone.
+func (s *Clients) PutMetadataClient(c Client) error {
+	uris, _ := json.Marshal(c.RedirectURIs)
+	_, err := s.db.Exec(`INSERT INTO oauth_clients(client_id,secret_hash,name,redirect_uris,auth_method,source,created_at) VALUES(?,?,?,?,?,?,?)
+		ON CONFLICT(client_id) DO UPDATE SET name=excluded.name, redirect_uris=excluded.redirect_uris WHERE source=excluded.source`,
+		c.ID, "", c.Name, string(uris), "none", cimdSource, time.Now().Unix())
+	if err == nil {
+		_, _ = s.db.Exec(`DELETE FROM oauth_clients WHERE source=? AND client_id NOT IN (SELECT client_id FROM oauth_clients WHERE source=? ORDER BY created_at DESC, rowid DESC LIMIT ?)`, cimdSource, cimdSource, cimdKeep)
+	}
+	return err
+}
+
 func scanClient(sc interface{ Scan(...any) error }) (Client, error) {
 	var c Client
 	var uris string
