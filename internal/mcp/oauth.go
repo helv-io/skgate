@@ -54,44 +54,45 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reqlog.Redirect(r, req.RedirectURIs[0])
+	// Unusable redirect URIs (custom schemes such as cursor://, plain http off loopback, userinfo, ...)
+	// are ignored as long as one usable URI remains; only then is the registration refused.
+	var uris []string
+	var skipped []string
 	for _, u := range req.RedirectURIs {
 		if why, ok := RedirectCheck(u); !ok {
-			reqlog.Redirect(r, u)
-			reqlog.Reject(r, "bad redirect origin: %s (host %s)", why, reqlog.HostOf(u))
-			httputil.OAuthError(w, 400, "invalid_redirect_uri", "redirect_uri is not allowed: "+truncate(u, 120))
-			return
+			skipped = append(skipped, why+" (host "+reqlog.HostOf(u)+")")
+			continue
 		}
+		uris = append(uris, u)
 	}
-	method := req.AuthMethod
-	if method == "" {
-		method = "none"
-	}
-	if !authMethods[method] {
-		reqlog.Reject(r, "invalid client metadata: unsupported token_endpoint_auth_method %q", truncate(method, 60))
-		httputil.OAuthError(w, 400, "invalid_client_metadata", "unsupported token_endpoint_auth_method")
+	if len(uris) == 0 {
+		reqlog.Redirect(r, req.RedirectURIs[0])
+		reqlog.Reject(r, "bad redirect origin: %s", skipped[0])
+		httputil.OAuthError(w, 400, "invalid_redirect_uri", "redirect_uri is not allowed: "+truncate(req.RedirectURIs[0], 120))
 		return
 	}
-	grants := req.GrantTypes
+	if len(skipped) > 0 {
+		reqlog.Note(r, "ignored %d unusable redirect_uri(s): %s", len(skipped), skipped[0])
+	}
+	req.RedirectURIs = uris
+	// Auth method, grant types and response types are reduced to what skgate supports and the
+	// response says what was granted (RFC 7591 section 3.2.1). A client that asks for a method we
+	// do not offer is registered as a public client (PKCE), which is what MCP clients expect.
+	method := req.AuthMethod
+	if !authMethods[method] {
+		method = "none"
+	}
+	grants := supported(req.GrantTypes, dcrGrants, []string{"authorization_code", "refresh_token"})
 	if len(grants) == 0 {
-		grants = []string{"authorization_code", "refresh_token"}
+		reqlog.Reject(r, "invalid client metadata: none of grant_types %v is supported", req.GrantTypes)
+		httputil.OAuthError(w, 400, "invalid_client_metadata", "none of the requested grant_types is supported (authorization_code, refresh_token)")
+		return
 	}
-	for _, g := range grants {
-		if !dcrGrants[g] {
-			reqlog.Reject(r, "invalid client metadata: unsupported grant_type %q", truncate(g, 60))
-			httputil.OAuthError(w, 400, "invalid_client_metadata", "unsupported grant_type: "+truncate(g, 60))
-			return
-		}
-	}
-	resps := req.ResponseType
+	resps := supported(req.ResponseType, dcrResponses, []string{"code"})
 	if len(resps) == 0 {
-		resps = []string{"code"}
-	}
-	for _, rt := range resps {
-		if !dcrResponses[rt] {
-			reqlog.Reject(r, "invalid client metadata: unsupported response_type %q", truncate(rt, 60))
-			httputil.OAuthError(w, 400, "invalid_client_metadata", "unsupported response_type: "+truncate(rt, 60))
-			return
-		}
+		reqlog.Reject(r, "invalid client metadata: none of response_types %v is supported", req.ResponseType)
+		httputil.OAuthError(w, 400, "invalid_client_metadata", "none of the requested response_types is supported (code)")
+		return
 	}
 	name := truncate(strings.TrimSpace(req.ClientName), 100)
 	if name == "" {
@@ -123,6 +124,26 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	reqlog.Client(r, c.ID)
 	w.Header().Set("Cache-Control", "no-store")
 	httputil.JSON(w, http.StatusCreated, resp)
+}
+
+// supported returns the entries of asked that are in ok (in order, no duplicates, at most 10 are
+// considered), or def when nothing was asked.
+func supported(asked []string, ok map[string]bool, def []string) []string {
+	if len(asked) == 0 {
+		return def
+	}
+	if len(asked) > 10 {
+		asked = asked[:10]
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, v := range asked {
+		if ok[v] && !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func truncate(s string, n int) string {
