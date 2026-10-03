@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/helv-io/skgate/internal/provider"
+	"github.com/helv-io/skgate/internal/timefmt"
 )
 
 // statusData is the status page: one card per provider.
@@ -82,7 +83,7 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 		var at time.Time
 		v.Models, at, v.ModelsKnown = a.models(r.Context(), p)
 		if v.ModelsKnown {
-			v.ModelsAt = at.Local().Format("15:04")
+			v.ModelsAt = timefmt.Minute(at)
 		}
 	}
 	v.Model = a.Set.Model(id)

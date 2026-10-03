@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/helv-io/skgate/internal/mcp"
+	"github.com/helv-io/skgate/internal/timefmt"
 )
 
 // upstreamProcess runs a process action (start, stop, restart, update, clear-logs) on a managed
@@ -69,7 +70,7 @@ func (a *Admin) upstreamLogs(w http.ResponseWriter, r *http.Request) {
 		case "sys":
 			c = "dim"
 		}
-		d.Lines = append(d.Lines, logLine{T: l.T.Local().Format("15:04:05"), Src: l.Src, Text: l.Text, Class: c})
+		d.Lines = append(d.Lines, logLine{T: timefmt.Second(l.T), Src: l.Src, Text: l.Text, Class: c})
 	}
 	a.render(w, r, "upstream_logs", page{Title: "Process " + alias, Nav: "upstreams", Data: d})
 }

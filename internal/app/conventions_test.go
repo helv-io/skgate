@@ -107,3 +107,24 @@ func mustGet(t *testing.T, u string) []byte {
 	b, _ := io.ReadAll(resp.Body)
 	return b
 }
+
+// Displayed times go through internal/timefmt, so the TZ setting applies everywhere; and the zone
+// database is embedded so TZ works in images that ship none.
+func TestTimesUseSharedHelperAndZoneDataIsEmbedded(t *testing.T) {
+	layout := regexp.MustCompile(`\.Format\("[^"]*(15:04|2006)`)
+	root := filepath.Join("..", "..")
+	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") || strings.Contains(p, "timefmt") || strings.Contains(p, ".git") {
+			return nil
+		}
+		b, _ := os.ReadFile(p)
+		if layout.Match(b) {
+			t.Errorf("%s formats a time directly; use internal/timefmt", p)
+		}
+		return nil
+	})
+	b, _ := os.ReadFile(filepath.Join(root, "cmd", "skgate", "main.go"))
+	if !strings.Contains(string(b), `_ "time/tzdata"`) {
+		t.Error("main must embed time/tzdata")
+	}
+}

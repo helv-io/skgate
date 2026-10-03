@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	"github.com/helv-io/skgate/internal/timefmt"
 )
 
 // Level is the verbosity.
@@ -64,7 +66,7 @@ func (l *Logger) Printf(format string, args ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.out != nil {
-		fmt.Fprintf(l.out, "%s %s\n", time.Now().Format("2006/01/02 15:04:05"), fmt.Sprintf(format, args...))
+		fmt.Fprintf(l.out, "%s %s\n", timefmt.Log(time.Now()), fmt.Sprintf(format, args...))
 	}
 }
 
@@ -294,7 +296,7 @@ func (l *Logger) write(r *http.Request, sw *statusWriter, ev *Event, dur time.Du
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.out != nil {
-		fmt.Fprintf(l.out, "%s %s\n", time.Now().Format("2006/01/02 15:04:05"), b.String())
+		fmt.Fprintf(l.out, "%s %s\n", timefmt.Log(time.Now()), b.String())
 	}
 }
 

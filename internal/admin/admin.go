@@ -24,6 +24,7 @@ import (
 	"github.com/helv-io/skgate/internal/reqlog"
 	"github.com/helv-io/skgate/internal/store"
 	"github.com/helv-io/skgate/internal/suggest"
+	"github.com/helv-io/skgate/internal/timefmt"
 	"github.com/helv-io/skgate/internal/vkeys"
 )
 
@@ -59,7 +60,7 @@ var funcs = template.FuncMap{
 		if t.IsZero() {
 			return "-"
 		}
-		return t.Local().Format("2006-01-02 15:04")
+		return timefmt.DateTime(t)
 	},
 	"dur":  func(d time.Duration) string { return d.Round(time.Second).String() },
 	"list": func(v ...string) []string { return v },
@@ -427,7 +428,7 @@ func stamp(t time.Time) string {
 	if t.IsZero() {
 		return ""
 	}
-	return t.Local().Format("Jan 2 15:04 MST")
+	return timefmt.Stamp(t)
 }
 
 // everyText names an auto-update interval.

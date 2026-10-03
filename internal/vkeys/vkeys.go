@@ -12,6 +12,7 @@ import (
 
 	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/store"
+	"github.com/helv-io/skgate/internal/timefmt"
 )
 
 const (
@@ -174,7 +175,7 @@ func (m *Manager) PurgeRevoked(now time.Time) ([]Key, error) {
 		}
 		why := "never used"
 		if !k.LastUsed.IsZero() {
-			why = "last used " + k.LastUsed.Format("2006-01-02")
+			why = "last used " + timefmt.Date(k.LastUsed)
 		}
 		m.Logf("vkeys: purged revoked key id=%d label=%q key=%s (%s)", k.ID, k.Label, k.Masked(), why)
 	}
