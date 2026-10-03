@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/helv-io/skgate/internal/mcp"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -34,6 +35,9 @@ func TestUpstreamTestButton(t *testing.T) {
 		if r.StatusCode != 200 || !strings.Contains(body, "list_things") || !strings.Contains(body, "Lists things.") || strings.Contains(body, "More text.") ||
 			!strings.Contains(body, "200") || !strings.Contains(body, "OK") || !strings.Contains(body, "Latency") || strings.Contains(body, "Trailing slash") {
 			t.Fatalf("test page: %d\n%s", r.StatusCode, body)
+		}
+		if !regexp.MustCompile(`<th>Latency</th><td>\d+(\.\d)? m?s</td>`).MatchString(body) {
+			t.Errorf("latency is rounded for people (435 ms, 5.8 ms):\n%s", body)
 		}
 	}
 	// errors are shown plainly

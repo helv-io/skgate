@@ -28,3 +28,18 @@ func TestHelpersUseLocalZone(t *testing.T) {
 		t.Errorf("zone %q", z)
 	}
 }
+
+func TestLatencyIsRoundedForPeople(t *testing.T) {
+	for d, want := range map[time.Duration]string{
+		5784852 * time.Nanosecond:   "5.8 ms",
+		434899794 * time.Nanosecond: "435 ms",
+		9990 * time.Microsecond:     "10.0 ms",
+		999400 * time.Microsecond:   "999 ms",
+		1234 * time.Millisecond:     "1.2 s",
+		0:                           "0.0 ms",
+	} {
+		if got := Latency(d); got != want {
+			t.Errorf("%v: %q, want %q", d, got, want)
+		}
+	}
+}

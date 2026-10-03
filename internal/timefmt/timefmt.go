@@ -2,7 +2,10 @@
 // unset), so the admin UI and the logs agree. Use these helpers instead of formatting times directly.
 package timefmt
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Layouts, one per display need.
 const (
@@ -41,4 +44,17 @@ func Zone() string {
 	name := time.Local.String()
 	abbr, _ := time.Now().Zone()
 	return name + " (" + abbr + ")"
+}
+
+// Latency renders how long a request took for a person: 5.8 ms below 10 ms, whole milliseconds below a second
+// (435 ms), then seconds with one decimal (1.2 s).
+func Latency(d time.Duration) string {
+	switch {
+	case d < 10*time.Millisecond:
+		return fmt.Sprintf("%.1f ms", float64(d)/float64(time.Millisecond))
+	case d < time.Second:
+		return fmt.Sprintf("%d ms", d.Round(time.Millisecond)/time.Millisecond)
+	default:
+		return fmt.Sprintf("%.1f s", d.Seconds())
+	}
 }
