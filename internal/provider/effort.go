@@ -5,28 +5,34 @@ import (
 	"net/http"
 )
 
-// Reasoning choices shown in the model dialog. "default" sends nothing: the model decides.
-var Efforts = []string{"default", "low", "medium", "high"}
+// Reasoning choices shown in the model dialog and on the status page. "auto" sends nothing: the model decides.
+// "default" is the name this choice was stored under before and still reads as auto.
+var Efforts = []string{"auto", "low", "medium", "high"}
 
-// ValidEffort reports whether v is one of Efforts.
-func ValidEffort(v string) bool { return contains(Efforts, v) }
+// ValidEffort reports whether v is one of Efforts (or the earlier name of auto).
+func ValidEffort(v string) bool { return v == "default" || contains(Efforts, v) }
 
-// Effort is the reasoning setting of the MCP helper model's calls; "default" (the model decides) unless chosen
-// otherwise. A choice saved earlier keeps working. (An older separate setting for proxied chat requests is gone;
-// its stored value is simply never read.)
+// Effort is the reasoning setting of the MCP helper model's calls; "auto" (the model decides) unless chosen
+// otherwise. A choice saved earlier keeps working, including a stored "default" (now auto). (An older separate
+// setting for proxied chat requests is gone; its stored value is simply never read.)
 func (s Settings) Effort(id string) string {
-	if v, ok := s.Get(id, "effort"); ok && ValidEffort(v) {
+	if v, ok := s.Get(id, "effort"); ok && ValidEffort(v) && v != "default" {
 		return v
 	}
-	return "default"
+	return "auto"
 }
 
 // SetEffort stores the helper model's reasoning.
-func (s Settings) SetEffort(id, v string) error { return s.Set(id, "effort", v) }
+func (s Settings) SetEffort(id, v string) error {
+	if v == "default" {
+		v = "auto"
+	}
+	return s.Set(id, "effort", v)
+}
 
 // EffortParam is the value to send as reasoning_effort, or "" when nothing should be sent.
 func EffortParam(v string) string {
-	if v == "default" || !ValidEffort(v) {
+	if v == "auto" || v == "default" || !ValidEffort(v) {
 		return ""
 	}
 	return v

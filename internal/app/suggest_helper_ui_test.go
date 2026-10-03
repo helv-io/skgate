@@ -239,7 +239,7 @@ func TestSuggestStreamsStages(t *testing.T) {
 }
 
 // Both model dialogs carry the Reasoning dropdown directly under the model dropdown (same form, so Save covers
-// both), defaulting to "default" (the model decides). It is the only reasoning setting: there is none for chat.
+// both), defaulting to "auto" (the model decides). It is the only reasoning setting: there is none for chat.
 func TestReasoningSelectorInModelDialogs(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	for _, path := range []string{"/admin", "/admin/upstreams"} {
@@ -248,8 +248,8 @@ func TestReasoningSelectorInModelDialogs(t *testing.T) {
 		if m < 0 || e < m || reload < e {
 			t.Errorf("%s: model select at %d, reasoning at %d, reload at %d", path, m, e, reload)
 		}
-		if !strings.Contains(page, `<option value="default" selected>Reasoning: default (model decides)</option>`) || !strings.Contains(page, "Reasoning: low") {
-			t.Errorf("%s: reasoning options missing or not defaulting to default", path)
+		if !strings.Contains(page, `<option value="auto" selected>Reasoning: auto (model decides)</option>`) || !strings.Contains(page, "Reasoning: low") {
+			t.Errorf("%s: reasoning options missing or not defaulting to auto", path)
 		}
 		if strings.Contains(page, "Effort") || strings.Contains(page, "effort</") || strings.Contains(page, "chat-effort") {
 			t.Errorf("%s: the old effort wording or the chat setting is still there", path)
@@ -267,7 +267,7 @@ func TestReasoningSelectorInModelDialogs(t *testing.T) {
 		return r.prompt[len(r.prompt)-1]
 	}
 	if body := ask(); strings.Contains(body, "reasoning_effort") {
-		t.Errorf("the default must send nothing: %.200s", body)
+		t.Errorf("auto must send nothing: %.200s", body)
 	}
 	_, ok := r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"high"}})
 	if ok["toast"].(map[string]any)["m"] != "MCP helper model: helper-2, reasoning high" {
@@ -276,9 +276,9 @@ func TestReasoningSelectorInModelDialogs(t *testing.T) {
 	if body := ask(); !strings.Contains(body, `"reasoning_effort":"high"`) {
 		t.Errorf("stored reasoning not sent: %.200s", body)
 	}
-	r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"default"}})
+	r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"auto"}})
 	if body := ask(); strings.Contains(body, "reasoning_effort") {
-		t.Errorf("default must send nothing: %.200s", body)
+		t.Errorf("auto must send nothing: %.200s", body)
 	}
 	if _, bad := r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "effort": {"extreme"}}); bad["toast"].(map[string]any)["k"] != "bad" {
 		t.Error("an unknown reasoning choice must be refused")
@@ -317,7 +317,7 @@ func TestSuggestTimeoutIsVisible(t *testing.T) {
 		t.Fatal(err)
 	}
 	to, _ := last["timeout"].(map[string]any)
-	if to == nil || to["kind"] != "idle" || to["stage"] != "model" || to["where"] != "asking the model" || to["effort"] != "default" {
+	if to == nil || to["kind"] != "idle" || to["stage"] != "model" || to["where"] != "asking the model" || to["effort"] != "auto" {
 		t.Fatalf("timeout object: %v", last)
 	}
 	if msg, _ := last["error"].(string); !strings.Contains(msg, "timed out while asking the model") || !strings.Contains(msg, "lower the reasoning") {
@@ -337,7 +337,7 @@ func TestSuggestTimeoutIsVisible(t *testing.T) {
 	}
 
 	out := buf.String()
-	for _, want := range []string{"suggest: model call timed out (idle) stage=model reasoning=default", "suggest: model call timed out (cap)", "suggest: failed source=https://gitlab.com/grp/thing"} {
+	for _, want := range []string{"suggest: model call timed out (idle) stage=model reasoning=auto", "suggest: model call timed out (cap)", "suggest: failed source=https://gitlab.com/grp/thing"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("log lacks %q", want)
 		}
@@ -383,5 +383,35 @@ func TestSuggestTimeoutStateInJSDOM(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err != nil || !strings.Contains(string(out), "ALL OK") {
 		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+// The status page shows the helper model's reasoning as a pill next to the model: auto, low, medium or high.
+func TestStatusShowsReasoningPill(t *testing.T) {
+	up, _ := aliasUpstream(t)
+	a, _, br, csrf, _ := signedInProvider(t, up)
+	br.post("/admin/providers/grok/models/reload", url.Values{"csrf": {csrf}})
+	row := func() string {
+		_, page := br.get("/admin")
+		i := strings.Index(page, "<th>MCP helper model</th>")
+		return page[i : i+strings.Index(page[i:], "</tr>")]
+	}
+	if r := row(); strings.Contains(r, ">auto</span>") {
+		t.Errorf("no model, no reasoning pill:\n%s", r)
+	}
+	br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"plain"}})
+	if r := row(); !strings.Contains(r, `<span class="pill off" title="Reasoning of the helper model: the model decides">auto</span>`) {
+		t.Errorf("unset reasoning shows auto:\n%s", r)
+	}
+	for _, v := range []string{"low", "medium", "high"} {
+		br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"plain"}, "effort": {v}})
+		if r := row(); !strings.Contains(r, ">"+v+"</span>") || strings.Contains(r, ">auto</span>") {
+			t.Errorf("%s: %s", v, r)
+		}
+	}
+	// a value stored under the earlier name reads as auto
+	a.DB.SetSetting("provider.grok.effort", "default")
+	if r := row(); !strings.Contains(r, ">auto</span>") {
+		t.Errorf("stored default must read as auto:\n%s", r)
 	}
 }

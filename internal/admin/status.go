@@ -33,6 +33,7 @@ type providerView struct {
 	Model       string
 	ModelPill   pillView   // MCP helper model summary
 	Effort      effortView // reasoning of the MCP helper model's calls
+	EffortPill  pillView   // the same, as shown next to the helper model
 	Timeout     int        // seconds the MCP helper model may stay silent
 	Frontier    int        // the timeout suggested for heavy models, shown for those only
 	Aliases     []aliasView
@@ -51,8 +52,8 @@ func effortOf(name, value string) effortView {
 	v := effortView{Name: name, Value: value}
 	for _, e := range provider.Efforts {
 		l := "Reasoning: " + e
-		if e == "default" {
-			l = "Reasoning: default (model decides)"
+		if e == "auto" {
+			l = "Reasoning: auto (model decides)"
 		}
 		v.Options = append(v.Options, effortOption{e, l})
 	}
@@ -119,6 +120,11 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 		v.ModelHeavy = v.ModelHeavy || c.Selected && c.Frontier
 	}
 	v.Effort = effortOf("effort", a.Set.Effort(id))
+	if v.Effort.Value == "auto" {
+		v.EffortPill = pillView{"off", "auto", "Reasoning of the helper model: the model decides"}
+	} else {
+		v.EffortPill = pillView{"ok", v.Effort.Value, "Reasoning of the helper model"}
+	}
 	v.Timeout, v.Frontier = int(a.Set.HelperTimeout(id)/time.Second), provider.FrontierTimeoutSecs
 	switch {
 	case v.Model == "":
