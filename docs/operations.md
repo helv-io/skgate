@@ -26,6 +26,7 @@ The SQLite schema migrates on start. Pin `X.Y.Z` instead of `latest` to control 
 ## Security notes
 
 - **`/authorize`** never auto-approves. Order: check `client_id`, exact `redirect_uri`, redirect syntax (https, or http on loopback), `response_type=code` and PKCE S256; require OIDC (refuse if unconfigured); require an admin session (else login, then resume); apply `OIDC_ALLOWED_*`; show consent (on by default, `MCP_OAUTH_REQUIRE_CONSENT=false` turns it off); issue the code with `state` preserved. The OIDC subject and email are recorded on the code and tokens.
+- **Admin access.** Every user the OIDC provider lets in is an admin, unless `OIDC_ALLOWED_EMAILS` or `OIDC_ALLOWED_GROUPS` is set. skgate logs `all OIDC users are admins (no allow-list set)` at start when it is configured without either. There are no roles.
 - **Redirect origins.** Any https origin and loopback http are accepted; there is no allowlist. Anyone who can reach `/register` can register a client pointing at their own site, so an attacker must trick a signed-in admin into approving it. Consent (on by default) shows the client name and redirect host before approving.
 - **Admin UI.** CSRF token on every POST; CSP `default-src 'self'` (no inline scripts or styles); `X-Frame-Options: DENY`. Notifications use one-shot signed HttpOnly cookies, never URL parameters.
 - **Managed upstreams** (full image) execute admin-supplied commands: command execution is an admin capability. Use the `slim` image if you do not want it. See [Safety](mcp.md#safety).
