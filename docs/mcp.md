@@ -31,7 +31,9 @@ Auto detection runs on save, on **detect**, and lazily on first use. 401/403 cou
 
 When the connection is refused or the name does not resolve, Test says so in words and adds a hint. For an upstream on a private network (a container name, a private address, `localhost`) it also looks for the usual MCP ports (3000, 8000, 8080 and similar) that are open on that host and asks each for an `initialize` on the configured path, so a wrong port is named with the port that answers. This runs only after a failure and never on public hosts. Saving a remote upstream that cannot be reached shows the same hint, without the host name, in the confirmation. Addresses appear only on the Test screen; MCP clients and the other admin screens get the failure in words (`connection refused`, `host name not found`, `timed out`).
 
-**Health.** Remote upstreams show a pill in the list: `ok`, `failing` (with the last error under it) or `no calls yet` (nothing has called it since skgate started). It follows the real calls, from clients and from Test. Managed upstreams show their process state instead.
+**Health.** The Status column of a remote upstream shows a pill: `ok`, `failing` (with the last error under it) or `no calls yet` (nothing has called it since skgate started). It follows the real calls, from clients and from Test. Managed upstreams show their process state instead. The Type column reads `remote`, `managed · git`, `managed · npm`, `managed · pypi` or `managed · command`.
+
+**List actions.** **Add upstream** opens its own page. Each row has **Test** and **Copy URL**; **Details**, **Edit** and **Delete** are in the ⋯ menu, and the name opens Details. The Details dialog has the same actions, with **process** (managed) or **detect** (remote). **Import JSON** and **Export JSON** are above the table; the endpoint URLs are at the top of the page.
 
 **Custom headers** (remote): name/value rows (up to 32), sent on every outbound request after the auth header. Values are encrypted at rest and shown masked.
 
@@ -95,7 +97,7 @@ Env and header lists start with one row; **Add** appends rows, **Delete** remove
 
 ### JSON import and export
 
-Admin: upstreams, **Import JSON**. Paste a `{"mcpServers": {...}}` object, a bare name-to-server map, or a single server object. Aliases come from the keys, lowercased and sanitized. Each entry is reported as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
+Admin: upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}}` object, a bare name-to-server map, or a single server object. Aliases come from the keys, lowercased and sanitized. Each entry is reported as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
 
 ```json
 {
@@ -131,7 +133,7 @@ Admin: upstreams, **Import JSON**. Paste a `{"mcpServers": {...}}` object, a bar
 | `running` | Answering. Shows PID, uptime and restart count. |
 | `failed` | Start error or crash loop. Shows the last error. |
 
-- **Start, Stop, Restart, Update** and, for git, **Check** are on the upstream list and the process page. An admin **Stop** holds the process stopped until Start or Restart.
+- **Start, Stop, Restart, Update** and, for git, **Check** are on the process page, opened from **process** in the upstream's Details. An admin **Stop** holds the process stopped until Start or Restart.
 - A crashed child restarts with exponential backoff (1 s doubling to 30 s). Five crashes in a row mark it `failed`; a run of 30 s or more resets the count. A failed upstream is retried by a request at most every 30 s.
 - Editing the command, args, env, install step or repository replaces the process.
 - Stop sends SIGTERM to the child's process group, then SIGKILL after 5 seconds, so grandchildren do not leak. The same happens for every child when skgate exits.
