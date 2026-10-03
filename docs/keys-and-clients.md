@@ -4,6 +4,7 @@ Part of the [skgate README](../README.md).
 
 **Virtual keys** (admin: keys). The create form asks for a name; limits are optional, under **Limits**. Only a SHA-256 hash is stored; the token is shown once with a Copy button. Send as `Authorization: Bearer sk-...` or `X-API-Key` (or `?key=` for a key that has it enabled in its edit dialog), to `/v1` and MCP endpoints.
 
+- **Expires** and **Last used** columns: a key that expires within 7 days is highlighted; an expired one is red. An expiration the form cannot read is marked invalid and blocks Save until it is fixed or cleared.
 - **Usage** column: input and output tokens per key, abbreviated (`1.2M in / 340K out`); the tooltip has exact counts, API and MCP requests (last use is its own column). Recorded in the database (`key_usage`), written every 5 s and on shutdown, removed with the key.
   - API (`/v1`): tokens come from the provider's `usage` object, in JSON responses and in the last usage chunk of an event stream. Nothing is estimated and requests are never modified. A stream carries usage only if the client asks for it (for example `stream_options: {"include_usage": true}` on providers that need it); otherwise the call counts as a request without tokens. An aborted stream counts no tokens.
   - A request is a successful call that is not a read (model lists are not counted).

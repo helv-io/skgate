@@ -51,7 +51,7 @@ Always available in the full image (`latest`); there is no switch. In the `slim`
 
 ### Source and suggestions
 
-The managed form has two main fields: **MCP source URL / package** and **Access token** (private repositories). **Suggest configuration** fills the manual fields from them; nothing is saved until you submit the form. For GitHub repositories, Suggest uses the upstream's access token, or `GITHUB_TOKEN` when the upstream has none. The manual fields (command, arguments, environment, install, timeouts) are always available, with or without an account.
+The managed form has two main fields: **MCP source URL / package** and **Access token** (private repositories). **Suggest configuration** (disabled until a source is entered) fills the manual fields from them; the access token and ref show only for a git source, and the install command is hidden for a package; nothing is saved until you submit the form. For GitHub repositories, Suggest uses the upstream's access token, or `GITHUB_TOKEN` when the upstream has none. The manual fields (command, arguments, environment, install, timeouts) are always available, with or without an account.
 
 | Source | Result |
 | --- | --- |
