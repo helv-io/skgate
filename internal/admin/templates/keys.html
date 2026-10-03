@@ -1,11 +1,14 @@
 {{define "body"}}{{with .Data}}
 <h2>Virtual keys</h2>
-{{if .NewKey}}<div class="card"><p class="ok">New key, shown once</p><div class="row"><code class="code" id="new-token">{{.NewKey}}</code><button type="button" class="act" data-copy="#new-token">Copy</button></div></div>{{end}}
+{{if .NewKey}}<div class="card"><p class="ok">New key, shown once</p><div class="row"><code class="code" id="new-token">{{.NewKey}}</code><button type="button" class="btn" data-copy="#new-token">Copy</button></div>
+<p class="muted">Send it as <code>Authorization: Bearer &lt;key&gt;</code> to <code>{{$.Public}}/v1</code> or an MCP endpoint.</p></div>{{end}}
 <div class="card"><form method="post" action="/admin/keys/create" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<div class="field"><label>Label<input type="text" name="label" maxlength="80"></label></div>
+<div class="field"><label>Name<input type="text" name="label" maxlength="80" placeholder="Home Assistant" autocomplete="off"></label></div>
+<details><summary class="muted">Limits (optional)</summary>
 <div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit"></label></div>
 {{template "expiry_field" neverExpires}}
-<div class="row"><button class="act">Create key</button></div></form></div>
+</details>
+<div class="row"><button class="btn">Create key</button></div></form></div>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Name</th><th>Key</th><th>Usage</th>{{template "th_actions"}}</tr></thead><tbody>
 {{range .Keys}}<tr{{if .URLKey}} class="geturl" title="?key= is allowed for this key"{{end}}><td class="status" data-label="Status">{{template "pill" (keyStatus .)}}</td><td class="primary" data-label="Name">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td data-label="Key"><code>{{.Masked}}</code></td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
 <td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#key-{{.ID}}">{{if .Revoked}}details{{else}}edit{{end}}</button></div></td></tr>
