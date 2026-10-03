@@ -110,3 +110,24 @@ func TestClientsPageShowsLastUsed(t *testing.T) {
 		t.Fatal("last used time not rendered")
 	}
 }
+
+// A row has one button (edit; details for a revoked key). Regenerate and revoke are in the key's dialog, behind a
+// confirmation, so a destructive button is never one stray click away; a revoked key has nothing left to edit.
+func TestKeyRowHasOneAction(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"live"}})
+	full, gone, _ := a.Keys.Create("gone")
+	a.Keys.Verify(full) // a used key stays listed after it is revoked
+	a.Keys.Revoke(gone.ID)
+	_, page := br.get("/admin/keys")
+	table := page[strings.Index(page, "<tbody>"):strings.Index(page, "</tbody>")]
+	if strings.Contains(table, "<form") || strings.Count(table, "data-dialog-open") != 2 {
+		t.Errorf("the table rows hold one dialog button each and no forms:\n%s", table)
+	}
+	if !strings.Contains(table, ">edit</button>") || !strings.Contains(table, ">details</button>") {
+		t.Error("an active key says edit, a revoked one details")
+	}
+	if strings.Count(page, `action="/admin/keys/update"`) != 1 || strings.Count(page, `action="/admin/keys/revoke"`) != 1 {
+		t.Error("only the active key's dialog has the edit form, regenerate and revoke")
+	}
+}
