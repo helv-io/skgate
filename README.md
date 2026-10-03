@@ -5,6 +5,8 @@
 
 <p align="center">Yes, all MCP servers: everyone's welcome. skgate can run them for you too, so no more stacks. It just works.</p>
 
+[![skgate demo](https://img.youtube.com/vi/57oxqkjzb4w/maxresdefault.jpg)](https://youtu.be/57oxqkjzb4w)
+
 ## Name Origin
 
 **skgate** /ɛsˈkɑːɡeɪt/ (ess-KAH-gate)
