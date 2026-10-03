@@ -2,13 +2,14 @@
 
 Part of the [skgate README](../README.md).
 
-**Virtual keys** (admin: keys). Only a SHA-256 hash is stored; the token is shown once with a Copy button. Send as `Authorization: Bearer sk-...` or `X-API-Key` (or `?key=` for a key that has it enabled in its Details), to `/v1` and MCP endpoints.
+**Virtual keys** (admin: keys). The create form asks for a name; limits are optional, under **Limits**. Only a SHA-256 hash is stored; the token is shown once with a Copy button. Send as `Authorization: Bearer sk-...` or `X-API-Key` (or `?key=` for a key that has it enabled in its edit dialog), to `/v1` and MCP endpoints.
 
 - **Usage** column: input and output tokens per key, abbreviated (`1.2M in / 340K out`); the tooltip has exact counts, API and MCP requests (last use is its own column). Recorded in the database (`key_usage`), written every 5 s and on shutdown, removed with the key.
   - API (`/v1`): tokens come from the provider's `usage` object, in JSON responses and in the last usage chunk of an event stream. Nothing is estimated and requests are never modified. A stream carries usage only if the client asks for it (for example `stream_options: {"include_usage": true}` on providers that need it); otherwise the call counts as a request without tokens. An aborted stream counts no tokens.
   - A request is a successful call that is not a read (model lists are not counted).
   - MCP: no tokens exist; authenticated requests made with a key are counted. OAuth access tokens are not tied to a key and are not counted.
-- **Regenerate** replaces the secret of a record (label, created and last used are kept); the old token stops working immediately.
+- **edit** on a row opens one form with Save: name, max requests per minute, expiration and `?key=`. Below it are **regenerate** and **revoke** (both ask first), then read-only details.
+- **Regenerate** replaces the secret of a record (name, limits, created and last used are kept); the old token stops working immediately.
 - **Revoke** disables a key. A revoked key that was never used is deleted at once; a used one is deleted 30 days after its last use. A sweep runs at startup and daily, and each purge is logged.
 
 **OAuth clients** (admin: oauth clients). DCR clients (`/register`) and manual clients (fixed ID and secret, for clients without DCR) are listed with their last use at `/authorize` or `/token`. The newest 500 DCR clients are kept.
