@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .menu
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .menu .inline
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -252,9 +252,14 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .table:not(.kv) td[data-label]::before{content:attr(data-label);flex:0 0 30%;max-width:30%;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
   .table:not(.kv) td.primary,.table:not(.kv) td.status,.table:not(.kv) td.actions-cell{gap:6px}
   .table:not(.kv) td.primary::before,.table:not(.kv) td.status::before,.table:not(.kv) td.actions-cell::before{content:none}
-  .table:not(.kv) td.primary{flex:1 1 0;font-size:16px;font-weight:600;line-height:1.3;order:-2;overflow-wrap:anywhere}
+  .table:not(.kv) td.primary{flex:1 1 60%;font-size:16px;font-weight:600;line-height:1.3;order:-2;overflow-wrap:anywhere}
   .table:not(.kv) td.status{flex:0 1 auto;order:-1;flex-wrap:wrap;justify-content:flex-end}
   .table:not(.kv) td.actions-cell{order:9;margin-top:6px;padding-top:12px;border-top:1px solid var(--line2)}
+  /* inline: short facts (a type, a toggle) share a line, without their labels: a card stays a few lines tall */
+  .table:not(.kv) td.inline{flex:0 1 auto}
+  .table:not(.kv) td.inline[data-label]::before{content:none}
+  .table:not(.kv) td.inline .act.toggle{min-width:0}
+  .table:not(.kv) td.actions-cell .actions>.act{flex:1 1 0;min-width:0}
   .table:not(.kv) td.empty{justify-content:center;flex-basis:100%}
   .table:not(.kv) td.empty::before{content:none}
   .table:not(.kv) td.num{text-align:left}
