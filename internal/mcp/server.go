@@ -44,6 +44,8 @@ type Server struct {
 	AdminIdentity func(r *http.Request) (sub, email string, ok bool)
 	// Consent renders the Approve/Deny page (the admin layout owns the design).
 	Consent func(w http.ResponseWriter, r *http.Request, v ConsentView)
+	// Failure renders an authorization request that cannot go on (unknown client, bad redirect) in the admin design.
+	Failure func(w http.ResponseWriter, r *http.Request, status int, msg string)
 
 	sessMu   sync.Mutex
 	sessions map[string]*sseSession

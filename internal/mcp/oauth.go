@@ -191,17 +191,23 @@ func (s *Server) redirectMatches(c Client, uri string) (bool, string) {
 	return true, ""
 }
 
-func errorPage(w http.ResponseWriter, status int, msg string) {
+// errorPage answers an authorization request that cannot go on, in the admin design when the admin provides it
+// (Failure) and as a minimal page otherwise.
+func (s *Server) errorPage(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	if s.Failure != nil {
+		s.Failure(w, r, status, msg)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>skgate</title><body style="font:14px monospace;background:#111;color:#ddd;padding:2em"><h3>Authorization error</h3><p>%s</p>`, html.EscapeString(msg))
+	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>skgate</title><h3>Authorization error</h3><p>%s</p>`, html.EscapeString(msg))
 }
 
 func (s *Server) redirectError(w http.ResponseWriter, r *http.Request, ap authParams, code, desc string) {
 	u, err := url.Parse(ap.RedirectURI)
 	if err != nil {
-		errorPage(w, 400, desc)
+		s.errorPage(w, r, 400, desc)
 		return
 	}
 	q := u.Query()
@@ -236,7 +242,7 @@ func (s *Server) parseAuth(w http.ResponseWriter, r *http.Request, get func(stri
 		default:
 			reqlog.Reject(r, "unknown client: client_id is not registered (the client must register again via /register)")
 		}
-		errorPage(w, 400, "unknown client_id")
+		s.errorPage(w, r, 400, "This client is not registered with skgate. Start the connection again from the client.")
 		return ap, "", "", false
 	}
 	ap.Client = c
@@ -247,12 +253,12 @@ func (s *Server) parseAuth(w http.ResponseWriter, r *http.Request, get func(stri
 	reqlog.Redirect(r, ap.RedirectURI)
 	if ap.RedirectURI == "" {
 		reqlog.Reject(r, "redirect_uri is missing and the client has several registered")
-		errorPage(w, 400, "redirect_uri is missing, not registered for this client, or not on the trusted origin list")
+		s.errorPage(w, r, 400, "redirect_uri is missing, not registered for this client, or not on the trusted origin list")
 		return ap, "", "", false
 	}
 	if ok, why := s.redirectMatches(c, ap.RedirectURI); !ok {
 		reqlog.Reject(r, "%s", why)
-		errorPage(w, 400, "redirect_uri is missing, not registered for this client, or not on the trusted origin list")
+		s.errorPage(w, r, 400, "redirect_uri is missing, not registered for this client, or not on the trusted origin list")
 		return ap, "", "", false
 	}
 	if ap.ResponseType != "code" {
@@ -305,7 +311,7 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 		}
 		if !s.oidcReady() {
 			reqlog.Reject(r, "OIDC is not configured, so /authorize refuses to issue codes")
-			errorPage(w, http.StatusServiceUnavailable, "OIDC is not configured on this skgate (OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET), so authorization requests are refused. skgate never auto-approves.")
+			s.errorPage(w, r, http.StatusServiceUnavailable, "OIDC is not configured on this skgate (OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET), so authorization requests are refused. skgate never auto-approves.")
 			return
 		}
 		csrf, authed := s.AdminSession(r)
@@ -323,13 +329,13 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 		// POST exists only for the optional consent page.
 		if !s.Cfg.RequireConsent || !s.oidcReady() {
 			reqlog.Reject(r, "POST /authorize is only used by the consent page (consent is off or OIDC is not configured)")
-			errorPage(w, 405, "method not allowed")
+			s.errorPage(w, r, 405, "method not allowed")
 			return
 		}
 		csrf, authed := s.AdminSession(r)
 		if !authed || r.ParseForm() != nil || subtle.ConstantTimeCompare([]byte(csrf), []byte(r.PostFormValue("csrf"))) != 1 {
 			reqlog.Reject(r, "admin session or CSRF token invalid on consent POST")
-			errorPage(w, 403, "admin session or CSRF token invalid")
+			s.errorPage(w, r, 403, "admin session or CSRF token invalid")
 			return
 		}
 		ap, code, desc, ok := s.parseAuth(w, r, r.PostFormValue)
@@ -348,7 +354,7 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 		s.issueCode(w, r, ap)
 	default:
 		reqlog.Reject(r, "method %s not allowed on /authorize", r.Method)
-		errorPage(w, 405, "method not allowed")
+		s.errorPage(w, r, 405, "method not allowed")
 	}
 }
 
@@ -373,7 +379,7 @@ type ConsentField struct{ Name, Value string }
 
 func (s *Server) consentPage(w http.ResponseWriter, r *http.Request, ap authParams, csrf string) {
 	if s.Consent == nil {
-		errorPage(w, http.StatusInternalServerError, "consent page unavailable")
+		s.errorPage(w, r, http.StatusInternalServerError, "consent page unavailable")
 		return
 	}
 	v := ConsentView{Client: ap.Client.Name, ClientHost: ClientHost(ap.Client), RedirectURI: ap.RedirectURI, Scope: ap.Scope, CSRF: csrf}
@@ -396,7 +402,7 @@ func (s *Server) issueCode(w http.ResponseWriter, r *http.Request, ap authParams
 	sub, email, ok := s.AdminIdentity(r)
 	if !ok || sub == "" {
 		reqlog.Reject(r, "no authenticated user for the authorization code")
-		errorPage(w, http.StatusForbidden, "no authenticated user")
+		s.errorPage(w, r, http.StatusForbidden, "no authenticated user")
 		return
 	}
 	code := httputil.RandString(43)
