@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/helv-io/skgate/internal/store"
@@ -200,7 +201,8 @@ func validHeaderName(n string) bool {
 // Upstreams is the SQLite-backed registry.
 type Upstreams struct {
 	db      *store.DB
-	oaCache sync.Map // alias -> *OAState, see openapi.go
+	oaCache sync.Map      // alias -> *OAState, see openapi.go
+	oaGen   atomic.Uint64 // bumped on every change, so a read that raced a change is not cached
 }
 
 // NewUpstreams returns the registry.
@@ -445,6 +447,7 @@ func (s *Upstreams) Delete(alias string) error {
 	if err == nil {
 		_, err = s.db.Exec(`DELETE FROM upstream_openapi WHERE alias=?`, alias)
 		s.oaCache.Delete(alias)
+		s.oaGen.Add(1)
 	}
 	return err
 }

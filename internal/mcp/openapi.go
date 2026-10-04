@@ -115,18 +115,23 @@ func (s *Upstreams) OpenAPI(alias string) (*OAState, error) {
 	if v, ok := s.oaCache.Load(alias); ok {
 		return v.(*OAState), nil
 	}
+	gen := s.oaGen.Load()
 	var cfg OpenAPIConfig
 	var sel string
 	err := s.db.QueryRow(`SELECT spec,spec_url,selection FROM upstream_openapi WHERE alias=?`, alias).Scan(&cfg.Spec, &cfg.SpecURL, &sel)
 	if err != nil {
 		return nil, errors.New("no OpenAPI description is stored for this upstream")
 	}
-	_ = json.Unmarshal([]byte(sel), &cfg.Selection)
+	if err := json.Unmarshal([]byte(sel), &cfg.Selection); err != nil {
+		return nil, errors.New("the stored tool selection is unreadable; save the tools page again")
+	}
 	st, err := buildState(cfg)
 	if err != nil {
 		return nil, err
 	}
-	s.oaCache.Store(alias, st)
+	if s.oaGen.Load() == gen { // nothing changed while this was read: safe to keep
+		s.oaCache.Store(alias, st)
+	}
 	return st, nil
 }
 
@@ -148,6 +153,7 @@ func (s *Upstreams) SetOpenAPI(alias string, cfg OpenAPIConfig) error {
 	_, err := s.db.Exec(`INSERT INTO upstream_openapi(alias,spec,spec_url,selection) VALUES(?,?,?,?)
 		ON CONFLICT(alias) DO UPDATE SET spec=excluded.spec,spec_url=excluded.spec_url,selection=excluded.selection`, alias, cfg.Spec, cfg.SpecURL, string(sel))
 	s.oaCache.Delete(alias)
+	s.oaGen.Add(1)
 	return err
 }
 
