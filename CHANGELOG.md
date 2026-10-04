@@ -6,6 +6,13 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-10-04
+
+### Changed
+
+- Replace the hand-written code box with the vendored editor
+- Vendor CodeMirror 6 as one committed bundle
+
 ## [0.14.0] - 2026-10-04
 
 ### Added
@@ -393,7 +400,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/helv-io/skgate/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/helv-io/skgate/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/helv-io/skgate/compare/v0.12.8...v0.13.0
 [0.12.8]: https://github.com/helv-io/skgate/compare/v0.12.7...v0.12.8
