@@ -287,3 +287,65 @@ func TestWarmModelsIgnoresUnreachableProviders(t *testing.T) {
 		t.Fatal("WarmModels blocked")
 	}
 }
+
+// onlyV1Upstream serves a model list at /v1/models only, for the key "sk-good"; the paths and keys it does not
+// know get 404 and 401.
+func onlyV1Upstream(t *testing.T) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer sk-good" {
+			http.Error(w, "no", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"object":"list","data":[{"id":"m1"},{"id":"m2"},{"id":"m3"}]}`)
+	}))
+	t.Cleanup(ts.Close)
+	return ts
+}
+
+// Whatever form of the address is typed, the one that works is saved, and nothing about the forms is said.
+func TestAddProviderFindsTheWorkingAddressForm(t *testing.T) {
+	for _, typed := range []string{"", "/", "/v1", "/v1/", "/v1/chat/completions"} {
+		t.Run("typed"+typed, func(t *testing.T) {
+			grokUp, _ := modelsUpstream(t, "grok-4.7")
+			up := onlyV1Upstream(t)
+			_, _, br, csrf, _ := signedInProvider(t, grokUp)
+			resp, _ := addProvider(br, csrf, "custom", up.URL+typed, "sk-good")
+			k, m := flashOf(resp)
+			if k != "ok" || !strings.Contains(m, "connected, 3 models") || strings.Contains(m, "/v1") {
+				t.Fatalf("flash %q %q", k, m)
+			}
+			_, page := br.get("/admin")
+			if !strings.Contains(page, `value="`+up.URL+`/v1"`) {
+				t.Errorf("the working form was not saved")
+			}
+		})
+	}
+}
+
+// When no form works there is one plain sentence, the provider stays saved, and the address stays as typed.
+func TestAddProviderPlainErrors(t *testing.T) {
+	grokUp, _ := modelsUpstream(t, "grok-4.7")
+	up := onlyV1Upstream(t)
+	_, _, br, csrf, _ := signedInProvider(t, grokUp)
+	resp, _ := addProvider(br, csrf, "custom", up.URL, "sk-wrong")
+	if k, m := flashOf(resp); k != "bad" || !strings.Contains(m, "did not accept the API key") || strings.Contains(m, "/v1") {
+		t.Errorf("wrong key: %q %q", k, m)
+	}
+	br.post("/admin/providers/custom/remove", url.Values{"csrf": {csrf}})
+	nothing := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(nothing.Close)
+	resp, _ = addProvider(br, csrf, "custom", nothing.URL+"/x", "sk-good")
+	if k, m := flashOf(resp); k != "bad" || !strings.Contains(m, "no model list was found at that address") {
+		t.Errorf("nothing found: %q %q", k, m)
+	}
+	_, page := br.get("/admin")
+	if !strings.Contains(page, `value="`+nothing.URL+`/x"`) {
+		t.Errorf("the address was not kept as typed")
+	}
+}
