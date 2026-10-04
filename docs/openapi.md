@@ -14,6 +14,7 @@ An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API
 | Or paste the description | JSON, YAML or TOML. Pasted text wins over the address. A description of more than a few MB is easier to give as an address. |
 | Key | The only credential field. Paste it as it is; skgate adds `Bearer` or whatever the API wants (see [The key](#the-key)). Empty means an open API. |
 | Advanced | Closed by default. **Send the key as** forces a way: a header name such as `X-Custom-Key` or `Authorization`, `?name` for a query parameter, `bearer`, `basic` (the key is `user:password`) or `none`. **Base URL** overrides where the calls go. |
+| Skip check | Off. Saves without the connection check (see [The connection check](#the-connection-check)). |
 
 The base URL is the server named by the description (variables replaced by their defaults). When the description names none, or only a relative one, it is the address the description was read from: scheme, host and port. The Advanced field only overrides this.
 
@@ -41,7 +42,20 @@ You paste one value. How it is sent comes from the description's security scheme
 
 Several alternatives are ranked bearer, header, basic, query. A key in the query string is only used when the description says so; it is never tried as a guess.
 
-When the description says nothing and the server answers 401 or 403, on **Test** and on the first call, skgate quietly tries `X-API-Key`, `Api-Key`, `Authorization: Token <key>` and, for a key that looks like `user:password`, basic. It asks with safe GETs of one operation, preferably one the description marks as requiring a credential, only to the configured server. The way that works is stored and not shown; a new key forgets it. If every way is refused, Test says "The server refused the key." An API with no operation that can be asked without arguments is not probed.
+When the description says nothing and the server answers 401 or 403, on **Test** and on the first call, skgate quietly tries `X-API-Key`, `Api-Key`, `Authorization: Token <key>` and, for a key that looks like `user:password`, basic. It asks with safe GETs of one operation, preferably one the description marks as requiring a credential, only to the configured server. The way that works is stored and not shown; a new key forgets it. If every way is refused, Test says "the server refused the key".
+
+### The connection check
+
+**Add** and **Save** check the connection before anything is stored. skgate calls the first GET tool without parameters: no required path, query or header parameter and no body, the ones the description marks as protected first, and among the tools that are on when any is. It never calls an operation that changes data, and it asks only the server of the upstream, under the same http and https rule as everything else. The key is never logged.
+
+| Answer | Result |
+| --- | --- |
+| 2xx | Saved. |
+| 401 or 403 | Not saved: "the server refused the key", or "the server needs a key" when none was entered. A 403 first tries up to two more reads, in case that one operation is only for admins. |
+| 404 | Not saved: "the server answered 404, check the base URL". |
+| Another status, no answer or a timeout | Not saved, with a short error. |
+
+A failed check returns to the same form with every field kept. **Skip check** saves without asking. A description with no such GET shows no check line and is saved without one. An edit checks only when the key, the base URL, the description or the switch to enabled changed. **Test** uses the same call.
 
 Upstreams saved before this kept their kind (bearer, header, query, basic) and behave exactly as before; their Advanced line shows it. The key is encrypted at rest, masked in the UI, and never sent to a model.
 
