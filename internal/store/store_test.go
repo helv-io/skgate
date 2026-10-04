@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"strings"
 
 	"database/sql"
@@ -35,7 +36,7 @@ func TestMigrateAddsIdentityColumns(t *testing.T) {
 		if err := db.QueryRow(`SELECT sub FROM oauth_tokens WHERE hash='h'`).Scan(&sub); err != nil || sub.Valid {
 			t.Fatalf("old rows must have NULL sub: %v %v", err, sub)
 		}
-		if _, err := db.Exec(`INSERT INTO oauth_codes(hash,client_id,redirect_uri,challenge,expires_at,sub,email) VALUES('c','c','r','ch',1,'s','e')` + ``); err != nil && i == 0 {
+		if _, err := db.Exec(`INSERT INTO oauth_codes(hash,client_id,redirect_uri,challenge,expires_at,sub,email) VALUES('c` + fmt.Sprint(i) + `','c','r','ch',1,'s','e')`); err != nil {
 			t.Fatal(err)
 		}
 		db.Close()
@@ -160,7 +161,9 @@ func TestMigrateMapsDefaultToIncludeInMCP(t *testing.T) {
 		defer rows.Close()
 		for rows.Next() {
 			var a string
-			rows.Scan(&a)
+			if err := rows.Scan(&a); err != nil {
+				t.Fatal(err)
+			}
 			out += a + ","
 		}
 		return out
@@ -172,11 +175,8 @@ func TestMigrateMapsDefaultToIncludeInMCP(t *testing.T) {
 	if got := included(db); got != "main," {
 		t.Fatalf("after first migration included = %q", got)
 	}
-	// the operator includes the second one too and un-includes the first
-	if _, err := db.Exec(`UPDATE upstreams SET include_in_mcp=1-include_in_mcp`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`UPDATE upstreams SET include_in_mcp=1`); err != nil {
+	// the operator un-includes the first and includes the second
+	if _, err := db.Exec(`UPDATE upstreams SET include_in_mcp = CASE alias WHEN 'other' THEN 1 ELSE 0 END`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()
@@ -185,8 +185,8 @@ func TestMigrateMapsDefaultToIncludeInMCP(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if got := included(db); got != "main,other," {
-		t.Fatalf("re-open must not redo the mapping, included = %q", got)
+	if got := included(db); got != "other," {
+		t.Fatalf("re-open must not redo the mapping (main would come back), included = %q", got)
 	}
 }
 
