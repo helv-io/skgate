@@ -24,6 +24,19 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   let s = await state();
   ok(s.open && s.body && s.name && /^#key-/.test(s.hash), "edit opens the dialog with the form " + JSON.stringify(s));
   const dialogTitle = s.title;
+  // layout: the rate label sits above its field; the Danger zone (regenerate, revoke) is framed below Save, above Details
+  const lay = await pg.evaluate(() => {
+    const body = document.querySelector("[data-modal-body]"), top = e => e.getBoundingClientRect().top, bottom = e => e.getBoundingClientRect().bottom;
+    const rate = body.querySelector("input[name=rate]"), lab = rate.closest("label"), save = body.querySelector("form[action$='/keys/update'] button.btn");
+    const range = document.createRange(); range.selectNodeContents(lab.firstChild);
+    const zone = body.querySelector(".danger-zone"), det = [...body.querySelectorAll("h4")].find(h => h.textContent.trim() === "Details");
+    return { labelAboveField: range.getBoundingClientRect().bottom <= top(rate) + 1, zone: !!zone, head: zone && zone.querySelector("h4").textContent.trim(),
+      belowSave: zone && top(zone) > bottom(save), aboveDetails: zone && det && bottom(zone) <= top(det),
+      both: zone && [...zone.querySelectorAll("button.danger")].map(x => x.textContent.trim()).join(","), border: zone && getComputedStyle(zone).borderTopColor,
+      outside: zone && body.querySelector("form[action$='/keys/update']").contains(zone) };
+  });
+  ok(lay.labelAboveField, "the rate label is above its field " + JSON.stringify(lay));
+  ok(lay.zone && lay.head === "Danger zone" && lay.belowSave && lay.aboveDetails && !lay.outside && lay.both === "regenerate,revoke", "the Danger zone is below Save and above Details with both actions " + JSON.stringify(lay));
   // Cancel goes back to the dialog
   await clickIn("[data-modal-body] form[action$='/keys/revoke'] button");
   await wait(150);

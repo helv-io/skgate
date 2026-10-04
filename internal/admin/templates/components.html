@@ -47,6 +47,12 @@
 {{define "menu_start"}}<div class="menu" data-menu><button type="button" class="act menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="{{.ID}}" aria-label="{{.Label}}" title="More actions" data-menu-button>&#8943;</button><div class="menu-list" id="{{.ID}}" role="menu" aria-label="{{.Label}}" hidden>{{end}}
 {{define "menu_end"}}</div></div>{{end}}
 
+{{/* danger_start / danger_end: the Danger zone of a dialog, below the Save of the form and above the read-only details:
+   actions that cannot be undone, each form with a data-confirm. Put one line saying what each does, then the buttons
+   (class "act danger") in an .actions row between the two. */}}
+{{define "danger_start"}}<div class="danger-zone" role="group" aria-labelledby="danger-{{.}}"><h4 id="danger-{{.}}">Danger zone</h4>{{end}}
+{{define "danger_end"}}</div>{{end}}
+
 {{/* th_actions: the header of the column of row buttons. Every list table with row actions ends with it. */}}
 {{define "th_actions"}}<th class="actions-th">Actions</th>{{end}}
 

@@ -22,9 +22,12 @@
 <div class="field"><label class="check"><input type="checkbox" name="urlkey" value="1" {{if .URLKey}}checked{{end}}> Accept this key in the URL as <code>?key=</code></label>
 <p class="muted">For MCP clients that cannot send headers. The key can then appear in logs, browser history and referrers.</p></div>
 <div class="row"><button class="btn">Save</button></div></form>
+{{template "danger_start" .ID}}
+<p class="muted">Regenerate gives the key a new token and the current one stops working. Revoke ends the key for good.</p>
 <div class="actions">
-<form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">regenerate</button></form>
-<form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form></div>{{end}}
+<form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">regenerate</button></form>
+<form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form></div>
+{{template "danger_end"}}{{end}}
 <h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 <tr><th>key</th><td><code>{{.Masked}}</code></td></tr>
