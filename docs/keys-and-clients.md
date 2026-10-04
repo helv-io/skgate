@@ -9,7 +9,7 @@ Part of the [skgate README](../README.md).
   - API (`/v1`): tokens come from the provider's `usage` object, in JSON responses and in the last usage chunk of an event stream. Nothing is estimated and requests are never modified. A stream carries usage only if the client asks for it (for example `stream_options: {"include_usage": true}` on providers that need it); otherwise the call counts as a request without tokens. An aborted stream counts no tokens.
   - A request is a successful call that is not a read (model lists are not counted).
   - MCP: no tokens exist; authenticated requests made with a key are counted. OAuth access tokens are not tied to a key and are not counted.
-- **edit** on a row opens one form with Save: name, max requests per minute, expiration and `?key=`. Below it are **regenerate** and **revoke** (both ask first), then read-only details.
+- **edit** on a row opens one form with Save: name, max requests per minute, expiration and `?key=`. Below it, in a framed **Danger zone**, are **regenerate** and **revoke** (both ask first), then read-only details.
 - **Regenerate** replaces the secret of a record (name, limits, created and last used are kept); the old token stops working immediately.
 - **Revoke** disables a key. A revoked key that was never used is deleted at once; a used one is deleted 30 days after its last use. A sweep runs at startup and daily, and each purge is logged.
 
