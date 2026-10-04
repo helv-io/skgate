@@ -1,6 +1,7 @@
 {{define "body"}}{{with .Data}}
 <h2>Tools of <code>{{.U.Alias}}</code></h2>
 <div class="actions"><a class="act" href="/admin/upstreams/{{.U.Alias}}/edit">Edit</a><a class="act" href="/admin/upstreams/{{.U.Alias}}/test">Test</a><a class="act" href="/admin/upstreams">Upstreams</a></div>
+<div class="row">{{template "gated_act" (gate "oa-update-why" "Update" (printf "/admin/upstreams/%s/spec/update" .U.Alias) $.CSRF .NoUpdate)}}{{if .Updated}}<span class="muted">{{.Updated}}</span>{{end}}</div>
 <p class="muted">{{if .Title}}{{.Title}} &middot; {{end}}<code>{{wrapurl .U.URL}}</code> &middot; {{.Total}} {{plural .Total "operation" "operations"}} can be tools{{if .Skip}}, {{.Skip}} skipped (file uploads){{end}}.</p>
 <form method="post" action="/admin/upstreams/{{.U.Alias}}/tools/save" class="form wide" data-toolpick data-good="{{.Good}}" data-warn="{{.Warn}}" data-suggest-url="/admin/upstreams/{{.U.Alias}}/tools/suggest"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="toolcount {{.Level}}" data-toolcount role="status" aria-live="polite"><span class="toolcount-n" data-toolcount-n>{{.On}}</span><span data-toolcount-word>{{plural .On "tool" "tools"}} exposed</span><span class="toolcount-level" data-toolcount-level></span><button class="btn fill">Save</button></div>

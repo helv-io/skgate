@@ -80,6 +80,9 @@ func readSpec(r *http.Request) (*openapi.Doc, string, error) {
 		return nil, specURL, err
 	}
 	d.Source = specURL
+	if text == "" {
+		d.SourceHash = openapi.Hash(raw)
+	}
 	return d, specURL, nil
 }
 
@@ -124,7 +127,7 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 	text, specURL := strings.TrimSpace(r.PostFormValue("oa_spec_text")), strings.TrimSpace(r.PostFormValue("oa_spec_url"))
 	// A new upstream always reads its description. An edit keeps the stored one unless new text was pasted, the
 	// address changed, or the address is to be fetched again.
-	fresh := !edit || text != "" || (specURL != "" && (specURL != cfg.SpecURL || r.PostFormValue("oa_refetch") == "1"))
+	fresh := !edit || text != "" || (specURL != "" && specURL != cfg.SpecURL)
 	switch {
 	case fresh:
 		d, specURL, err := readSpec(r)
@@ -134,6 +137,10 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 		}
 		doc = d
 		cfg.Spec, cfg.SpecURL = string(d.JSON()), specURL
+		cfg.FetchedAt, cfg.SpecHash = 0, ""
+		if d.SourceHash != "" {
+			cfg.FetchedAt, cfg.SpecHash = time.Now().Unix(), d.SourceHash
+		}
 		if !edit {
 			cfg.Selection = defaultSelection(d.Operations())
 		}
@@ -227,6 +234,10 @@ type toolsData struct {
 	AI     bool
 	AIWhy  string
 	Title  string
+	// SpecURL is where the description is read from ("" for a pasted one); Updated says when it was last read.
+	SpecURL  string
+	Updated  string
+	NoUpdate string // why Update is off ("" when it is on)
 }
 
 func (a *Admin) upstreamTools(w http.ResponseWriter, r *http.Request) {
@@ -241,7 +252,10 @@ func (a *Admin) upstreamTools(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin/upstreams", "", err.Error())
 		return
 	}
-	d := toolsData{U: a.view(u), Good: mcp.ToolsGood, Warn: mcp.ToolsWarn, Title: st.Doc.Title()}
+	d := toolsData{U: a.view(u), Good: mcp.ToolsGood, Warn: mcp.ToolsWarn, Title: st.Doc.Title(), SpecURL: st.Config.SpecURL, Updated: oaUpdatedLine(st.Config)}
+	if d.SpecURL == "" {
+		d.NoUpdate = oaNoUpdateReason
+	}
 	sug := a.suggestState(r)
 	d.AI, d.AIWhy = sug.Enabled, sug.Why
 	byVerb := map[string]*verbGroup{}
