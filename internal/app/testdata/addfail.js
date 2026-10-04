@@ -57,7 +57,7 @@ const ok = (c, m) => { if (!c) bad.push(m); };
     const p = document.querySelector("[data-oa-probe]"), c = document.querySelector('input[name="oa_skip_check"]');
     return { text: p.querySelector("p").textContent, shown: !p.hidden, skip: c.checked };
   });
-  ok(line.shown && line.text === "Add calls the first GET tool without parameters to check the connection." && line.skip === false, "the check line and an unticked Skip check: " + JSON.stringify(line));
+  ok(line.shown && line.text === "The first GET without parameters checks the connection." && line.skip === false, "the check line and an unticked Skip check: " + JSON.stringify(line));
 
   // no key at all: the server needs one, and the fields stay
   await pg.$eval('input[name="oa_auth_value"]', e => { e.value = ""; });

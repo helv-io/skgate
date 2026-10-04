@@ -131,7 +131,7 @@ func TestOpenAPIEditChecksOnlyWhenWhatReachesTheServerChanged(t *testing.T) {
 func TestOpenAPIFormSaysWhatTheCheckDoes(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
 	_, page := br.get("/admin/upstreams/new")
-	for _, want := range []string{"Add calls the first GET tool without parameters to check the connection.", `name="oa_skip_check"`, "Skip check"} {
+	for _, want := range []string{"The first GET without parameters checks the connection.", `name="oa_skip_check"`, "Skip check"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("add form lacks %q", want)
 		}
@@ -139,15 +139,15 @@ func TestOpenAPIFormSaysWhatTheCheckDoes(t *testing.T) {
 	_, _, spec := countedAPI(t)
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"has"}, "enabled": {"1"}, "oa_spec_text": {spec}, "oa_auth_value": {"GOOD"}})
 	_, edit := br.get("/admin/upstreams/has/edit")
-	if !strings.Contains(edit, "Save calls the first GET tool without parameters") || !strings.Contains(edit, `name="oa_skip_check"`) {
-		t.Error("edit form says Save")
+	if !strings.Contains(edit, "The first GET without parameters checks the connection.") || !strings.Contains(edit, `name="oa_skip_check"`) {
+		t.Error("the edit form has the same line and Skip check")
 	}
 	// a description with nothing to ask shows no line at all
 	a.Admin.NoSaveTest = true
 	none := `{"openapi":"3.0.0","info":{"title":"N","version":"1"},"servers":[{"url":"https://api.example.com"}],"paths":{"/x/{id}":{"get":{"operationId":"x","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}]}}}}`
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"none"}, "enabled": {"1"}, "oa_spec_text": {none}})
 	_, edit = br.get("/admin/upstreams/none/edit")
-	if strings.Contains(edit, "oa_skip_check") || strings.Contains(edit, "calls the first GET") {
+	if strings.Contains(edit, "oa_skip_check") || strings.Contains(edit, "checks the connection") {
 		t.Error("nothing to ask, nothing to say")
 	}
 	// Check description tells the page whether the line applies
