@@ -59,11 +59,18 @@ func (c *Caller) client() *http.Client {
 		if len(via) >= maxRedirects {
 			return errors.New("too many redirects")
 		}
-		if req.URL.Host != via[0].URL.Host { // credentials never follow a redirect to another host
-			return http.ErrUseLastResponse
-		}
-		return nil
+		return sameSite(req, via)
 	}}
+}
+
+// sameSite lets a redirect through only when it stays on the same host and does not step down from https to http:
+// credentials never follow a redirect anywhere else.
+func sameSite(req *http.Request, via []*http.Request) error {
+	first := via[0].URL
+	if req.URL.Host != first.Host || (first.Scheme == "https" && req.URL.Scheme != "https") {
+		return http.ErrUseLastResponse
+	}
+	return nil
 }
 
 // Call performs the operation of tool with the arguments a model gave.
@@ -123,6 +130,11 @@ func (c *Caller) build(ctx context.Context, t Tool, args map[string]any) (*http.
 	base, err := url.Parse(strings.TrimRight(c.Base, "/"))
 	if err != nil || (base.Scheme != "http" && base.Scheme != "https") || base.Host == "" {
 		return nil, errors.New("the base URL is not a valid http(s) address")
+	}
+	for k, vs := range base.Query() { // a query in the base URL (an api-version, say) is kept; the model's arguments win
+		if _, has := q[k]; !has {
+			q[k] = vs
+		}
 	}
 	raw := base.EscapedPath() + path
 	dec, err := url.PathUnescape(raw)
@@ -305,7 +317,10 @@ func render(resp *http.Response) Result {
 	shown := b
 	if len(shown) > MaxResultBytes {
 		shown = shown[:MaxResultBytes]
-		for len(shown) > 0 && !utf8.Valid(shown) {
+		for i := 0; i < utf8.UTFMax-1 && len(shown) > 0; i++ { // do not end in half a character
+			if r, n := utf8.DecodeLastRune(shown); r != utf8.RuneError || n != 1 {
+				break
+			}
 			shown = shown[:len(shown)-1]
 		}
 	}

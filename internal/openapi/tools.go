@@ -125,3 +125,31 @@ func inputSchema(o Op) map[string]any {
 	}
 	return out
 }
+
+// WithoutCredential returns the tool without the parameters the upstream's own credential fills in. Many
+// descriptions declare their API key as a header or query parameter; a model must neither be asked for it nor
+// be able to make the call fail by not providing it.
+func (t Tool) WithoutCredential(a Auth) Tool {
+	if a.Name == "" || (a.Kind != AuthHeader && a.Kind != AuthQuery) {
+		return t
+	}
+	in := "header"
+	if a.Kind == AuthQuery {
+		in = "query"
+	}
+	var keep []Param
+	for _, p := range t.Op.Params {
+		if p.In == in && strings.EqualFold(p.Name, a.Name) && (in == "header" || p.Name == a.Name) {
+			continue
+		}
+		keep = append(keep, p)
+	}
+	if len(keep) == len(t.Op.Params) {
+		return t
+	}
+	op := t.Op
+	op.Params = keep
+	t.Op = op
+	t.InputSchema = inputSchema(op)
+	return t
+}

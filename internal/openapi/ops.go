@@ -159,9 +159,6 @@ func (d *Doc) params(item, op map[string]any, path string) []Param {
 		for base, n := arg, 2; used[arg]; n++ {
 			arg = fmt.Sprintf("%s_%d", base, n)
 		}
-		if in != "path" && used[arg] {
-			arg = in + "_" + arg
-		}
 		used[arg] = true
 		p.Arg = arg
 		out = append(out, p)

@@ -131,7 +131,7 @@ func (s *Upstreams) OpenAPI(alias string) (*OAState, error) {
 }
 
 func buildState(cfg OpenAPIConfig) (*OAState, error) {
-	doc, err := openapi.Parse([]byte(cfg.Spec))
+	doc, err := openapi.ParseStored([]byte(cfg.Spec))
 	if err != nil {
 		return nil, fmt.Errorf("the stored description is unreadable: %w", err)
 	}
@@ -185,7 +185,7 @@ func (s *Server) oaDispatch(ctx context.Context, up Upstream, method string, par
 		}
 		tools := make([]any, 0, len(st.Tools))
 		for _, t := range st.Tools {
-			tools = append(tools, oaToolJSON(t))
+			tools = append(tools, oaToolJSON(t.WithoutCredential(up.caller().Auth)))
 		}
 		return map[string]any{"tools": tools}, nil
 	case "tools/call":
@@ -207,7 +207,7 @@ func (s *Server) oaDispatch(ctx context.Context, up Upstream, method string, par
 			if up.SecretErr {
 				return toolText("the stored credential cannot be decrypted (SECRETS_KEY changed); set it again on the upstream", true), nil
 			}
-			res := up.caller().Call(ctx, t, p.Arguments)
+			res := up.caller().Call(ctx, t.WithoutCredential(up.caller().Auth), p.Arguments)
 			return toolText(res.Text, res.IsError), nil
 		}
 		return nil, &rpcError{Code: rpcInvalidParams, Message: "unknown tool " + clipText(p.Name, 80)}
@@ -340,8 +340,8 @@ func (s *Server) oaInitialize(up Upstream, params json.RawMessage) map[string]an
 	}
 }
 
-// testOpenAPI is Test for an OpenAPI upstream: the description must be readable, and the base URL should answer.
-// No operation is called (that could change data).
+// testOpenAPI is Test for an OpenAPI upstream: the description must be readable and the base URL well formed.
+// Nothing is requested: an operation could change data, and a bare request could not tell a wrong credential apart.
 func (s *Server) testOpenAPI(ctx context.Context, up Upstream) (tr TestResult) {
 	tr.AuthMode, tr.Auth = up.AuthKind, up.AuthKind
 	st, err := s.Upstreams.OpenAPI(up.Alias)
