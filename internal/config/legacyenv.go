@@ -20,9 +20,12 @@ func MigrateLegacyEnv(kv KV) {
 	if _, done := kv.GetSetting(legacyEnvDone); done {
 		return
 	}
+	failed := false
 	put := func(key, v string) {
 		if _, have := kv.GetSetting(key); !have {
-			_ = kv.SetSetting(key, v)
+			if kv.SetSetting(key, v) != nil {
+				failed = true
+			}
 		}
 	}
 	if v, ok := os.LookupEnv("MCP_ALLOW_QUERY_KEY"); ok {
@@ -34,5 +37,7 @@ func MigrateLegacyEnv(kv KV) {
 	if v, ok := os.LookupEnv("UPSTREAM_FALLBACK"); ok {
 		put("provider.grok.fallback", strings.TrimRight(strings.TrimSpace(v), "/")) // empty keeps fallback off
 	}
-	_ = kv.SetSetting(legacyEnvDone, "1")
+	if !failed { // a failed write is tried again at the next start, not forgotten
+		_ = kv.SetSetting(legacyEnvDone, "1")
+	}
 }

@@ -100,3 +100,31 @@ func TestDocsMentionNoRemovedVariables(t *testing.T) {
 		}
 	}
 }
+
+type failKV struct {
+	*memKV
+	fail bool
+}
+
+func (k *failKV) SetSetting(key, v string) error {
+	if k.fail && key != legacyEnvDone {
+		return os.ErrPermission
+	}
+	return k.memKV.SetSetting(key, v)
+}
+
+// A write that failed is not recorded as done: the next start tries again.
+func TestMigrateLegacyEnvRetriesAfterAFailedWrite(t *testing.T) {
+	clearRemoved(t)
+	t.Setenv("UPSTREAM_BASE", "https://up.example/v1")
+	kv := &failKV{memKV: &memKV{m: map[string]string{}}, fail: true}
+	MigrateLegacyEnv(kv)
+	if _, done := kv.m[legacyEnvDone]; done {
+		t.Fatal("marked done although a write failed")
+	}
+	kv.fail = false
+	MigrateLegacyEnv(kv)
+	if kv.m["provider.grok.base"] != "https://up.example/v1" || kv.m[legacyEnvDone] != "1" {
+		t.Fatalf("not migrated on retry: %v", kv.m)
+	}
+}
