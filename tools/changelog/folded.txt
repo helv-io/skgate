@@ -1,0 +1,2 @@
+# Tags that were never released (no image, no GitHub Release). Their commits go into the next release.
+v0.12.2
