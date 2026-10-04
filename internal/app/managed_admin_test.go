@@ -433,7 +433,7 @@ func TestRemoteFormAdvancedAndHeaderName(t *testing.T) {
 	}
 }
 
-const inMCPHelp = "Only always-on servers can be exposed on /mcp. On-demand servers are excluded automatically, so /mcp does not start every process at once. Default: off."
+const inMCPHelp = "Only always-on servers can be in /mcp."
 
 // The include control always comes with its explanation; for an on-demand managed server it is disabled, and the
 // server never puts such a server on /mcp, however it was asked.

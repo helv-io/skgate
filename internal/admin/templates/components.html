@@ -52,7 +52,7 @@
 {{define "menu_end"}}</div></div>{{end}}
 
 {{/* danger_start / danger_end: the Danger zone of a dialog, below the Save of the form and above the read-only details:
-   actions that cannot be undone, each form with a data-confirm. Put one line saying what each does, then the buttons
+   actions that cannot be undone, each form with a data-confirm that says what it does. Add a line of text only for what the confirmation leaves out, then the buttons
    (class "act danger") in an .actions row between the two. */}}
 {{define "danger_start"}}<div class="danger-zone" role="group" aria-labelledby="danger-{{.}}"><h4 id="danger-{{.}}">Danger zone</h4>{{end}}
 {{define "danger_end"}}</div>{{end}}
@@ -84,7 +84,7 @@
 {{define "proc_pill"}}{{template "pill" .}}{{end}}
 
 {{/* upd_chips: update state of a managed upstream as chips ("update available", "pinned"). Takes an updView. */}}
-{{define "upd_chips"}}{{if .Available}}<span class="chip accent" title="the remote ref is ahead of the installed commit">update available</span>{{end}}{{if .Pinned}}<span class="chip" title="{{.PinNote}}: never auto-updated">pinned</span>{{end}}{{end}}
+{{define "upd_chips"}}{{if .Available}}<span class="chip accent" title="a newer version is available">update available</span>{{end}}{{if .Pinned}}<span class="chip" title="{{.PinNote}}: never auto-updated">pinned</span>{{end}}{{end}}
 
 {{/* preset: a <select data-preset> in a form. Choosing an option copies its data-set-<field> attributes into
    the form fields of that name (name, redirects, method, ...). An option without them leaves the form as is. */}}

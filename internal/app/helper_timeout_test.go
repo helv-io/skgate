@@ -19,7 +19,7 @@ func TestHelperTimeoutSettingAndSuggestion(t *testing.T) {
 	}
 	post(url.Values{})
 	_, page := br.get("/admin")
-	for _, want := range []string{`name="timeout" value="120"`, "More capable models take longer, so a timeout is more likely with a heavy reasoning model.",
+	for _, want := range []string{`name="timeout" value="120"`, "Heavy reasoning models need about 600 seconds.",
 		`<option value="grok-4.7-reasoning" data-frontier>`, `<option value="grok-mini">`, `data-frontier-hint="600"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("status page lacks %q", want)

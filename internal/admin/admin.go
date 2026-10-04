@@ -112,9 +112,9 @@ var funcs = template.FuncMap{
 	},
 	"updateConfirm": func(kind string) string {
 		if kind == "git" {
-			return "Fetch the repository, rerun the install step and restart. The previous version is restored if that fails."
+			return "Fetch, reinstall and restart. A failed update restores the previous version."
 		}
-		return "Clear this upstream's package cache and restart. Packages are downloaded again."
+		return "Clear the package cache and restart."
 	},
 	"menu":     func(id, label string) menuHead { return menuHead{ID: id, Label: label} },
 	"inList":   contains,
@@ -234,7 +234,7 @@ func (a *Admin) guard(h http.HandlerFunc) http.HandlerFunc {
 			if err := r.ParseForm(); err != nil {
 				var tooBig *http.MaxBytesError
 				if errors.As(err, &tooBig) {
-					http.Error(w, "the form is too large; for an OpenAPI description give its address instead of pasting it", http.StatusRequestEntityTooLarge)
+					http.Error(w, "the form is too large, give an OpenAPI description as an address", http.StatusRequestEntityTooLarge)
 					return
 				}
 				http.Error(w, "invalid CSRF token", http.StatusForbidden)
@@ -525,7 +525,7 @@ func limitsOf(r *http.Request) (rate int64, expires time.Time, err error) {
 	if v := strings.TrimSpace(r.PostFormValue("rate")); v != "" {
 		rate, err = strconv.ParseInt(v, 10, 64)
 		if err != nil || rate < 0 || rate > vkeys.MaxLimit {
-			return 0, time.Time{}, fmt.Errorf("the rate limit must be a whole number of requests per minute from 0 to %d (empty = unlimited)", vkeys.MaxLimit)
+			return 0, time.Time{}, fmt.Errorf("the rate limit is a whole number of requests per minute, 0 to %d", vkeys.MaxLimit)
 		}
 	}
 	expires, _, err = vkeys.ParseExpiry(r.PostFormValue("expires"), time.Now(), time.Local)
@@ -1537,11 +1537,11 @@ type clientView struct {
 func clientSource(source string) (label, tip string) {
 	switch source {
 	case "dcr":
-		return "self-registered", "the client registered itself (dynamic client registration)"
+		return "self-registered", "the client registered itself"
 	case "admin":
 		return "created here", "created on this page"
 	case "cimd":
-		return "metadata document", "identified by a client ID metadata document at its own address"
+		return "metadata document", "described by a document at its own address"
 	}
 	return source, ""
 }

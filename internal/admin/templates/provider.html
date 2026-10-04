@@ -35,14 +35,14 @@
 <div class="dsec" data-section="upstream">{{template "section_head" "Upstream URLs"}}
 <form method="post" action="/admin/providers/{{.ID}}/settings" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>Base URL<input type="url" name="base" value="{{.Base}}" placeholder="{{.DefaultBase}}"></label></div>
-<div class="field"><label>Fallback on 402/403 (empty = off)<input type="url" name="fallback" value="{{.Fallback}}"></label></div>
+<div class="field"><label>Fallback on 402 or 403<input type="url" name="fallback" value="{{.Fallback}}" placeholder="Off"></label></div>
 <div class="row"><button class="act">Save</button></div></form>
 </div>
 
 {{if .CanModels}}{{template "alias_section" .}}{{end}}
 
 <div class="dsec" data-section="signin">{{template "section_head" "Sign-in"}}
-<p class="muted">Refresh now renews the access token before it expires. Browser sign-in is for when the device sign-in does not work: start it, sign in, then paste the address of the page that fails to load.</p>
+<p class="muted">If device sign-in fails, use browser sign-in and paste the failing page's address.</p>
 <div class="actions">{{if .S.SignedIn}}<form method="post" action="/admin/providers/{{.ID}}/refresh" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Refresh now</button></form>{{end}}
 <form method="post" action="/admin/providers/{{.ID}}/browser/start" target="_blank"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Browser sign-in</button></form></div>
 <form method="post" action="/admin/providers/{{.ID}}/browser/paste" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="field"><label>Callback URL or code<input type="text" name="callback" autocomplete="off"></label></div><div class="row"><button class="act">Finish sign-in</button></div></form>
@@ -74,8 +74,7 @@
 <button class="act">Save</button>
 {{template "effort_select" .Effort}}</div>
 <div class="field"><label>Timeout, seconds without an answer<input type="number" name="timeout" value="{{.Timeout}}" min="1" max="86400" step="1" inputmode="numeric"></label></div>
-<p class="muted">More capable models take longer, so a timeout is more likely with a heavy reasoning model.</p>
-<p class="muted" data-frontier-hint="{{.Frontier}}" {{if not (and .ModelHeavy (lt .Timeout .Frontier))}}hidden{{end}}>This looks like a heavy reasoning model: {{.Frontier}} seconds is a reasonable timeout. Nothing changes until you save it.</p></form>
+<p class="muted" data-frontier-hint="{{.Frontier}}" {{if not (and .ModelHeavy (lt .Timeout .Frontier))}}hidden{{end}}>Heavy reasoning models need about {{.Frontier}} seconds.</p></form>
 <div class="actions">{{if .ModelsKnown}}<span class="muted">{{len .Models}} models, loaded {{.ModelsAt}}</span>{{else}}<span class="muted">not loaded{{if not .S.SignedIn}}: sign in first{{end}}</span>{{end}}<form method="post" action="/admin/providers/{{.ID}}/models/reload"{{if .Inline}} data-inline="#helper-model"{{else}} data-save{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">Reload models</button></form></div>{{end}}
 
 {{/* helper_dialog: the model_picker in the shared modal, for pages that need a helper model without going to the
@@ -120,19 +119,17 @@
    aliases, removal. Every section posts in place (data-save); removal reloads the page. Takes a providerView. */}}
 {{define "keyed_dialog"}}{{$p := .}}{{template "dialog_content" (dlg (printf "provider-%s" .ID) .Name)}}
 <div class="dsec" data-section="connection">{{template "section_head" "Connection"}}
-<p class="muted">{{.Preset.Hint}}{{if .Preset.Docs}} <a href="{{.Preset.Docs}}" target="_blank" rel="noopener noreferrer">Get a key</a>{{end}}</p>
+{{if or .Preset.Hint .Preset.Docs}}<p class="muted">{{.Preset.Hint}}{{if .Preset.Docs}} <a href="{{.Preset.Docs}}" target="_blank" rel="noopener noreferrer">{{if .Preset.NeedsKey}}Get a key{{else}}Website{{end}}</a>{{end}}</p>{{end}}
 <form method="post" action="/admin/providers/{{.ID}}/key" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>Base URL<input type="url" name="base" value="{{.Base}}" placeholder="{{.DefaultBase}}" autocomplete="off" spellcheck="false"></label></div>
-{{if or .Preset.NeedsKey .Preset.Optional}}<div class="field"><label>API key{{if .S.AccessMasked}} (leave empty to keep {{.S.AccessMasked}}){{end}}<input type="password" name="key" autocomplete="new-password" spellcheck="false" placeholder="{{if .S.AccessMasked}}{{.S.AccessMasked}}{{end}}"></label></div>{{end}}
+{{if or .Preset.NeedsKey .Preset.Optional}}<div class="field"><label>API key<input type="password" name="key" autocomplete="new-password" spellcheck="false" placeholder="{{if .S.AccessMasked}}{{.S.AccessMasked}}{{end}}"></label></div>{{end}}
 <div class="row"><button class="act">Save</button></div></form>
 <div class="actions"><form method="post" action="/admin/providers/{{.ID}}/test" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Test connection</button></form>
 <form method="post" action="/admin/providers/{{.ID}}/models/reload" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Reload models</button></form>
 <span class="muted">{{if .ModelsKnown}}{{.ModelCount}} models, loaded {{.ModelsAt}}{{else}}models not loaded{{end}}</span></div>
 </div>
 {{template "alias_section" .}}
-<p class="muted">To use a model of {{.Name}} as the MCP helper model, pick it in the Grok details.</p>
 {{template "danger_start" .ID}}
-<p class="muted">Remove forgets the API key, the address and the aliases of {{.Name}}. Requests for its models fail until you add it again.</p>
 <div class="actions"><form method="post" action="/admin/providers/{{.ID}}/remove" data-confirm="Remove {{.Name}}? Its API key and aliases are deleted." data-confirm-title="Remove {{.Name}}" data-confirm-ok="Remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Remove provider</button></form></div>
 {{template "danger_end"}}
 <details class="dsec" data-section="technical"><summary>Technical details</summary>

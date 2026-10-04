@@ -1,11 +1,9 @@
 {{define "body"}}{{with .Data}}
 <h2>OAuth clients</h2>
 {{if .NewID}}<div class="card"><p class="ok">Client created, secret shown once</p><div class="field"><div class="label">Client ID</div>{{template "copybox" (copytext "the client ID" .NewID)}}</div>{{if .NewSecret}}<div class="field"><div class="label">Client secret</div>{{template "copybox" (copytext "the client secret" .NewSecret)}}</div>{{end}}</div>{{end}}
-<p class="muted">DCR clients are listed too (newest 500 kept).</p>
 <div class="field"><div class="label">Authorize address</div>{{template "copybox" (copyurl "the authorize address" $.Public "/authorize")}}</div>
 <div class="field"><div class="label">Token address</div>{{template "copybox" (copyurl "the token address" $.Public "/token")}}</div>
-<div class="row spread"><span class="muted">Most recently used first.</span>
-<form method="post" action="/admin/clients/delete-unused" data-confirm="Delete {{.Unused}} {{plural .Unused "client" "clients"}} unused for {{.Days}} days, with {{if eq .Unused 1}}its{{else}}their{{end}} tokens?" data-confirm-title="Delete unused clients" data-confirm-ok="Delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger"{{if not .Unused}} disabled title="no client has gone unused for {{.Days}} days"{{end}}>Delete unused for {{.Days}} days{{if .Unused}} ({{.Unused}}){{end}}</button></form></div>
+<div class="row"><form method="post" action="/admin/clients/delete-unused" data-confirm="Delete {{.Unused}} {{plural .Unused "client" "clients"}} unused for {{.Days}} days, with {{if eq .Unused 1}}its{{else}}their{{end}} tokens?" data-confirm-title="Delete unused clients" data-confirm-ok="Delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger"{{if not .Unused}} disabled title="no client has gone unused for {{.Days}} days"{{end}}>Delete unused for {{.Days}} days{{if .Unused}} ({{.Unused}}){{end}}</button></form></div>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Source</th><th>Redirect host</th><th>Created</th><th>Last used</th>{{template "th_actions"}}</tr></thead><tbody>
 {{range $c := .List}}<tr><td class="primary" data-label="Name">{{$c.Name}}</td><td class="status" data-label="Source"><span class="chip"{{if $c.SourceTip}} title="{{$c.SourceTip}}"{{end}}>{{$c.SourceLabel}}</span></td><td class="trunc" data-label="Redirect host">{{if $c.Host}}<code title="{{$c.Host}}">{{$c.Host}}</code>{{if $c.More}} <span class="muted">+{{$c.More}} more</span>{{end}}{{else}}<span class="muted">-</span>{{end}}</td><td class="nw" data-label="Created">{{ts $c.CreatedAt}}</td>{{if $c.LastUsed.IsZero}}<td class="nw muted" data-label="Last used">never</td>{{else}}<td class="nw" data-label="Last used">{{ts $c.LastUsed}}</td>{{end}}
 <td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#client-{{$c.ID}}">Details</button>
@@ -28,7 +26,7 @@
 <option value="">Custom</option>
 <option data-set-name="Home Assistant" data-set-redirects="https://my.home-assistant.io/redirect/oauth" data-set-method="client_secret_post">Home Assistant</option></select></label></div>
 <div class="field"><label>Name<input type="text" name="name" maxlength="100"></label></div>
-<div class="field"><label>Redirect URIs (one per line)<textarea name="redirects" rows="3"></textarea></label></div>
-<div class="field"><label>Auth method<select name="method"><option value="client_secret_post">client_secret_post</option><option value="client_secret_basic">client_secret_basic</option><option value="none">none (public, PKCE)</option></select></label></div>
+<div class="field"><label>Redirect URIs<textarea name="redirects" rows="3" placeholder="One per line"></textarea></label></div>
+<div class="field"><label>Auth method<select name="method"><option value="client_secret_post">client_secret_post</option><option value="client_secret_basic">client_secret_basic</option><option value="none">none</option></select></label></div>
 <div class="row"><button class="btn">Create</button></div></form></div>
 {{end}}{{end}}
