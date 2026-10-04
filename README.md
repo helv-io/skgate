@@ -1,9 +1,9 @@
 <p align="center"><img src="docs/img/logo.svg" width="72" alt="skgate logo"></p>
 <h1 align="center">skgate</h1>
 
-<p align="center">Use your Grok subscription as an OpenAI-compatible API, and serve your MCP servers from one OAuth-protected gateway.</p>
+<p align="center">Serve your MCP servers and REST APIs from one OAuth-protected gateway, and use your Grok subscription or another AI provider as an OpenAI-compatible API.</p>
 
-<p align="center">Yes, all MCP servers: everyone's welcome. skgate can run them for you too, so no more stacks. It just works.</p>
+<p align="center">Yes, all MCP servers: everyone's welcome. skgate can run them for you too, so no more stacks.</p>
 
 [![skgate demo](https://img.youtube.com/vi/57oxqkjzb4w/maxresdefault.jpg)](https://youtu.be/57oxqkjzb4w)
 
@@ -82,7 +82,7 @@ export OPENAI_BASE_URL=https://skgate.example.com/v1 OPENAI_API_KEY=sk-...
 from openai import OpenAI
 
 client = OpenAI()  # reads the two variables above
-r = client.chat.completions.create(model="grok-latest", messages=[{"role": "user", "content": "Say hi"}])
+r = client.chat.completions.create(model="<id from /v1/models>", messages=[{"role": "user", "content": "Say hi"}])
 print(r.choices[0].message.content)
 ```
 
@@ -105,7 +105,7 @@ Aliases are listed first in `/v1/models`.
 
 <details><summary>Add an MCP server with Suggest configuration</summary>
 
-Needs the `latest` image and Grok signed in. The first time, **Pick MCP helper model** next to the button opens the model picker right on the page.
+Needs the `latest` image and an MCP helper model from any ready provider. The first time, **Pick MCP helper model** next to the button opens the model picker right on the page.
 
 **mcp upstreams** > **Add upstream** > Type `managed (package or repository)`:
 
@@ -117,10 +117,10 @@ Needs the `latest` image and Grok signed in. The first time, **Pick MCP helper m
    | `pypi:mcp-server-time` | PyPI package, `uvx` |
    | `https://github.com/example-org/notes-mcp` | git repo: clone, install, run (private: **Access token**) |
 
-2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the MCP helper model proposes command, args, install step and env names (marked secret or not, required or optional), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet. Point it at the repo, fill in the variables it needs, and it just works.
+2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the MCP helper model proposes command, args, install step and env names (marked secret or not, required or optional), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet. Point it at the repo and fill in the variables it needs.
 3. Set an alias, fill in the variables you need (empty ones are not passed to the server), **Save**. The server is at `https://skgate.example.com/mcp/<alias>`.
 
-If the button is greyed out, hover it: sign in to Grok on **status**, or use **Pick MCP helper model** beside it.
+If the button is greyed out, hover it: use **Pick MCP helper model** beside it, or add a provider on **status** first.
 
 </details>
 
@@ -162,8 +162,8 @@ stopped  --request-->  starting  -->  running  --10 min idle-->  stopped
 {"mcpServers": {"time": {"command": "uvx", "args": ["mcp-server-time"], "skgate": {"idleTimeoutSeconds": 120}}}}
 ```
 
-- The aggregated `/mcp` includes remote and always-on upstreams marked **In /mcp**. On-demand servers are left out, so `/mcp` never starts them. Point a client at `/mcp/<alias>` to use one.
-- Remote upstreams have no process; there is nothing to idle.
+- The aggregated `/mcp` includes remote, OpenAPI and always-on upstreams marked **In /mcp**. On-demand servers are left out, so `/mcp` never starts them. Point a client at `/mcp/<alias>` to use one.
+- Remote and OpenAPI upstreams have no process; there is nothing to idle.
 - An admin **Stop** keeps a server stopped until **Start** or **Restart**.
 
 </details>
@@ -207,6 +207,7 @@ Served at `https://skgate.example.com/mcp/everything`. For Python servers use `"
 | Feature | What it does |
 | --- | --- |
 | Grok sign-in | Device code or browser paste-back; tokens refresh |
+| Other providers | OpenAI, Anthropic, Gemini and more by API key ([docs](docs/api.md)) |
 | Model aliases | `grok-latest` maps to the newest model; change the target once |
 | API | `/v1`, `/api/v1`, `/api`, no prefix; SSE ([docs](docs/api.md)) |
 | Virtual keys | Hashed; tokens in/out per key ([docs](docs/keys-and-clients.md)) |
@@ -250,6 +251,7 @@ Set under `environment:` (or `env_file`); placeholders in [`.env.example`](.env.
 | `MCP_OAUTH_REQUIRE_CONSENT` | `true` | Approve/Deny page after login at `/authorize`. |
 | `SECRETS_KEY` | random `secrets.key` file | Encrypts stored upstream secrets. 32-byte base64 or a passphrase. |
 | `GITHUB_TOKEN` | empty | Optional GitHub token for **Suggest** when it reads a repository. An upstream's own access token takes precedence. Raises GitHub's rate limit. |
+| `UPDATE_CHECK` | `true` | The version in the header turns yellow when a newer release exists; `false` turns the check off. |
 | `LISTEN_ADDR` | `:8080` | Listen address. |
 | `DB_PATH` | `/data/skgate.db` | SQLite file. |
 | `LOG_LEVEL` | `info` | `info` or `debug`. |
