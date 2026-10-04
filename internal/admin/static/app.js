@@ -412,14 +412,17 @@
     var btns = form.querySelectorAll("button:not([type=button])");
     Array.prototype.forEach.call(btns, function (b) { b.disabled = true; });
     fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
-      .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.json(); })
+      .then(function (r) {
+        if (!r.ok) throw { say: "skgate answered with an error (status " + r.status + "). Try again, or reload the page." };
+        return r.json().catch(function () { throw { say: "skgate answered with something unexpected. Reload the page and check what was saved." }; });
+      })
       .then(function (j) {
         window.skgateToast(j.toast.k, j.toast.m);
         if (j.toast.k !== "ok") return;
         if (form.isConnected) settle(form);
         return refresh().catch(function () { /* the saved state shows on the next load */ });
       })
-      .catch(function () { window.skgateToast("bad", "Couldn't reach skgate. Check your connection and try again."); })
+      .catch(function (err) { window.skgateToast("bad", err && err.say ? err.say : "Couldn't reach skgate. Check your connection and try again."); })
       .then(function () { Array.prototype.forEach.call(btns, function (b) { if (b.isConnected) b.disabled = false; }); });
   });
 })();
@@ -1483,4 +1486,22 @@ function frontierHint(form) {
       .catch(function () { describe.disabled = false; window.skgateToast("bad", "the suggestion did not complete"); });
   });
   render();
+})();
+
+// A plain form (not an in-place save, not a confirmation) disables its buttons once it is sent, so a double click
+// cannot post twice. They come back after a few seconds, if the answer was a download and the page stayed.
+(function () {
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form || !form.hasAttribute || e.defaultPrevented || form.hasAttribute("data-save") || form.hasAttribute("data-confirm")) return;
+    if ((form.method || "").toLowerCase() !== "post") return;
+    var btns = Array.prototype.slice.call(form.querySelectorAll("button:not([type=button]):not(:disabled), input[type=submit]:not(:disabled)"));
+    setTimeout(function () {
+      btns.forEach(function (b) { b.disabled = true; });
+      setTimeout(function () { btns.forEach(function (b) { b.disabled = false; }); }, 8000);
+    }, 0);
+  });
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) Array.prototype.forEach.call(document.querySelectorAll("button:disabled"), function (b) { b.disabled = false; });
+  });
 })();
