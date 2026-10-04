@@ -433,34 +433,40 @@ func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState)
 		tr.Error = "the stored key cannot be read, enter it again"
 		return tr
 	}
-	if op, ok := st.Doc.ProbeOp(st.Ops); ok { // one safe read tells whether the server takes the key
-		ua := "skgate-openapi/" + config.Version
-		auth := up.oaAuth(st.Scheme)
-		status := 0
-		switch {
-		case up.AuthKind == AuthAuto:
-			ways := openapi.Ways(st.Scheme, up.AuthValue)
-			if d := openapi.Way(up.DetectedKind); d.Valid() {
-				ways = append([]openapi.Way{d}, ways...)
-			}
-			got := openapi.TryKey(ctx, up.URL, op, up.AuthValue, ways, ua)
-			status = got.Status
-			if got.OK {
-				tr.Way = string(got.Way)
-				auth = got.Way.Auth(up.AuthValue)
-			}
-		default:
-			status = openapi.TryAuth(ctx, up.URL, op, auth, ua)
+	// One safe read tells whether the server takes the key: the first enabled GET without arguments, one the
+	// description marks as protected first. Another one is asked only when a 403 may come from that operation alone.
+	cands := probeCandidates(st)
+	var status int
+	var auth openapi.Auth
+	for i, op := range cands {
+		if i >= maxProbeOps {
+			break
 		}
+		var way openapi.Way
+		status, auth, way = s.probeOnce(ctx, up, st, op)
+		tr.Way = string(way)
+		if status != http.StatusForbidden {
+			break
+		}
+	}
+	if len(cands) > 0 {
 		switch {
 		case status == 0:
 			tr.Error = "cannot reach the server"
 			return tr
+		case status >= 200 && status < 300:
 		case openapi.Refused(status) && auth.Kind != AuthNone:
 			tr.Error = "the server refused the key"
 			return tr
 		case openapi.Refused(status):
-			tr.Warnings = append(tr.Warnings, "the server wants a key")
+			tr.Error = "the server needs a key"
+			return tr
+		case status == http.StatusNotFound:
+			tr.Error = "the server answered 404, check the base URL"
+			return tr
+		default:
+			tr.Error = fmt.Sprintf("the server answered %d", status)
+			return tr
 		}
 		if auth.Kind == AuthQuery {
 			tr.Warnings = append(tr.Warnings, QueryKeyWarning)
@@ -468,6 +474,51 @@ func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState)
 	}
 	tr.OK = true
 	return tr
+}
+
+// maxProbeOps bounds how many operations one connection check may ask.
+const maxProbeOps = 3
+
+// probeCandidates are the operations a connection check may ask: the enabled ones of ProbeOps, or all of them
+// when none is enabled (a large description starts with every tool off).
+func probeCandidates(st *OAState) []openapi.Op {
+	all := st.Doc.ProbeOps(st.Ops)
+	on := map[string]bool{}
+	for _, t := range st.Tools {
+		on[t.Op.Key] = true
+	}
+	var out []openapi.Op
+	for _, o := range all {
+		if on[o.Key] {
+			out = append(out, o)
+		}
+	}
+	if len(out) == 0 {
+		return all
+	}
+	return out
+}
+
+// HasConnectionCheck reports whether a saved or drafted description has an operation that can check the connection.
+func (st *OAState) HasConnectionCheck() bool { return len(probeCandidates(st)) > 0 }
+
+// probeOnce asks op with the key of up, in the one way set or, for an automatic key, one way after the other. It
+// returns the HTTP status (0: no answer), the credential that was sent and the way that worked.
+func (s *Server) probeOnce(ctx context.Context, up Upstream, st *OAState, op openapi.Op) (int, openapi.Auth, openapi.Way) {
+	ua := "skgate-openapi/" + config.Version
+	auth := up.oaAuth(st.Scheme)
+	if up.AuthKind != AuthAuto || up.AuthValue == "" {
+		return openapi.TryAuth(ctx, up.URL, op, auth, ua), auth, ""
+	}
+	ways := openapi.Ways(st.Scheme, up.AuthValue)
+	if d := openapi.Way(up.DetectedKind); d.Valid() {
+		ways = append([]openapi.Way{d}, ways...)
+	}
+	got := openapi.TryKey(ctx, up.URL, op, up.AuthValue, ways, ua)
+	if got.Status >= 200 && got.Status < 300 {
+		return got.Status, got.Way.Auth(up.AuthValue), got.Way
+	}
+	return got.Status, auth, ""
 }
 
 // findKeyWay tries the usual ways to send the key of up after the server refused it, when the description says
