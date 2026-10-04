@@ -267,7 +267,7 @@ func TestAddDialogListsPresets(t *testing.T) {
 	_, page := br.get("/admin")
 	d := page[strings.Index(page, `id="add-provider"`):]
 	d = d[:strings.Index(d, "</template>")]
-	for _, want := range []string{"OpenAI", "Anthropic", "Google Gemini", "Mistral", "DeepSeek", "Groq", "OpenRouter", "Ollama", "LM Studio", "Custom (OpenAI-compatible)",
+	for _, want := range []string{"OpenAI", "Anthropic", "Google Gemini", "Mistral", "DeepSeek", "Groq", "OpenRouter", "Ollama", "LM Studio", "Custom endpoint",
 		`data-set-base="https://api.anthropic.com/v1"`, `data-set-base="http://localhost:11434/v1"`, `data-preset`, `data-preset-href="docs"`} {
 		if !strings.Contains(d, want) {
 			t.Errorf("Add dialog lacks %q", want)

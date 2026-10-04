@@ -14,7 +14,7 @@ export OPENAI_BASE_URL=https://skgate.example.com/v1 OPENAI_API_KEY=sk-...
 
 ## Other providers
 
-Grok needs no API key. **Other providers** on the status page adds the rest: OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, or a custom endpoint that speaks the OpenAI API. **Add provider**, pick one (the base URL and a hint for the key fill in), paste the API key and **Add and test**. skgate loads the provider's model list to test the connection; the provider is saved even when that fails, for example while a local server is down.
+Grok needs no API key. **Other providers** on the status page adds the rest: OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, or a custom endpoint that speaks the OpenAI API. **Add provider**, pick one (the address and a hint for the key fill in), paste the API key and **Add and test**. The address can be typed in any form; skgate finds the one that works. skgate loads the provider's model list to test the connection; the provider is saved even when that fails, for example while a local server is down.
 
 - The API key is encrypted at rest like the other secrets and shown masked; the key field never carries it. Leave the key empty when saving to keep the stored one. Ollama and LM Studio need no key (from a container, use an address skgate can reach, not `localhost`).
 - **Details** of a provider has the base URL, the key, **Test connection**, **Reload models**, its model aliases, and **Remove provider**, which deletes the key and its aliases.

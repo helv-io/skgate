@@ -18,16 +18,16 @@ type Preset struct {
 
 // Presets is the fixed list, in the order the Add dialog shows it.
 var Presets = []Preset{
-	{ID: "openai", Name: "OpenAI", Base: "https://api.openai.com/v1", NeedsKey: true, Hint: "Create a key in your OpenAI dashboard (starts with sk-).", Docs: "https://platform.openai.com/api-keys"},
-	{ID: "anthropic", Name: "Anthropic", Base: "https://api.anthropic.com/v1", NeedsKey: true, Hint: "Create a key in the Anthropic Console (starts with sk-ant-).", Docs: "https://console.anthropic.com/settings/keys", Adapter: "anthropic"},
+	{ID: "openai", Name: "OpenAI", Base: "https://api.openai.com/v1", NeedsKey: true, Hint: "Create a key in your OpenAI dashboard.", Docs: "https://platform.openai.com/api-keys"},
+	{ID: "anthropic", Name: "Anthropic", Base: "https://api.anthropic.com/v1", NeedsKey: true, Hint: "Create a key in the Anthropic Console.", Docs: "https://console.anthropic.com/settings/keys", Adapter: "anthropic"},
 	{ID: "gemini", Name: "Google Gemini", Base: "https://generativelanguage.googleapis.com/v1beta/openai", NeedsKey: true, Hint: "Create a key in Google AI Studio.", Docs: "https://aistudio.google.com/apikey"},
 	{ID: "mistral", Name: "Mistral", Base: "https://api.mistral.ai/v1", NeedsKey: true, Hint: "Create a key in the Mistral console.", Docs: "https://console.mistral.ai/api-keys"},
 	{ID: "deepseek", Name: "DeepSeek", Base: "https://api.deepseek.com/v1", NeedsKey: true, Hint: "Create a key on the DeepSeek platform.", Docs: "https://platform.deepseek.com/api_keys"},
-	{ID: "groq", Name: "Groq", Base: "https://api.groq.com/openai/v1", NeedsKey: true, Hint: "Create a key in the Groq console (starts with gsk_).", Docs: "https://console.groq.com/keys"},
-	{ID: "openrouter", Name: "OpenRouter", Base: "https://openrouter.ai/api/v1", NeedsKey: true, Hint: "Create a key in your OpenRouter settings (starts with sk-or-).", Docs: "https://openrouter.ai/settings/keys"},
-	{ID: "ollama", Name: "Ollama", Base: "http://localhost:11434/v1", Hint: "No key needed. From a container, localhost is the container itself: use an address skgate can reach.", Docs: "https://ollama.com"},
-	{ID: "lmstudio", Name: "LM Studio", Base: "http://localhost:1234/v1", Hint: "No key needed. Start the local server in LM Studio, and use an address skgate can reach.", Docs: "https://lmstudio.ai"},
-	{ID: "custom", Name: "Custom (OpenAI-compatible)", Base: "", Optional: true, Custom: true, Hint: "Any endpoint that speaks the OpenAI API: enter its base URL (ending in /v1). The key is optional."},
+	{ID: "groq", Name: "Groq", Base: "https://api.groq.com/openai/v1", NeedsKey: true, Hint: "Create a key in the Groq console.", Docs: "https://console.groq.com/keys"},
+	{ID: "openrouter", Name: "OpenRouter", Base: "https://openrouter.ai/api/v1", NeedsKey: true, Hint: "Create a key in your OpenRouter settings.", Docs: "https://openrouter.ai/settings/keys"},
+	{ID: "ollama", Name: "Ollama", Base: "http://localhost:11434/v1", Hint: "No key needed. Use an address skgate can reach, not localhost.", Docs: "https://ollama.com"},
+	{ID: "lmstudio", Name: "LM Studio", Base: "http://localhost:1234/v1", Hint: "No key needed. Start its local server and use an address skgate can reach.", Docs: "https://lmstudio.ai"},
+	{ID: "custom", Name: "Custom endpoint", Base: "", Optional: true, Custom: true, Hint: "Any OpenAI-compatible endpoint: enter its address. The key is optional."},
 }
 
 // PresetByID returns the preset with the given id.
