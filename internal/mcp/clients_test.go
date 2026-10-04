@@ -102,3 +102,44 @@ func TestUpstreamCredentialsEncryptedAtRest(t *testing.T) {
 		t.Fatalf("undecryptable: %+v", u)
 	}
 }
+
+// Clients nobody used for a while: last used (or, never used, created) before the cutoff. Their tokens go with them.
+func TestDeleteUnusedClients(t *testing.T) {
+	e := newEnv(t, nil)
+	db, now := e.srv.Clients.db, time.Now()
+	mk := func(id string, created, used time.Time) {
+		c, err := e.srv.Clients.Create(Client{ID: id, Name: id, RedirectURIs: []string{hostedRedirect}, AuthMethod: "none", Source: "dcr"}, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = c
+		db.Exec(`UPDATE oauth_clients SET created_at=? WHERE client_id=?`, created.Unix(), id)
+		if !used.IsZero() {
+			db.Exec(`UPDATE oauth_clients SET last_used_at=? WHERE client_id=?`, used.Unix(), id)
+		}
+	}
+	old, recent := now.Add(-45*24*time.Hour), now.Add(-2*24*time.Hour)
+	mk("never-old", old, time.Time{})    // never used, created long ago: unused
+	mk("never-new", recent, time.Time{}) // never used but just created: kept
+	mk("used-old", old, old)             // last used long ago: unused
+	mk("used-recently", old, recent)     // created long ago but used lately: kept
+	db.Exec(`INSERT INTO oauth_tokens(hash,kind,client_id,expires_at) VALUES('h1','access','used-old',?)`, now.Add(time.Hour).Unix())
+	cutoff := now.Add(-30 * 24 * time.Hour)
+	if n := e.srv.Clients.CountUnused(cutoff); n != 2 {
+		t.Fatalf("CountUnused = %d, want 2", n)
+	}
+	n, err := e.srv.Clients.DeleteUnused(cutoff)
+	if err != nil || n != 2 {
+		t.Fatalf("DeleteUnused = %d, %v", n, err)
+	}
+	for id, want := range map[string]bool{"never-old": false, "used-old": false, "never-new": true, "used-recently": true} {
+		if _, ok := e.srv.Clients.Get(id); ok != want {
+			t.Errorf("%s present = %v, want %v", id, ok, want)
+		}
+	}
+	var tokens int
+	db.QueryRow(`SELECT COUNT(*) FROM oauth_tokens WHERE client_id='used-old'`).Scan(&tokens)
+	if tokens != 0 {
+		t.Errorf("the tokens of a deleted client are deleted too: %d", tokens)
+	}
+}

@@ -139,3 +139,35 @@ func (s *Clients) Delete(id string) error {
 	}
 	return nil
 }
+
+// unusedWhere selects clients nobody has used since the cutoff: last used (or, never used, created) before it.
+const unusedWhere = `(CASE WHEN last_used_at > 0 THEN last_used_at ELSE created_at END) < ?`
+
+// CountUnused returns how many clients were last used (or, if never used, created) before the cutoff.
+func (s *Clients) CountUnused(cutoff time.Time) int {
+	var n int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM oauth_clients WHERE `+unusedWhere, cutoff.Unix()).Scan(&n)
+	return n
+}
+
+// DeleteUnused deletes the clients counted by CountUnused with their codes and tokens and returns how many.
+func (s *Clients) DeleteUnused(cutoff time.Time) (int, error) {
+	rows, err := s.db.Query(`SELECT client_id FROM oauth_clients WHERE `+unusedWhere, cutoff.Unix())
+	if err != nil {
+		return 0, err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	rows.Close()
+	for _, id := range ids {
+		if err := s.Delete(id); err != nil {
+			return 0, err
+		}
+	}
+	return len(ids), nil
+}

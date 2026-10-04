@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -84,15 +85,10 @@ var funcs = template.FuncMap{
 	"dlg":       func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
 	"infodlg":   func(id, title string) dialogHead { return dialogHead{ID: id, Title: title, Info: true} },
 	"filterBox": func(table, label string) filterBoxData { return filterBoxData{Table: table, Label: label} },
-	"plural": func(n int, one, many string) string {
-		if n == 1 {
-			return one
-		}
-		return many
-	},
-	"menu":     func(id, label string) menuHead { return menuHead{ID: id, Label: label} },
-	"inList":   contains,
-	"frontier": provider.LooksFrontier,
+	"plural":    plural,
+	"menu":      func(id, label string) menuHead { return menuHead{ID: id, Label: label} },
+	"inList":    contains,
+	"frontier":  provider.LooksFrontier,
 	// pill feeds the "pill" component: class, label and hover text.
 	"pill": func(class, text, tip string) pillView { return pillView{Class: class, Text: text, Tip: tip} },
 	// tip feeds the "tip" component: visible text with a hover tooltip. usage builds the Usage cell of a key.
@@ -329,6 +325,7 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/clients", a.guard(a.clients))
 	mux.HandleFunc("/admin/clients/create", a.guard(a.postOnly(a.clientCreate)))
 	mux.HandleFunc("/admin/clients/delete", a.guard(a.postOnly(a.clientDelete)))
+	mux.HandleFunc("/admin/clients/delete-unused", a.guard(a.postOnly(a.clientDeleteUnused)))
 }
 
 func (a *Admin) notConfigured(w http.ResponseWriter, r *http.Request) {
@@ -1404,14 +1401,81 @@ func (a *Admin) upstreamDelete(w http.ResponseWriter, r *http.Request) {
 	a.back(w, r, "/admin/upstreams", "upstream deleted", "")
 }
 
+// unusedDays is how long a client must have gone unused for the bulk delete on the OAuth clients page.
+const unusedDays = 30
+
 type clientsData struct {
-	List             []mcp.Client
+	List             []clientView
 	NewID, NewSecret string
+	Unused           int // clients unused for unusedDays: what the bulk delete would remove
+	Days             int
+}
+
+// clientView is a row of the OAuth clients page.
+type clientView struct {
+	mcp.Client
+	SourceLabel, SourceTip string
+	Host                   string // host of the first redirect URI
+	More                   int    // further redirect URIs
+}
+
+// clientSource names where a client came from in plain words.
+func clientSource(source string) (label, tip string) {
+	switch source {
+	case "dcr":
+		return "self-registered", "the client registered itself (dynamic client registration)"
+	case "admin":
+		return "created here", "created on this page"
+	case "cimd":
+		return "metadata document", "identified by a client ID metadata document at its own address"
+	}
+	return source, ""
+}
+
+// redirectHost is the host (with a port when there is one) of a redirect URI, or the text itself when it has none
+// (a custom scheme such as app://callback has the host after the slashes too).
+func redirectHost(uri string) string {
+	if u, err := url.Parse(uri); err == nil && u.Host != "" {
+		return u.Host
+	}
+	return uri
+}
+
+// fillClients adds the rows to the data of the OAuth clients page: most recently used first, clients never used
+// after them (newest first, since List is newest first and the sort is stable), and the count the bulk delete would remove.
+func (a *Admin) fillClients(d clientsData) clientsData {
+	l, _ := a.MCP.Clients.List()
+	sort.SliceStable(l, func(i, j int) bool { return l[i].LastUsed.After(l[j].LastUsed) })
+	d.Days, d.Unused = unusedDays, a.MCP.Clients.CountUnused(time.Now().AddDate(0, 0, -unusedDays))
+	d.List = nil
+	for _, c := range l {
+		v := clientView{Client: c}
+		v.SourceLabel, v.SourceTip = clientSource(c.Source)
+		if len(c.RedirectURIs) > 0 {
+			v.Host, v.More = redirectHost(c.RedirectURIs[0]), len(c.RedirectURIs)-1
+		}
+		d.List = append(d.List, v)
+	}
+	return d
 }
 
 func (a *Admin) clients(w http.ResponseWriter, r *http.Request) {
-	l, _ := a.MCP.Clients.List()
-	a.render(w, r, "clients", page{Title: "OAuth clients", Nav: "clients", Data: clientsData{List: l}})
+	a.render(w, r, "clients", page{Title: "OAuth clients", Nav: "clients", Data: a.fillClients(clientsData{})})
+}
+
+// clientDeleteUnused deletes the clients nobody used for unusedDays days (POST, confirmed in the page).
+func (a *Admin) clientDeleteUnused(w http.ResponseWriter, r *http.Request) {
+	n, err := a.MCP.Clients.DeleteUnused(time.Now().AddDate(0, 0, -unusedDays))
+	if err != nil {
+		a.back(w, r, "/admin/clients", "", "could not delete: "+err.Error())
+		return
+	}
+	a.MCP.Log.Printf("clients_delete_unused days=%d deleted=%d", unusedDays, n)
+	if n == 0 {
+		a.back(w, r, "/admin/clients", "no unused clients", "")
+		return
+	}
+	a.back(w, r, "/admin/clients", fmt.Sprintf("%d %s deleted", n, plural(n, "client", "clients")), "")
 }
 
 func (a *Admin) clientCreate(w http.ResponseWriter, r *http.Request) {
@@ -1494,3 +1558,11 @@ func wrapURL(parts ...string) template.HTML {
 
 // filterBoxData feeds the filter_box component.
 type filterBoxData struct{ Table, Label string }
+
+// plural picks the singular for 1 and the plural otherwise.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
+}
