@@ -4,7 +4,7 @@
 {{if .New}}<label>Type<select name="kind" data-kind-select>
 <option value="remote" {{if eq .U.Kind "remote"}}selected{{end}}>remote (URL)</option>
 <option value="stdio" {{if or (eq .U.Kind "stdio") (eq .U.Kind "git")}}selected{{end}} {{if not .Managed}}disabled{{end}}>managed (package or repository)</option>
-<option value="openapi" {{if eq .U.Kind "openapi"}}selected{{end}}>OpenAPI (REST API)</option></select></label>
+<option value="openapi" {{if eq .U.Kind "openapi"}}selected{{end}}>OpenAPI</option></select></label>
 {{if not .Managed}}<p class="muted">Managed upstreams: {{.Why}}.</p>{{end}}
 {{else}}<div class="label">Type</div><input type="hidden" name="kind" value="{{.U.Kind}}" data-kind-select><span class="chip">{{.U.TypeLabel}}</span>{{end}}</div>
 
@@ -35,20 +35,18 @@
 </div>
 
 <div class="group" data-kind="openapi">
-{{with .OA}}<p class="muted">skgate turns each operation of a REST API into an MCP tool. Enter the address of the API, or paste its description. You choose the tools next.</p>
-<div class="field"><label>Address<input type="text" inputmode="url" name="oa_spec_url" placeholder="http://mealie:9000" value="{{.SpecURL}}" autocomplete="off" spellcheck="false" data-oa-spec-url></label>
-{{if and .HasSpec .SpecURL}}<p class="muted">Read the address again with Update on the <a href="/admin/upstreams/{{$.U.Alias}}/tools">tools page</a>.</p>{{end}}</div>
-<div class="field"><label>Or paste the description<textarea name="oa_spec_text" rows="8" spellcheck="false" autocomplete="off" placeholder="{{if .HasSpec}}Empty keeps the stored description: {{.Title}}, {{.Ops}} operations{{else}}openapi: 3.0.3{{end}}" data-code="auto" data-oa-spec-text{{if .HasSpec}} data-oa-has{{end}}></textarea></label>
+{{with .OA}}<div class="field"><label>Address<input type="text" inputmode="url" name="oa_spec_url" placeholder="http://mealie:9000" value="{{.SpecURL}}" autocomplete="off" spellcheck="false" data-oa-spec-url></label></div>
+<div class="field"><label>Or paste the description<textarea name="oa_spec_text" rows="8" spellcheck="false" autocomplete="off" placeholder="{{if .HasSpec}}Empty keeps {{.Title}}{{else}}openapi: 3.0.3{{end}}" data-code="auto" data-oa-spec-text{{if .HasSpec}} data-oa-has{{end}}></textarea></label>
 <p class="muted" data-code-status aria-live="polite"></p>
 <script src="/admin/static/codemirror.js" defer></script></div>
-{{if .HasSpec}}<p class="muted">{{.Tools}} of {{.Ops}} operations are exposed as tools. <a href="/admin/upstreams/{{$.U.Alias}}/tools">Choose the tools</a></p>{{end}}
+{{if .HasSpec}}<div class="row"><a class="act" href="/admin/upstreams/{{$.U.Alias}}/tools">Choose tools</a><span class="muted">{{.Tools}} of {{.Ops}} on</span></div>{{end}}
 <div class="row"><button type="button" class="act" data-oa-check data-oa-check-url="/admin/openapi/check" data-oa-repair-url="/admin/openapi/repair" data-csrf="{{$.CSRF}}">Check description</button></div>
 {{template "oa_check_result"}}
-<div class="field"><label>Key or token{{if $.U.Masked}} <code>{{$.U.Masked}}</code>{{end}}<input type="password" name="oa_auth_value" autocomplete="new-password" placeholder="{{if $.U.Masked}}Empty keeps the stored key{{else}}Leave empty for an open API{{end}}"></label></div>
+<div class="field"><label>Key{{if $.U.Masked}} <code>{{$.U.Masked}}</code>{{end}}<input type="password" name="oa_auth_value" autocomplete="new-password" placeholder="{{if $.U.Masked}}Empty keeps it{{else}}Optional{{end}}"></label></div>
 <details {{if or .As $.U.URL}}open{{end}}><summary class="muted">Advanced</summary>
-<div class="field"><label>Send the key as<input type="text" name="oa_auth_as" value="{{.As}}" placeholder="X-Custom-Key" autocomplete="off" spellcheck="false"></label>
-<p class="muted">Empty lets skgate work it out. A header name, ?name for the query string, bearer, basic or none.</p></div>
-<div class="field"><label>Base URL<input type="url" name="oa_url" value="{{$.U.URL}}" list="oa-servers" placeholder="Empty uses the server of the description" autocomplete="off" spellcheck="false" data-oa-base></label>
+<div class="field"><label>Send the key as<input type="text" name="oa_auth_as" value="{{.As}}" placeholder="Automatic" autocomplete="off" spellcheck="false"></label>
+<p class="muted">A header name, ?name, bearer, basic or none.</p></div>
+<div class="field"><label>Base URL<input type="url" name="oa_url" value="{{$.U.URL}}" list="oa-servers" placeholder="From the description" autocomplete="off" spellcheck="false" data-oa-base></label>
 <datalist id="oa-servers">{{range .Servers}}<option value="{{.}}">{{end}}</datalist></div>
 </details>
 {{end}}</div>

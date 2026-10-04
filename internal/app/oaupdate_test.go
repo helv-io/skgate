@@ -68,7 +68,7 @@ func TestOpenAPIUpdateIsManualReviewedAndCancellable(t *testing.T) {
 
 	// the same text at the address: nothing to review
 	r, _ := br.post("/admin/upstreams/notes/spec/update", url.Values{"csrf": {csrf}})
-	if _, m := flashOf(r); !strings.Contains(m, "Unchanged") || r.Header.Get("Location") != "/admin/upstreams/notes/tools" {
+	if _, m := flashOf(r); !strings.Contains(m, "No changes") || r.Header.Get("Location") != "/admin/upstreams/notes/tools" {
 		t.Fatalf("unchanged: %q %s", m, r.Header.Get("Location"))
 	}
 
@@ -80,7 +80,7 @@ func TestOpenAPIUpdateIsManualReviewedAndCancellable(t *testing.T) {
 		k, m := flashOf(r)
 		t.Fatalf("update: %d %s %s", r.StatusCode, k, m)
 	}
-	for _, want := range []string{"Updates run through an SI layer before they are reused", "SI layer", "GET /tags", "POST /files", "GET /notes", "Confirm update", ">Cancel</button>", "Tools exposed", "Kept for every tool that still exists"} {
+	for _, want := range []string{"Nothing is replaced until you confirm", "Repair", "GET /tags", "POST /files", "GET /notes", "Confirm update", ">Cancel</button>", "Tools exposed", "New operations stay off"} {
 		if !strings.Contains(review, want) {
 			t.Errorf("review lacks %q", want)
 		}
@@ -140,14 +140,14 @@ func TestOpenAPIPastedDefinitionsCannotBeUpdated(t *testing.T) {
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"pasted"}, "enabled": {"1"},
 		"oa_spec_text": {fmt.Sprintf(oaAdminSpec, api.URL)}})
 	_, page := br.get("/admin/upstreams/pasted/tools")
-	if !strings.Contains(page, `disabled aria-describedby="oa-update-why" title="pasted definitions can&#39;t be updated"`) || !strings.Contains(page, `id="oa-update-why">pasted definitions can&#39;t be updated</span>`) {
+	if !strings.Contains(page, `disabled aria-describedby="oa-update-why" title="no address to update from"`) || !strings.Contains(page, `id="oa-update-why">no address to update from</span>`) {
 		t.Errorf("a pasted description gets a disabled Update with the reason as tooltip and as visible text:\n%s", page)
 	}
 	if strings.Contains(page, "/spec/update") {
 		t.Error("no update form for a pasted description")
 	}
 	r, _ := br.post("/admin/upstreams/pasted/spec/update", url.Values{"csrf": {csrf}})
-	if _, e := flashOf(r); !strings.Contains(e, "pasted definitions can't be updated") {
+	if _, e := flashOf(r); !strings.Contains(e, "no address to update from") {
 		t.Errorf("posting anyway is refused: %q", e)
 	}
 }
@@ -188,14 +188,14 @@ func TestOpenAPIUpdateRunsTheSILayer(t *testing.T) {
 		if !strings.Contains(review, "Confirm update") || !strings.Contains(review, "GET /b") {
 			t.Fatalf("helper=%v: no review:\n%.800s", withHelper, review)
 		}
-		if withHelper && !strings.Contains(review, "Fixed 1 problem; 0 problems left.") {
+		if withHelper && !strings.Contains(review, "Fixed 1, 0 left") {
 			t.Errorf("the SI layer fixed the missing id: %.1500s", review)
 		}
-		if !withHelper && !strings.Contains(review, "Not run, so 1 problem stay") {
+		if !withHelper && !strings.Contains(review, "1 problem, not repaired") {
 			t.Errorf("without a helper the layer is skipped and says so: %.1500s", review)
 		}
 		if strings.Contains(review, "AI layer") {
-			t.Error("it is the SI layer")
+			t.Error("no AI wording")
 		}
 		r.br.post("/admin/upstreams/t/spec/apply", url.Values{"csrf": {r.csrf}, "token": {tokenOf(t, review)}})
 		st, _ := r.a.MCP.Upstreams.OpenAPI("t")

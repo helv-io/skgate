@@ -29,7 +29,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   ok(s.n === 20 && s.cls === "toolcount warn" && s.callout === "callout warn", "20 tools is amber: " + JSON.stringify(s));
   ok(s.groups.GET === "20 of 20 on", "group count follows: " + JSON.stringify(s.groups));
   ok(s.toasts.some(t => /^toast warn\|20 tools is a lot/.test(t)), "amber toast on crossing: " + JSON.stringify(s.toasts));
-  ok(s.toasts.some(t => /Switched on 20 GET tools/.test(t)), "toast for the whole verb: " + JSON.stringify(s.toasts));
+  ok(s.toasts.some(t => /20 GET tools on/.test(t)), "toast for the whole verb: " + JSON.stringify(s.toasts));
   const nonblocking = await pg.evaluate(() => !document.querySelector("[data-toolpick] .toolcount button.btn").disabled);
   ok(nonblocking, "Save stays enabled at amber");
 
@@ -39,7 +39,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   s = await state();
   ok(s.n === 40 && s.cls === "toolcount bad" && s.callout === "callout bad" && s.word === "too many", "40 tools is red: " + JSON.stringify(s));
   ok(s.toasts.some(t => /^toast bad\|40 tools is too many/.test(t)), "red toast on crossing: " + JSON.stringify(s.toasts));
-  ok(s.toasts.some(t => /^toast warn\|Switched on 20 DELETE tools/.test(t)), "a write verb switched on warns: " + JSON.stringify(s.toasts));
+  ok(s.toasts.some(t => /^toast warn\|20 DELETE tools on/.test(t)), "a write verb switched on warns: " + JSON.stringify(s.toasts));
   ok(await pg.evaluate(() => !document.querySelector("[data-toolpick] .toolcount button.btn").disabled), "Save stays enabled at red");
 
   // toasts last 5 seconds and sit in front
