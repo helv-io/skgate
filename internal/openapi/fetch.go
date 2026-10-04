@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/helv-io/skgate/internal/httputil"
 )
 
 // fetchClient follows at most five redirects and never steps down from https to http.
@@ -29,6 +31,9 @@ func Fetch(ctx context.Context, raw string) ([]byte, error) {
 	}
 	if u.User != nil {
 		return nil, errors.New("the address must not carry a user name or password")
+	}
+	if err := httputil.CheckScheme(u); err != nil {
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()

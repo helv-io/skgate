@@ -54,6 +54,9 @@ func (u *Upstream) validateOpenAPI() error {
 	if err != nil || (pu.Scheme != "http" && pu.Scheme != "https") || pu.Host == "" || pu.User != nil {
 		return errors.New("the base URL must be an absolute http(s) URL without credentials")
 	}
+	if err := httputil.CheckScheme(pu); err != nil {
+		return err
+	}
 	switch u.AuthKind {
 	case "":
 		u.AuthKind = AuthNone
