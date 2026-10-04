@@ -12,7 +12,7 @@ An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API
 | --- | --- |
 | Address | The API, its description or its documentation page. `http://mealie:9000` is enough: skgate finds the description itself (see [Finding the description](#finding-the-description)). |
 | Or paste the description | JSON, YAML or TOML. Pasted text wins over the address. A description of more than a few MB is easier to give as an address. |
-| Key or token | The only credential field. Paste the key as it is; skgate adds `Bearer` or whatever the API wants (see [The key](#the-key)). Empty means an open API. |
+| Key | The only credential field. Paste it as it is; skgate adds `Bearer` or whatever the API wants (see [The key](#the-key)). Empty means an open API. |
 | Advanced | Closed by default. **Send the key as** forces a way: a header name such as `X-Custom-Key` or `Authorization`, `?name` for a query parameter, `bearer`, `basic` (the key is `user:password`) or `none`. **Base URL** overrides where the calls go. |
 
 The base URL is the server named by the description (variables replaced by their defaults). When the description names none, or only a relative one, it is the address the description was read from: scheme, host and port. The Advanced field only overrides this.
@@ -60,7 +60,7 @@ Operations are grouped by HTTP verb (GET, POST, PUT, PATCH, DELETE, then the res
 
 ### Many tools are a cost: the counter
 
-Models pick worse tools, and get slower and costlier, the more tools they are offered. Expose only what you need.
+Fewer tools work better. Models pick worse tools, and get slower and costlier, the more they are offered.
 
 The tools page has a live counter that follows the switches; the upstream list shows each upstream's count and the Overview the total:
 
@@ -72,23 +72,23 @@ The tools page has a live counter that follows the switches; the upstream list s
 
 Crossing into a worse level raises a toast, and so does switching on a whole verb group. **Nothing is ever blocked**: the counter and the notices inform you, and Save always works. The Overview page adds a row with the total of all enabled OpenAPI upstreams.
 
-## Repair and names with the assistant
+## Repair and names
 
-Both use the MCP helper model (the same setting as Suggest configuration) and are optional. They have prompts of their own, separate from the one that suggests an MCP server from a repository. Only the description's titles, paths, parameter names and texts go to the model; no credential does.
+Both use the MCP helper model, the same setting as Suggest configuration, and are optional. Only titles, paths, parameter names and texts go to the model, never a credential.
 
-- **Check description** (add and edit form) reads the description and lists what is wrong: operations without an `operationId`, repeated ids, broken `$ref`s, invalid types, parameters without a name or location. A problem never stops an import; skgate uses what it can read.
-- **Repair with the assistant** (shown when problems were found and a helper model is ready) asks the model for fixes, applies them to a copy and shows each change as a before and after. **Apply the fix to the pasted text** puts the repaired description in the paste box. Nothing changes until you approve it, and nothing is saved until you submit the form. Changes to servers and security are never accepted, wherever they sit in the description.
-- **Suggest names** (tools page) proposes a name and a one-line description for each tool that is on, in a form that helps a model choose among tools. The suggestions fill the fields; you review them and Save.
+- **Check description** lists what is wrong: operations without an `operationId`, repeated ids, broken `$ref`s, invalid types, parameters without a name or location. A problem never stops an import.
+- **Repair** (with a helper model, when problems were found) proposes fixes as a before and after. **Apply** puts the repaired text in the paste box. Nothing is saved until you submit the form. Changes to servers and security are never accepted.
+- **Suggest names** (tools page) fills a name and a one-line description for each tool that is on. You review them and Save.
 
 ## Update from the address
 
 Updates are manual. Nothing polls the address, nothing refreshes by itself, and nothing touches a running gateway until you confirm.
 
-On the tools page, **Update** reads the description again from its address. It is on only for an upstream that was added with an address. A pasted description has no address: the button is off, with "pasted definitions can't be updated" as its tooltip and as a line of text next to it.
+On the tools page, **Update** reads the description again from its address. It is on only for an upstream that was added with an address. A pasted description has no address: the button is off, with "no address to update from" as its tooltip and as a line of text next to it.
 
-1. **Update** downloads the description again and, if the text is the same as last time, says "Unchanged" and stops.
-2. Otherwise the new description goes through an SI layer: the same checks and repair as **Check description**, using the helper model you configured. With no helper model the layer is skipped and the screen says so.
-3. A review screen shows the tools exposed now and after, the operations added, removed and changed, and what the SI layer fixed. Updates run through an SI layer before they are reused, so check the changes.
+1. **Update** downloads the description again and, if the text is the same as last time, says "No changes" and stops.
+2. Otherwise the new description gets the same checks and repair as **Check description**. With no helper model the repair is skipped and the screen says so.
+3. A review screen shows the tools exposed now and after, the operations added, removed and changed, and what the repair fixed.
 4. **Confirm update** replaces the stored description. **Cancel** leaves everything as it was.
 
 Your tool selection (which tools are on, their names and descriptions) is kept for every operation that still exists. New operations stay off. The tools page shows when the description was last read ("Updated ...").

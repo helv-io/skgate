@@ -16,6 +16,7 @@ What skgate is, in one wording used everywhere it is described (README, registry
 ## Style
 
 - Technical audience. No fluff, no hand-holding, short lines.
+- UI copy: short, plain, direct, in the voice of the rest of the app. Labels are nouns or verbs. A hint is one short sentence, and most fields need none; delete a hint that restates its label. No filler or marketing words (leverage, seamless, powerful, helpful), no "Let's", no explanatory paragraphs, no parentheticals, no em dashes. Errors and warnings are lowercase with no final period, like the Test page. Say "helper model", not "assistant". `TestOpenAPIScreensUseThePlainVoice` guards the OpenAPI screens.
 - Generic examples. Name Authentik next to Authelia, never one alone. No house-specific names in code, docs or examples.
 - Provider-neutral. No provider-specific wording or defaults outside that provider's own definition.
 - Consistent labels, casing and spacing. One version display: semver (`vX.Y.Z`), in the header only.
