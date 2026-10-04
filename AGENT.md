@@ -55,6 +55,8 @@ What skgate is, in one wording used everywhere it is described (README, registry
   - Go identifiers and the JSON field the page script reads (`AI`, `AIWhy`, `"ai"`, `"aiWhy"` in the OpenAPI screens): renaming gains nothing and could break a cached script.
   - External protocol, spec and schema identifiers, for example the Glama schema URL `https://glama.ai/mcp/schemas/server.json`, and quoted third-party text.
   The tests `TestDocsSaySINotAI` and `TestScreensSaySINotAI` check text only.
+- A button that is off for a reason uses the `gated_act` component (`gate` builds its data): disabled, the reason as tooltip and as visible text beside it, because touch has no hover.
+- Updates of what skgate stores from outside are manual: a click re-reads, a review screen shows what would change, and nothing is replaced until the person confirms (cancel changes nothing). OpenAPI descriptions follow this (`oaupdate.go`); never poll or refresh on a timer. When the update passes through the helper model, the screen says "SI layer" and names no provider or model.
 - A value people copy (an address, a client ID or secret, a key, a sign-in code) goes in the `copybox` component (`copyurl`, `copytext` or `copycode` build its data): the whole box is the button, it wraps instead of scrolling, says "Tap to copy", and answers with a toast. Do not add a separate Copy button or a bare `<code>` for such a value.
 - Tokens are shown masked: asterisks plus the last 4 characters; under 8 characters, asterisks only. Refresh tokens appear only in the provider dialog.
 - Name/value data (env, headers) and lists (args) use the dynamic rows components.

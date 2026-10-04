@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/helv-io/skgate/internal/admin"
@@ -64,6 +67,24 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	oaSpec := `{"openapi":"3.0.0","info":{"title":"` + strings.Repeat("Long API title ", 4) + `","version":"1"},"servers":[{"url":"https://api.example.com/` + strings.Repeat("base/", 14) + `"}],"paths":{` + strings.Join(oaPaths, ",") + `}}`
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {longName[:62] + "o"}, "oa_spec_text": {oaSpec},
 		"oa_auth_kind": {"query"}, "oa_auth_name": {"api_key"}, "oa_auth_value": {"k-" + strings.Repeat("v", 60)}, "enabled": {"1"}, "include": {"1"}})
+	// an OpenAPI upstream read from an address, then a changed description: the Update review screen with long names
+	var specMu sync.Mutex
+	specText := `{"openapi":"3.0.0","info":{"title":"U","version":"1"},"servers":[{"url":"http://x.example"}],"paths":{"/a":{"get":{"operationId":"getA"}}}}`
+	specSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		specMu.Lock()
+		defer specMu.Unlock()
+		io.WriteString(w, specText)
+	}))
+	t.Cleanup(specSrv.Close)
+	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"fromurl"}, "oa_spec_url": {specSrv.URL}, "enabled": {"1"}})
+	var more []string
+	for i := 0; i < 8; i++ {
+		more = append(more, fmt.Sprintf(`"/v2/%s/{id}/%d":{"get":{"operationId":"added%d","summary":"New"}}`, strings.Repeat("a-very-long-path-segment/", 5), i, i))
+	}
+	specMu.Lock()
+	specText = `{"openapi":"3.0.0","info":{"title":"U","version":"2"},"servers":[{"url":"http://x.example"}],"paths":{"/a":{"get":{"operationId":"getA","summary":"Changed"}},` + strings.Join(more, ",") + `}}`
+	specMu.Unlock()
+	_, updateReview := br.post("/admin/upstreams/fromurl/spec/update", url.Values{"csrf": {csrf}})
 	var on, keys, names, descs []string
 	for i := 0; i < 36; i++ {
 		k := fmt.Sprintf("GET /v1/%s/{id}/%d", strings.Repeat("a-very-long-path-segment/", 5), i)
@@ -99,6 +120,8 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	add("upstream-edit-remote", get("/admin/upstreams/"+longName[:63]+"/edit"), false)
 	add("upstream-edit-managed", get("/admin/upstreams/mgd/edit"), false)
 	add("upstream-edit-openapi", get("/admin/upstreams/"+longName[:62]+"o/edit"), false)
+	add("upstream-update-review", updateReview, false)
+	add("upstream-tools-url", get("/admin/upstreams/fromurl/tools"), false)
 	add("upstream-tools", get("/admin/upstreams/"+longName[:62]+"o/tools"), false)
 	add("upstream-test-openapi", get("/admin/upstreams/"+longName[:62]+"o/test"), false)
 	add("upstream-test", get("/admin/upstreams/docs/test"), false)

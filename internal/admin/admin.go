@@ -100,6 +100,10 @@ var funcs = template.FuncMap{
 	"infodlg":   func(id, title string) dialogHead { return dialogHead{ID: id, Title: title, Info: true} },
 	"filterBox": func(table, label string) filterBoxData { return filterBoxData{Table: table, Label: label} },
 	"plural":    plural,
+	"oaList":    func(title string, items []string, more int) oaListData { return oaListData{title, items, more} },
+	"gate": func(id, label, action, csrf, reason string) gatedAct {
+		return gatedAct{id, label, action, csrf, reason}
+	},
 	"procAction": func(csrf, alias, action, label, class, confirm string) procActionData {
 		return procActionData{CSRF: csrf, Alias: alias, Action: action, Label: label, Class: class, Confirm: confirm}
 	},
@@ -145,7 +149,7 @@ var funcs = template.FuncMap{
 // New builds the Admin and parses templates.
 func New(cfg *config.Config, db *store.DB, reg *provider.Registry, px *provider.Proxy, k *vkeys.Manager, m *mcp.Server) *Admin {
 	a := &Admin{Releases: NewReleaseWatch(cfg.UpdateCheckURL, config.Version), Cfg: cfg, DB: db, Providers: reg, Proxy: px, Set: provider.Settings{KV: db}, Keys: k, MCP: m, tpl: map[string]*template.Template{}}
-	for _, p := range []string{"status", "keys", "upstreams", "upstream_edit", "upstream_test", "upstream_tools", "upstream_logs", "upstream_import", "clients", "signedout", "autherror", "notconfigured", "consent", "failure"} {
+	for _, p := range []string{"status", "keys", "upstreams", "upstream_edit", "upstream_test", "upstream_tools", "upstream_logs", "upstream_import", "upstream_spec_update", "clients", "signedout", "autherror", "notconfigured", "consent", "failure"} {
 		a.tpl[p] = template.Must(template.New(p).Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/components.html", "templates/provider.html", "templates/upstream_form.html", "templates/"+p+".html"))
 	}
 	if cfg.OIDCEnabled() {
@@ -361,6 +365,9 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/upstreams/{alias}/tools", a.guard(a.alias(a.getOnly(a.upstreamTools))))
 	mux.HandleFunc("/admin/upstreams/{alias}/tools/save", a.guard(a.alias(a.postOnly(a.upstreamToolsSave))))
 	mux.HandleFunc("/admin/upstreams/{alias}/tools/suggest", a.guard(a.alias(a.postOnly(a.upstreamToolsSuggest))))
+	mux.HandleFunc("/admin/upstreams/{alias}/spec/update", a.guard(a.alias(a.postOnly(a.oaSpecUpdate))))
+	mux.HandleFunc("/admin/upstreams/{alias}/spec/apply", a.guard(a.alias(a.postOnly(a.oaSpecApply))))
+	mux.HandleFunc("/admin/upstreams/{alias}/spec/cancel", a.guard(a.alias(a.postOnly(a.oaSpecCancel))))
 	mux.HandleFunc("/admin/openapi/check", a.guard(a.postOnly(a.openAPICheck)))
 	mux.HandleFunc("/admin/openapi/repair", a.guard(a.postOnly(a.openAPIRepair)))
 	mux.HandleFunc("/admin/upstreams/suggest", a.guard(a.postOnly(a.upstreamSuggest)))
@@ -1666,4 +1673,13 @@ func plural(n int, one, many string) string {
 }
 
 // procActionData feeds the proc_action component.
+type oaListData struct {
+	Title string
+	Items []string
+	More  int
+}
+
+// gatedAct feeds the gated_act component.
+type gatedAct struct{ ID, Label, Action, CSRF, Reason string }
+
 type procActionData struct{ CSRF, Alias, Action, Label, Class, Confirm string }

@@ -90,6 +90,9 @@ func (a *Admin) resultScreen(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, "keys", page{Title: "Virtual keys", Nav: "keys", Toasts: toasts, Data: d})
 	case clientsData:
 		a.render(w, r, "clients", page{Title: "OAuth clients", Nav: "clients", Toasts: toasts, Data: a.fillClients(d)})
+	case oaUpdateData:
+		d.Token = r.PathValue("token")
+		a.render(w, r, "upstream_spec_update", page{Title: "Update " + d.Alias, Nav: "upstreams", Toasts: toasts, Data: d})
 	case importData:
 		a.render(w, r, "upstream_import", page{Title: "Import upstreams", Nav: "upstreams", Toasts: toasts, Data: d})
 	default:

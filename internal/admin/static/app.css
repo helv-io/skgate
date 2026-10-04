@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .gated .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -303,6 +303,7 @@ details.desc>p{margin:4px 0 0 1.2em;color:var(--dim);white-space:pre-line}
 .tool-fields label{margin:6px 0 2px;font-size:12px}
 @media (max-width:720px){.tool-fields{grid-template-columns:minmax(0,1fr)}}
 /* oa-out: the result of checking an OpenAPI description, and diff: the repair the assistant proposes (before and after) */
+.gated{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
 .oa-out{margin:0 0 12px}
 .oa-out ul,.diff ul{list-style:none;padding-left:0;margin:6px 0}
 .oa-out li{overflow-wrap:anywhere;margin:2px 0}

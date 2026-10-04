@@ -68,6 +68,10 @@
    "", "accent" or "danger"; with a confirm text the shared modal asks first). */}}
 {{define "proc_action"}}<form method="post" action="/admin/upstreams/{{.Alias}}/process"{{if .Confirm}} data-confirm="{{.Confirm}}"{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="{{.Action}}"><button class="act{{if .Class}} {{.Class}}{{end}}">{{.Label}}</button></form>{{end}}
 
+{{/* gated_act: a button that posts to Action, or, when Reason is set, the same button disabled with the reason as its
+   tooltip AND as a visible hint (touch has no hover). Build it with "gate": id, label, action, csrf, reason ("" = enabled). */}}
+{{define "gated_act"}}{{if .Reason}}<span class="gated"><button type="button" class="act" disabled aria-describedby="{{.ID}}" title="{{.Reason}}">{{.Label}}</button><span class="muted" id="{{.ID}}">{{.Reason}}</span></span>{{else}}<form method="post" action="{{.Action}}"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">{{.Label}}</button></form>{{end}}{{end}}
+
 {{/* th_actions: the header of the column of row buttons. Every list table with row actions ends with it. */}}
 {{define "th_actions"}}<th class="actions-th">Actions</th>{{end}}
 
