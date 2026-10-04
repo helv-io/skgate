@@ -287,7 +287,7 @@ details.desc>p{margin:4px 0 0 1.2em;color:var(--dim);white-space:pre-line}
 .tool{border-top:1px solid var(--line2);padding:8px 12px}
 .tool.skipped{opacity:.6}
 .tool-head label.check{display:flex;margin:0;min-width:0}
-.tool-path{overflow-wrap:anywhere;word-break:break-all}
+.tool-path{white-space:normal;overflow:visible;overflow-wrap:anywhere;word-break:break-all}
 .tool-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:0 10px;margin-top:4px}
 .tool-fields label{margin:6px 0 2px;font-size:12px}
 @media (max-width:720px){.tool-fields{grid-template-columns:minmax(0,1fr)}}
