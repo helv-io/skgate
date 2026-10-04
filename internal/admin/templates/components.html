@@ -125,3 +125,7 @@
 <div class="row"><button type="button" class="act accent" data-oa-apply>Apply the fix to the pasted text</button> <button type="button" class="act" data-oa-discard>Discard</button></div>
 </div>
 </div>{{end}}
+{{/* tooldesc: a tool description on one line. With more text after the first line it is a details block that opens to
+   it. Without, it is plain text; app.js gives it the dotted underline and the click only while the line is cut short
+   (opening shows the whole line). An underline appears only where a click does something. Feeds on mcp.ToolInfo. */}}
+{{define "tooldesc"}}{{if .More}}<details class="desc"><summary>{{.Desc}}</summary><p>{{.More}}</p></details>{{else}}<span class="desc-line" data-desc-line{{if gt (len .Desc) 40}} title="{{.Desc}}"{{end}}>{{.Desc}}</span>{{end}}{{end}}
