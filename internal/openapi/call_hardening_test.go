@@ -107,3 +107,12 @@ func TestLongNonUTF8BodyIsNotCutAtTheFirstBadByte(t *testing.T) {
 		t.Errorf("a split character leaked: %q", res.Text[len(res.Text)-80:])
 	}
 }
+
+func TestToolNamesDoNotChangeWhenAnotherToolIsSwitchedOff(t *testing.T) {
+	d := mustParse(t, `{"openapi":"3.0.0","info":{"title":"n"},"paths":{"/a":{"get":{"operationId":"list"}},"/b":{"get":{"operationId":"list"}}}}`)
+	both := Tools(d.Operations(), Selection{Enabled: map[string]bool{"GET /a": true, "GET /b": true}})
+	only := Tools(d.Operations(), Selection{Enabled: map[string]bool{"GET /b": true}})
+	if len(both) != 2 || len(only) != 1 || both[1].Name != only[0].Name {
+		t.Errorf("names %q %q vs %q", both[0].Name, both[1].Name, only[0].Name)
+	}
+}
