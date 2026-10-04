@@ -21,7 +21,7 @@
 <a class="act" role="menuitem" href="/admin/upstreams/{{.Alias}}/edit">Edit</a>
 <form method="post" action="/admin/upstreams/{{.Alias}}/delete" data-confirm="Delete this upstream?" role="none"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger" role="menuitem">Delete</button></form>
 {{template "menu_end"}}</div></td></tr>
-{{else}}<tr><td colspan="6" class="empty">No upstreams yet</td></tr>{{end}}</tbody></table></div>
+{{else}}<tr><td colspan="6" class="empty">None</td></tr>{{end}}</tbody></table></div>
 {{range .List}}{{template "dialog_content" (dlg (printf "upstream-%s" .Alias) (printf "Upstream %s" .Alias))}}
 <div class="actions">{{if .Enabled}}<button type="button" class="act" data-copy-text="{{$.Public}}/mcp/{{.Alias}}" data-copied="URL copied" title="copy the client URL of this upstream">Copy URL</button>{{end}}
 <a class="act" href="/admin/upstreams/{{.Alias}}/test" title="connect and list the tools">Test</a>
