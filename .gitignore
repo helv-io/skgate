@@ -7,3 +7,4 @@
 .env*
 /data/
 !.env.example
+/tools/codemirror/node_modules/

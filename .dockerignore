@@ -7,3 +7,4 @@
 !.env.example
 *.key
 _*
+tools/codemirror/node_modules
