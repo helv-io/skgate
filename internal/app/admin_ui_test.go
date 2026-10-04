@@ -10,6 +10,7 @@ import (
 func TestKeysPageFooterAndCodeNoWrap(t *testing.T) {
 	_, ts, br, _ := signedIn(t, nil)
 	_, page := br.get("/admin/keys")
+	page = strings.ReplaceAll(page, "<wbr>", "") // addresses may break after a slash; the text is the same
 	for _, want := range []string{
 		"<li>OpenAI API: <code>" + ts.URL + "/v1</code></li>",
 		"<li>MCP: <code>" + ts.URL + "/mcp/&lt;alias&gt;</code></li>",

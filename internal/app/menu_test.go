@@ -30,7 +30,7 @@ func TestUpstreamRowActionsAndMenuMarkup(t *testing.T) {
 	_, page := br.get("/admin/upstreams")
 	row := func(alias string) string {
 		for _, r := range strings.Split(page, "<tr>")[1:] {
-			if i := strings.Index(r, "</tr>"); i >= 0 && strings.Contains(r[:i], ">"+alias+"</code>") {
+			if i := strings.Index(r, "</tr>"); i >= 0 && strings.Contains(r[:i], `href="#upstream-`+alias+`"`) {
 				return r[:i]
 			}
 		}

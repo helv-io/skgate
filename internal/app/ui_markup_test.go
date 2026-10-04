@@ -194,3 +194,17 @@ func TestListTablesHeadTheActionsColumn(t *testing.T) {
 		}
 	}
 }
+
+// Endpoint URLs on the pages may break after a slash (a <wbr>), so a phone wraps them at a path segment, and the
+// name link of an upstream has a 44px tap area from the shared stylesheet.
+func TestEndpointURLsWrapAtSegments(t *testing.T) {
+	_, br := menuApp(t)
+	_, page := br.get("/admin/upstreams")
+	if !strings.Contains(page, "mcp/<wbr>alpha</code>") || !strings.Contains(page, "/<wbr>.well-known/<wbr>oauth-authorization-server</code>") {
+		t.Errorf("endpoint URLs must carry <wbr> after slashes:\n%s", page[:min(len(page), 3000)])
+	}
+	css, _ := os.ReadFile(filepath.Join("..", "admin", "static", "app.css"))
+	if !regexp.MustCompile(`a\.name\{[^}]*min-height:44px`).Match(css) {
+		t.Error("a.name must have a 44px tap area")
+	}
+}

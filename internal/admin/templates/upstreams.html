@@ -1,9 +1,9 @@
 {{define "body"}}{{with .Data}}
 <h2>MCP upstreams</h2>
 <div class="card flush tablewrap"><table class="table kv"><tbody>
-<tr><th>All included</th><td><code>{{$.Public}}/mcp</code> <span class="muted">tools named <code>&lt;alias&gt;-&lt;tool&gt;</code></span></td></tr>
-<tr><th>One upstream</th><td><code>{{$.Public}}/mcp/{{if .Aliases}}{{index .Aliases 0}}{{else}}&lt;alias&gt;{{end}}</code> <span class="muted">tools unprefixed</span></td></tr>
-<tr><th>Discovery</th><td><code>{{$.Public}}/.well-known/oauth-authorization-server</code></td></tr>
+<tr><th>All included</th><td><code>{{wrapurl $.Public "/mcp"}}</code> <span class="muted">tools named <code>&lt;alias&gt;-&lt;tool&gt;</code></span></td></tr>
+<tr><th>One upstream</th><td><code>{{wrapurl $.Public "/mcp/"}}{{if .Aliases}}{{index .Aliases 0}}{{else}}&lt;alias&gt;{{end}}</code> <span class="muted">tools unprefixed</span></td></tr>
+<tr><th>Discovery</th><td><code>{{wrapurl $.Public "/.well-known/oauth-authorization-server"}}</code></td></tr>
 </tbody></table></div>
 <p class="muted">DCR clients: leave client ID and secret empty (public, PKCE). Others: a key as <code>Authorization: Bearer</code> or <code>X-API-Key</code>, or an OAuth client.</p>
 <div class="row spread"><a class="btn" href="/admin/upstreams/new">Add upstream</a><div class="actions"><a class="act" href="/admin/upstreams/import">import JSON</a><a class="act" href="/admin/upstreams/export">export JSON</a></div></div>
@@ -31,7 +31,7 @@
 <div class="tablewrap"><table class="table kv"><tbody>
 {{range .Facts}}<tr><th>{{.Name}}</th><td>{{if .Code}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}</td></tr>{{end}}
 {{if not .Managed}}<tr><th>outbound auth</th><td><span class="chip">{{.Effective}}{{if .AuthName}} <span class="mono">{{.AuthName}}</span>{{end}}{{if .Masked}} <span class="mono">{{.Masked}}</span>{{end}}</span>{{if and (eq .AuthKind "auto") .DetectedNote}}<br><span class="muted">{{.DetectedNote}}</span>{{end}}</td></tr>{{end}}
-<tr><th>client URL</th><td>{{if .Enabled}}<code>{{$.Public}}/mcp/{{.Alias}}</code>{{else}}<span class="muted">disabled</span>{{end}}</td></tr>
+<tr><th>client URL</th><td>{{if .Enabled}}<code>{{wrapurl $.Public "/mcp/" .Alias}}</code>{{else}}<span class="muted">disabled</span>{{end}}</td></tr>
 </tbody></table></div>
 {{template "dialog_end"}}{{end}}
 {{end}}{{end}}
