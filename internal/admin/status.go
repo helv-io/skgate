@@ -20,6 +20,8 @@ type statusData struct {
 	Presets   []presetView
 	Aliases   []aliasRow
 	CSRF      string
+	// OpenAPI sums the tools of the enabled OpenAPI upstreams (nil when there are none): the count a model sees.
+	OpenAPI *pillView
 }
 
 // providerView is a provider as the status page and its dialog show it.
@@ -200,6 +202,7 @@ func (a *Admin) status(w http.ResponseWriter, r *http.Request) {
 	var d statusData
 	csrf, _ := a.Session(r)
 	d.CSRF = csrf
+	d.OpenAPI = a.openAPITotal()
 	for _, p := range a.Providers.List() {
 		k, isKeyed := keyed.Keyed(p)
 		if isKeyed && !k.Enabled() {

@@ -131,7 +131,7 @@ var funcs = template.FuncMap{
 // New builds the Admin and parses templates.
 func New(cfg *config.Config, db *store.DB, reg *provider.Registry, px *provider.Proxy, k *vkeys.Manager, m *mcp.Server) *Admin {
 	a := &Admin{Releases: NewReleaseWatch(cfg.UpdateCheckURL, config.Version), Cfg: cfg, DB: db, Providers: reg, Proxy: px, Set: provider.Settings{KV: db}, Keys: k, MCP: m, tpl: map[string]*template.Template{}}
-	for _, p := range []string{"status", "keys", "upstreams", "upstream_edit", "upstream_test", "upstream_logs", "upstream_import", "clients", "signedout", "autherror", "notconfigured", "consent", "failure"} {
+	for _, p := range []string{"status", "keys", "upstreams", "upstream_edit", "upstream_test", "upstream_tools", "upstream_logs", "upstream_import", "clients", "signedout", "autherror", "notconfigured", "consent", "failure"} {
 		a.tpl[p] = template.Must(template.New(p).Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/components.html", "templates/provider.html", "templates/upstream_form.html", "templates/"+p+".html"))
 	}
 	if cfg.OIDCEnabled() {
@@ -187,6 +187,7 @@ func (a *Admin) render(w http.ResponseWriter, r *http.Request, name string, p pa
 		w.WriteHeader(p.Status)
 	}
 	if err := a.tpl[name].ExecuteTemplate(w, "layout", p); err != nil {
+		log.Printf("admin: page %s: %v", name, err)
 		http.Error(w, "template error", 500)
 	}
 }
@@ -204,7 +205,11 @@ func (a *Admin) guard(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if r.Method == http.MethodPost {
-			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+			limit := int64(1 << 20)
+			if strings.HasPrefix(r.URL.Path, "/admin/upstreams") || strings.HasPrefix(r.URL.Path, "/admin/openapi") {
+				limit = oaBodyLimit // a pasted OpenAPI description can be large
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, limit)
 			if r.ParseForm() != nil || subtle.ConstantTimeCompare([]byte(csrf), []byte(r.PostFormValue("csrf"))) != 1 {
 				http.Error(w, "invalid CSRF token", http.StatusForbidden)
 				return
@@ -330,6 +335,11 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/upstreams/{alias}/toggle", a.guard(a.alias(a.postOnly(a.upstreamToggle))))
 	mux.HandleFunc("/admin/upstreams/{alias}/redetect", a.guard(a.alias(a.postOnly(a.upstreamRedetect))))
 	mux.HandleFunc("/admin/upstreams/{alias}/process", a.guard(a.alias(a.postOnly(a.upstreamProcess))))
+	mux.HandleFunc("/admin/upstreams/{alias}/tools", a.guard(a.alias(a.getOnly(a.upstreamTools))))
+	mux.HandleFunc("/admin/upstreams/{alias}/tools/save", a.guard(a.alias(a.postOnly(a.upstreamToolsSave))))
+	mux.HandleFunc("/admin/upstreams/{alias}/tools/suggest", a.guard(a.alias(a.postOnly(a.upstreamToolsSuggest))))
+	mux.HandleFunc("/admin/openapi/check", a.guard(a.postOnly(a.openAPICheck)))
+	mux.HandleFunc("/admin/openapi/repair", a.guard(a.postOnly(a.openAPIRepair)))
 	mux.HandleFunc("/admin/upstreams/suggest", a.guard(a.postOnly(a.upstreamSuggest)))
 	mux.HandleFunc("/admin/upstreams/import", a.guard(a.upstreamImport))
 	mux.HandleFunc("/admin/upstreams/export", a.guard(a.upstreamExport))
@@ -598,6 +608,16 @@ type upstreamView struct {
 	ProcClass string
 	// Health is set for remote upstreams only: how the latest calls to them went.
 	Health *healthView
+	// OA is set for OpenAPI upstreams: what the description holds and how many tools it exposes.
+	OA *oaView
+}
+
+// oaView is an OpenAPI upstream as the list and its Details dialog show it. Level colors the tool count.
+type oaView struct {
+	Title, SpecURL string
+	Ops, Tools     int
+	Level          string
+	Pill           pillView
 }
 
 // healthView is the health pill of a remote upstream and its last error.
@@ -746,6 +766,9 @@ type formData struct {
 	// Source is the "MCP source URL / package" field: the repository of a git upstream.
 	Source  string
 	Suggest suggestState
+	// OA feeds the OpenAPI fields (nil when the page is for another kind and not the add form).
+	OA   *oaForm
+	CSRF string
 }
 
 // suggestState says whether the configuration helper can run, and why not.
@@ -971,9 +994,13 @@ func (a *Admin) view(u mcp.Upstream) upstreamView {
 		pv.Upd = updViewOf(pi.Update)
 		v.Proc = pv
 	}
+	if u.IsOpenAPI() {
+		v.Target = u.URL
+		v.OA = a.oaViewOf(u)
+	}
 	v.Facts = aliasFacts(v)
 	v.Tip = aliasTip(v)
-	if !u.Managed() {
+	if !u.Managed() && !u.IsOpenAPI() {
 		h, known := a.MCP.HealthOf(u.Alias)
 		v.Health = healthOf(h, known)
 		v.Facts = append(v.Facts, fact{Name: "health", Value: v.Health.Text + map[bool]string{true: " (" + v.Health.Tip + ")", false: ""}[known]})
@@ -987,6 +1014,8 @@ func (a *Admin) view(u mcp.Upstream) upstreamView {
 // typeLabel is the one name of an upstream's kind. A package server is told from the runner that starts it.
 func typeLabel(u mcp.Upstream) string {
 	switch {
+	case u.IsOpenAPI():
+		return "OpenAPI"
 	case !u.Managed():
 		return "remote"
 	case u.Kind == mcp.KindGit:
@@ -1043,6 +1072,12 @@ func aliasFacts(v upstreamView) []fact {
 		facts = append(facts, fact{Name: "lifecycle", Value: orDash(v.Lifecycle, "on-demand")})
 	} else {
 		facts = append(facts, fact{Name: "url", Value: v.URL, Code: true})
+		if o := v.OA; o != nil {
+			if o.Title != "" {
+				facts = append(facts, fact{Name: "API", Value: o.Title})
+			}
+			facts = append(facts, fact{Name: "tools", Value: fmt.Sprintf("%d of %d operations", o.Tools, o.Ops)})
+		}
 	}
 	if v.HostOverride != "" {
 		facts = append(facts, fact{Name: "host override", Value: v.HostOverride, Code: true})
@@ -1095,8 +1130,12 @@ func (a *Admin) form(r *http.Request, u mcp.Upstream, isNew bool, include bool) 
 		f.U.Kind = mcp.KindRemote
 	}
 	f.TokenMasked = httputil.Mask(u.GitToken)
+	if isNew || u.IsOpenAPI() {
+		f.OA = a.oaFormFor(r, u)
+	}
 	f.Source = u.GitURL
 	f.Suggest = a.suggestState(r)
+	f.CSRF, _ = a.Session(r)
 	return f
 }
 
@@ -1222,6 +1261,8 @@ func upstreamFromForm(r *http.Request) (mcp.Upstream, error) {
 		u.AuthName, u.AuthValue = strings.TrimSpace(r.PostFormValue("auth_name")), r.PostFormValue("auth_value")
 		u.HostOverride = strings.TrimSpace(r.PostFormValue("host_override"))
 		u.Headers = pairsFrom(r, "hdr_name", "hdr_value")
+	case mcp.KindOpenAPI:
+		openAPIInput(r, &u)
 	case mcp.KindStdio, mcp.KindGit:
 		// One managed type in the UI: a repository makes it a git upstream, otherwise a command.
 		// The source field carries the repository; the ref field overrides a ref given in the address.
@@ -1285,6 +1326,10 @@ func (a *Admin) upstreamSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	edit := r.PostFormValue("mode") == "edit"
+	if u.Kind == mcp.KindOpenAPI {
+		a.saveOpenAPI(w, r, u, edit, form)
+		return
+	}
 	if edit {
 		old, ok := a.MCP.Upstreams.Get(u.Alias)
 		if !ok {
