@@ -231,18 +231,30 @@ func migrate(db *sql.DB) error {
 			return err
 		}
 		if !has {
-			if _, err := db.Exec("ALTER TABLE " + m.table + " ADD COLUMN " + m.col + " " + m.typ); err != nil {
+			// The column and the one-time mapping of the old default flag go in together: stopped in between, the next
+			// start would see the column, skip the mapping, and the former default upstream would drop off /mcp.
+			legacy := false
+			if m.table == "upstreams" && m.col == "include_in_mcp" {
+				if legacy, err = hasColumn(db, "upstreams", "is_default"); err != nil {
+					return err
+				}
+			}
+			tx, err := db.Begin()
+			if err != nil {
 				return err
 			}
-			if m.table == "upstreams" && m.col == "include_in_mcp" {
-				// One time only: rows that were the default upstream stay reachable through /mcp.
-				if legacy, err := hasColumn(db, "upstreams", "is_default"); err != nil {
+			if _, err := tx.Exec("ALTER TABLE " + m.table + " ADD COLUMN " + m.col + " " + m.typ); err != nil {
+				tx.Rollback()
+				return err
+			}
+			if legacy {
+				if _, err := tx.Exec(`UPDATE upstreams SET include_in_mcp=1 WHERE is_default=1`); err != nil {
+					tx.Rollback()
 					return err
-				} else if legacy {
-					if _, err := db.Exec(`UPDATE upstreams SET include_in_mcp=1 WHERE is_default=1`); err != nil {
-						return err
-					}
 				}
+			}
+			if err := tx.Commit(); err != nil {
+				return err
 			}
 		}
 	}
