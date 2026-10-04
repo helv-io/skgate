@@ -27,13 +27,13 @@ Auto detection runs on save, on **detect**, and lazily on first use. 401/403 cou
 
 **Host override** (`hostname[:port]`, under **Advanced** in the form; shown in the alias's hover text when set) replaces the outbound `Host` header, for servers that validate it. Probes and Test honor it.
 
-**Test** runs `initialize`, `notifications/initialized` and `tools/list` with the effective auth and shows status, auth, latency, server, protocol and tools (first 100). Passthrough upstreams are tested without credentials.
+**Test** runs `initialize`, `notifications/initialized` and `tools/list` with the effective auth. The screen opens with one line (`OK · 3 tools · 435 ms`, or `failed · 435 ms`), then the buttons, then the details (status, auth, latency, server, protocol) and the tools (first 100). A filter box narrows the tools by name or description as you type, and each description is one line that opens to the rest of the text. Passthrough upstreams are tested without credentials.
 
 When the connection is refused or the name does not resolve, Test says so in words and adds a hint. For an upstream on a private network (a container name, a private address, `localhost`) it also looks for the usual MCP ports (3000, 8000, 8080 and similar) that are open on that host and asks each for an `initialize` on the configured path, so a wrong port is named with the port that answers. This runs only after a failure and never on public hosts. Saving a remote upstream that cannot be reached shows the same hint, without the host name, in the confirmation. Addresses appear only on the Test screen; MCP clients and the other admin screens get the failure in words (`connection refused`, `host name not found`, `timed out`).
 
 **Health.** The Status column of a remote upstream shows a pill: `ok`, `failing` (with the last error under it) or `no calls yet` (nothing has called it since skgate started). It follows the real calls, from clients and from Test. Managed upstreams show their process state instead. The Type column reads `remote`, `managed · git`, `managed · npm`, `managed · pypi` or `managed · command`.
 
-**List actions.** **Add upstream** opens its own page. Each row has **Test** and **Copy URL**; **Details**, **Edit** and **Delete** are in the ⋯ menu, and the name opens Details. The Details dialog has the same actions, with **process** (managed) or **detect** (remote). **Import JSON** and **Export JSON** are above the table; the endpoint URLs are at the top of the page.
+**List actions.** **Add upstream** opens its own page. Each row has **Test** and **Copy URL**; **Enabled** and **In /mcp** are switches (an on-demand server's **In /mcp** is dimmed because it can never be on /mcp); **Details**, **Edit** and **Delete** are in the ⋯ menu, and the name opens Details. The Details dialog has the same actions, with **process** (managed) or **detect** (remote). **Import JSON** and **Export JSON** are above the table; the endpoint URLs are at the top of the page.
 
 **Custom headers** (remote): name/value rows (up to 32), sent on every outbound request after the auth header. Values are encrypted at rest and shown masked.
 
@@ -67,7 +67,7 @@ How Suggest configuration works:
 - It uses the MCP helper model (pick it beside the button, or in the provider details dialog; the aliases defined in skgate (Model aliases) are listed after the models; an alias is stored as chosen and resolved to its model when the helper calls the provider, as for /v1 requests) and a fixed system prompt. Output is requested as a strict JSON schema and validated in Go; invalid output is rejected.
 - skgate fetches the README and manifests itself (`package.json`, `pyproject.toml`, `server.json`, ...) through the host's API, with the token when given. The model sees those documents, never the token; the token is not logged.
 - The model call is streamed, with the reasoning chosen in the MCP helper model dialog (auto: the model decides). It ends after the helper timeout without data (default 120 seconds, set next to the model; for models that look like heavy reasoners the dialog suggests 600) or after 5 minutes overall, twice the timeout when that is longer; the progress line then shows a timed-out state with the stage and elapsed time and a **Lower reasoning** button. A provider that rejects `reasoning_effort` gets the request again without it.
-- Validated suggestions use a command available on the host, name and pin the package, list only environment variables the documents mention, each marked secret or not and required or optional, and come with confidence and warnings. The variable fields start empty: the placeholder says Required or Optional, and secret ones are masked.
+- Validated suggestions use a command available on the host, name and pin the package, list only environment variables the documents mention, each marked secret or not and required or optional, and come with confidence and warnings. The result lists the warnings first, each with an icon, then the review line; the notes are folded under **Notes (n)**. The variable fields start empty: the placeholder says Required or Optional, and secret ones are masked.
 - Disabled, with a tooltip, until you are signed in and an MCP helper model is picked. **Pick MCP helper model** next to it opens the picker in place; the button enables without a page reload.
 
 ### Kinds
@@ -97,7 +97,7 @@ Env and header lists start with one row; **Add** appends rows, **Delete** remove
 
 ### JSON import and export
 
-Admin: upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}}` object, a bare name-to-server map, or a single server object. Aliases come from the keys, lowercased and sanitized. Each entry is reported as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
+Admin: upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}}` object, a bare name-to-server map, or a single server object. Aliases come from the keys, lowercased and sanitized. The field checks the JSON while you type and the **Import** button waits until it is valid. Each entry is reported as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
 
 ```json
 {
