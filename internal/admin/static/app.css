@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .codehost .gated .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .codehost .gated .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .desc-line .split .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -20,9 +20,11 @@ p{margin:6px 0}
 ul{margin:6px 0;padding-left:20px}li{margin:3px 0}
 details summary{cursor:pointer;margin:8px 0;list-style:none}
 details summary::-webkit-details-marker{display:none}
-/* a summary has no marker (no icons): a dotted underline says it opens, and it turns accent-coloured on hover and when open */
-details:not(.verbgroup)>summary{text-decoration:underline dotted var(--dim);text-underline-offset:3px}
-details:not(.verbgroup)>summary:hover,details[open]:not(.verbgroup)>summary{text-decoration-color:var(--acc)}
+/* a summary has no marker (no icons): a dotted underline says it opens, and it turns accent-coloured on hover and when open.
+   Only things that open get it: a details block always has content to show, and a .desc-line gets .expands from app.js only
+   while its text is cut off. Nothing else is underlined like this. */
+details:not(.verbgroup)>summary,.expands{text-decoration:underline dotted var(--dim);text-underline-offset:3px}
+details:not(.verbgroup)>summary:hover,details[open]:not(.verbgroup)>summary,.expands:hover,.expands.open{text-decoration-color:var(--acc)}
 
 /* top bar: always sticky, opaque, above the page and below menus, dialogs (top layer) and toasts. app.js keeps
    --header-h at its height so anchors and focus scrolling land below it. On phones it is one row (brand, current
@@ -67,6 +69,8 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 /* primary: the name; a long one wraps instead of pushing the row's actions out of view */
 .table td.primary{white-space:normal;overflow-wrap:anywhere;min-width:12ch}
 .table td.primary code{white-space:normal;overflow-wrap:anywhere;overflow-x:visible}
+/* split: a list of names and descriptions, about 30% / 70% (names wrap, the description gets the rest); phones get cards instead */
+@media (min-width:721px){.table.split th:first-child,.table.split td.primary{width:30%}.table.split th:last-child,.table.split td.wrap{width:70%}}
 /* trunc: the flexible column. max-width:0 lets the cell shrink to the space left (no horizontal
    scrollbar); long values end in an ellipsis and carry the full text in title. */
 .table td.trunc{width:32%;max-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -278,6 +282,9 @@ details.desc{min-width:0;flex:1 1 0}
 details.desc>summary{display:block;margin:0;padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--fg);list-style:none}
 details.desc[open]>summary{white-space:normal;overflow:visible}
 details.desc>p{margin:4px 0 0 1.2em;color:var(--dim);white-space:pre-line}
+.desc-line{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.desc-line.expands{cursor:pointer}
+.desc-line.open{white-space:normal;overflow:visible}
 /* suggest: output area of the configuration helper */
 .suggest-out{margin:0 0 12px}
 .suggest-out ul{margin:6px 0}
@@ -344,7 +351,7 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
 .modal .tablewrap{overflow-x:visible}
 
 /* low-priority columns drop out on narrower windows instead of forcing a horizontal scrollbar */
-@media (min-width:801px){.table td.wrap>details.desc{width:0;min-width:100%}}
+@media (min-width:801px){.table td.wrap>details.desc,.table td.wrap>.desc-line{width:0;min-width:100%}}
 @media (min-width:801px) and (max-width:1100px){.table th,.table td{padding-left:8px;padding-right:8px}}
 @media (max-width:800px){.table td.trunc{width:auto}}
 
