@@ -28,7 +28,7 @@ func TestFlashToastRendersOnceAndIsSigned(t *testing.T) {
 		t.Fatalf("flash cookie must be HttpOnly and short-lived: %+v", fc)
 	}
 	_, page := br.get("/admin/upstreams")
-	if !strings.Contains(page, `<div class="toast ok">upstream deleted</div>`) {
+	if !strings.Contains(page, `<div class="toast bad">unknown alias</div>`) {
 		t.Fatalf("toast not rendered:\n%s", page)
 	}
 	if _, again := br.get("/admin/upstreams"); strings.Contains(again, `class="toast`) {
