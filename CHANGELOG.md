@@ -10,8 +10,13 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Added
 
-- Skip check on the OpenAPI form saves without the connection check.
-- Add and Save check the connection with the first GET tool that needs no parameters and refuse a server that needs a key or refuses it.
+- Add and Save on an OpenAPI upstream check the connection with the first GET tool that needs no parameters, protected ones first. A server that needs a key or refuses the key is not saved, and the form keeps everything you entered.
+- Skip check on the OpenAPI form saves without the check.
+
+### Changed
+
+- An edit checks the connection only when the key, the base URL, the description or the enabled switch changed.
+- Test on an OpenAPI upstream fails with "the server needs a key" when no key is set and the server asks for one, instead of passing with a warning.
 
 ## [0.15.2] - 2026-10-04
 
