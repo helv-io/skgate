@@ -15,6 +15,7 @@ import (
 
 	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/reqlog"
+	"github.com/helv-io/skgate/internal/timefmt"
 	"github.com/helv-io/skgate/internal/vkeys"
 )
 
@@ -109,8 +110,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		if at, late := p.Keys.ExpiredAt(tok); late {
 			msg := vkeys.ExpiredMessage(at)
-			log.Printf("provider %s: virtual key expired %s (key ending %s) rejected %s %s", p.Backend.ID(), at.Local().Format(time.RFC3339), httputil.Mask(tok), r.Method, r.URL.Path)
-			reqlog.Reject(r, "virtual key expired %s (key ending %s)", at.Local().Format(time.RFC3339), httputil.Mask(tok))
+			log.Printf("provider %s: virtual key expired %s (key ending %s) rejected %s %s", p.Backend.ID(), timefmt.RFC3339(at), httputil.Mask(tok), r.Method, r.URL.Path)
+			reqlog.Reject(r, "virtual key expired %s (key ending %s)", timefmt.RFC3339(at), httputil.Mask(tok))
 			w.Header().Set("WWW-Authenticate", `Bearer realm="skgate", error="invalid_token", error_description="API key expired"`)
 			httputil.JSON(w, http.StatusUnauthorized, map[string]any{"error": map[string]any{"message": msg, "type": "invalid_api_key", "code": "api_key_expired"}})
 			return

@@ -491,6 +491,7 @@ func (a *Admin) keyCreate(w http.ResponseWriter, r *http.Request) {
 		err = a.Keys.SetLimits(k.ID, rate, expires)
 	}
 	if err != nil {
+		a.MCP.Log.Printf("admin: key create failed: %v", err)
 		a.back(w, r, "/admin/keys", "", "create failed")
 		return
 	}
@@ -580,7 +581,7 @@ func expiresLog(t time.Time) string {
 	if t.IsZero() {
 		return "never"
 	}
-	return t.Format(time.RFC3339)
+	return timefmt.RFC3339(t)
 }
 
 // keyRegenerate swaps the secret of an active key and shows the new one once (rendered directly,
@@ -1588,6 +1589,7 @@ func (a *Admin) clientCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := a.MCP.Clients.Create(mcp.Client{ID: "skc-" + httputil.RandString(24), Name: name, RedirectURIs: uris, AuthMethod: method, Source: "admin"}, secret)
 	if err != nil {
+		a.MCP.Log.Printf("admin: client create failed: %v", err)
 		a.back(w, r, "/admin/clients", "", "create failed")
 		return
 	}

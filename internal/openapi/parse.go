@@ -120,7 +120,7 @@ func normalize(v any) any {
 	case float32:
 		return float64(x)
 	case time.Time:
-		return x.Format(time.RFC3339)
+		return x.UTC().Format(time.RFC3339) // data in a description, not a displayed time
 	case float64:
 		if math.IsNaN(x) || math.IsInf(x, 0) {
 			return nil
