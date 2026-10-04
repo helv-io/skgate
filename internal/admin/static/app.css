@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -67,8 +67,6 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 .table td.trunc{width:32%;max-width:0;overflow:hidden;text-overflow:ellipsis}
 .table td.trunc .chip{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
 .table td.trunc .sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.table td.min{width:1%}
-.table td.num{text-align:right}
 .table.kv th{width:1%;white-space:nowrap;text-transform:none;letter-spacing:0;font-size:14px;font-weight:400;color:var(--dim);background:none;height:auto;border-bottom:1px solid var(--line2)}
 .table.kv td{white-space:normal;overflow-wrap:anywhere}
 .empty{color:var(--dim);text-align:center}
@@ -99,13 +97,14 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
    buttons of one column line up across rows whatever their label (edit, test, process, detect, delete) */
 .table .actions .act{min-width:5.5em;text-align:center}
 .act,button,input[type=submit]{font:inherit;font-size:14px;color:var(--fg);background:#131518;border:1px solid var(--line);padding:3px 10px;line-height:20px;cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap}
+.act:disabled,button:disabled,.btn:disabled{opacity:.45;cursor:not-allowed}
 .act:hover,button:hover{border-color:var(--acc);color:var(--acc);text-decoration:none;background:var(--hover)}
 .act.accent,button.accent{color:var(--acc);border-color:var(--acc)}
 /* danger: red at rest (touch screens have no hover), brighter border and a red wash on hover */
 .act.danger,button.danger{color:var(--bad);border-color:#5a3532}
 .act.danger:hover,button.danger:hover{border-color:var(--bad);color:var(--bad);background:#211514}
 .act.small,button.small{padding:1px 8px;font-size:12px}
-.act.plain,button.link{border:0;background:none;padding:0;color:var(--acc)}
+.act.plain{border:0;background:none;padding:0;color:var(--acc)}
 /* toggle: a switch. The button is role=switch (aria-checked), a track with a knob (on: green, knob right; off:
    neutral, knob left) beside its label. A disabled switch is dimmed, shows no pointer and does not react to hover. */
 .act.toggle{display:inline-flex;align-items:center;gap:8px;color:var(--dim);background:#131518}
@@ -164,7 +163,7 @@ a.name:hover code{border-color:var(--acc);color:var(--acc)}
 .field>label:first-child,.field>.label:first-child{margin-top:0}
 label.check{display:inline-flex;align-items:center;gap:6px;margin:0 16px 0 0;color:var(--fg)}
 input,select,textarea{font:inherit;color:var(--fg);background:#0c0d0f;border:1px solid var(--line);padding:5px 8px}
-input[type=text],input[type=password],input[type=url],input[type=search],textarea,select{width:100%;display:block}
+input[type=text],input[type=password],input[type=url],input[type=search],input[type=number],textarea,select{width:100%;display:block}
 /* focus: one visible ring for everything the keyboard reaches (fields, quick buttons, links, menu items); a field
    also takes the accent border. Inside a menu or the nav panel the ring sits inside the item, so nothing clips it. */
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
@@ -193,7 +192,6 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 /* group: fields that apply to one upstream kind; the form script shows the group of the selected kind */
 .group{border-left:2px solid var(--line);padding-left:12px;margin:0 0 12px}
 [hidden]{display:none!important}
-.stack>*+*{margin-top:12px}
 
 /* toasts: fixed at the bottom right, one shared component for every notification; app.js expires and dismisses them */
 .toasts{position:fixed;bottom:14px;right:14px;z-index:var(--z-toast);display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 28px))}
@@ -208,7 +206,7 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .modal::backdrop{background:#000a}
 .modal h3{margin:0;font-size:14px;font-weight:600}
 .modal>p{margin:0 0 14px;color:var(--dim);overflow-wrap:anywhere}
-.modal .actions{justify-content:flex-end}
+.modal .actions[data-modal-actions]{justify-content:flex-end}
 .act.confirm-danger{color:var(--bad);border-color:#5a3532;background:#211514}
 .act.confirm-danger:hover{color:#fff;border-color:var(--bad)}
 
@@ -329,15 +327,14 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
 .modal .tablewrap{overflow-x:visible}
 
 /* low-priority columns drop out on narrower windows instead of forcing a horizontal scrollbar */
-@media (max-width:1100px){.hide-md{display:none}}
 @media (min-width:801px){.table td.wrap>details.desc{width:0;min-width:100%}}
 @media (min-width:801px) and (max-width:1100px){.table th,.table td{padding-left:8px;padding-right:8px}}
-@media (max-width:800px){.hide-sm{display:none}.table td.trunc{width:auto}}
+@media (max-width:800px){.table td.trunc{width:auto}}
 
 /* Phones: every list table (.table without .kv) becomes a stack of cards, from markup alone.
    A cell carries data-label (its column name, shown beside the value). Cell roles:
    .primary = the card title (no label), .status = pills beside the title (no label),
-   .actions-cell = the button row at the bottom (no label). .compact keeps rows short and unlabeled (log lines). */
+   .actions-cell = the button row at the bottom (no label). */
 @media (max-width:720px){
   main{padding:10px 10px 32px}
   .tablewrap{overflow:visible}
@@ -361,20 +358,14 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .table:not(.kv) td.actions-cell .actions>.act{flex:1 1 0;min-width:0}
   .table:not(.kv) td.empty{justify-content:center;flex-basis:100%}
   .table:not(.kv) td.empty::before{content:none}
-  .table:not(.kv) td.num{text-align:left}
-  .table:not(.kv) td.hide-md,.table:not(.kv) td.hide-sm{display:flex}
   .table:not(.kv) code,.table:not(.kv) .code{white-space:normal;overflow-wrap:anywhere;overflow-x:visible;max-width:100%}
   .table:not(.kv) td.trunc .chip{max-width:100%;white-space:normal}
-  /* compact: log lines and similar, no labels, time and source side by side */
-  .table.compact:not(.kv) tr{padding:9px 12px;margin:0 0 6px;gap:4px 10px}
-  .table.compact:not(.kv) td[data-label]::before{content:none}
-  .table.compact:not(.kv) td{flex:0 0 auto}
-  .table.compact:not(.kv) td.wrap{flex:1 1 100%;min-width:0}
   /* buttons: large tap targets, two per line, the row wraps */
   .actions{flex-wrap:wrap;gap:8px;width:100%;white-space:normal}
   .actions form{flex:1 1 40%;display:flex}
   .actions form .act,.actions form button{flex:1}
   .table .actions .act,.actions .act{flex:1 1 40%;min-width:0;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:6px 12px}
+  a.btn,a.act{display:inline-flex;align-items:center;justify-content:center}
   /* touch targets: every control is at least 44px tall and wide, one shared size (the sweep measures them) */
   .act,button,input[type=submit],.act.small,button.small,.btn,a.btn{min-height:44px;min-width:44px}
   .table:not(.kv) td .act.toggle{min-width:8em;justify-content:flex-start}
@@ -393,7 +384,7 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   header[data-collapsed] .nav-panel{display:none}
   .nav-panel a{display:flex;align-items:center;min-height:44px;padding:0 16px;text-align:left;border-right:0;border-bottom:1px solid var(--line2)}
   .nav-panel a.on{box-shadow:inset 3px 0 0 var(--acc)}
-  .nav-panel a.ver{margin-left:0;padding:0 16px}
+  .nav-panel a.ver{margin-left:0;padding:0 16px;align-self:stretch}
   .nav-panel .who{align-self:stretch;display:flex;align-items:center;min-height:44px;padding:0 16px;border-bottom:1px solid var(--line2)}
   .nav-panel form{display:block;margin:0}
   .nav-panel form .act{display:flex;align-items:center;width:100%;min-height:44px;padding:0 16px;border:0}
