@@ -46,7 +46,7 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await wait(150);
   q = await pg.evaluate(() => ({ open: document.querySelector("dialog").open, title: document.querySelector("[data-modal-title]").textContent, hash: location.hash, acts: [...document.querySelectorAll("dialog [data-modal-body] .actions > *")].map(e => e.textContent.trim()) }));
   ok(q.open && q.title === "Upstream alpha" && q.hash === "#upstream-alpha", "Details opens the dialog: " + JSON.stringify(q));
-  ok(q.acts.join() === "copy URL,test,detect,edit,delete" || q.acts.join() === "test,detect,edit,delete" , "the dialog has the row's actions: " + q.acts);
+  ok(q.acts.join() === "Copy URL,Test,Detect,Edit,Delete" || q.acts.join() === "Test,Detect,Edit,Delete" , "the dialog has the row's actions: " + q.acts);
   await pg.keyboard.press("Escape");
   await wait(150);
   // the name opens the same dialog

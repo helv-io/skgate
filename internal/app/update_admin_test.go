@@ -91,7 +91,7 @@ func TestAdminUpdateTrackingAutoUpdateAndCheck(t *testing.T) {
 	}
 	_, list = br.get("/admin/upstreams")
 	_, page = br.get("/admin/upstreams/repo/logs")
-	if !strings.Contains(list, "\nupdate available") || !strings.Contains(list, `class="pill warn" title="the remote ref is ahead of the installed commit">update</span>`) || !regexp.MustCompile(`class="act accent">update</button>`).MatchString(page) {
+	if !strings.Contains(list, "\nupdate available") || !strings.Contains(list, `class="pill warn" title="the remote ref is ahead of the installed commit">update</span>`) || !regexp.MustCompile(`class="act accent">Update</button>`).MatchString(page) {
 		t.Fatal("update available must show on the list and emphasize the button")
 	}
 	if r, _ := br.get("/admin/upstreams/repo/process?action=check"); r.StatusCode != 405 {

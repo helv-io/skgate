@@ -124,7 +124,7 @@ func TestKeyRowHasOneAction(t *testing.T) {
 	if strings.Contains(table, "<form") || strings.Count(table, "data-dialog-open") != 2 {
 		t.Errorf("the table rows hold one dialog button each and no forms:\n%s", table)
 	}
-	if !strings.Contains(table, ">edit</button>") || !strings.Contains(table, ">details</button>") {
+	if !strings.Contains(table, ">Edit</button>") || !strings.Contains(table, ">Details</button>") {
 		t.Error("an active key says edit, a revoked one details")
 	}
 	if strings.Count(page, `action="/admin/keys/update"`) != 1 || strings.Count(page, `action="/admin/keys/revoke"`) != 1 {

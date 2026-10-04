@@ -17,16 +17,16 @@
 {{$run := or (eq .Proc.State "running") (eq .Proc.State "starting")}}
 <div class="action-groups">
 <div class="action-group"><div class="group-label">Lifecycle</div><div class="actions" role="group" aria-label="Lifecycle">
-{{if $run}}{{template "proc_action" (procAction $.CSRF .Alias "restart" "restart" "" "")}}{{template "proc_action" (procAction $.CSRF .Alias "stop" "stop" "danger" "Stop the process? It stays stopped until started.")}}
-{{else if .Enabled}}{{template "proc_action" (procAction $.CSRF .Alias "start" "start" "" "")}}
+{{if $run}}{{template "proc_action" (procAction $.CSRF .Alias "restart" "Restart" "" "")}}{{template "proc_action" (procAction $.CSRF .Alias "stop" "Stop" "danger" "Stop the process? It stays stopped until started.")}}
+{{else if .Enabled}}{{template "proc_action" (procAction $.CSRF .Alias "start" "Start" "" "")}}
 {{else}}<span class="muted">disabled: enable the upstream to start it</span>{{end}}</div></div>
 <div class="action-group"><div class="group-label">Maintenance</div><div class="actions" role="group" aria-label="Maintenance">
-{{$cls := ""}}{{if .Proc.Upd.Available}}{{$cls = "accent"}}{{end}}{{template "proc_action" (procAction $.CSRF .Alias "update" "update" $cls (updateConfirm .Kind))}}
-{{if eq .Kind "git"}}{{template "proc_action" (procAction $.CSRF .Alias "check" "check" "" "")}}{{end}}</div></div>
+{{$cls := ""}}{{if .Proc.Upd.Available}}{{$cls = "accent"}}{{end}}{{template "proc_action" (procAction $.CSRF .Alias "update" "Update" $cls (updateConfirm .Kind))}}
+{{if eq .Kind "git"}}{{template "proc_action" (procAction $.CSRF .Alias "check" "Check" "" "")}}{{end}}</div></div>
 <div class="action-group"><div class="group-label">Go to</div><div class="actions" role="group" aria-label="Go to">
-<a class="act" href="/admin/upstreams/{{.Alias}}/test">test</a><a class="act" href="/admin/upstreams">back</a></div></div>
+<a class="act" href="/admin/upstreams/{{.Alias}}/test">Test</a><a class="act" href="/admin/upstreams">Back</a></div></div>
 <div class="action-group danger-group"><div class="group-label">Danger</div><div class="actions" role="group" aria-label="Danger">
-{{template "proc_action" (procAction $.CSRF .Alias "clear-logs" "clear logs" "danger" "Clear the captured output?")}}</div></div>
+{{template "proc_action" (procAction $.CSRF .Alias "clear-logs" "Clear logs" "danger" "Clear the captured output?")}}</div></div>
 </div>
 {{end}}
 <h2>Output</h2>
@@ -35,17 +35,17 @@
 <div class="logbar">
 <input type="search" aria-label="Filter lines" placeholder="Filter lines (text, or /regex/)" autocomplete="off" spellcheck="false" data-log-filter>
 <select aria-label="Level" data-log-level{{if not .Levels}} hidden{{end}}><option value="">all levels</option><option value="info">info and above</option><option value="warn">warnings and errors</option><option value="error">errors only</option></select>
-<button type="button" class="act toggle" aria-pressed="false" data-log-stderr title="Show only what the process wrote to stderr, plus skgate's own notes">stderr only</button>
-<button type="button" class="act toggle" aria-pressed="false" data-log-time title="Show times as a clock or as how long ago">times: clock</button>
-<button type="button" class="act" data-copy="#log-copy" data-copied="Copied the shown lines">copy</button>
-<a class="act" href="/admin/upstreams/{{.U.Alias}}/logs/download" download>download</a>
+<button type="button" class="act toggle" aria-pressed="false" data-log-stderr title="Show only what the process wrote to stderr, plus skgate's own notes">Stderr only</button>
+<button type="button" class="act toggle" aria-pressed="false" data-log-time title="Show times as a clock or as how long ago">Times: clock</button>
+<button type="button" class="act" data-copy="#log-copy" data-copied="Copied the shown lines">Copy</button>
+<a class="act" href="/admin/upstreams/{{.U.Alias}}/logs/download" download>Download</a>
 <span class="muted" data-log-count aria-live="polite"></span>
 </div>
 <div class="logwrap">
 <div class="logview" id="log-view" role="log" aria-label="Process output" tabindex="0" data-log-view>
 {{range .Lines}}{{if .Start}}<div class="logdivider" role="separator" data-run="{{.Run}}"><span class="logmark">{{.Mark}}</span> <span class="muted">{{.Full}}</span></div>{{end}}<div class="logline" data-id="{{.ID}}" data-run="{{.Run}}" data-src="{{.Src}}"{{if .Level}} data-lvl="{{.Level}}"{{end}} data-ms="{{.Ms}}"><time class="logtime" title="{{.Full}}">{{.Abs}}</time><span class="logsrc">{{.Src}}</span><span class="logtext">{{.Text}}</span>{{if .Trunc}}<span class="chip">cut</span>{{end}}</div>{{end}}
 </div>
-<button type="button" class="act accent logjump" data-log-jump hidden>jump to latest</button>
+<button type="button" class="act accent logjump" data-log-jump hidden>Jump to latest</button>
 </div>
 <p class="muted" data-log-empty{{if .Lines}} hidden{{end}}>No output yet. Lines appear here as the process writes them.</p>
 <pre id="log-copy" hidden></pre>

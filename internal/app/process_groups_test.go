@@ -29,24 +29,24 @@ func TestProcessPageGroupsItsButtons(t *testing.T) {
 	_, br, csrf := managedApp(t)
 	br.post("/admin/upstreams/save", stdioForm(csrf, "tools", nil))
 	_, page := br.get("/admin/upstreams/tools/logs")
-	if got := strings.Join(groupOf(t, page, "Lifecycle"), ","); got != "start" {
+	if got := strings.Join(groupOf(t, page, "Lifecycle"), ","); got != "Start" {
 		t.Errorf("stopped: lifecycle = %q, want start", got)
 	}
 	br.get("/admin/upstreams/tools/test") // starts it
 	_, page = br.get("/admin/upstreams/tools/logs")
-	if got := strings.Join(groupOf(t, page, "Lifecycle"), ","); got != "restart,stop" {
+	if got := strings.Join(groupOf(t, page, "Lifecycle"), ","); got != "Restart,Stop" {
 		t.Errorf("running: lifecycle = %q, want restart,stop", got)
 	}
 	if !strings.Contains(page, `data-confirm="Stop the process? It stays stopped until started."`) {
 		t.Error("stop still asks first")
 	}
-	if got := strings.Join(groupOf(t, page, "Maintenance"), ","); got != "update" {
+	if got := strings.Join(groupOf(t, page, "Maintenance"), ","); got != "Update" {
 		t.Errorf("maintenance (stdio) = %q, want update", got)
 	}
-	if got := strings.Join(groupOf(t, page, "Go to"), ","); got != "test,back" {
+	if got := strings.Join(groupOf(t, page, "Go to"), ","); got != "Test,Back" {
 		t.Errorf("go to = %q", got)
 	}
-	if got := strings.Join(groupOf(t, page, "Danger"), ","); got != "clear logs" || !strings.Contains(page, `<button class="act danger">clear logs</button>`) {
+	if got := strings.Join(groupOf(t, page, "Danger"), ","); got != "Clear logs" || !strings.Contains(page, `<button class="act danger">Clear logs</button>`) {
 		t.Errorf("danger = %q", got)
 	}
 	last := -1

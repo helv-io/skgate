@@ -212,7 +212,7 @@ func TestAddUpstreamHasItsOwnPage(t *testing.T) {
 	}
 	resp, page := br.get("/admin/upstreams/new")
 	if resp.StatusCode != 200 || !strings.Contains(page, "<h2>Add upstream</h2>") || !strings.Contains(page, `name="mode" value="new"`) ||
-		!strings.Contains(page, `action="/admin/upstreams/save"`) || !strings.Contains(page, `<a class="act" href="/admin/upstreams">cancel</a>`) {
+		!strings.Contains(page, `action="/admin/upstreams/save"`) || !strings.Contains(page, `<a class="act" href="/admin/upstreams">Cancel</a>`) {
 		t.Errorf("the add page is incomplete (%d)", resp.StatusCode)
 	}
 	resp, _ = br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"bad alias!"}, "url": {"http://x.example/mcp"}})

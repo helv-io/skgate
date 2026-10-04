@@ -45,7 +45,7 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await wait(600);
   inv = await pg.evaluate(() => { const i = document.querySelector("[data-modal-body] [data-expiry-input]"); return [i.getAttribute("aria-invalid"), i.form.checkValidity()]; });
   ok(inv[0] === null && inv[1] === true, "clearing it lifts the mark " + inv);
-  ok(lay.zone && lay.head === "Danger zone" && lay.belowSave && lay.aboveDetails && !lay.outside && lay.both === "regenerate,revoke", "the Danger zone is below Save and above Details with both actions " + JSON.stringify(lay));
+  ok(lay.zone && lay.head === "Danger zone" && lay.belowSave && lay.aboveDetails && !lay.outside && lay.both === "Regenerate,Revoke", "the Danger zone is below Save and above Details with both actions " + JSON.stringify(lay));
   // Cancel goes back to the dialog
   await clickIn("[data-modal-body] form[action$='/keys/revoke'] button");
   await wait(150);

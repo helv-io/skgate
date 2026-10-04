@@ -1,7 +1,7 @@
 {{define "body"}}{{with .Data}}
 <h2>Test upstream <code>{{.U.Alias}}</code></h2>
 <div class="row">{{if .R.OK}}{{template "pill" (pill "ok" (printf "OK \u00b7 %d %s \u00b7 %s" .R.ToolTotal (plural .R.ToolTotal "tool" "tools") (latency .R.Latency)) "")}}{{else}}{{template "pill" (pill "bad" (printf "failed \u00b7 %s" (latency .R.Latency)) "")}}{{end}}{{if .R.ToolsCapped}}<span class="muted">tool list capped</span>{{end}}</div>
-<div class="actions"><a class="act" href="/admin/upstreams">back</a>{{if .U.Managed}}<a class="act" href="/admin/upstreams/{{.U.Alias}}/logs">process</a>{{end}}
+<div class="actions"><a class="act" href="/admin/upstreams">Back</a>{{if .U.Managed}}<a class="act" href="/admin/upstreams/{{.U.Alias}}/logs">Process</a>{{end}}
 <a class="btn" href="/admin/upstreams/{{.U.Alias}}/test">Test again</a></div>
 <div class="card flush tablewrap"><table class="table kv"><tbody>
 {{if .R.Error}}<tr><th>Error</th><td class="bad">{{.R.Error}}</td></tr>{{end}}

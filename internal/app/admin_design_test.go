@@ -77,7 +77,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 			t.Errorf("upstreams page still has %q", gone)
 		}
 	}
-	for _, want := range []string{"type: remote\nurl: " + up.URL + "/a/very/long/path", "type: managed \u00b7 command\ncommand: " + os.Args[0], "type: managed \u00b7 git\nsource: https://git.example.com/org/repo.git\ncommand: python3 -m srv", ">detect</button>"} {
+	for _, want := range []string{"type: remote\nurl: " + up.URL + "/a/very/long/path", "type: managed \u00b7 command\ncommand: " + os.Args[0], "type: managed \u00b7 git\nsource: https://git.example.com/org/repo.git\ncommand: python3 -m srv", ">Detect</button>"} {
 		if !strings.Contains(ups, want) {
 			t.Errorf("upstreams page lacks %q", want)
 		}
