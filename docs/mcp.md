@@ -10,6 +10,7 @@ Managed in the admin UI. Each has an alias (`a-z`, `0-9`, `-`), a type, and two 
 | --- | --- |
 | Remote | Proxies to a Streamable HTTP URL with outbound auth, optional custom headers and host override. |
 | Managed | Runs an MCP server from a package or a git repository as a child process and bridges its stdin/stdout to HTTP. [Managed upstreams](#managed-upstreams). |
+| OpenAPI | Turns a REST API described by an OpenAPI document into MCP tools; skgate makes the HTTP calls itself. [OpenAPI upstreams](openapi.md). |
 
 All types are served the same way: `/mcp/<alias>` (unprefixed), the aggregating `/mcp` (prefixed `<alias>-`), Test, keys and OAuth.
 
@@ -31,7 +32,7 @@ Auto detection runs on save, on **detect**, and lazily on first use. 401/403 cou
 
 When the connection is refused or the name does not resolve, Test says so in words and adds a hint. For an upstream on a private network (a container name, a private address, `localhost`) it also looks for the usual MCP ports (3000, 8000, 8080 and similar) that are open on that host and asks each for an `initialize` on the configured path, so a wrong port is named with the port that answers. This runs only after a failure and never on public hosts. Saving a remote upstream that cannot be reached shows the same hint, without the host name, in the confirmation. Addresses appear only on the Test screen; MCP clients and the other admin screens get the failure in words (`connection refused`, `host name not found`, `timed out`).
 
-**Health.** The Status column of a remote upstream shows a pill: `ok`, `failing` (with the last error under it) or `no calls yet` (nothing has called it since skgate started). It follows the real calls, from clients and from Test. Managed upstreams show their process state instead. The Type column reads `remote`, `managed · git`, `managed · npm`, `managed · pypi` or `managed · command`.
+**Health.** The Status column of a remote upstream shows a pill: `ok`, `failing` (with the last error under it) or `no calls yet` (nothing has called it since skgate started). It follows the real calls, from clients and from Test. Managed upstreams show their process state instead. OpenAPI upstreams show their tool count instead (green, amber or red, see [OpenAPI upstreams](openapi.md#many-tools-are-a-cost-the-counter)). The Type column reads `remote`, `managed · git`, `managed · npm`, `managed · pypi`, `managed · command` or `OpenAPI`.
 
 **List actions.** **Add upstream** opens its own page. Each row has **Test** and **Copy URL**; **Enabled** and **In /mcp** are switches (an on-demand server's **In /mcp** is dimmed because it can never be on /mcp); **Details**, **Edit** and **Delete** are in the ⋯ menu, and the name opens Details. The Details dialog has the same actions, with **process** (managed) or **detect** (remote). **Import JSON** and **Export JSON** are above the table; the endpoint URLs are at the top of the page.
 
