@@ -13,6 +13,7 @@ import (
 	"github.com/helv-io/skgate/internal/managed"
 	"github.com/helv-io/skgate/internal/reqlog"
 	"github.com/helv-io/skgate/internal/store"
+	"github.com/helv-io/skgate/internal/timefmt"
 	"github.com/helv-io/skgate/internal/vkeys"
 )
 
@@ -208,7 +209,7 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 				return true, true
 			}
 			if at, late := s.Keys.ExpiredAt(tok); late {
-				reqlog.Reject(r, "invalid token: virtual key expired %s (key ending %s)", at.Local().Format(time.RFC3339), tokTail(tok))
+				reqlog.Reject(r, "invalid token: virtual key expired %s (key ending %s)", timefmt.RFC3339(at), tokTail(tok))
 			} else {
 				reqlog.Reject(r, "invalid token: virtual key is unknown or revoked (key ending %s)", tokTail(tok))
 			}
@@ -227,7 +228,7 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 			return true, true
 		}
 		if at, late := s.Keys.ExpiredAt(k); late {
-			reqlog.Reject(r, "invalid token: X-API-Key is a virtual key that expired %s", at.Local().Format(time.RFC3339))
+			reqlog.Reject(r, "invalid token: X-API-Key is a virtual key that expired %s", timefmt.RFC3339(at))
 		} else {
 			reqlog.Reject(r, "invalid token: X-API-Key is not a valid virtual key")
 		}
@@ -242,7 +243,7 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 			return true, true
 		} else {
 			if at, late := s.Keys.ExpiredAt(k); late {
-				reqlog.Reject(r, "invalid token: ?key= is a virtual key that expired %s", at.Local().Format(time.RFC3339))
+				reqlog.Reject(r, "invalid token: ?key= is a virtual key that expired %s", timefmt.RFC3339(at))
 			} else {
 				reqlog.Reject(r, "invalid token: ?key= is not a valid virtual key")
 			}

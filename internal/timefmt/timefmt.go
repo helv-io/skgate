@@ -39,6 +39,9 @@ func Long(t time.Time) string { return t.Local().Format(longLayout) }
 // Log is the prefix layout of skgate's own log lines, "2026/10/02 19:04:05".
 func Log(t time.Time) string { return t.Local().Format(logLayout) }
 
+// RFC3339 is "2026-10-02T19:04:05-04:00" in the local zone, for log lines that name a moment.
+func RFC3339(t time.Time) string { return t.Local().Format(time.RFC3339) }
+
 // Zone names the active zone for the startup line, for example "America/New_York (EDT)".
 func Zone() string {
 	name := time.Local.String()
