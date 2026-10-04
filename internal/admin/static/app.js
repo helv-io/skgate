@@ -1127,7 +1127,7 @@ function frontierHint(form) {
   }
   function stampAll() { Array.prototype.forEach.call(lines(), stamp); }
   function mode() {
-    timeBtn.textContent = relative ? "times: ago" : "times: clock";
+    timeBtn.textContent = relative ? "Times: ago" : "Times: clock";
     timeBtn.classList.toggle("on", relative);
     timeBtn.setAttribute("aria-pressed", relative ? "true" : "false");
   }
