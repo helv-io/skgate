@@ -142,7 +142,7 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 			a.back(w, r, form, "", "give the address of the OpenAPI description or paste it")
 			return
 		}
-		d, err := openapi.Parse([]byte(cfg.Spec))
+		d, err := openapi.ParseStored([]byte(cfg.Spec))
 		if err != nil {
 			a.back(w, r, form, "", err.Error())
 			return
