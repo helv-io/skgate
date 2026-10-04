@@ -54,11 +54,13 @@ skgate must work out of the box. Users are not security experts.
 - Reasoning: the dropdown labelled "Reasoning" (auto = the model decides, low, medium, high; a stored "default" still reads as auto) sits directly under the model dropdown inside the shared `model_picker`, same form so one Save covers both, no one-off CSS (`.pick`). It belongs to the MCP helper model only and defaults to auto; a choice saved earlier keeps working. There is no reasoning setting for chat: proxied requests go through as the client wrote them. A provider that rejects `reasoning_effort` gets the Suggest request again without it.
 - Helper timeout: a number field in the same picker (seconds without an answer, default 120, any whole number), with a note that more capable models take longer. For models that look like heavy reasoners (`provider.LooksFrontier`, by name) the picker suggests 600 s as text only; a suggestion is never applied for the user.
 - A Suggest timeout (silence or overall cap) shows a distinct state with the stage and elapsed time, the toast reason, and a Lower reasoning button that opens the helper model dialog. The log line names the same stage and reasoning.
+- The process output is one viewer (`.logbar`, `.logview`, `.logline`, `.logdivider` in `app.css`, `[data-log]` in `app.js`): the page renders the kept lines, then follows a server-sent stream that exists only while the page is open (resumed with `Last-Event-ID`). Scrolling up stops following and offers "jump to latest". stdout, stderr and skgate's own lines are tinted and also named. Filters (text or `/regex/`, level, stderr only), the clock/ago toggle, copy (the shown lines) and download live in the bar; clear logs stays a danger action. New output features extend this viewer, not a second one.
 - Icons live in `internal/admin/static/` (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, PNG sizes). Swap the files, keep the names.
 
 ## Security
 
 - Secrets are never logged, never put in URLs, never sent to a model.
+- Process output keeps the current and the previous run only, at most `LOG_LINES` (1000) lines or 512 KB, with lines cut at about 4 KB. Values of environment variables not marked plain, and the git token, are masked before a line is stored in memory or in `<MANAGED_DIR>/.logs/`. No cross-upstream search, no long-term storage.
 - Never run `uv` or `npm` as root in the container. Managed servers run as `nobody` (65534), which owns the cache directory.
 - Never edit stack YAML in docs or automation. Suggest the change instead.
 

@@ -133,14 +133,17 @@ Admin: upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}
 | `running` | Answering. Shows PID, uptime and restart count. |
 | `failed` | Start error or crash loop. Shows the last error. |
 
-- The process page, opened from **process** in the upstream's Details, groups its buttons. **Lifecycle** shows only what applies: **Start** when the process is stopped, **Restart** and **Stop** while it runs (nothing when the upstream is disabled). **Maintenance** has **Update** and, for git, **Check**. **Go to** has Test, Refresh and Back. **Clear logs** is alone in the **Danger** group. An admin **Stop** holds the process stopped until Start or Restart.
+- The process page, opened from **process** in the upstream's Details, groups its buttons. **Lifecycle** shows only what applies: **Start** when the process is stopped, **Restart** and **Stop** while it runs (nothing when the upstream is disabled). **Maintenance** has **Update** and, for git, **Check**. **Go to** has Test and Back. **Clear logs** is alone in the **Danger** group. An admin **Stop** holds the process stopped until Start or Restart.
 - A crashed child restarts with exponential backoff (1 s doubling to 30 s). Five crashes in a row mark it `failed`; a run of 30 s or more resets the count. A failed upstream is retried by a request at most every 30 s.
 - Editing the command, args, env, install step or repository replaces the process.
 - Stop sends SIGTERM to the child's process group, then SIGKILL after 5 seconds, so grandchildren do not leak. The same happens for every child when skgate exits.
 - The status is a compact pill; PID, uptime, restarts and the last error are in its hover text.
 - `MANAGED_MAX_PROCS` caps concurrent children (default `0`, unlimited). At the cap, further starts fail with a clear error until one stops.
 - **Test** starts the process if needed, then runs `initialize` and `tools/list`.
-- **Logs** (process page) shows the last lines of the child's stderr from a bounded in-memory ring (2000 lines). Lines are also written to skgate's log as `managed[alias] stderr: ...`. Env values and the git token are redacted.
+- **Output** (process page) is the live log of the child: its stdout lines that are not MCP traffic, its stderr, the install and git steps, and skgate's own lifecycle lines (starting, started with the pid, stopped or exited with the status or signal, restarting). The page shows the lines already kept, then follows new ones while it is open (nothing is streamed once you leave). Scroll up and it stops following; **jump to latest** returns. stdout, stderr and skgate's lines are tinted differently, and the source is written beside each line. A divider marks where each run started (**since last start**, **previous run**).
+  - **Filter** the lines by text, or by `/regex/` (case-insensitive), by level (when the lines carry one: `level=warn`, `"level":"error"`, `[ERROR]`; a line without a level, such as a stack trace, takes the level of the line before it) and with **stderr only**. **times** switches between the clock (in the configured `TZ`) and "5 s ago". **copy** copies the lines shown, **download** saves the whole kept output as a text file.
+  - **Retention.** Each process keeps the lines of its current and its previous run only, at most `LOG_LINES` lines (default 1000) or 512 KB, whichever is smaller; a line is cut at about 4 KB and marked **cut**. The log is kept in memory and written to `<MANAGED_DIR>/.logs/<alias>.json` (private to skgate) when a run ends, so it survives a restart of skgate. Deleting the upstream removes the file. **Clear logs** empties both.
+  - **Secrets.** Values of environment variables not marked plain (that is, shown masked in the form), and the git token, are replaced by `[redacted]` before a line is stored. Plain values (URLs, hosts, ports) are not. Lines are also written to skgate's own log as `managed[alias] stderr: ...`.
 
 ### Updates
 
