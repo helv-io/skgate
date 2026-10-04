@@ -411,6 +411,10 @@ func TestOpenAPIAddByBaseAddressFindsTheDescription(t *testing.T) {
 			fmt.Fprint(w, `{"openapi":"3.0.3","info":{"title":"Meals","version":"1"},"servers":[{"url":"http://localhost:9000"}],"paths":{"/recipes":{"get":{"operationId":"list","responses":{"200":{"description":"ok"}}}}}}`)
 			return
 		}
+		if r.URL.Path == "/recipes" {
+			fmt.Fprint(w, `[]`)
+			return
+		}
 		http.NotFound(w, r)
 	}))
 	defer ts.Close()

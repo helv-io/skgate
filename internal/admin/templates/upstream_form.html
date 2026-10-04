@@ -43,6 +43,8 @@
 <div class="row"><button type="button" class="act" data-oa-check data-oa-check-url="/admin/openapi/check" data-oa-repair-url="/admin/openapi/repair" data-csrf="{{$.CSRF}}">Check description</button></div>
 {{template "oa_check_result"}}
 <div class="field"><label>Key{{if $.U.Masked}} <code>{{$.U.Masked}}</code>{{end}}<input type="password" name="oa_auth_value" autocomplete="new-password" placeholder="{{if $.U.Masked}}Empty keeps it{{else}}Optional{{end}}"></label></div>
+{{if .Check}}<div class="field" data-oa-probe><p class="muted">{{if $.New}}Add{{else}}Save{{end}} calls the first GET tool without parameters to check the connection.</p>
+<label class="check"><input type="checkbox" name="oa_skip_check" value="1"> Skip check</label></div>{{end}}
 <details {{if or .As $.U.URL}}open{{end}}><summary class="muted">Advanced</summary>
 <div class="field"><label>Send the key as<input type="text" name="oa_auth_as" value="{{.As}}" placeholder="Automatic" autocomplete="off" spellcheck="false"></label>
 <p class="muted">A header name, ?name, bearer, basic or none.</p></div>

@@ -1383,6 +1383,8 @@ function frontierHint(form) {
       btn.disabled = false;
       if (!j.ok) { show("bad", "unreadable"); summary.textContent = j.error || "cannot read the description"; return; }
       summary.textContent = (j.title ? j.title + ": " : "") + j.operations + " operations, " + j.reads + " read, " + j.writes + " write";
+      var probe = form.querySelector("[data-oa-probe]"); // the check line only makes sense when a GET can run it
+      if (probe) probe.hidden = j.probe === false;
       var base = form.querySelector("#oa-servers");
       if (base && j.servers) j.servers.forEach(function (u) {
         var have = Array.prototype.some.call(base.options, function (o) { return o.value === u; });
