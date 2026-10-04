@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/helv-io/skgate/internal/store"
@@ -21,6 +22,8 @@ const (
 	AuthBearer      = "bearer"
 	AuthHeader      = "header"
 	AuthPassthrough = "passthrough"
+	AuthQuery       = "query" // OpenAPI upstreams: an API key in the query string
+	AuthBasic       = "basic" // OpenAPI upstreams: AuthName is the user, AuthValue the password
 )
 
 var aliasRE = regexp.MustCompile(`^[a-z0-9-]{1,63}$`)
@@ -119,8 +122,10 @@ func (u *Upstream) Validate() error {
 		u.Kind = KindRemote
 	case KindStdio, KindGit:
 		return u.validateManaged()
+	case KindOpenAPI:
+		return u.validateOpenAPI()
 	default:
-		return errors.New("kind must be remote, stdio or git")
+		return errors.New("kind must be remote, stdio, git or openapi")
 	}
 	if !aliasRE.MatchString(u.Alias) {
 		return errors.New("alias must be 1-63 chars of a-z, 0-9 and dash")
@@ -193,7 +198,10 @@ func validHeaderName(n string) bool {
 }
 
 // Upstreams is the SQLite-backed registry.
-type Upstreams struct{ db *store.DB }
+type Upstreams struct {
+	db      *store.DB
+	oaCache sync.Map // alias -> *OAState, see openapi.go
+}
 
 // NewUpstreams returns the registry.
 func NewUpstreams(db *store.DB) *Upstreams {
@@ -434,6 +442,10 @@ func (s *Upstreams) NormalizeURLs() error {
 // Delete removes an upstream.
 func (s *Upstreams) Delete(alias string) error {
 	_, err := s.db.Exec(`DELETE FROM upstreams WHERE alias=?`, alias)
+	if err == nil {
+		_, err = s.db.Exec(`DELETE FROM upstream_openapi WHERE alias=?`, alias)
+		s.oaCache.Delete(alias)
+	}
 	return err
 }
 

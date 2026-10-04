@@ -380,6 +380,9 @@ func (s *Upstreams) StoreImport(items []ImportItem, allowManaged bool, include b
 func ExportJSON(ups []Upstream) []byte {
 	servers := map[string]any{}
 	for _, u := range ups {
+		if u.IsOpenAPI() {
+			continue // a REST API with its description is not an MCP server entry; export would lose the tools
+		}
 		e := map[string]any{}
 		x := skgateExt{Install: u.Install, Shell: u.Shell, StartupTimeout: u.StartupSecs, IdleTimeout: u.IdleSecs, AutoUpdate: u.AutoUpdateSecs}
 		if u.Lifecycle == managed.Always {

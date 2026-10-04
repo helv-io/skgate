@@ -65,6 +65,9 @@ func (s *Server) Test(ctx context.Context, alias string) (tr TestResult) {
 	if up.Managed() {
 		return s.testManaged(ctx, up)
 	}
+	if up.IsOpenAPI() {
+		return s.testOpenAPI(ctx, up)
+	}
 	if up.AuthKind == AuthAuto && up.DetectedKind == "" {
 		up = s.ensureDetected(ctx, up)
 	}

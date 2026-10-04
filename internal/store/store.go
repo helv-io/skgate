@@ -51,6 +51,12 @@ CREATE TABLE IF NOT EXISTS upstreams (
   created_at INTEGER NOT NULL,
   host_override TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS upstream_openapi (
+  alias TEXT PRIMARY KEY,
+  spec TEXT NOT NULL DEFAULT '',
+  spec_url TEXT NOT NULL DEFAULT '',
+  selection TEXT NOT NULL DEFAULT '{}'
+);
 CREATE TABLE IF NOT EXISTS oauth_clients (
   client_id TEXT PRIMARY KEY,
   secret_hash TEXT NOT NULL DEFAULT '',
