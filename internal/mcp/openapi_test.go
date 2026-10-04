@@ -152,8 +152,8 @@ func TestOpenAPISecretSealedAndTested(t *testing.T) {
 		t.Fatalf("secret stored in clear: %q %v", raw, err)
 	}
 	tr := e.srv.Test(t.Context(), "notes")
-	if !tr.OK || tr.ToolTotal != 1 || len(api.seen) != 0 {
-		t.Fatalf("test: %+v (no operation may be called by Test: %v)", tr, api.seen)
+	if !tr.OK || tr.ToolTotal != 1 || len(api.seen) != 1 || api.seen[0] != "GET /notes auth=Bearer SECRETTOK" {
+		t.Fatalf("test: %+v (Test asks with one safe read and nothing else: %v)", tr, api.seen)
 	}
 	if err := e.srv.Upstreams.Delete("notes"); err != nil {
 		t.Fatal(err)

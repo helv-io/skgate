@@ -204,9 +204,10 @@ func validHeaderName(n string) bool {
 
 // Upstreams is the SQLite-backed registry.
 type Upstreams struct {
-	db      *store.DB
-	oaCache sync.Map      // alias -> *OAState, see openapi.go
-	oaGen   atomic.Uint64 // bumped on every change, so a read that raced a change is not cached
+	db       *store.DB
+	oaCache  sync.Map      // alias -> *OAState, see openapi.go
+	oaGen    atomic.Uint64 // bumped on every change, so a read that raced a change is not cached
+	keyTried sync.Map      // alias -> time of the last search for the way to send a key, see allowKeyProbe
 }
 
 // NewUpstreams returns the registry.

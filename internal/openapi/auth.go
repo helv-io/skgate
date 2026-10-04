@@ -212,23 +212,33 @@ type Tried struct {
 	OK     bool // some way was not refused
 }
 
-// TryKey asks base with GET, one way after the other, until an answer is not 401 or 403. Only the server base and
-// only the operation given are used. A request that gets no answer ends the search with Status 0.
+// TryAuth asks base with one GET of the operation and one credential, and returns the HTTP status (0: no answer).
+// Only the server given is asked, redirects stay on its host, and nothing but a read is sent.
+func TryAuth(ctx context.Context, base string, op Op, a Auth, ua string) int {
+	c := &Caller{Base: base, Auth: a, UA: ua, Client: &http.Client{Timeout: keyProbeTimeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) >= maxRedirects {
+			return http.ErrUseLastResponse
+		}
+		return sameSite(req, via)
+	}}}
+	return c.Call(ctx, Tool{Op: op}, nil).Status
+}
+
+// Refused reports whether a status says the credential was not accepted.
+func Refused(status int) bool {
+	return status == http.StatusUnauthorized || status == http.StatusForbidden
+}
+
+// TryKey asks base with GET, one way after the other, until an answer is not 401 or 403. A request that gets no
+// answer ends the search with Status 0.
 func TryKey(ctx context.Context, base string, op Op, value string, ways []Way, ua string) Tried {
 	var last Tried
 	for _, w := range ways {
-		c := &Caller{Base: base, Auth: w.Auth(value), UA: ua, Client: &http.Client{Timeout: keyProbeTimeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= maxRedirects {
-				return http.ErrUseLastResponse
-			}
-			return sameSite(req, via)
-		}}}
-		res := c.Call(ctx, Tool{Op: op}, nil)
-		last = Tried{Way: w, Status: res.Status}
-		if res.Status == 0 {
+		last = Tried{Way: w, Status: TryAuth(ctx, base, op, w.Auth(value), ua)}
+		if last.Status == 0 {
 			return last
 		}
-		if res.Status != http.StatusUnauthorized && res.Status != http.StatusForbidden {
+		if !Refused(last.Status) {
 			last.OK = true
 			return last
 		}
