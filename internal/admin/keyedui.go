@@ -29,9 +29,63 @@ func (a *Admin) testConnection(ctx context.Context, p provider.Provider) (int, e
 	return len(ids), err
 }
 
+// connect tries the forms of the address a person typed (keyed.BaseCandidates) and keeps the first one that lists
+// models. A wrong path moves on to the next form; an unreachable host or a refused key stops, since another path
+// cannot help. When nothing works the address stays as typed. Nothing about the forms is shown.
+func (a *Admin) connect(ctx context.Context, k *keyed.Provider, base string) (int, error) {
+	cands := keyed.BaseCandidates(base)
+	if len(cands) == 0 {
+		cands = []string{base}
+	}
+	var last error
+	for _, c := range cands {
+		if err := a.settingBase(k, c); err != nil {
+			return 0, err
+		}
+		n, err := a.testConnection(ctx, k)
+		if err == nil {
+			return n, nil
+		}
+		last = err
+		if !wrongPath(err) {
+			break
+		}
+	}
+	if err := a.settingBase(k, cands[0]); err != nil {
+		return 0, err
+	}
+	return 0, last
+}
+
+// wrongPath reports whether a failed model list says "not here" rather than "cannot reach" or "not allowed".
+func wrongPath(err error) bool {
+	m := err.Error()
+	if strings.Contains(m, "empty or unreadable") {
+		return true
+	}
+	for _, code := range []string{"400", "404", "405", "410", "301", "302", "307", "308"} {
+		if strings.Contains(m, "HTTP "+code+" ") {
+			return true
+		}
+	}
+	return false
+}
+
+// plainReason turns a failed model list into one sentence a person can act on.
+func plainReason(err error) string {
+	m := err.Error()
+	switch {
+	case strings.Contains(m, "HTTP 401 "), strings.Contains(m, "HTTP 403 "):
+		return "the provider did not accept the API key"
+	case wrongPath(err):
+		return "no model list was found at that address"
+	}
+	return "that address could not be reached"
+}
+
 func connectionResult(name string, n int, err error) (ok, bad string) {
 	if err != nil {
-		return "", name + ": connection failed: " + err.Error()
+		return "", name + ": connection failed: " + plainReason(err)
 	}
 	return fmt.Sprintf("%s: connected, %d models", name, n), ""
 }
@@ -86,18 +140,18 @@ func (a *Admin) keyedAdd(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin#add-provider", "", err.Error())
 		return
 	}
-	err = a.settingBase(k, base)
-	if err == nil && key != "" {
-		err = k.SaveKey(key)
+	var err2 error
+	if key != "" {
+		err2 = k.SaveKey(key)
 	}
-	if err == nil {
-		err = k.SetEnabled(true)
+	if err2 == nil {
+		err2 = k.SetEnabled(true)
 	}
-	if err != nil {
-		a.saveFailed(w, r, "/admin#add-provider", err)
+	if err2 != nil {
+		a.saveFailed(w, r, "/admin#add-provider", err2)
 		return
 	}
-	n, terr := a.testConnection(r.Context(), k)
+	n, terr := a.connect(r.Context(), k, base)
 	ok2, bad := connectionResult(k.Name(), n, terr)
 	if bad != "" {
 		bad = k.Name() + " added, but the connection failed: " + strings.TrimPrefix(bad, k.Name()+": connection failed: ")
@@ -118,15 +172,13 @@ func (a *Admin) keyedSave(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, dialogHash(k.ID()), "", err.Error())
 		return
 	}
-	err = a.settingBase(k, base)
-	if err == nil && key != "" {
-		err = k.SaveKey(key)
+	if key != "" {
+		if err := k.SaveKey(key); err != nil {
+			a.saveFailed(w, r, dialogHash(k.ID()), err)
+			return
+		}
 	}
-	if err != nil {
-		a.saveFailed(w, r, dialogHash(k.ID()), err)
-		return
-	}
-	n, terr := a.testConnection(r.Context(), k)
+	n, terr := a.connect(r.Context(), k, base)
 	okMsg, bad := connectionResult(k.Name(), n, terr)
 	if bad != "" {
 		bad = "saved, but the connection failed: " + strings.TrimPrefix(bad, k.Name()+": connection failed: ")
