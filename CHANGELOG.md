@@ -6,6 +6,19 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-04
+
+### Added
+
+- Add and Save test the upstream first. When the test fails the form stays as it was, with a short error.
+- The source box of Suggest takes the address of a REST API, such as http://mealie:9000, and turns the form into an OpenAPI upstream.
+- The OpenAPI form finds the description itself: enter the address of the API, such as http://mealie:9000, and skgate tries the usual places and saves the one that works.
+
+### Changed
+
+- One key for an OpenAPI upstream, sent the way the description says
+- A server on the internet needs an https address; plain http stays fine for names like mealie, IP addresses and .local names.
+
 ## [0.14.2] - 2026-10-04
 
 ### Fixed
@@ -411,7 +424,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.14.2...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/helv-io/skgate/compare/v0.14.2...v0.15.0
 [0.14.2]: https://github.com/helv-io/skgate/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/helv-io/skgate/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/helv-io/skgate/compare/v0.13.0...v0.14.0
