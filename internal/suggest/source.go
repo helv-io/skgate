@@ -233,10 +233,13 @@ func gitOrRegistry(s Source, in string) (Source, error) {
 
 // UnsupportedMessage explains why an unsupported source cannot be run here and what can.
 func (s Source) UnsupportedMessage(runners []string) string {
-	have := "no package runner is available"
-	if len(runners) > 0 {
-		have = "available runners: " + strings.Join(runners, ", ")
+	if s.Ecosystem == "Go modules" { // Go can build a repository, but a module path is not run directly
+		return "A Go module address is not run directly. Give the git repository of the module instead."
 	}
-	return fmt.Sprintf("%s sources need %s, which this image does not include (%s). Use an npm or PyPI package, or a git repository that builds with the available runners.",
+	have := ""
+	if len(runners) > 0 {
+		have = " (available runners: " + strings.Join(runners, ", ") + ")"
+	}
+	return fmt.Sprintf("%s sources need %s, which this image does not include%s. Use an npm or PyPI package, or a git repository that builds with the available runners.",
 		s.Ecosystem, s.Needs, have)
 }
