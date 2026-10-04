@@ -9,11 +9,13 @@ on:
     branches: [master]
     paths-ignore:
       - ROADMAP.md
+      - CHANGELOG.md
       - LICENSE
       - .gitignore
   pull_request:
     paths-ignore:
       - ROADMAP.md
+      - CHANGELOG.md
       - LICENSE
       - .gitignore
   workflow_dispatch:

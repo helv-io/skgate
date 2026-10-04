@@ -1,0 +1,71 @@
+# Adds the section for a new version tag to CHANGELOG.md and commits it to master.
+#
+# The same program, tools/changelog, wrote the backfilled file (go run ./tools/changelog -all), so the format is the same.
+# It sorts the commits since the previous tag into Added, Changed, Fixed, Security and Removed. See docs/development.md.
+#
+# Why this cannot loop or disturb a release:
+#   - A push made with the built-in GITHUB_TOKEN does not start other workflows, so the commit does not run CI or this
+#     workflow again; it also carries no tag, so Release (which runs on tags) is untouched.
+#   - It is a separate workflow from Release: if it fails, nothing is published or unpublished.
+#   - The job is skipped for the bot's own commits and for tags that are not stable versions (vX.Y.Z).
+#   - The program adds a version once, so a re-run changes nothing.
+# The commit lands after the tag, so the tagged source has no entry for its own version, and a version bump stays the
+# last commit a person makes for a release.
+#
+# Uses the built-in GITHUB_TOKEN with contents: write; no other secret is needed.
+
+name: Changelog
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to add to CHANGELOG.md (vX.Y.Z)
+        required: true
+
+permissions:
+  contents: write
+
+# One at a time, and never cancelled: two quick tags both get their entry.
+concurrency:
+  group: changelog
+  cancel-in-progress: false
+
+jobs:
+  changelog:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - name: Stable tags only
+        id: stable
+        run: |
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "Not a stable version tag: $TAG"; fi
+      - uses: actions/checkout@v7
+        if: steps.stable.outputs.ok == 'true'
+        with:
+          ref: master
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: ./.github/actions/go
+        if: steps.stable.outputs.ok == 'true'
+      - name: Add the section
+        if: steps.stable.outputs.ok == 'true'
+        run: go run ./tools/changelog -tag "$TAG"
+      - name: Commit to master
+        if: steps.stable.outputs.ok == 'true'
+        run: |
+          if git diff --quiet -- CHANGELOG.md; then echo "CHANGELOG.md already has $TAG"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "Changelog for $TAG" -m "Written by tools/changelog from the commits since the previous tag. Not a release: no tag, no image."
+          for i in 1 2 3; do
+            git push origin HEAD:master && exit 0
+            git pull --rebase origin master
+          done
+          echo "could not push CHANGELOG.md to master" >&2
+          exit 1
