@@ -371,11 +371,11 @@ func (f *Fetcher) fetchGitAs(ctx context.Context, s Source, token string, shared
 		case !own && denied:
 			return Context{}, errors.New("the repository needs authentication: add an access token")
 		case !own:
-			return Context{}, errors.New("no README or manifest found; for a private repository add an access token")
+			return Context{}, errors.New("no README or manifest found, private repositories need an access token")
 		case denied:
 			return Context{}, errors.New("the access token was refused by the host")
 		}
-		return Context{}, errors.New("no README or manifest found in the repository (check the URL, ref and token)")
+		return Context{}, errors.New("no README or manifest found, check the URL, ref and token")
 	}
 	return c, nil
 }

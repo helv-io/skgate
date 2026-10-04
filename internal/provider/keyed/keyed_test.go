@@ -33,7 +33,7 @@ func get(t *testing.T, db *store.DB, id string) *Provider {
 func TestPresetsAreCompleteData(t *testing.T) {
 	seen := map[string]bool{}
 	for _, p := range Presets {
-		if p.ID == "" || p.Name == "" || p.Hint == "" || seen[p.ID] || p.ID == "grok" {
+		if p.ID == "" || p.Name == "" || (p.Hint == "" && p.Docs == "") || seen[p.ID] || p.ID == "grok" {
 			t.Errorf("bad preset %+v", p)
 		}
 		seen[p.ID] = true

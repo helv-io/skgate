@@ -486,7 +486,7 @@ func Validate(content string, src Source, doc Context, runners []string) (*Resul
 	switch in.Transport {
 	case "stdio":
 	case "http":
-		r.Warnings = append(r.Warnings, "the server runs in HTTP mode; a remote upstream may fit better than a managed process")
+		r.Warnings = append(r.Warnings, "runs in HTTP mode, a remote upstream may fit better")
 	default:
 		return nil, errors.New("transport must be stdio or http")
 	}
@@ -574,7 +574,7 @@ func Validate(content string, src Source, doc Context, runners []string) (*Resul
 	if src.Kind == KindGit {
 		r.Install = strings.TrimSpace(in.Install)
 		if r.Install != "" {
-			r.Warnings = append(r.Warnings, "an install command is suggested; it runs on the host before start, check it")
+			r.Warnings = append(r.Warnings, "check the install command, it runs on the host")
 		}
 	} else if strings.TrimSpace(in.Install) != "" {
 		r.Warnings = append(r.Warnings, "an install command was dropped: packages need none")
