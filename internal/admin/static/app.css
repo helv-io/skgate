@@ -160,9 +160,9 @@ input[type=text],input[type=password],input[type=url],input[type=search],textare
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 input:focus,select:focus,textarea:focus{border-color:var(--acc)}
 input:focus-visible,select:focus-visible,textarea:focus-visible{outline-offset:0}
-input[aria-invalid=true]:focus-visible{outline-color:var(--bad)}
+input[aria-invalid=true]:focus-visible,textarea[aria-invalid=true]:focus-visible{outline-color:var(--bad)}
 .menu-list :focus-visible,.nav-panel :focus-visible{outline-offset:-2px}
-input[aria-invalid=true],input[aria-invalid=true]:focus{border-color:var(--bad)}
+input[aria-invalid=true],input[aria-invalid=true]:focus,textarea[aria-invalid=true],textarea[aria-invalid=true]:focus{border-color:var(--bad)}
 input[type=checkbox]{width:auto;accent-color:var(--acc);margin:0}
 /* pick: a control and its Save button on one line, further controls beneath it in the same column */
 .pick{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center;margin:8px 0}
