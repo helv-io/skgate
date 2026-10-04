@@ -5,7 +5,7 @@ Part of the [skgate README](../README.md#quick-start).
 [`docker-compose.quickstart.yml`](../docker-compose.quickstart.yml) runs skgate and [Dex](https://dexidp.io), a small OIDC provider with one fixed login. It needs Docker Compose 2.23.1 or newer and no accounts. It is for trying skgate on one machine, not for running it.
 
 ```sh
-curl -O https://raw.githubusercontent.com/helv-io/skgate/main/docker-compose.quickstart.yml
+curl -O https://raw.githubusercontent.com/helv-io/skgate/master/docker-compose.quickstart.yml
 docker compose -f docker-compose.quickstart.yml up -d
 ```
 

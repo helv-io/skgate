@@ -1,4 +1,4 @@
-# Build, vet and test on every push to main and every pull request (same checks as tools/chk.sh).
+# Build, vet and test on every push to the default branch and every pull request (same checks as tools/chk.sh).
 # Skipped for changes that cannot affect the code or its tests. README.md, docs/ and AGENT.md are NOT skipped:
 # tests read them.
 
@@ -6,7 +6,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
     paths-ignore:
       - ROADMAP.md
       - LICENSE
