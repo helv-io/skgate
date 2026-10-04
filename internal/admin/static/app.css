@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .danger-zone .filter .desc .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .desc .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -113,6 +113,13 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 .act.toggle.on:hover{color:var(--ok);border-color:var(--ok)}
 .act.toggle:disabled,.act.toggle:disabled:hover{opacity:.45;cursor:not-allowed;color:var(--dim);border-color:var(--line);background:#131518}
 .act.toggle:disabled::before{background-position:left 2px center}
+/* action groups: the buttons of a screen in labelled groups (lifecycle, maintenance, links, danger); the danger group
+   sits apart on the right, and under 720px the groups stack */
+.action-groups{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-start;margin:0 0 12px}
+.action-group{min-width:0}
+.group-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:0 0 4px}
+.action-group.danger-group{margin-left:auto;padding-left:20px;border-left:1px solid #5a3532}
+.action-group.danger-group .group-label{color:var(--bad)}
 /* menu: the ⋯ button of a row and the list it opens. The list is fixed to the window (placed by app.js under the
    button), so a table that scrolls sideways cannot clip it. Items are the .act of the row, without their frames. */
 .menu{display:inline-flex}
@@ -347,6 +354,8 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .modal,.modal.wide{width:calc(100vw - 20px);max-width:calc(100vw - 20px);padding:14px}
 }
 @media (max-width:720px){
+  .action-group{flex:1 1 100%}
+  .action-group.danger-group{margin-left:0;padding-left:0;border-left:0;padding-top:12px;border-top:1px solid #5a3532}
   .menu{flex:0 0 auto}
   .menu-list form,.actions .menu-list form{display:block;flex:none}
   .table .actions .menu .menu-btn{flex:0 0 auto;min-width:48px}

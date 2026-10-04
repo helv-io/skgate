@@ -86,9 +86,18 @@ var funcs = template.FuncMap{
 	"infodlg":   func(id, title string) dialogHead { return dialogHead{ID: id, Title: title, Info: true} },
 	"filterBox": func(table, label string) filterBoxData { return filterBoxData{Table: table, Label: label} },
 	"plural":    plural,
-	"menu":      func(id, label string) menuHead { return menuHead{ID: id, Label: label} },
-	"inList":    contains,
-	"frontier":  provider.LooksFrontier,
+	"procAction": func(csrf, alias, action, label, class, confirm string) procActionData {
+		return procActionData{CSRF: csrf, Alias: alias, Action: action, Label: label, Class: class, Confirm: confirm}
+	},
+	"updateConfirm": func(kind string) string {
+		if kind == "git" {
+			return "Fetch the repository, rerun the install step and restart. The previous version is restored if that fails."
+		}
+		return "Clear this upstream's package cache and restart. Packages are downloaded again."
+	},
+	"menu":     func(id, label string) menuHead { return menuHead{ID: id, Label: label} },
+	"inList":   contains,
+	"frontier": provider.LooksFrontier,
 	// pill feeds the "pill" component: class, label and hover text.
 	"pill": func(class, text, tip string) pillView { return pillView{Class: class, Text: text, Tip: tip} },
 	// tip feeds the "tip" component: visible text with a hover tooltip. usage builds the Usage cell of a key.
@@ -1566,3 +1575,6 @@ func plural(n int, one, many string) string {
 	}
 	return many
 }
+
+// procActionData feeds the proc_action component.
+type procActionData struct{ CSRF, Alias, Action, Label, Class, Confirm string }
