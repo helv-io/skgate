@@ -3,6 +3,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -272,11 +273,21 @@ func hasColumn(db *sql.DB, table, col string) (bool, error) {
 
 // GetSetting reads a key from the settings table.
 func (d *DB) GetSetting(key string) (string, bool) {
+	v, ok, _ := d.LookupSetting(key)
+	return v, ok
+}
+
+// LookupSetting is GetSetting that also tells a failed read from a missing key: only a missing key has no error.
+func (d *DB) LookupSetting(key string) (string, bool, error) {
 	var v string
-	if err := d.QueryRow(`SELECT v FROM settings WHERE k=?`, key).Scan(&v); err != nil {
-		return "", false
+	err := d.QueryRow(`SELECT v FROM settings WHERE k=?`, key).Scan(&v)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
 	}
-	return v, true
+	if err != nil {
+		return "", false, err
+	}
+	return v, true, nil
 }
 
 // SetSetting upserts a key.

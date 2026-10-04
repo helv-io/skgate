@@ -29,8 +29,33 @@ type sessionInfo struct {
 }
 
 type sessionStore struct {
-	mu sync.Mutex
-	m  map[string]sessionInfo
+	mu      sync.Mutex
+	m       map[string]sessionInfo
+	revoked map[string]time.Time // nonces signed out, until their cookie would have expired anyway
+}
+
+// revoke makes a session cookie useless from now on, although its signature is still good. It is kept in memory:
+// after a restart a copied cookie works again until it expires (12 hours), the same as before there was a logout.
+func (s *sessionStore) revoke(nonce string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.revoked == nil {
+		s.revoked = map[string]time.Time{}
+	}
+	now := time.Now()
+	for k, t := range s.revoked {
+		if now.After(t) {
+			delete(s.revoked, k)
+		}
+	}
+	s.revoked[nonce] = now.Add(sessionTTL + time.Minute)
+}
+
+func (s *sessionStore) isRevoked(nonce string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.revoked[nonce]
+	return ok
 }
 
 func (s *sessionStore) put(nonce string, si sessionInfo) {
@@ -61,14 +86,29 @@ func (s *sessionStore) del(nonce string) {
 }
 
 // secret is the HMAC key for cookies, random and persisted in SQLite.
+// It is read once and kept: a database error later must not replace it (that would sign every admin out), and two
+// first requests must not each make a different one.
 func (a *Admin) secret() []byte {
-	if v, ok := a.DB.GetSetting("session_secret"); ok && v != "" {
+	a.secretMu.Lock()
+	defer a.secretMu.Unlock()
+	if a.secretKey != nil {
+		return a.secretKey
+	}
+	v, ok, err := a.DB.LookupSetting("session_secret")
+	if err != nil { // cannot tell whether one exists: use a throwaway key for this call and decide later
+		return []byte(httputil.RandString(48))
+	}
+	if ok && v != "" {
 		if b, err := base64.RawStdEncoding.DecodeString(v); err == nil && len(b) >= 32 {
+			a.secretKey = b
 			return b
 		}
 	}
 	b := []byte(httputil.RandString(48))
-	_ = a.DB.SetSetting("session_secret", base64.RawStdEncoding.EncodeToString(b))
+	if a.DB.SetSetting("session_secret", base64.RawStdEncoding.EncodeToString(b)) != nil {
+		return b // not stored: do not keep it either, so the next call tries again
+	}
+	a.secretKey = b
 	return b
 }
 
@@ -144,6 +184,9 @@ func (a *Admin) parseSession(r *http.Request) (nonce, payload string, cl session
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil || json.Unmarshal(raw, &cl) != nil || cl.Sub == "" {
+		return "", "", cl, false
+	}
+	if a.sessions.isRevoked(parts[1]) {
 		return "", "", cl, false
 	}
 	return parts[1], payload, cl, true
