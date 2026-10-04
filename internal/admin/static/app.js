@@ -954,6 +954,29 @@ document.addEventListener("input", function (e) {
   });
 })();
 
+// Filter box: [data-filter="#table"] narrows the rows marked data-filter-row to those whose text contains what is
+// typed (case-insensitive), shows "n of N" beside the field and the row marked data-filter-empty when none match.
+(function () {
+  function apply(input) {
+    var table = document.querySelector(input.getAttribute("data-filter"));
+    if (!table) return;
+    var q = input.value.trim().toLowerCase(), rows = table.querySelectorAll("tbody tr[data-filter-row]"), shown = 0;
+    Array.prototype.forEach.call(rows, function (r) {
+      var match = !q || r.textContent.toLowerCase().indexOf(q) >= 0;
+      r.hidden = !match;
+      if (match) shown++;
+    });
+    var empty = table.querySelector("tr[data-filter-empty]");
+    if (empty) empty.hidden = shown > 0 || rows.length === 0;
+    var count = input.parentNode.querySelector("[data-filter-count]");
+    if (count) count.textContent = q ? shown + " of " + rows.length : "";
+  }
+  document.addEventListener("input", function (e) {
+    var el = e.target && e.target.closest ? e.target.closest("[data-filter]") : null;
+    if (el) apply(el);
+  });
+})();
+
 // Heavy-model hint: the model picker shows its timeout suggestion (data-frontier-hint) only while the chosen model
 // is marked data-frontier and the timeout is below the suggested one. The suggestion is never applied.
 function frontierHint(form) {

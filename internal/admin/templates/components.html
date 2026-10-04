@@ -53,6 +53,12 @@
 {{define "danger_start"}}<div class="danger-zone" role="group" aria-labelledby="danger-{{.}}"><h4 id="danger-{{.}}">Danger zone</h4>{{end}}
 {{define "danger_end"}}</div>{{end}}
 
+{{/* filter_box: a search field that narrows the rows of a table as you type. Takes a filterBoxData (id of the table,
+   label; build one with "filterBox"). The table's rows carry data-filter-row, and one hidden row data-filter-empty says
+   nothing matches. app.js hides the rows whose text does not contain the typed text (case-insensitive) and reports
+   "n of N" beside the field. */}}
+{{define "filter_box"}}<div class="filter"><input type="search" aria-label="{{.Label}}" placeholder="{{.Label}}" autocomplete="off" spellcheck="false" data-filter="#{{.Table}}"><span class="muted" data-filter-count aria-live="polite"></span></div>{{end}}
+
 {{/* th_actions: the header of the column of row buttons. Every list table with row actions ends with it. */}}
 {{define "th_actions"}}<th class="actions-th">Actions</th>{{end}}
 

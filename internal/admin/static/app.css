@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .danger-zone .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .danger-zone .filter .desc .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -154,7 +154,7 @@ a.name:hover code{border-color:var(--acc);color:var(--acc)}
 .field>label:first-child,.field>.label:first-child{margin-top:0}
 label.check{display:inline-flex;align-items:center;gap:6px;margin:0 16px 0 0;color:var(--fg)}
 input,select,textarea{font:inherit;color:var(--fg);background:#0c0d0f;border:1px solid var(--line);padding:5px 8px}
-input[type=text],input[type=password],input[type=url],textarea,select{width:100%;display:block}
+input[type=text],input[type=password],input[type=url],input[type=search],textarea,select{width:100%;display:block}
 /* focus: one visible ring for everything the keyboard reaches (fields, quick buttons, links, menu items); a field
    also takes the accent border. Inside a menu or the nav panel the ring sits inside the item, so nothing clips it. */
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
@@ -222,6 +222,17 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .row.bottom{align-items:flex-end}
 .row.bottom>.field{flex:1 1 160px;margin:0}
 
+/* filter: a search field above a table and how many rows it leaves */
+.filter{display:flex;gap:12px;align-items:center;margin:0 0 8px;max-width:var(--form-w)}
+.filter input{flex:1 1 auto;min-width:0}
+/* desc: a description on one line (ellipsis); opening it shows the whole text */
+details.desc{min-width:0;flex:1 1 0}
+details.desc>summary{display:block;margin:0;padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--fg);list-style:none}
+details.desc>summary::-webkit-details-marker{display:none}
+details.desc>summary::before{content:"\25B8";display:inline-block;width:1.2em;color:var(--dim)}
+details.desc[open]>summary::before{content:"\25BE"}
+details.desc[open]>summary{white-space:normal;overflow:visible}
+details.desc>p{margin:4px 0 0 1.2em;color:var(--dim);white-space:pre-line}
 /* suggest: output area of the configuration helper */
 .suggest-out{margin:0 0 12px}
 .suggest-out ul{margin:6px 0}

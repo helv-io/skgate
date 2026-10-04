@@ -1,7 +1,9 @@
 {{define "body"}}{{with .Data}}
 <h2>Test upstream <code>{{.U.Alias}}</code></h2>
+<div class="row">{{if .R.OK}}{{template "pill" (pill "ok" (printf "OK \u00b7 %d %s \u00b7 %s" .R.ToolTotal (plural .R.ToolTotal "tool" "tools") (latency .R.Latency)) "")}}{{else}}{{template "pill" (pill "bad" (printf "failed \u00b7 %s" (latency .R.Latency)) "")}}{{end}}{{if .R.ToolsCapped}}<span class="muted">tool list capped</span>{{end}}</div>
+<div class="actions"><a class="act" href="/admin/upstreams">back</a>{{if .U.Managed}}<a class="act" href="/admin/upstreams/{{.U.Alias}}/logs">process</a>{{end}}
+<a class="btn" href="/admin/upstreams/{{.U.Alias}}/test">Test again</a></div>
 <div class="card flush tablewrap"><table class="table kv"><tbody>
-<tr><th>Result</th><td>{{if .R.OK}}{{template "pill" (pill "ok" "OK" "")}}{{else}}{{template "pill" (pill "bad" "failed" "")}}{{end}}</td></tr>
 {{if .R.Error}}<tr><th>Error</th><td class="bad">{{.R.Error}}</td></tr>{{end}}
 {{if .R.Detail}}<tr><th>Detail</th><td><code>{{.R.Detail}}</code></td></tr>{{end}}
 {{if .R.Hint}}<tr><th>Hint</th><td class="warn">{{.R.Hint}}</td></tr>{{end}}
@@ -13,9 +15,9 @@
 {{range .R.Warnings}}<tr><th>Warning</th><td class="warn">{{.}}</td></tr>{{end}}
 </tbody></table></div>
 {{if .R.OK}}<h2>Tools ({{.R.ToolTotal}}{{if .R.ToolsCapped}}, list capped{{end}})</h2>
-<div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>
-{{range .R.Tools}}<tr><td class="primary" data-label="Name"><code>{{.Name}}</code></td><td class="wrap" data-label="Description">{{.Desc}}</td></tr>
-{{else}}<tr><td colspan="2" class="empty">no tools</td></tr>{{end}}</tbody></table></div>{{end}}
-<div class="actions"><a class="act" href="/admin/upstreams">back</a>{{if .U.Managed}}<a class="act" href="/admin/upstreams/{{.U.Alias}}/logs">process</a>{{end}}
-<a class="btn" href="/admin/upstreams/{{.U.Alias}}/test">Test again</a></div>
+{{if .R.Tools}}{{template "filter_box" (filterBox "tools-table" "Filter tools by name or description")}}{{end}}
+<div class="card flush tablewrap"><table class="table" id="tools-table"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>
+{{range .R.Tools}}<tr data-filter-row><td class="primary" data-label="Name"><code>{{.Name}}</code></td><td class="wrap" data-label="Description">{{if .Desc}}<details class="desc"><summary>{{.Desc}}</summary>{{if .More}}<p>{{.More}}</p>{{end}}</details>{{else}}<span class="muted">-</span>{{end}}</td></tr>
+{{else}}<tr><td colspan="2" class="empty">no tools</td></tr>{{end}}
+<tr data-filter-empty hidden><td colspan="2" class="empty">no tool matches</td></tr></tbody></table></div>{{end}}
 {{end}}{{end}}

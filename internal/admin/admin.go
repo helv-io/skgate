@@ -80,9 +80,16 @@ var funcs = template.FuncMap{
 	"pairRow": func(l pairList, r pair, removable bool) pairRowData {
 		return pairRowData{NameKey: l.NameKey, ValueKey: l.ValueKey, SecretKey: l.SecretKey, NamePH: l.NamePH, ValuePH: l.ValuePH, Label: l.Label, Row: r, Removable: removable}
 	},
-	"pair":     func() pair { return pair{} },
-	"dlg":      func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
-	"infodlg":  func(id, title string) dialogHead { return dialogHead{ID: id, Title: title, Info: true} },
+	"pair":      func() pair { return pair{} },
+	"dlg":       func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
+	"infodlg":   func(id, title string) dialogHead { return dialogHead{ID: id, Title: title, Info: true} },
+	"filterBox": func(table, label string) filterBoxData { return filterBoxData{Table: table, Label: label} },
+	"plural": func(n int, one, many string) string {
+		if n == 1 {
+			return one
+		}
+		return many
+	},
 	"menu":     func(id, label string) menuHead { return menuHead{ID: id, Label: label} },
 	"inList":   contains,
 	"frontier": provider.LooksFrontier,
@@ -1484,3 +1491,6 @@ func wrapURL(parts ...string) template.HTML {
 	}
 	return template.HTML(b.String())
 }
+
+// filterBoxData feeds the filter_box component.
+type filterBoxData struct{ Table, Label string }

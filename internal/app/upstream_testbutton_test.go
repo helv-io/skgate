@@ -32,9 +32,14 @@ func TestUpstreamTestButton(t *testing.T) {
 	}
 	for i := 0; i < 2; i++ { // a refresh shows the same screen
 		r, body := br.get(path)
-		if r.StatusCode != 200 || !strings.Contains(body, "list_things") || !strings.Contains(body, "Lists things.") || strings.Contains(body, "More text.") ||
-			!strings.Contains(body, "200") || !strings.Contains(body, "OK") || !strings.Contains(body, "Latency") || strings.Contains(body, "Trailing slash") {
+		if r.StatusCode != 200 || !strings.Contains(body, "list_things") || !strings.Contains(body, "<summary>Lists things.</summary><p>More text.</p>") ||
+			!strings.Contains(body, "200") || !strings.Contains(body, "OK \u00b7 1 tool \u00b7 ") || !strings.Contains(body, "Latency") || strings.Contains(body, "Trailing slash") {
 			t.Fatalf("test page: %d\n%s", r.StatusCode, body)
+		}
+		// the summary, then the buttons, then the tools: the actions never wait below a long list
+		i, j, k := strings.Index(body, "OK \u00b7 1 tool"), strings.Index(body, `>Test again</a>`), strings.Index(body, "<h2>Tools")
+		if !(i > 0 && i < j && j < k) || !strings.Contains(body, `data-filter="#tools-table"`) {
+			t.Errorf("order must be summary, actions, tools with a filter box: %d %d %d", i, j, k)
 		}
 		if !regexp.MustCompile(`<th>Latency</th><td>\d+(\.\d)? m?s</td>`).MatchString(body) {
 			t.Errorf("latency is rounded for people (435 ms, 5.8 ms):\n%s", body)
@@ -43,7 +48,7 @@ func TestUpstreamTestButton(t *testing.T) {
 	// errors are shown plainly
 	a.MCP.Upstreams.Create(mcp.Upstream{Alias: "dead", URL: "http://127.0.0.1:1/mcp", AuthKind: mcp.AuthNone, Enabled: true})
 	_, body := br.get("/admin/upstreams/dead/test")
-	if !strings.Contains(body, "unreachable") || !strings.Contains(body, "failed") {
+	if !strings.Contains(body, "unreachable") || !strings.Contains(body, "failed \u00b7 ") {
 		t.Fatalf("error not shown: %s", body)
 	}
 	// an unknown alias goes back to the list with a message
