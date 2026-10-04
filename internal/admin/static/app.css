@@ -1,10 +1,10 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .gated .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .codebox .gated .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 --bad-line:#5a3532;--ok-line:#2f4a33;--warn-line:#57492f;--well:#0c0d0f;--btn:#131518;--bad-bg:#211514;--raised:#171a1f;--raised-hover:#1c2128;--press:#1b2c40;
---z-sticky:5;--z-header:30;--z-menu:40;--z-toast:2147483647;--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
+--kw:#c9a7ff;--z-sticky:5;--z-header:30;--z-menu:40;--z-toast:2147483647;--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
 *{box-sizing:border-box;border-radius:0}
 /* the scrollbar keeps its room, so the page does not shift sideways when a dialog hides it */
 html{scrollbar-gutter:stable}
@@ -195,6 +195,23 @@ input[type=checkbox]{width:auto;accent-color:var(--acc);margin:0}
 .row>input:not([type=checkbox]),.row>select{width:auto;flex:1 1 140px;min-width:0}
 textarea{resize:vertical;min-height:64px}
 textarea.wide{min-height:180px;font-family:var(--mono);font-size:13px}
+/* codebox: a textarea with a coloured copy of its text behind it (app.js, "Code box"). The textarea stays the field and
+   keeps its own scrolling; the copy follows it and ignores the pointer. Both use the same font, padding and border so
+   the letters line up. 16px on touch screens, because smaller text makes phones zoom in on focus. */
+.codebox{position:relative}
+.codebox pre,.codebox textarea{font:13px/1.5 var(--mono);tab-size:2;white-space:pre;letter-spacing:0;font-variant-ligatures:none}
+.codebox pre{position:absolute;inset:0;margin:0;padding:5px 8px;border:1px solid transparent;overflow:hidden;pointer-events:none;background:var(--well);color:var(--fg)}
+.codebox code{display:inline-block;min-width:100%;max-width:none;padding:0 24px 24px 0;font:inherit;background:none;border:0;overflow:visible;white-space:inherit;vertical-align:top}
+.codebox textarea{position:relative;background:transparent;color:transparent;-webkit-text-fill-color:transparent;caret-color:var(--fg);overflow:auto;overflow-wrap:normal}
+.codebox textarea::placeholder{color:var(--dim);-webkit-text-fill-color:var(--dim)}
+.codebox textarea::selection{background:rgba(127,184,255,.35);color:transparent;-webkit-text-fill-color:transparent}
+.codebox.plain pre{display:none}
+.codebox.plain textarea{background:var(--well);color:var(--fg);-webkit-text-fill-color:var(--fg)}
+.t-k{color:var(--acc)}.t-t{color:var(--acc);font-weight:600}.t-s{color:var(--ok)}.t-n{color:var(--warn)}.t-w{color:var(--kw)}.t-a{color:var(--kw)}
+.t-p,.t-c{color:var(--dim)}.t-c{font-style:italic}
+.t-m{background:var(--press);color:var(--fg)}
+.t-x,.t-e{background:var(--bad-bg);text-decoration:underline wavy var(--bad);text-underline-offset:3px}
+@media (pointer:coarse){.codebox pre,.codebox textarea{font-size:16px}}
 /* pairs: a list of name/value inputs (environment, headers); the value column is masked for stored secrets */
 .pairs-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
 .pair{display:grid;grid-template-columns:minmax(110px,1fr) minmax(150px,2fr) 64px;gap:6px;align-items:center}
