@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/helv-io/skgate/internal/httputil"
+	"github.com/helv-io/skgate/internal/openapi"
 	"github.com/helv-io/skgate/internal/provider"
 	"github.com/helv-io/skgate/internal/suggest"
 )
@@ -59,6 +60,10 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 	fail := func(status int, msg string) {
 		log.Printf("suggest: request refused HTTP %d after %s: %s", status, time.Since(t0).Round(time.Millisecond), msg)
 		httputil.JSON(w, status, map[string]any{"error": msg})
+	}
+	if src, err := suggest.ParseSource(r.PostFormValue("source")); err == nil && src.Kind == suggest.KindOpenAPI {
+		a.suggestOpenAPI(w, r, src, fail) // an API address needs no helper model
+		return
 	}
 	if ok, why := a.MCP.ManagedState(); !ok {
 		fail(http.StatusConflict, "managed upstreams: "+why)
@@ -144,4 +149,18 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(res)
+}
+
+// suggestOpenAPI answers an API address: it looks for the description and tells the form to become an OpenAPI
+// upstream with that address. No model is involved and nothing is saved.
+func (a *Admin) suggestOpenAPI(w http.ResponseWriter, r *http.Request, src suggest.Source, fail func(int, string)) {
+	entered := strings.TrimSpace(r.PostFormValue("source"))
+	f, err := openapi.Discover(r.Context(), entered)
+	if err != nil {
+		fail(http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httputil.JSON(w, http.StatusOK, map[string]any{"kind": "openapi", "alias": src.Name, "spec_url": entered,
+		"title": f.Doc.Title(), "operations": len(f.Doc.Operations())})
 }

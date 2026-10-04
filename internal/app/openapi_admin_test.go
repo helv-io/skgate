@@ -429,3 +429,24 @@ func TestOpenAPIAddByBaseAddressFindsTheDescription(t *testing.T) {
 	}
 	_ = r
 }
+
+func TestSuggestRoutesAnAPIAddressToTheOpenAPIForm(t *testing.T) {
+	r := newSuggestRig(t, true, false) // no helper model: an API address needs none
+	api := oaAPI(t)
+	resp, got := r.postJSON("/admin/upstreams/suggest", url.Values{"source": {api.URL + "/spec.json"}})
+	if resp.StatusCode != 200 || got["kind"] != "openapi" || got["spec_url"] != api.URL+"/spec.json" || got["title"] != "Notes API" || got["alias"] != "api" {
+		t.Fatalf("%d %v", resp.StatusCode, got)
+	}
+	empty := httptest.NewServer(http.NotFoundHandler())
+	defer empty.Close()
+	resp, got = r.postJSON("/admin/upstreams/suggest", url.Values{"source": {empty.URL}})
+	msg, _ := got["error"].(string)
+	if resp.StatusCode != 422 || !strings.Contains(msg, "paste it") {
+		t.Fatalf("nothing found: %d %v", resp.StatusCode, got)
+	}
+	resp, got = r.postJSON("/admin/upstreams/suggest", url.Values{"source": {"http://api.example.com/openapi.json"}})
+	msg, _ = got["error"].(string)
+	if resp.StatusCode != 422 || !strings.Contains(msg, "https") {
+		t.Fatalf("public http: %d %v", resp.StatusCode, got)
+	}
+}

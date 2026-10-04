@@ -810,9 +810,10 @@ document.addEventListener("input", function (e) {
   function sync(form) {
     var src = form.elements.source;
     Array.prototype.forEach.call(form.querySelectorAll("[data-suggest]"), function (b) {
-      var empty = !src || !src.value.trim(), off = b.hasAttribute("data-suggest-off");
+      var empty = !src || !src.value.trim(), off = b.hasAttribute("data-suggest-off") && (!src || sourceKind(src.value) !== "api");
       b.disabled = off || empty || !!b._busy;
       if (!off) { if (empty) b.title = NEED_SOURCE; else b.removeAttribute("title"); }
+      else if (src && sourceKind(src.value) === "api") b.removeAttribute("title");
     });
   }
   // Fields that only apply to one kind of source follow the source: the access token and the ref belong to a git
@@ -821,6 +822,10 @@ document.addEventListener("input", function (e) {
   function sourceKind(v) {
     v = v.trim();
     if (!v) return "";
+    if (/^[\w.-]+:\d{1,5}(\/|$)/.test(v) && !/^(npm|pypi|uvx):/i.test(v)) return "api"; // mealie:9000
+    var m = /^(https?):\/\/([^\/:@]+)([^@]*)$/i.exec(v);
+    if (m && !/github|gitlab|bitbucket|gitea|forgejo|codeberg|sr\.ht|npmjs|pypi\.org/i.test(m[2]) &&
+        (m[1].toLowerCase() === "http" || /(\.(json|ya?ml|toml)|openapi|swagger|api-docs)(\?|$)/i.test(m[3]) || m[3].split("/").filter(Boolean).length < 2)) return "api";
     if (/^(npm|pypi|uvx):/i.test(v) || /^@/.test(v) || /==/.test(v)) return "package";
     if (/^git@/i.test(v) || /^https?:\/\/(www\.)?(npmjs\.com|pypi\.org)\//i.test(v)) return /^git@/i.test(v) ? "git" : "package";
     if (/^https?:\/\//i.test(v)) return "git";
@@ -911,6 +916,15 @@ document.addEventListener("input", function (e) {
     }
     if (x.error) { // said once, here: no pill, no toast
       show(form, "bad", "", [x.error]);
+      return;
+    }
+    if (x.result.kind === "openapi") { // an address of a REST API: the form becomes an OpenAPI upstream
+      var sel = document.querySelector("[data-kind-select]");
+      if (sel) { sel.value = "openapi"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+      set(form, "oa_spec_url", x.result.spec_url);
+      if (form.elements.alias && form.elements.alias.type !== "hidden" && !form.elements.alias.value) set(form, "alias", x.result.alias);
+      var found = x.result.title ? "Found " + x.result.title + "." : "Found the description.";
+      window.skgateToast("ok", found + " Review and save.");
       return;
     }
     apply(form, x.result);
