@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<Profile>
+  <Name>helv-io</Name>
+  <Description>Self-hosted tools by Helvio Pedreschi. skgate is an MCP proxy with OAuth: any MCP server, anywhere, behind one sign-in.</Description>
+  <Web>https://github.com/helv-io</Web>
+  <GitHub>https://github.com/helv-io/skgate</GitHub>
+</Profile>

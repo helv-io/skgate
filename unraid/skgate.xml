@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>skgate</Name>
+  <Repository>ghcr.io/helv-io/skgate:latest</Repository>
+  <Registry>https://github.com/helv-io/skgate/pkgs/container/skgate</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>REPLACE_WITH_UNRAID_FORUM_THREAD_URL</Support>
+  <Project>https://github.com/helv-io/skgate</Project>
+  <ReadMe>https://github.com/helv-io/skgate#readme</ReadMe>
+  <Overview>MCP proxy with OAuth. Paste a GitHub repo URL (or a remote MCP server URL) and skgate builds it, runs it and serves it as an MCP endpoint behind OAuth, so Grok, Claude, Cursor and other MCP clients can connect with a normal sign-in. Idle servers are stopped to save RAM. It also gives you virtual API keys, and it can serve an OpenAI-compatible API on your Grok subscription.&#xD;
+&#xD;
+skgate is not an Unraid plugin and does not manage Unraid. It needs an OIDC provider for admin sign-in (Authelia, Authentik, Keycloak, Pocket ID, Zitadel and similar). Create a confidential client with the redirect URI PUBLIC_URL/admin/oidc/callback. Put it behind a reverse proxy with HTTPS: MCP clients need a public https address.</Overview>
+  <Category>Tools: Network:Web Network:Management</Category>
+  <WebUI>http://[IP]:[PORT:8080]/admin</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/helv-io/skgate/master/unraid/skgate.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/helv-io/skgate/master/unraid/skgate.png</Icon>
+  <ExtraParams>--health-cmd="/skgate healthcheck" --health-interval=30s --health-timeout=5s --health-retries=3</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Web UI Port" Target="8080" Default="8080" Mode="tcp" Description="Port of the web UI and the MCP, OAuth and /v1 endpoints." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="AppData" Target="/data" Default="/mnt/user/appdata/skgate" Mode="rw" Description="Database (skgate.db), encryption key (secrets.key) and managed upstream data. Back this up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/skgate</Config>
+  <Config Name="Public URL" Target="PUBLIC_URL" Default="" Mode="" Description="The public https address clients use to reach skgate, no trailing slash. Example: https://skgate.example.com" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="OIDC Issuer" Target="OIDC_ISSUER" Default="" Mode="" Description="Issuer URL of your OIDC provider, for admin sign-in. Example: https://auth.example.com" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="OIDC Client ID" Target="OIDC_CLIENT_ID" Default="skgate" Mode="" Description="Client ID of the confidential client you created for skgate. Redirect URI: PUBLIC_URL/admin/oidc/callback" Type="Variable" Display="always" Required="true" Mask="false">skgate</Config>
+  <Config Name="OIDC Client Secret" Target="OIDC_CLIENT_SECRET" Default="" Mode="" Description="Client secret for the OIDC client above." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Allowed emails (optional)" Target="OIDC_ALLOWED_EMAILS" Default="" Mode="" Description="Comma list. Only these OIDC users may sign in as admin. Empty: every user your OIDC provider admits is an admin." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Allowed groups (optional)" Target="OIDC_ALLOWED_GROUPS" Default="" Mode="" Description="Comma list of OIDC groups allowed to sign in as admin. Empty: no group restriction." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Time zone" Target="TZ" Default="" Mode="" Description="For log timestamps and dates, for example America/New_York." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID skgate runs as (Unraid: nobody = 99)." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID skgate runs as (Unraid: users = 100)." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+  <Config Name="Log level" Target="LOG_LEVEL" Default="info" Mode="" Description="info or debug." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
+</Container>

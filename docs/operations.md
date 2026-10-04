@@ -17,6 +17,10 @@ Release tags add versioned names: `X.Y.Z` and `vX.Y.Z` (full), `X.Y.Z-slim` and 
 
 Each stable release tag is listed in the [official MCP registry](https://registry.modelcontextprotocol.io) as `io.github.helv-io/skgate`, from the Release workflow's `mcp-registry` job after the images are published. The entry is `server.json`; both images carry the `io.modelcontextprotocol.server.name` label the registry checks. The job logs in with GitHub OIDC (no secret), fails when `server.json` does not match the tag, and skips a version that is already listed.
 
+## Unraid
+
+`unraid/skgate.xml` is a Community Apps template for the `ghcr.io/helv-io/skgate:latest` image: the web port (8080), the appdata folder (`/data`) and the OIDC settings for admin sign-in (`PUBLIC_URL`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`), with the optional ones under Advanced. To use it before it is listed, copy the file to `/boot/config/plugins/dockerMan/templates-user/skgate.xml` on the server and add the container from Docker, Add Container, and the `skgate` template. `unraid/ca_profile.xml` is the maintainer profile and `unraid/skgate.png` the icon. skgate needs an OIDC provider and a public https address, as everywhere else.
+
 ## Upgrading
 
 Back up `/data` (`skgate.db` and `secrets.key`), then:
