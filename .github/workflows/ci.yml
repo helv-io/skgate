@@ -40,3 +40,12 @@ jobs:
       - uses: ./.github/actions/go
       - uses: ./.github/actions/browser-tools
       - run: tools/test-shard.sh ${{ matrix.shard }} 3
+
+  # Known vulnerabilities in the dependencies and the standard library that the code actually calls.
+  vulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/go
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
