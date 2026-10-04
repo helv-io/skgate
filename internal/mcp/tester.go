@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/helv-io/skgate/internal/config"
+	"github.com/helv-io/skgate/internal/httputil"
 )
 
 const (
@@ -64,6 +66,12 @@ func (s *Server) Test(ctx context.Context, alias string) (tr TestResult) {
 	defer func() { tr.Latency = time.Since(start) }()
 	if up.Managed() {
 		return s.testManaged(ctx, up)
+	}
+	if pu, err := url.Parse(up.URL); err == nil {
+		if err := httputil.CheckScheme(pu); err != nil { // one rule for every address: plain http only off the internet
+			tr.Error = err.Error()
+			return tr
+		}
 	}
 	if up.IsOpenAPI() {
 		return s.testOpenAPI(ctx, up)
