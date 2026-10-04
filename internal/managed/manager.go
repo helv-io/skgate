@@ -284,13 +284,18 @@ func (m *Manager) Shutdown() {
 		ps = append(ps, p)
 	}
 	m.mu.Unlock()
-	var wg sync.WaitGroup
-	for _, p := range ps {
-		wg.Add(1)
-		go func(p *Proc) { defer wg.Done(); p.Stop(); p.closeSessions() }(p)
+	stopAll := func() {
+		var wg sync.WaitGroup
+		for _, p := range ps {
+			wg.Add(1)
+			go func(p *Proc) { defer wg.Done(); p.Stop(); p.closeSessions() }(p)
+		}
+		wg.Wait()
 	}
-	wg.Wait()
+	stopAll()
 	m.wg.Wait()
+	// An update that was running can have started its process again after the first stop.
+	stopAll()
 }
 
 func (m *Manager) acquire() error {
