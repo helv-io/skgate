@@ -6,6 +6,7 @@ package suggest
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -21,6 +22,9 @@ const (
 	KindPyPI        Kind = "pypi"
 	KindPackage     Kind = "package"
 	KindUnsupported Kind = "unsupported"
+	// KindOpenAPI is a REST API: the address of an API, its OpenAPI description or a documentation page. It is not
+	// suggested for; the form for an OpenAPI upstream takes it.
+	KindOpenAPI Kind = "openapi"
 )
 
 // Source is a parsed "MCP source URL / package" input.
@@ -41,6 +45,8 @@ func (s Source) Label() string {
 	switch {
 	case s.Kind == KindGit:
 		return s.CloneURL() + prefixed("@", s.Ref)
+	case s.Kind == KindOpenAPI:
+		return "openapi " + s.Name
 	case s.Name != "":
 		return s.Name
 	}
@@ -91,6 +97,10 @@ func ParseSource(in string) (Source, error) {
 	if m := regexp.MustCompile(`^git@([^:/]+):(.+)$`).FindStringSubmatch(in); m != nil {
 		in = "https://" + m[1] + "/" + m[2]
 	}
+	if looksLikeAPI(in) {
+		s.Kind, s.Name = KindOpenAPI, AliasFor(in)
+		return s, nil
+	}
 	if pre, rest, ok := strings.Cut(in, ":"); ok && !strings.HasPrefix(rest, "//") && len(pre) < 8 {
 		switch pre {
 		case "npm":
@@ -103,7 +113,7 @@ func ParseSource(in string) (Source, error) {
 			return s, nil
 		}
 	}
-	if strings.HasPrefix(in, "http://") {
+	if strings.HasPrefix(in, "http://") { // a git forge or a registry: clones and lookups are https
 		return s, errors.New("use an https address")
 	}
 	if !strings.HasPrefix(in, "https://") {
@@ -126,6 +136,90 @@ func ParseSource(in string) (Source, error) {
 	}
 	s.Kind, s.Name = KindPackage, in
 	return s, nil
+}
+
+var (
+	hostPortRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.-]*:[0-9]{1,5}(/\S*)?$`)
+	forgeRE    = regexp.MustCompile(`github|gitlab|bitbucket|gitea|forgejo|codeberg|sr\.ht|npmjs|pypi\.org`)
+)
+
+// knownSourceHost reports whether host serves git repositories or packages: those addresses keep their rules.
+func knownSourceHost(host string) bool {
+	host = strings.ToLower(host)
+	if _, ok := unsupportedHosts[host]; ok {
+		return true
+	}
+	return forgeRE.MatchString(host)
+}
+
+// specLikePath reports whether a path names an OpenAPI description or the page of one.
+func specLikePath(p string) bool {
+	p = strings.ToLower(p)
+	for _, ext := range []string{".json", ".yaml", ".yml", ".toml"} {
+		if strings.HasSuffix(p, ext) {
+			return true
+		}
+	}
+	return strings.Contains(p, "openapi") || strings.Contains(p, "swagger") || strings.Contains(p, "api-docs")
+}
+
+// looksLikeAPI reports whether the input is the address of a REST API rather than a git repository or a
+// package: a host with a port, a plain http address (clones are https), an address that names a description, or
+// an https address with no owner and repository in it. A git forge or a registry is never one.
+func looksLikeAPI(in string) bool {
+	if pre, rest, ok := strings.Cut(in, ":"); ok && !strings.HasPrefix(rest, "//") {
+		if _, known := unsupportedPrefix[pre]; known || pre == "npm" || pre == "pypi" || pre == "uvx" {
+			return false
+		}
+		return hostPortRE.MatchString(in)
+	}
+	rest, scheme := in, ""
+	for _, p := range []string{"https://", "http://"} {
+		if strings.HasPrefix(in, p) {
+			rest, scheme = strings.TrimPrefix(in, p), strings.TrimSuffix(p, "://")
+		}
+	}
+	host, path, _ := strings.Cut(rest, "/")
+	host, _, _ = strings.Cut(host, ":")
+	if host == "" || strings.HasPrefix(in, "@") || strings.Contains(in, "@") || knownSourceHost(host) {
+		return false
+	}
+	path = "/" + strings.Split(path, "?")[0]
+	switch {
+	case scheme == "":
+		return strings.Contains(rest, "/") && specLikePath(path) // mealie.lan/openapi.json
+	case scheme == "http", specLikePath(path):
+		return true
+	}
+	return len(strings.FieldsFunc(path, func(r rune) bool { return r == '/' })) < 2
+}
+
+// AliasFor proposes an alias for an API from its address: the first meaningful label of the host.
+func AliasFor(in string) string {
+	rest := in
+	if i := strings.Index(rest, "://"); i >= 0 {
+		rest = rest[i+3:]
+	}
+	host, _, _ := strings.Cut(rest, "/")
+	host, _, _ = strings.Cut(host, ":")
+	if net.ParseIP(strings.Trim(host, "[]")) == nil {
+		for _, l := range strings.Split(strings.ToLower(host), ".") {
+			if l != "" && l != "www" && l != "api" && l != "docs" {
+				host = l
+				break
+			}
+		}
+	} else {
+		host = ""
+	}
+	alias := strings.Trim(regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(strings.ToLower(host), "-"), "-")
+	if alias == "" {
+		return "api"
+	}
+	if len(alias) > 63 {
+		alias = strings.TrimRight(alias[:63], "-")
+	}
+	return alias
 }
 
 func npmSource(s Source, spec string) (Source, error) {
