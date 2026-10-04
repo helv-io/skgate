@@ -19,6 +19,6 @@
 {{if .R.Tools}}{{template "filter_box" (filterBox "tools-table" "Filter tools by name or description")}}{{end}}
 <div class="card flush tablewrap"><table class="table" id="tools-table"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>
 {{range .R.Tools}}<tr data-filter-row><td class="primary" data-label="Name"><code>{{.Name}}</code></td><td class="wrap" data-label="Description">{{if .Desc}}<details class="desc"><summary>{{.Desc}}</summary>{{if .More}}<p>{{.More}}</p>{{end}}</details>{{else}}<span class="muted">-</span>{{end}}</td></tr>
-{{else}}<tr><td colspan="2" class="empty">no tools</td></tr>{{end}}
-<tr data-filter-empty hidden><td colspan="2" class="empty">no tool matches</td></tr></tbody></table></div>{{end}}
+{{else}}<tr><td colspan="2" class="empty">No tools</td></tr>{{end}}
+<tr data-filter-empty hidden><td colspan="2" class="empty">No tool matches</td></tr></tbody></table></div>{{end}}
 {{end}}{{end}}

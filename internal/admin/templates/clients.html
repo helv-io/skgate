@@ -10,7 +10,7 @@
 {{range $c := .List}}<tr><td class="primary" data-label="Name">{{$c.Name}}</td><td class="status" data-label="Source"><span class="chip"{{if $c.SourceTip}} title="{{$c.SourceTip}}"{{end}}>{{$c.SourceLabel}}</span></td><td class="trunc" data-label="Redirect host">{{if $c.Host}}<code title="{{$c.Host}}">{{$c.Host}}</code>{{if $c.More}} <span class="muted">+{{$c.More}} more</span>{{end}}{{else}}<span class="muted">-</span>{{end}}</td><td class="nw" data-label="Created">{{ts $c.CreatedAt}}</td>{{if $c.LastUsed.IsZero}}<td class="nw muted" data-label="Last used">never</td>{{else}}<td class="nw" data-label="Last used">{{ts $c.LastUsed}}</td>{{end}}
 <td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#client-{{$c.ID}}">Details</button>
 <form method="post" action="/admin/clients/delete" data-confirm="Delete client and its tokens?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{$c.ID}}"><button class="act danger">Delete</button></form></div></td></tr>
-{{else}}<tr><td colspan="6" class="empty">none</td></tr>{{end}}</tbody></table></div>
+{{else}}<tr><td colspan="6" class="empty">No clients yet</td></tr>{{end}}</tbody></table></div>
 {{range $c := .List}}{{template "dialog_content" (infodlg (printf "client-%s" $c.ID) "OAuth client")}}
 <div class="tablewrap"><table class="table kv"><tbody>
 <tr><th>name</th><td>{{$c.Name}}</td></tr>
