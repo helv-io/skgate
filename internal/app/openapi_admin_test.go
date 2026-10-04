@@ -383,10 +383,12 @@ func TestOpenAPIPagesSayOnlyWhatIsTrue(t *testing.T) {
 			t.Errorf("test page says %q for an OpenAPI upstream", bad)
 		}
 	}
-	_, withURL := br.get("/admin/upstreams/byurl/edit")
-	_, noURL := br.get("/admin/upstreams/pasted/edit")
-	if !strings.Contains(withURL, `name="oa_refetch"`) || strings.Contains(noURL, `name="oa_refetch"`) {
-		t.Error(`"read the address again" belongs to an upstream that has an address, and only to it`)
+	// Reading the address again is the Update button on the tools page: live for an address, off with a reason for pasted text.
+	_, withURL := br.get("/admin/upstreams/byurl/tools")
+	_, noURL := br.get("/admin/upstreams/pasted/tools")
+	if !strings.Contains(withURL, "/admin/upstreams/byurl/spec/update") || strings.Contains(noURL, "/admin/upstreams/pasted/spec/update") ||
+		!strings.Contains(strings.ReplaceAll(noURL, "&#39;", "'"), "pasted definitions can't be updated") {
+		t.Error("Update belongs to an upstream that has an address, and only to it")
 	}
 	if n := a.MCP.Upstreams.OpenAPIToolCount("pasted"); n != 2 { // GET and HEAD; OPTIONS and TRACE start off
 		t.Errorf("default tools = %d, want 2", n)
