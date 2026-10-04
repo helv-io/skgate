@@ -1,11 +1,11 @@
 name: Go toolchain with caches
-description: Installs the Go version from go.mod and restores the module and build caches (saved per commit, restored from the newest earlier one).
+description: Installs the newest Go 1.24 patch release (the line go.mod and the Dockerfile build with) and restores the module and build caches (saved per commit, restored from the newest earlier one).
 runs:
   using: composite
   steps:
     - uses: actions/setup-go@v7
       with:
-        go-version-file: go.mod
+        go-version: 1.24.x
         cache: false
     - id: paths
       shell: bash
