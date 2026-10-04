@@ -159,12 +159,12 @@ func (d *Doc) needsAuth(o Op) bool {
 	return false
 }
 
-// ProbeOp picks the operation to ask when a key is tried: a GET that needs no arguments, preferably one the
-// description marks as requiring a credential. Only reading operations are ever used.
-func (d *Doc) ProbeOp(ops []Op) (Op, bool) {
-	var first *Op
-	for i := range ops {
-		o := ops[i]
+// ProbeOps lists the operations that can check a connection, best first: GETs that need no argument, those the
+// description marks as requiring a credential before the rest, each group in the order of ops. Only reading
+// operations are ever used.
+func (d *Doc) ProbeOps(ops []Op) []Op {
+	var guarded, open []Op
+	for _, o := range ops {
 		if o.Method != http.MethodGet || o.Skip != "" || o.Body != nil || strings.Contains(o.Path, "{") {
 			continue
 		}
@@ -176,14 +176,18 @@ func (d *Doc) ProbeOp(ops []Op) (Op, bool) {
 			continue
 		}
 		if d.needsAuth(o) {
-			return o, true
-		}
-		if first == nil {
-			first = &ops[i]
+			guarded = append(guarded, o)
+		} else {
+			open = append(open, o)
 		}
 	}
-	if first != nil {
-		return *first, true
+	return append(guarded, open...)
+}
+
+// ProbeOp is the first of ProbeOps.
+func (d *Doc) ProbeOp(ops []Op) (Op, bool) {
+	if l := d.ProbeOps(ops); len(l) > 0 {
+		return l[0], true
 	}
 	return Op{}, false
 }
@@ -202,8 +206,8 @@ func Ways(s Scheme, value string) []Way {
 	return ways
 }
 
-// keyProbeTimeout bounds one request of a key probe.
-const keyProbeTimeout = 10 * time.Second
+// KeyProbeTimeout bounds one request of a key probe (a variable so tests can shorten it).
+var KeyProbeTimeout = 10 * time.Second
 
 // Tried is the outcome of trying a key.
 type Tried struct {
@@ -215,7 +219,7 @@ type Tried struct {
 // TryAuth asks base with one GET of the operation and one credential, and returns the HTTP status (0: no answer).
 // Only the server given is asked, redirects stay on its host, and nothing but a read is sent.
 func TryAuth(ctx context.Context, base string, op Op, a Auth, ua string) int {
-	c := &Caller{Base: base, Auth: a, UA: ua, Client: &http.Client{Timeout: keyProbeTimeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	c := &Caller{Base: base, Auth: a, UA: ua, Client: &http.Client{Timeout: KeyProbeTimeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) >= maxRedirects {
 			return http.ErrUseLastResponse
 		}
