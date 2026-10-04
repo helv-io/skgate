@@ -26,6 +26,10 @@ All types are served the same way: `/mcp/<alias>` (unprefixed), the aggregating 
 
 Auto detection runs on save, on **detect**, and lazily on first use. 401/403 count as failure. An upstream that only offers OAuth is reported as `oauth (unsupported)` and gets no credentials. Editing URL, credentials, header name or host override clears the result. Existing upstreams keep their mode.
 
+**Addresses.** An address on the internet needs `https`; plain `http` is accepted for a single-label name (a Docker service), an IP address, `localhost` and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`. The rule is the same for remote and OpenAPI upstreams, Test and import, and Suggest. Git clones are always https.
+
+**Add and Save test first.** The form posts in place and the upstream is tested before anything is stored: a remote upstream must answer `initialize`, an OpenAPI one must answer and take its key. A failed test leaves the page as it is, every field and secret kept, with a short error. Managed upstreams are not started for it. The button is off, with the reason shown, until the type has what it needs.
+
 **Host override** (`hostname[:port]`, under **Advanced** in the form; shown in the alias's hover text when set) replaces the outbound `Host` header, for servers that validate it. Probes and Test honor it.
 
 **Test** runs `initialize`, `notifications/initialized` and `tools/list` with the effective auth. The screen opens with one line (`OK · 3 tools · 435 ms`, or `failed · 435 ms`), then the buttons, then the details (status, auth, latency, server, protocol) and the tools (first 100). A filter box narrows the tools by name or description as you type, and each description is one line that opens to the rest of the text. Passthrough upstreams are tested without credentials.
@@ -62,6 +66,8 @@ The managed form has two main fields: **MCP source URL / package** and **Access 
 | npm package (`pkg`, `@scope/pkg@1.2.3`, `npm:pkg`, npmjs.com URL) | Runs with `npx`. |
 | PyPI package (`pkg==1.2.3`, `pypi:pkg`, pypi.org URL) | Runs with `uvx`. |
 | crates.io, Go modules, Docker, NuGet, RubyGems, Maven, JSR/Deno | Refused with a message: the image has no `cargo`, `docker`, `gem`, `mvn` or `deno`, and NuGet packages and Go module addresses are not run directly (point at the git repository instead). |
+
+An address of a REST API typed into the source field (`http://mealie:9000`, `mealie:9000`, a link to an `openapi.json` or a documentation page) is not a source to suggest for. Suggest looks for its OpenAPI description, with no helper model and even when none is set, and turns the form into an OpenAPI upstream with the address and an alias filled in. See [Finding the description](openapi.md#finding-the-description).
 
 How Suggest configuration works:
 

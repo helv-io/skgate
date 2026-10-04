@@ -10,10 +10,40 @@ An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API
 
 | Field | Meaning |
 | --- | --- |
-| Description URL | Where the OpenAPI description is. skgate downloads it once, when you save (http or https without a user name or password, up to 10 MB, at most 5 redirects). |
-| Paste the description | JSON, YAML or TOML. Pasted text wins over the URL. A description of more than a few MB is easier to give as a URL. |
-| Base URL | Where the calls go. Empty takes the first server of the description (variables replaced by their defaults, a relative address resolved against the description's URL). A dropdown of the description's servers is offered; any address is accepted. |
-| Outbound auth | Static credentials only: `none`, bearer token, an API key in a header, an API key in the query string, or basic (user and password). skgate sends the credential with every call and applies it last, so a model's arguments can never replace it. OAuth flows are not supported. |
+| Address | The API, its description or its documentation page. `http://mealie:9000` is enough: skgate finds the description itself (see [Finding the description](#finding-the-description)). |
+| Or paste the description | JSON, YAML or TOML. Pasted text wins over the address. A description of more than a few MB is easier to give as an address. |
+| Key or token | The only credential field. Paste the key as it is; skgate adds `Bearer` or whatever the API wants (see [The key](#the-key)). Empty means an open API. |
+| Advanced | Closed by default. **Send the key as** forces a way: a header name such as `X-Custom-Key` or `Authorization`, `?name` for a query parameter, `bearer`, `basic` (the key is `user:password`) or `none`. **Base URL** overrides where the calls go. |
+
+The base URL is the server named by the description (variables replaced by their defaults). When the description names none, or only a relative one, it is the address the description was read from: scheme, host and port. The Advanced field only overrides this.
+
+**Add** and **Save** are off, with the reason next to them, until the API is given. Pressing one tests the upstream first: the server must answer, and take the key. If the test fails the page stays as it is, with every field, the pasted description and the key, and a short error says why. Only a passing test stores anything.
+
+An address on the internet needs https. Plain http is accepted for names that cannot be on the internet: a single-label name such as `mealie` (a Docker service), an IP address, `localhost`, and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`. skgate decides what is on the internet with the public suffix list. The same rule applies to the address of a remote upstream, and Suggest follows it for the addresses it takes.
+
+## Finding the description
+
+Enter any address of the API and skgate tries, in this order and without telling you which one worked: the address as entered, any description it links, the usual places (`/openapi.json`, `/openapi.yaml`, `/openapi.yml`, `/openapi.toml`, `/swagger.json`, `/swagger.yaml`, `/swagger.yml`, `/api/openapi.json`, `/api/swagger.json`, `/v1/api-docs`, `/v2/api-docs`, `/v3/api-docs`, `/api-docs`, `/docs/openapi.json`, `/api/docs/openapi.json` and the `.yaml` and `.yml` variants), and the documentation pages (`/`, `/docs`, `/redoc`, `/swagger`, `/api/docs`) for a linked description: the `url` of Swagger UI, the `spec-url` of Redoc, or a `link` tag. The first answer whose content reads as an OpenAPI or Swagger description wins, whatever its name or content type. Only GET is sent, only to the host entered (a redirect to another host is not followed), with 6 seconds per request and 25 seconds in all. The address that worked is stored, so **Update** keeps working. If nothing is found the form says so in one sentence and you can paste the description instead.
+
+The Suggest box on the managed form takes such an address too: it looks for the description, with no helper model, and turns the form into an OpenAPI upstream with the address and an alias filled in.
+
+## The key
+
+You paste one value. How it is sent comes from the description's security scheme, in OpenAPI 3 and in Swagger 2:
+
+| The description says | skgate sends |
+| --- | --- |
+| `http` `bearer`, or `oauth2` | `Authorization: Bearer <key>` |
+| `http` `basic` | basic auth; the key is `user:password` |
+| `apiKey` in a header | that header, with the name from the description |
+| `apiKey` in the query string | that query parameter, and the form warns that keys in addresses can show up in logs |
+| nothing usable | `Authorization: Bearer <key>` |
+
+Several alternatives are ranked bearer, header, basic, query. A key in the query string is only used when the description says so; it is never tried as a guess.
+
+When the description says nothing and the server answers 401 or 403, on **Test** and on the first call, skgate quietly tries `X-API-Key`, `Api-Key`, `Authorization: Token <key>` and, for a key that looks like `user:password`, basic. It asks with safe GETs of one operation, preferably one the description marks as requiring a credential, only to the configured server. The way that works is stored and not shown; a new key forgets it. If every way is refused, Test says "The server refused the key." An API with no operation that can be asked without arguments is not probed.
+
+Upstreams saved before this kept their kind (bearer, header, query, basic) and behave exactly as before; their Advanced line shows it. The key is encrypted at rest, masked in the UI, and never sent to a model.
 
 OpenAPI 3.0 and 3.1 are read as they are. Swagger 2 is converted on import. The description is stored as normalized JSON; editing the upstream with an empty paste box keeps it, and a changed URL or new pasted text replaces it, and **Update** on the tools page reads the address again (see [Update from the address](#update-from-the-address)). Credentials are encrypted at rest like those of other upstreams and shown masked; they are never sent to a model.
 
@@ -54,7 +84,7 @@ Both use the MCP helper model (the same setting as Suggest configuration) and ar
 
 Updates are manual. Nothing polls the address, nothing refreshes by itself, and nothing touches a running gateway until you confirm.
 
-On the tools page, **Update** reads the description again from its address. It is on only for an upstream that was added with a Description URL. A pasted description has no address: the button is off, with "pasted definitions can't be updated" as its tooltip and as a line of text next to it.
+On the tools page, **Update** reads the description again from its address. It is on only for an upstream that was added with an address. A pasted description has no address: the button is off, with "pasted definitions can't be updated" as its tooltip and as a line of text next to it.
 
 1. **Update** downloads the description again and, if the text is the same as last time, says "Unchanged" and stops.
 2. Otherwise the new description goes through an SI layer: the same checks and repair as **Check description**, using the helper model you configured. With no helper model the layer is skipped and the screen says so.
