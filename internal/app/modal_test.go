@@ -26,6 +26,7 @@ func TestNoBrowserDialogsAndOneSharedModal(t *testing.T) {
 	}
 	a, br, csrf := managedApp(t)
 	br.post("/admin/upstreams/save", stdioForm(csrf, "m", nil))
+	br.get("/admin/upstreams/m/test") // starts it, so the process page offers Stop
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
 	_ = a
 	confirm := regexp.MustCompile(`<form[^>]*data-confirm="([^"]*)"`)
@@ -76,6 +77,7 @@ func TestModalBehaviorInJSDOM(t *testing.T) {
 	}
 	_, br, csrf := managedApp(t)
 	br.post("/admin/upstreams/save", stdioForm(csrf, "m", url.Values{"lifecycle": {"always"}}))
+	br.get("/admin/upstreams/m/test") // starts it, so the process page offers Stop
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
 	dir := t.TempDir()
 	for file, path := range map[string]string{"keys.html": "/admin/keys", "logs.html": "/admin/upstreams/m/logs", "list.html": "/admin/upstreams", "new.html": "/admin/upstreams/new", "clients.html": "/admin/clients", "status.html": "/admin"} {
