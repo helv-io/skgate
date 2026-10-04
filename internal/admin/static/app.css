@@ -37,7 +37,7 @@ header .ver{margin-left:auto;font-family:var(--mono)}
 header a.ver{padding:0 10px;border-right:0}
 header a.ver,header a.ver:hover{background:none;color:var(--dim);text-decoration:none;cursor:pointer}
 header a.ver.new,header a.ver.new:hover{color:var(--warn)}
-header a.ver:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+header :focus-visible{outline-offset:-2px}
 header .who{color:var(--fg);opacity:.85;min-width:0;overflow:hidden;text-overflow:ellipsis}
 header .act{border:0;border-left:1px solid var(--line);height:100%;padding:9px 14px;background:none}
 header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
@@ -149,7 +149,13 @@ a.name:hover code{border-color:var(--acc);color:var(--acc)}
 label.check{display:inline-flex;align-items:center;gap:6px;margin:0 16px 0 0;color:var(--fg)}
 input,select,textarea{font:inherit;color:var(--fg);background:#0c0d0f;border:1px solid var(--line);padding:5px 8px}
 input[type=text],input[type=password],input[type=url],textarea,select{width:100%;display:block}
-input:focus,select:focus,textarea:focus{outline:0;border-color:var(--acc)}
+/* focus: one visible ring for everything the keyboard reaches (fields, quick buttons, links, menu items); a field
+   also takes the accent border. Inside a menu or the nav panel the ring sits inside the item, so nothing clips it. */
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+input:focus,select:focus,textarea:focus{border-color:var(--acc)}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline-offset:0}
+input[aria-invalid=true]:focus-visible{outline-color:var(--bad)}
+.menu-list :focus-visible,.nav-panel :focus-visible{outline-offset:-2px}
 input[aria-invalid=true],input[aria-invalid=true]:focus{border-color:var(--bad)}
 input[type=checkbox]{width:auto;accent-color:var(--acc);margin:0}
 /* pick: a control and its Save button on one line, further controls beneath it in the same column */
