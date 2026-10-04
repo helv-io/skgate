@@ -3,6 +3,7 @@
 <form method="post" action="/admin/upstreams/import" class="form wide"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>JSON: <code>{"mcpServers": {"name": {"command": "npx", "args": []}}}</code>, one server object, or entries with <code>url</code> and <code>headers</code><textarea class="wide" name="json" rows="12" spellcheck="false" autocomplete="off" data-code="json" data-json-check>{{.Text}}</textarea></label>
 <p class="muted" data-json-status aria-live="polite"></p></div>
+<script src="/admin/static/codemirror.js" defer></script>
 <div class="row"><label class="check"><input type="checkbox" name="include" value="1" {{if .Include}}checked{{end}}> include in /mcp</label></div>
 {{if not .Managed}}<p class="muted">Managed upstreams: {{.Why}}. Command entries are rejected.</p>{{end}}
 <div class="row"><button class="btn">Import</button> <a class="act" href="/admin/upstreams">Back</a></div></form></div>
