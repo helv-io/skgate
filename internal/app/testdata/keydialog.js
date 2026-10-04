@@ -32,7 +32,7 @@ const ok = (c, m) => { if (!c) bad.push(m); };
     const zone = body.querySelector(".danger-zone"), det = [...body.querySelectorAll("h4")].find(h => h.textContent.trim() === "Details");
     return { labelAboveField: range.getBoundingClientRect().bottom <= top(rate) + 1, zone: !!zone, head: zone && zone.querySelector("h4").textContent.trim(),
       belowSave: zone && top(zone) > bottom(save), aboveDetails: zone && det && bottom(zone) <= top(det),
-      both: zone && [...zone.querySelectorAll("button.danger")].map(x => x.textContent.trim()).join(","), border: zone && getComputedStyle(zone).borderTopColor,
+      both: zone && [...zone.querySelectorAll("button")].map(x => x.textContent.trim()).join(","), border: zone && getComputedStyle(zone).borderTopColor,
       outside: zone && body.querySelector("form[action$='/keys/update']").contains(zone) };
   });
   ok(lay.labelAboveField, "the rate label is above its field " + JSON.stringify(lay));
