@@ -430,7 +430,7 @@ func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState)
 		tr.Warnings = append(tr.Warnings, "no tools on")
 	}
 	if up.SecretErr {
-		tr.Error = "the stored key cannot be read, enter it again"
+		tr.Error = "the key cannot be read, enter it again"
 		return tr
 	}
 	// One safe read tells whether the server takes the key: the first enabled GET without arguments, one the
@@ -462,7 +462,7 @@ func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState)
 			tr.Error = "the server needs a key"
 			return tr
 		case status == http.StatusNotFound:
-			tr.Error = "the server answered 404, check the base URL"
+			tr.Error = "not found, check the base URL"
 			return tr
 		default:
 			tr.Error = fmt.Sprintf("the server answered %d", status)

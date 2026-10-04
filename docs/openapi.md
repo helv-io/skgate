@@ -46,13 +46,13 @@ When the description says nothing and the server answers 401 or 403, on **Test**
 
 ### The connection check
 
-**Add** and **Save** check the connection before anything is stored. skgate calls the first GET tool without parameters: no required path, query or header parameter and no body, the ones the description marks as protected first, and among the tools that are on when any is. It never calls an operation that changes data, and it asks only the server of the upstream, under the same http and https rule as everything else. The key is never logged.
+**Add** and **Save** check the connection before anything is stored: the first GET without parameters (no required path, query or header parameter, no body), a protected one first, and among the tools that are on when any is. It never calls an operation that changes data, asks only the server of the upstream and keeps the http and https rule. The key is never logged.
 
 | Answer | Result |
 | --- | --- |
 | 2xx | Saved. |
 | 401 or 403 | Not saved: "the server refused the key", or "the server needs a key" when none was entered. A 403 first tries up to two more reads, in case that one operation is only for admins. |
-| 404 | Not saved: "the server answered 404, check the base URL". |
+| 404 | Not saved: "not found, check the base URL". |
 | Another status, no answer or a timeout | Not saved, with a short error. |
 
 A failed check returns to the same form with every field kept. **Skip check** saves without asking. A description with no such GET shows no check line and is saved without one. An edit checks only when the key, the base URL, the description or the switch to enabled changed. **Test** uses the same call.

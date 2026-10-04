@@ -96,7 +96,7 @@ func TestCheckForbiddenTriesAnotherReadBeforeBlocking(t *testing.T) {
 func TestCheckOtherAnswersAndNoAnswerBlock(t *testing.T) {
 	e := newEnv(t, nil)
 	notFound := newCheckAPI(t, func(r *http.Request) int { return 404 })
-	if tr := draft(t, e, notFound.URL, checkSpec, AuthAuto, "KEY", "GET /things"); tr.OK || !strings.Contains(tr.Error, "answered 404") || !strings.Contains(tr.Error, "base URL") {
+	if tr := draft(t, e, notFound.URL, checkSpec, AuthAuto, "KEY", "GET /things"); tr.OK || !strings.Contains(tr.Error, "not found") || !strings.Contains(tr.Error, "base URL") {
 		t.Errorf("404: %+v", tr)
 	}
 	broken := newCheckAPI(t, func(r *http.Request) int { return 500 })
