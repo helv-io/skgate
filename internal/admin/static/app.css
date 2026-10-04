@@ -59,6 +59,9 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 .table tbody tr.geturl,.table tbody tr.geturl:hover td{background-color:var(--tint-url)}
 .table td{white-space:nowrap}
 .table td.wrap{white-space:normal;overflow-wrap:anywhere;min-width:160px}
+/* primary: the name; a long one wraps instead of pushing the row's actions out of view */
+.table td.primary{white-space:normal;overflow-wrap:anywhere;min-width:12ch}
+.table td.primary code{white-space:normal;overflow-wrap:anywhere;overflow-x:visible}
 /* trunc: the flexible column. max-width:0 lets the cell shrink to the space left (no horizontal
    scrollbar); long values end in an ellipsis and carry the full text in title. */
 .table td.trunc{width:32%;max-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -327,6 +330,8 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
 
 /* low-priority columns drop out on narrower windows instead of forcing a horizontal scrollbar */
 @media (max-width:1100px){.hide-md{display:none}}
+@media (min-width:801px){.table td.wrap>details.desc{width:0;min-width:100%}}
+@media (min-width:801px) and (max-width:1100px){.table th,.table td{padding-left:8px;padding-right:8px}}
 @media (max-width:800px){.hide-sm{display:none}.table td.trunc{width:auto}}
 
 /* Phones: every list table (.table without .kv) becomes a stack of cards, from markup alone.
