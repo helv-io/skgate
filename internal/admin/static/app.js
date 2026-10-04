@@ -1059,3 +1059,225 @@ function frontierHint(form) {
       .then(function () { if (btn) btn.disabled = false; });
   });
 })();
+
+// Process output: [data-log] holds the filter bar and the [data-log-view] with one .logline per line. The page
+// follows the live stream (server-sent events, resumed from the last line id) while it is open, keeps the view
+// at the newest line until the reader scrolls up ("jump to latest" returns), and filters by text or /regex/,
+// level and stderr. Times show as a clock or as "5 s ago".
+(function () {
+  var root = document.querySelector("[data-log]");
+  if (!root) return;
+  var view = root.querySelector("[data-log-view]");
+  var box = root.querySelector("[data-log-filter]");
+  var level = root.querySelector("[data-log-level]");
+  var errBtn = root.querySelector("[data-log-stderr]");
+  var timeBtn = root.querySelector("[data-log-time]");
+  var count = root.querySelector("[data-log-count]");
+  var jump = root.querySelector("[data-log-jump]");
+  var empty = root.querySelector("[data-log-empty]");
+  var copyBtn = root.querySelector("[data-copy]");
+  var max = parseInt(root.getAttribute("data-max"), 10) || 1000;
+  var last = parseInt(root.getAttribute("data-last"), 10) || 0;
+  var rank = { debug: 0, info: 1, warn: 2, error: 3 };
+  var follow = true, relative = false, es = null, lastLevel = "", quiet = false;
+  try { relative = localStorage.getItem("skgate.logtime") === "ago"; } catch (e) {}
+
+  // Removing old lines moves the scroll position by itself; that scroll is not the reader leaving the bottom.
+  function settle() {
+    quiet = true;
+    requestAnimationFrame(function () { quiet = false; });
+  }
+  function lines() { return view.querySelectorAll(".logline"); }
+  function atBottom() { return view.scrollHeight - view.scrollTop - view.clientHeight < 24; }
+  function toBottom() { view.scrollTop = view.scrollHeight; }
+
+  function ago(ms) {
+    var s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    if (s < 60) return s + " s ago";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    return Math.floor(s / 86400) + " d ago";
+  }
+  function stamp(l) {
+    var t = l.querySelector(".logtime");
+    if (!t) return;
+    if (!t._abs) t._abs = t.textContent;
+    t.textContent = relative ? ago(parseInt(l.getAttribute("data-ms"), 10)) : t._abs;
+  }
+  function stampAll() { Array.prototype.forEach.call(lines(), stamp); }
+  function mode() {
+    timeBtn.textContent = relative ? "times: ago" : "times: clock";
+    timeBtn.classList.toggle("on", relative);
+    timeBtn.setAttribute("aria-pressed", relative ? "true" : "false");
+  }
+
+  // The level of a line without one is the level of the line before it (a stack trace belongs to its error).
+  function effective(l) {
+    var v = l.getAttribute("data-lvl");
+    if (v) { lastLevel = v; return v; }
+    if (l.getAttribute("data-src") === "sys") return "";
+    return lastLevel;
+  }
+  function matcher() {
+    var q = box.value;
+    box.removeAttribute("aria-invalid");
+    if (!q) return null;
+    var m = /^\/(.+)\/(i?)$/.exec(q);
+    if (m) {
+      try { var re = new RegExp(m[1], m[2] || "i"); return function (t) { return re.test(t); }; }
+      catch (e) { box.setAttribute("aria-invalid", "true"); return null; }
+    }
+    var low = q.toLowerCase();
+    return function (t) { return t.toLowerCase().indexOf(low) >= 0; };
+  }
+  function apply() {
+    var match = matcher(), min = level.value ? rank[level.value] : -1, errOnly = errBtn.classList.contains("on");
+    var shown = 0, all = 0;
+    lastLevel = "";
+    Array.prototype.forEach.call(lines(), function (l) {
+      var src = l.getAttribute("data-src"), lv = effective(l), ok = true;
+      all++;
+      if (src !== "sys") {
+        if (errOnly && src !== "err") ok = false;
+        if (ok && min >= 0 && !(lv in rank && rank[lv] >= min)) ok = false;
+        if (ok && match && !match(l.querySelector(".logtext").textContent)) ok = false;
+      } else if (match && min < 0 && !errOnly) {
+        ok = match(l.querySelector(".logtext").textContent);
+      }
+      l.hidden = !ok;
+      if (ok) shown++;
+    });
+    count.textContent = (box.value || level.value || errOnly) ? shown + " of " + all + " lines" : all + " lines";
+    if (box.getAttribute("aria-invalid")) count.textContent = "not a valid pattern";
+    empty.hidden = all > 0;
+    if (follow) toBottom();
+  }
+
+  function make(j) {
+    var l = document.createElement("div");
+    l.className = "logline";
+    l.setAttribute("data-id", j.id);
+    l.setAttribute("data-run", j.run);
+    l.setAttribute("data-src", j.src);
+    if (j.lvl) l.setAttribute("data-lvl", j.lvl);
+    l.setAttribute("data-ms", j.ms);
+    var t = document.createElement("time");
+    t.className = "logtime";
+    t.title = j.full;
+    t.textContent = j.abs;
+    var s = document.createElement("span");
+    s.className = "logsrc";
+    s.textContent = j.src;
+    var x = document.createElement("span");
+    x.className = "logtext";
+    x.textContent = j.text;
+    l.appendChild(t); l.appendChild(s); l.appendChild(x);
+    if (j.trunc) {
+      var c = document.createElement("span");
+      c.className = "chip";
+      c.textContent = "cut";
+      l.appendChild(c);
+    }
+    return l;
+  }
+  function divider(j) {
+    var d = document.createElement("div");
+    d.className = "logdivider";
+    d.setAttribute("role", "separator");
+    d.setAttribute("data-run", j.run);
+    var m = document.createElement("span");
+    m.className = "logmark";
+    m.textContent = "since last start";
+    var f = document.createElement("span");
+    f.className = "muted";
+    f.textContent = j.full;
+    d.appendChild(m); d.appendChild(document.createTextNode(" ")); d.appendChild(f);
+    return d;
+  }
+  // Only the current and the previous run are kept: older lines and their dividers go.
+  function prune(run) {
+    Array.prototype.forEach.call(view.querySelectorAll("[data-run]"), function (el) {
+      if (parseInt(el.getAttribute("data-run"), 10) < run - 1) view.removeChild(el);
+    });
+  }
+  function trim() {
+    var ls = lines();
+    for (var i = 0; i < ls.length - max; i++) view.removeChild(ls[i]);
+    var first = view.firstElementChild;
+    while (first && first.classList.contains("logdivider") && (!first.nextElementSibling || first.nextElementSibling.classList.contains("logdivider"))) {
+      view.removeChild(first);
+      first = view.firstElementChild;
+    }
+  }
+  function add(j) {
+    if (j.id <= last) return;
+    last = j.id;
+    if (j.start) {
+      Array.prototype.forEach.call(view.querySelectorAll(".logmark"), function (m) { m.textContent = "previous run"; });
+      prune(j.run);
+      view.appendChild(divider(j));
+    }
+    var l = make(j);
+    stamp(l);
+    view.appendChild(l);
+    if (j.lvl && level.hidden) level.hidden = false;
+  }
+
+  var pending = 0; // a burst of lines is filtered once, not once per line
+  function later() {
+    if (!pending) pending = setTimeout(function () { pending = 0; apply(); }, 60);
+  }
+  function open() {
+    if (es || !window.EventSource) return;
+    es = new EventSource(root.getAttribute("data-stream") + "?after=" + last);
+    es.addEventListener("line", function (e) {
+      settle();
+      try { add(JSON.parse(e.data)); } catch (err) { return; }
+      trim();
+      later();
+    });
+    es.addEventListener("reset", function () {
+      settle();
+      view.textContent = "";
+      last = 0;
+      later();
+    });
+  }
+  function shut() { if (es) { es.close(); es = null; } }
+
+  view.addEventListener("scroll", function () {
+    if (quiet) return;
+    follow = atBottom();
+    jump.hidden = follow;
+  });
+  jump.addEventListener("click", function () { follow = true; jump.hidden = true; toBottom(); view.focus(); });
+  box.addEventListener("input", apply);
+  level.addEventListener("change", apply);
+  errBtn.addEventListener("click", function () {
+    var on = !errBtn.classList.contains("on");
+    errBtn.classList.toggle("on", on);
+    errBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    apply();
+  });
+  timeBtn.addEventListener("click", function () {
+    relative = !relative;
+    try { localStorage.setItem("skgate.logtime", relative ? "ago" : "clock"); } catch (e) {}
+    mode();
+    stampAll();
+  });
+  if (copyBtn) copyBtn.addEventListener("click", function () {
+    document.getElementById("log-copy").textContent = Array.prototype.filter.call(lines(), function (l) { return !l.hidden; })
+      .map(function (l) {
+        return l.querySelector(".logtime").title + " [" + l.getAttribute("data-src") + "] " + l.querySelector(".logtext").textContent;
+      }).join("\n");
+  });
+  document.addEventListener("visibilitychange", function () { if (document.hidden) shut(); else open(); });
+  window.addEventListener("pagehide", shut);
+  setInterval(function () { if (relative && !document.hidden) stampAll(); }, 10000);
+
+  mode();
+  stampAll();
+  apply();
+  toBottom();
+  open();
+})();

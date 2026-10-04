@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .desc .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -229,6 +229,25 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .row.bottom{align-items:flex-end}
 .row.bottom>.field{flex:1 1 160px;margin:0}
 
+/* logview: a process's output. The bar above filters it; the view scrolls and follows the live stream, tinting stdout, stderr and
+   skgate's own notes differently (the source is also written out). A divider marks where a run starts. */
+.logbar{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin:0 0 8px}
+.logbar input[type=search]{flex:1 1 220px;min-width:0;max-width:var(--form-w)}
+.logwrap{position:relative}
+.logview{max-height:70vh;overflow:auto;background:#0c0d0f;border:1px solid var(--line);font-family:var(--mono);font-size:13px;line-height:1.5}
+.logline{display:flex;gap:10px;padding:1px 10px;border-left:3px solid transparent}
+.logline[hidden],.logdivider[hidden]{display:none}
+.logline[data-src=out]{background:rgba(127,184,255,.07)}
+.logline[data-src=err]{background:rgba(255,138,128,.09)}
+.logline[data-src=sys]{color:var(--dim);font-style:italic}
+.logline[data-src=git],.logline[data-src=install]{color:var(--dim)}
+.logline[data-lvl=error]{border-left-color:var(--bad)}
+.logline[data-lvl=warn]{border-left-color:var(--warn)}
+.logtime{flex:0 0 auto;color:var(--dim)}
+.logsrc{flex:0 0 4.5em;color:var(--dim)}
+.logtext{flex:1 1 auto;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.logdivider{display:flex;gap:10px;align-items:center;padding:3px 10px;margin:4px 0;font-size:12px;color:var(--acc);border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#101216}
+.logjump{position:absolute;right:18px;bottom:14px}
 /* filter: a search field above a table and how many rows it leaves */
 .filter{display:flex;gap:12px;align-items:center;margin:0 0 8px;max-width:var(--form-w)}
 .filter input{flex:1 1 auto;min-width:0}
@@ -360,4 +379,7 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .menu-list form,.actions .menu-list form{display:block;flex:none}
   .table .actions .menu .menu-btn{flex:0 0 auto;min-width:48px}
   .menu .menu-list .act{min-height:44px;display:flex;align-items:center;justify-content:flex-start;padding:8px 16px}
+  .logline{flex-wrap:wrap;gap:0 8px}
+  .logsrc{flex:0 0 auto}
+  .logtext{flex:1 1 100%}
 }

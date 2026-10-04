@@ -53,7 +53,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 			}
 		}
 	}
-	for _, name := range []string{"/admin/keys", "/admin/upstreams", "/admin/clients", "/admin/upstreams/test", "/admin/upstreams/test (managed)", "/admin/upstreams/mgd/logs", "/admin/upstreams/import (result)"} {
+	for _, name := range []string{"/admin/keys", "/admin/upstreams", "/admin/clients", "/admin/upstreams/test", "/admin/upstreams/test (managed)", "/admin/upstreams/import (result)"} {
 		if !strings.Contains(pages[name], `class="table`) || !strings.Contains(pages[name], `tablewrap`) || !strings.Contains(pages[name], "<thead>") {
 			t.Errorf("%s: tables must use .table inside .tablewrap with a thead", name)
 		}

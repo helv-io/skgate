@@ -43,7 +43,7 @@ func TestProcessPageGroupsItsButtons(t *testing.T) {
 	if got := strings.Join(groupOf(t, page, "Maintenance"), ","); got != "update" {
 		t.Errorf("maintenance (stdio) = %q, want update", got)
 	}
-	if got := strings.Join(groupOf(t, page, "Go to"), ","); got != "test,refresh,back" {
+	if got := strings.Join(groupOf(t, page, "Go to"), ","); got != "test,back" {
 		t.Errorf("go to = %q", got)
 	}
 	if got := strings.Join(groupOf(t, page, "Danger"), ","); got != "clear logs" || !strings.Contains(page, `<button class="act danger">clear logs</button>`) {

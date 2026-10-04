@@ -188,8 +188,8 @@ func TestAdminManagedProcessActionsAndLogsPage(t *testing.T) {
 	if !pillRE("ok", "running").MatchString(page) {
 		t.Fatalf("logs page must show the running pill")
 	}
-	if !strings.Contains(page, "<thead>") || !strings.Contains(page, `class="table`) {
-		t.Fatal("logs page must use the shared table")
+	if !strings.Contains(page, "data-log-view") || !strings.Contains(page, `class="logbar"`) {
+		t.Fatal("logs page must use the shared output viewer")
 	}
 	pid := a.MCP.Managed.Lookup("tools").Status().PID
 	if m := act("stop"); !strings.Contains(*m, "stopped") {
