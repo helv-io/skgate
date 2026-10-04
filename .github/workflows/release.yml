@@ -53,6 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/go
+      - uses: ./.github/actions/browser-tools
       - run: tools/test-shard.sh ${{ matrix.shard }} 3
 
   build:
