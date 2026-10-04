@@ -1,6 +1,6 @@
 # MCP upstreams and aggregation
 
-Admin: upstreams. Part of the [skgate README](../README.md).
+Admin: mcp upstreams. Part of the [skgate README](../README.md).
 
 ## Upstreams
 
@@ -65,7 +65,7 @@ The managed form has two main fields: **MCP source URL / package** and **Access 
 
 How Suggest configuration works:
 
-- It uses the MCP helper model (pick it beside the button, or in the provider details dialog; the aliases defined in skgate (Model aliases) are listed after the models; an alias is stored as chosen and resolved to its model when the helper calls the provider, as for /v1 requests) and a fixed system prompt. Output is requested as a strict JSON schema and validated in Go; invalid output is rejected.
+- It uses the MCP helper model (picked beside the button or in the provider's details) and a fixed system prompt. The picker lists your skgate aliases first, then the models; an alias is stored as chosen and resolved when the helper calls the provider, as for `/v1`. Output is requested as a strict JSON schema and validated in Go; invalid output is rejected.
 - skgate fetches the README and manifests itself (`package.json`, `pyproject.toml`, `server.json`, ...) through the host's API, with the token when given. The model sees those documents, never the token; the token is not logged.
 - The model call is streamed, with the reasoning chosen in the MCP helper model dialog (auto: the model decides). It ends after the helper timeout without data (default 120 seconds, set next to the model; for models that look like heavy reasoners the dialog suggests 600) or after 5 minutes overall, twice the timeout when that is longer; the progress line then shows a timed-out state with the stage and elapsed time and a **Lower reasoning** button. A provider that rejects `reasoning_effort` gets the request again without it.
 - Validated suggestions use a command available on the host, name and pin the package, list only environment variables the documents mention, each marked secret or not and required or optional, and come with confidence and warnings. The result lists the warnings first, each with an icon, then the review line; the notes are folded under **Notes (n)**. The variable fields start empty: the placeholder says Required or Optional, and secret ones are masked.
@@ -85,9 +85,9 @@ How Suggest configuration works:
 | Lifecycle | `on-demand` (start on first request, stop after 10 minutes idle) or `always-on` (start at boot; `always` in JSON). |
 | Startup timeout | Not in the form. Seconds until the child must answer `initialize`; 60 unless the suggestion helper or an imported `startupTimeoutSeconds` sets it. A stored value is kept on save. |
 
-**Git repository.** Same as above, with the repository URL in the source field (an https address; `git@host:owner/repo` is converted to https). Import JSON `gitUrl` also accepts http and `file://`, ref (branch or tag, default the remote's HEAD) and an optional token for private repos. skgate clones into `<MANAGED_DIR>/<alias>/repo` (shallow), runs the install step (for example `npm ci`, `uv sync`, `pip install -r requirements.txt`), then the command with the repo as working dir. **Update** fetches the ref, reruns install and restarts ([updates](#updates)). The token is encrypted at rest and passed to git only as an `http.extraHeader` through its environment, never in arguments or logs.
+**Git repository.** Same as above, with the repository URL in the source field (an https address; `git@host:owner/repo` is converted to https). Import JSON `gitUrl` also accepts http and `file://`, and `gitRef` a branch or tag (default the remote's HEAD). The access token of a private repository is set in the form, not in JSON. skgate clones into `<MANAGED_DIR>/<alias>/repo` (shallow), runs the install step (for example `npm ci`, `uv sync`, `pip install -r requirements.txt`), then the command with the repo as working dir. **Update** fetches the ref, reruns install and restarts ([updates](#updates)). The token is encrypted at rest and passed to git only as an `http.extraHeader` through its environment, never in arguments or logs.
 
-Env and header lists start with one row; **Add row** appends rows, **Delete** removes an added row, and blank rows are ignored on save, and unused variables need no deleting. A masked value left unchanged keeps the stored one.
+Env and header lists start with one row; **Add row** appends rows, **Delete** removes an added row. Blank rows are ignored on save, so unused variables need no deleting. A masked value left unchanged keeps the stored one.
 
 ### Example: commands
 
@@ -98,7 +98,7 @@ Env and header lists start with one row; **Add row** appends rows, **Delete** re
 
 ### JSON import and export
 
-Admin: upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}}` object, a bare name-to-server map, or a single server object. Aliases come from the keys, lowercased and sanitized. The field checks the JSON while you type and the **Import** button waits until it is valid. Each entry is reported as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
+Admin: mcp upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}}` object, a bare name-to-server map, or a single server object. Aliases come from the keys, lowercased and sanitized. The field checks the JSON while you type and the **Import** button waits until it is valid. Each entry is reported as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
 
 ```json
 {
@@ -151,7 +151,7 @@ Admin: upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}
 - **Git.** skgate records the installed commit and shows it (short SHA and ref) on the upstream list and the process page. Every 30 minutes, and on **Check**, it asks the remote where the ref points (`git ls-remote`, no clone; same token handling as the other git steps). A branch or default ref that moved shows **update available** and emphasizes **Update**, which stays usable at any time. Tags and commit IDs are shown as **pinned** and are never "ahead".
 - **Command.** **Update** clears that upstream's package cache and restarts it, so `npx` and `uvx` resolve the package again. Caches are per upstream, in `<db dir>/cache/managed/<alias>`; clearing one never touches another. An exact version (`pkg@1.2.3`, `pkg==1.2.3`) is shown as **pinned** and stays that version.
 - **Rollback.** An update fetches while the old version keeps running. If the fetch, install or start fails, the previous commit (or package cache) is restored and restarted, and the error is shown on the process page and logged. Updating a stopped upstream does not start it.
-- **Auto-update** is off by default. Choose an interval (15 minutes to weekly, minimum 5 minutes) in the upstream form. It applies to git branches and default refs that moved, and to unpinned packages run by `npx`, `bunx`, `pnpm dlx`, `uvx`, `uv tool run` or `pipx run`. It never touches tags, commit IDs, pinned versions or other commands. Each update is logged as `managed[alias]: update auto old=<version> new=<version>`; manual ones as `update old=... new=...`; failures as `update failed: ...`.
+- **Auto-update** is off by default. Choose an interval (every 15 minutes to weekly) in the upstream form, or set `autoUpdateSeconds` (at least 300) in import JSON. It applies to git branches and default refs that moved, and to unpinned packages run by `npx`, `bunx`, `pnpm dlx`, `uvx`, `uv tool run` or `pipx run`. It never touches tags, commit IDs, pinned versions or other commands. Each update is logged as `managed[alias]: update auto old=<version> new=<version>`; manual ones as `update old=... new=...`; failures as `update failed: ...`.
 - **Safety.** An enabled auto-update runs newly published third-party code without review, with the upstream's environment and secrets. Pin a version or use a tag where that is not acceptable.
 
 ### Bridging
@@ -161,7 +161,7 @@ Many HTTP clients share one child. skgate remaps JSON-RPC ids per call (and prog
 ### Safety
 
 - **Command execution is an admin capability.** Anyone who is admin can run commands in the container. Admin access is OIDC-protected and POST actions are CSRF-checked; restrict it accordingly.
-- Children run as the same unprivileged uid as skgate (after the `PUID`/`PGID` drop), never root.
+- Children (servers, install and git steps) run as `nobody` (65534), never root, each with its own writable directories. If skgate cannot switch users (started with `user:`), they run as skgate's own user and a warning is logged.
 - Children get an allow-listed environment only: `PATH`, `LANG`, `LC_*`, `TZ`, CA and proxy variables, package cache variables, a per-alias `HOME` and `TMPDIR`, and the upstream's own env. skgate's `OIDC_*`, `SECRETS_KEY` and other settings are not passed.
 - Commands are validated (non-empty, no control characters). No shell unless Shell mode is chosen.
 - Stored secrets (env, headers, tokens, bearer/header auth values) are AES-256-GCM encrypted with `SECRETS_KEY`, or with `secrets.key` next to the database. Back the key up with the database; without it the secrets cannot be read.
@@ -175,10 +175,10 @@ Many HTTP clients share one child. skgate remaps JSON-RPC ids per call (and prog
 /data/managed/<alias>/repo  clone (git)
 /data/managed/<alias>/home  HOME of the child
 /data/managed/<alias>/tmp   TMPDIR of the child
-/data/cache/managed/<alias>  package caches (npm, uv, pip, xdg), one directory per upstream
+/data/cache/managed/<alias>  package caches (npm, uv, pip, xdg, nuget, dotnet, go), one directory per upstream
 ```
 
-In the full image each child gets `NPM_CONFIG_CACHE`, `UV_CACHE_DIR`, `PIP_CACHE_DIR` and `XDG_CACHE_HOME` under its own cache directory (the image sets shared defaults for tools run by hand), so the rest of the filesystem can be read-only (mount `/data` writable). Deleting or disabling an upstream stops its process; its directory under `MANAGED_DIR` is left in place.
+In the full image each child gets the cache variables of its package managers (npm, uv, pip, XDG, NuGet, .NET, Go) under its own cache directory (the image sets shared defaults for tools run by hand), so the rest of the filesystem can be read-only (mount `/data` writable). Deleting or disabling an upstream stops its process; its directory under `MANAGED_DIR` is left in place.
 
 ## Aggregation: `/mcp` vs `/mcp/<alias>`
 
