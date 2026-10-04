@@ -32,7 +32,7 @@ Operations are grouped by HTTP verb (GET, POST, PUT, PATCH, DELETE, then the res
 
 Models pick worse tools, and get slower and costlier, the more tools they are offered. Expose only what you need.
 
-The tools page has a live counter that follows the switches, and the list and the Overview show the same count:
+The tools page has a live counter that follows the switches; the upstream list shows each upstream's count and the Overview the total:
 
 | Tools | Color | |
 | --- | --- | --- |
