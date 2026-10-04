@@ -50,7 +50,21 @@ func testMgr(t *testing.T, mut func(*Options)) (*Manager, *logSink) {
 		mut(&o)
 	}
 	m := NewManager(o)
-	t.Cleanup(m.Shutdown)
+	t.Cleanup(func() {
+		m.Shutdown()
+		// An update still running when Shutdown began can start its process again after Shutdown stopped it
+		// (Shutdown waits for the update, not for what the update started). Stop every process once more, so
+		// nothing is left running or writing when t.TempDir is removed.
+		m.mu.Lock()
+		ps := make([]*Proc, 0, len(m.procs))
+		for _, p := range m.procs {
+			ps = append(ps, p)
+		}
+		m.mu.Unlock()
+		for _, p := range ps {
+			p.Stop()
+		}
+	})
 	return m, ls
 }
 
