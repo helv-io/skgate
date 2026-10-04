@@ -17,9 +17,6 @@ import (
 // description"), and shows what would change. Nothing is replaced until the person confirms; cancel leaves
 // everything as it was. The review screen is a stashed result (see results.go), so a refresh repeats nothing.
 
-// oaUpdateNote is the plain-words disclaimer of the review screen.
-const oaUpdateNote = "Updates run through an SI layer before they are reused. Check the changes below. Nothing is replaced until you confirm."
-
 // maxListed bounds how many operations a review screen names per kind.
 const maxListed = 40
 
@@ -98,42 +95,42 @@ func (a *Admin) oaSpecUpdate(w http.ResponseWriter, r *http.Request) {
 	doc.Source = st.Config.SpecURL
 	hash := openapi.Hash(raw)
 	if st.Config.SpecHash == hash || (st.Config.SpecHash == "" && string(doc.JSON()) == st.Config.Spec) {
-		a.back(w, r, back, "Unchanged: the address returns the description already stored", "")
+		a.back(w, r, back, "No changes", "")
 		return
 	}
 	d := oaUpdateData{Alias: alias}
 	issues := doc.Validate()
 	for _, is := range issues {
 		if is.Fatal {
-			a.back(w, r, back, "", "the new description cannot be used: "+is.Message)
+			a.back(w, r, back, "", "the new description is invalid: "+is.Message)
 			return
 		}
 	}
 	switch {
 	case len(issues) == 0:
-		d.Layer = "No problems found."
+		d.Layer = "No problems"
 	default:
 		as, ctx, cancel, why := a.assistFor(r)
 		if why != "" {
-			d.Layer = fmt.Sprintf("Not run, so %d %s stay: %s", len(issues), plural(len(issues), "problem", "problems"), why)
+			d.Layer = fmt.Sprintf("%d %s, not repaired: %s", len(issues), plural(len(issues), "problem", "problems"), why)
 			break
 		}
 		patches, err := as.Repair(ctx, doc, issues)
 		cancel()
 		if err != nil {
 			log.Printf("openapi: update repair refused: %v", err)
-			d.Layer = fmt.Sprintf("Could not repair, so %d %s stay.", len(issues), plural(len(issues), "problem", "problems"))
+			d.Layer = fmt.Sprintf("%d %s, repair failed", len(issues), plural(len(issues), "problem", "problems"))
 			break
 		}
 		fixed, changes, err := doc.Apply(patches)
 		if err != nil {
 			log.Printf("openapi: update repair patches refused: %v", err)
-			d.Layer = fmt.Sprintf("The repair did not apply, so %d %s stay.", len(issues), plural(len(issues), "problem", "problems"))
+			d.Layer = fmt.Sprintf("%d %s, repair did not apply", len(issues), plural(len(issues), "problem", "problems"))
 			break
 		}
 		doc, d.Repairs = fixed, len(changes)
 		rest := len(doc.Validate())
-		d.Layer = fmt.Sprintf("Fixed %d %s; %d %s left.", len(changes), plural(len(changes), "problem", "problems"), rest, plural(rest, "problem", "problems"))
+		d.Layer = fmt.Sprintf("Fixed %d, %d left", len(changes), rest)
 	}
 	ops := doc.Operations()
 	sel := pruneSelection(st.Config.Selection, ops)
@@ -167,7 +164,7 @@ func (a *Admin) oaSpecApply(w http.ResponseWriter, r *http.Request) {
 	v, ok := a.takeResult(r, r.PostFormValue("token"))
 	d, isUpd := v.(oaUpdateData)
 	if !ok || !isUpd || d.Alias != alias {
-		a.back(w, r, back, "", "that update has expired; press Update again")
+		a.back(w, r, back, "", "the update expired, press Update again")
 		return
 	}
 	st, err := a.MCP.Upstreams.OpenAPI(alias)
@@ -189,18 +186,18 @@ func (a *Admin) oaSpecApply(w http.ResponseWriter, r *http.Request) {
 	}
 	a.MCP.ForgetHealth(alias)
 	n := a.MCP.Upstreams.OpenAPIToolCount(alias)
-	a.back(w, r, back, fmt.Sprintf("%s updated: %d %s exposed", alias, n, plural(n, "tool", "tools")), "")
+	a.back(w, r, back, fmt.Sprintf("%s updated, %d %s exposed", alias, n, plural(n, "tool", "tools")), "")
 }
 
 // oaSpecCancel drops a reviewed update. Nothing was stored.
 func (a *Admin) oaSpecCancel(w http.ResponseWriter, r *http.Request) {
 	alias := r.PathValue("alias")
 	a.takeResult(r, r.PostFormValue("token"))
-	a.back(w, r, "/admin/upstreams/"+alias+"/tools", "Update cancelled; nothing changed", "")
+	a.back(w, r, "/admin/upstreams/"+alias+"/tools", "Update cancelled", "")
 }
 
 // oaNoUpdateReason is why a pasted description has no Update.
-const oaNoUpdateReason = "pasted definitions can't be updated"
+const oaNoUpdateReason = "no address to update from"
 
 // oaUpdatedLine is the status of the last read from the address: "Updated <time>" or nothing yet.
 func oaUpdatedLine(c mcp.OpenAPIConfig) string {

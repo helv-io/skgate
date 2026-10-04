@@ -1315,7 +1315,7 @@ func upstreamFromForm(r *http.Request) (mcp.Upstream, error) {
 			case src.Kind == suggest.KindUnsupported:
 				return u, errors.New(src.UnsupportedMessage(nil))
 			case src.Kind == suggest.KindOpenAPI:
-				return u, errors.New("that address is a REST API: choose the OpenAPI type")
+				return u, errors.New("that is an API, choose the OpenAPI type")
 			}
 		}
 		if gu != "" {

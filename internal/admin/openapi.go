@@ -87,7 +87,7 @@ func readSpec(r *http.Request) (specRead, error) {
 		}
 		raw, out.URL, out.Base = f.Raw, f.URL, f.Base
 	default:
-		return specRead{}, errors.New("give the address of the API or paste its OpenAPI description")
+		return specRead{}, errors.New("enter an address or paste the description")
 	}
 	d, err := openapi.Parse(raw)
 	if err != nil {
@@ -155,7 +155,7 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 			return
 		}
 		if old.KindOrRemote() != u.Kind {
-			a.back(w, r, form, "", "the type cannot be changed; create a new upstream")
+			a.back(w, r, form, "", "the type cannot be changed")
 			return
 		}
 		if st, err := a.MCP.Upstreams.OpenAPI(u.Alias); err == nil {
@@ -185,7 +185,7 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 		}
 	default:
 		if cfg.Spec == "" {
-			a.back(w, r, form, "", "give the address of the OpenAPI description or paste it")
+			a.back(w, r, form, "", "enter an address or paste the description")
 			return
 		}
 		d, err := openapi.ParseStored([]byte(cfg.Spec))
@@ -197,7 +197,7 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 	}
 	if strings.TrimSpace(u.URL) == "" {
 		if u.URL = baseFor(doc, cfg.SpecURL, found); u.URL == "" {
-			a.back(w, r, form, "", "the description names no server: give the base URL of the API")
+			a.back(w, r, form, "", "the description has no server, set a base URL in Advanced")
 			return
 		}
 	}
@@ -264,7 +264,7 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 func queryNote(tr mcp.TestResult) string {
 	for _, w := range tr.Warnings {
 		if w == mcp.QueryKeyWarning {
-			return ". " + w
+			return ": " + w
 		}
 	}
 	return ""
@@ -314,7 +314,7 @@ func applyOAAuth(r *http.Request, u *mcp.Upstream, old *mcp.Upstream) error {
 		case value == "" && old != nil && old.AuthKind == mcp.AuthBasic:
 			u.AuthName, u.AuthValue = old.AuthName, old.AuthValue
 		case !ok || user == "" || pass == "":
-			return errors.New("enter the key as user:password")
+			return errors.New("basic needs user:password")
 		default:
 			u.AuthName, u.AuthValue = user, pass
 		}
@@ -466,7 +466,7 @@ func (a *Admin) upstreamToolsSave(w http.ResponseWriter, r *http.Request) {
 	}
 	keys, names, descs := r.PostForm["key"], r.PostForm["name"], r.PostForm["desc"]
 	if len(names) != len(keys) || len(descs) != len(keys) {
-		a.back(w, r, back, "", "the form is incomplete; reload the page")
+		a.back(w, r, back, "", "reload the page")
 		return
 	}
 	for i, k := range keys {
@@ -478,7 +478,7 @@ func (a *Admin) upstreamToolsSave(w http.ResponseWriter, r *http.Request) {
 		ov := openapi.Override{}
 		if name != "" && name != openapi.DefaultName(o) {
 			if !openapi.ValidName(name) {
-				a.back(w, r, back, "", fmt.Sprintf("the name %q is not valid: use letters, digits, underscore and dash, at most %d characters", clip(name), openapi.MaxNameLen))
+				a.back(w, r, back, "", fmt.Sprintf("invalid name %q: letters, digits, _ and -, up to %d", clip(name), openapi.MaxNameLen))
 				return
 			}
 			ov.Name = name
@@ -500,9 +500,9 @@ func (a *Admin) upstreamToolsSave(w http.ResponseWriter, r *http.Request) {
 	msg := fmt.Sprintf("%s: %d %s exposed", alias, n, plural(n, "tool", "tools"))
 	switch mcp.ToolLevel(n) {
 	case "warn":
-		msg += ". That is a lot: models pick worse tools with many to choose from"
+		msg += ". That is a lot"
 	case "bad":
-		msg += ". That is far too many: models pick worse tools, and run slower and costlier. Expose only what you need"
+		msg += ". That is too many"
 	}
 	a.back(w, r, back, msg, "")
 }
@@ -593,7 +593,7 @@ func (a *Admin) openAPIRepair(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(issues) == 0 {
-		fail(http.StatusBadRequest, "the description has no problems to repair")
+		fail(http.StatusBadRequest, "no problems to repair")
 		return
 	}
 	as, ctx, cancel, why := a.assistFor(r)
@@ -612,7 +612,7 @@ func (a *Admin) openAPIRepair(w http.ResponseWriter, r *http.Request) {
 	fixed, changes, err := d.Apply(patches)
 	if err != nil {
 		log.Printf("openapi: repair patches refused: %v", err)
-		fail(http.StatusBadGateway, "the proposed repair does not apply: "+err.Error())
+		fail(http.StatusBadGateway, "the repair does not apply: "+err.Error())
 		return
 	}
 	rest := fixed.Validate()
@@ -640,11 +640,11 @@ func (a *Admin) upstreamToolsSuggest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(ops) == 0 {
-		fail(http.StatusBadRequest, "tick the tools to describe first")
+		fail(http.StatusBadRequest, "switch on tools first")
 		return
 	}
 	if len(ops) > openapi.MaxDescribeOps {
-		fail(http.StatusBadRequest, fmt.Sprintf("describe at most %d tools at a time", openapi.MaxDescribeOps))
+		fail(http.StatusBadRequest, fmt.Sprintf("at most %d tools at a time", openapi.MaxDescribeOps))
 		return
 	}
 	as, ctx, cancel, why := a.assistFor(r)
@@ -672,7 +672,7 @@ func (a *Admin) oaViewOf(u mcp.Upstream) *oaView {
 	tip := toolTip(v.Tools)
 	switch {
 	case v.Tools == 0:
-		v.Pill = pillView{"off", "no tools", "no operation is enabled: choose the tools this upstream offers"}
+		v.Pill = pillView{"off", "no tools", "no tools on"}
 	default:
 		v.Pill = pillView{v.Level, fmt.Sprintf("%d %s", v.Tools, plural(v.Tools, "tool", "tools")), tip}
 	}
@@ -683,9 +683,9 @@ func (a *Admin) oaViewOf(u mcp.Upstream) *oaView {
 func toolTip(n int) string {
 	switch mcp.ToolLevel(n) {
 	case "warn":
-		return "a lot of tools: models pick worse tools and get slower and costlier with many. Expose only what you need"
+		return "a lot of tools, fewer work better"
 	case "bad":
-		return "far too many tools: models pick worse tools, and run slower and costlier. Expose only what you need"
+		return "too many tools, fewer work better"
 	}
 	return "a good number of tools"
 }

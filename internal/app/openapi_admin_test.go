@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -51,7 +52,7 @@ func TestOpenAPIAddByURLAndPickTools(t *testing.T) {
 	}
 	_, page := br.get("/admin/upstreams/notes/tools")
 	for _, want := range []string{`data-toolpick`, `data-toolcount`, `class="toolcount ok"`, `Fewer tools work better`, `data-verbgroup="GET"`, `data-verbgroup="POST"`, `data-verbgroup="DELETE"`,
-		`data-verb-toggle`, `data-toolfilter`, `skipped: file upload or binary body`, `Up to 15 is good, up to 30 is a lot, more is too many`} {
+		`data-verb-toggle`, `data-toolfilter`, `skipped: file upload or binary body`, `Up to 15 is good, up to 30 is a lot`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("tools page lacks %q", want)
 		}
@@ -189,7 +190,7 @@ func TestOpenAPIEditKeepsSecretAndDescription(t *testing.T) {
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"},
 		"oa_spec_url": {api.URL + "/spec.json"}, "oa_auth_as": {"basic"}, "oa_auth_value": {"alice:hunter2hunter2"}})
 	_, page := br.get("/admin/upstreams/notes/edit")
-	for _, want := range []string{`name="oa_spec_url"`, api.URL + "/spec.json", `name="oa_spec_text"`, `Notes API, 5 operations`, `name="oa_auth_as" value="basic"`, "ter2"} {
+	for _, want := range []string{`name="oa_spec_url"`, api.URL + "/spec.json", `name="oa_spec_text"`, `Empty keeps Notes API`, `name="oa_auth_as" value="basic"`, "ter2"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("edit page lacks %q", want)
 		}
@@ -280,7 +281,7 @@ func TestOpenAPISuggestNamesFillsAndSavesNothing(t *testing.T) {
 	r2 := newSuggestRig(t, false, false)
 	r2.br.post("/admin/upstreams/save", url.Values{"csrf": {r2.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
 	_, page := r2.br.get("/admin/upstreams/notes/tools")
-	if strings.Contains(page, "data-tool-describe") || !strings.Contains(page, "Name suggestions:") {
+	if strings.Contains(page, "data-tool-describe") || !strings.Contains(page, "Suggest names:") {
 		t.Error("without a model the page offers no suggestion button and says why")
 	}
 }
@@ -307,7 +308,7 @@ func TestOpenAPIManyToolsAreShownNotBlocked(t *testing.T) {
 		t.Fatalf("a red count must still save: %d %q", r.StatusCode, flashKind(r))
 	}
 	_, msg := flashOf(r)
-	if !strings.Contains(msg, "40 tools exposed") || !strings.Contains(msg, "far too many") {
+	if !strings.Contains(msg, "40 tools exposed") || !strings.Contains(msg, "too many") {
 		t.Errorf("toast: %q", msg)
 	}
 	_, page := br.get("/admin/upstreams/big/tools")
@@ -391,7 +392,7 @@ func TestOpenAPIPagesSayOnlyWhatIsTrue(t *testing.T) {
 	_, withURL := br.get("/admin/upstreams/byurl/tools")
 	_, noURL := br.get("/admin/upstreams/pasted/tools")
 	if !strings.Contains(withURL, "/admin/upstreams/byurl/spec/update") || strings.Contains(noURL, "/admin/upstreams/pasted/spec/update") ||
-		!strings.Contains(strings.ReplaceAll(noURL, "&#39;", "'"), "pasted definitions can't be updated") {
+		!strings.Contains(strings.ReplaceAll(noURL, "&#39;", "'"), "no address to update from") {
 		t.Error("Update belongs to an upstream that has an address, and only to it")
 	}
 	if n := a.MCP.Upstreams.OpenAPIToolCount("pasted"); n != 2 { // GET and HEAD; OPTIONS and TRACE start off
@@ -499,7 +500,7 @@ func TestOpenAPIAddIsTestedFirstAndAFailedAddKeepsTheForm(t *testing.T) {
 	}
 	st, out, _ := post(form("WRONG", nil))
 	toast, _ := out["toast"].(map[string]any)
-	if st != 200 || toast["k"] != "bad" || toast["m"] != "The server refused the key." || out["to"] != nil {
+	if st != 200 || toast["k"] != "bad" || toast["m"] != "the server refused the key" || out["to"] != nil {
 		t.Fatalf("refused key: %d %v", st, out)
 	}
 	if _, ok := a.MCP.Upstreams.Get("keyed"); ok {
@@ -558,4 +559,59 @@ func TestAddFormInBrowser(t *testing.T) {
 	_ = a
 	api, spec := keyedAPI(t, "GOODKEY")
 	runBrowserScript(t, "addfail.js", br.ts.URL, br, api.URL, spec)
+}
+
+// The OpenAPI screens use the plain voice of the rest of the app: no filler words, no em dashes, no parentheses in
+// hints, and hints of one short sentence.
+func TestOpenAPIScreensUseThePlainVoice(t *testing.T) {
+	r := newSuggestRig(t, true, true)
+	api := oaAPI(t)
+	r.br.post("/admin/upstreams/save", url.Values{"csrf": {r.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
+	_, review := r.br.post("/admin/upstreams/notes/spec/update", url.Values{"csrf": {r.csrf}})
+	pages := map[string]string{"review": review}
+	for _, p := range []string{"/admin/upstreams/new", "/admin/upstreams/notes/edit", "/admin/upstreams/notes/tools", "/admin/upstreams/notes/test"} {
+		_, pages[p] = r.br.get(p)
+	}
+	var code []string // the script without its comment lines
+	for _, l := range strings.Split(readFile(t, "../admin/static/app.js"), "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(l), "//") {
+			code = append(code, l)
+		}
+	}
+	pages["app.js"] = strings.Join(code, "\n")
+	banned := []string{"leverage", "seamless", "powerful", "helpful", "Let's", "let's", "\u2014", "\u2013", "simply", "easily", "assistant"}
+	muted := regexp.MustCompile(`(?s)<p class="muted"[^>]*>(.*?)</p>`)
+	tags := regexp.MustCompile(`<[^>]+>`)
+	oaGroup := regexp.MustCompile(`(?s)<div class="group" data-kind="openapi">.*?<div class="group"`)
+	for name, page := range pages {
+		if strings.HasPrefix(name, "/admin/upstreams/new") || strings.HasSuffix(name, "/edit") {
+			page = oaGroup.FindString(page) // the other types have their own copy
+			if page == "" {
+				t.Fatalf("%s: no OpenAPI group", name)
+			}
+		}
+		for _, w := range banned {
+			if strings.Contains(page, w) {
+				t.Errorf("%s: %q does not belong in the copy", name, w)
+			}
+		}
+		if strings.HasSuffix(name, ".js") {
+			continue
+		}
+		for _, m := range muted.FindAllStringSubmatch(page, -1) {
+			txt := strings.TrimSpace(tags.ReplaceAllString(m[1], ""))
+			if strings.Contains(txt, "(") || len(txt) > 90 || strings.Count(txt, ". ") > 0 {
+				t.Errorf("%s: hint is not short and plain: %q", name, txt)
+			}
+		}
+	}
+}
+
+func readFile(t *testing.T, p string) string {
+	t.Helper()
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
 }

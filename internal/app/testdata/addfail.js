@@ -21,7 +21,7 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await pg.select("[data-kind-select]", "openapi");
   await pg.type('input[name="alias"]', "failcase");
   g = await gate();
-  ok(g.disabled && g.hint === "Enter the address of the API", "the button waits for the API: " + JSON.stringify(g));
+  ok(g.disabled && g.hint === "Enter an address", "the button waits for the API: " + JSON.stringify(g));
   ok(!/[()]/.test(g.hint), "the reason has no parenthetical");
 
   // a pasted description counts as the API

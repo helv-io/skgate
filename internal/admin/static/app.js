@@ -1381,8 +1381,8 @@ function frontierHint(form) {
     btn.disabled = true;
     post(btn.getAttribute("data-oa-check-url")).then(function (j) {
       btn.disabled = false;
-      if (!j.ok) { show("bad", "unreadable"); summary.textContent = j.error || "the description cannot be read"; return; }
-      summary.textContent = (j.title ? j.title + ": " : "") + j.operations + " operations: " + j.reads + " read, " + j.writes + " change data";
+      if (!j.ok) { show("bad", "unreadable"); summary.textContent = j.error || "cannot read the description"; return; }
+      summary.textContent = (j.title ? j.title + ": " : "") + j.operations + " operations, " + j.reads + " read, " + j.writes + " write";
       var base = form.querySelector("#oa-servers");
       if (base && j.servers) j.servers.forEach(function (u) {
         var have = Array.prototype.some.call(base.options, function (o) { return o.value === u; });
@@ -1391,14 +1391,14 @@ function frontierHint(form) {
       var n = (j.issues || []).length;
       show(n ? "warn" : "ok", n ? n + (n === 1 ? " problem" : " problems") : "valid");
       (j.issues || []).slice(0, 20).forEach(function (is) {
-        list.appendChild(el("li", "", is.message + " (" + is.path + ")"));
+        list.appendChild(el("li", "", is.path + ": " + is.message));
       });
       if (n > 20) list.appendChild(el("li", "", "and " + (n - 20) + " more"));
       if (n) {
         if (j.ai) repairRow.hidden = false;
-        else list.appendChild(el("li", "", "The assistant cannot repair it: " + (j.aiWhy || "unavailable") + ". The import works anyway."));
+        else list.appendChild(el("li", "", "No repair: " + (j.aiWhy || "unavailable")));
       }
-    }).catch(function () { btn.disabled = false; show("bad", "failed"); summary.textContent = "the check did not complete"; });
+    }).catch(function () { btn.disabled = false; show("bad", "failed"); summary.textContent = "check failed"; });
   });
   out.addEventListener("click", function (e) {
     var t = e.target && e.target.closest ? e.target : null;
@@ -1408,7 +1408,7 @@ function frontierHint(form) {
       rb.disabled = true;
       diff.hidden = true;
       var was = summary.textContent;
-      summary.textContent = "Asking the assistant; this can take a minute";
+      summary.textContent = "Repairing";
       post(btn.getAttribute("data-oa-repair-url")).then(function (j) {
         rb.disabled = false;
         summary.textContent = was;
@@ -1424,16 +1424,16 @@ function frontierHint(form) {
           diffList.appendChild(li);
         });
         var left = (j.remaining || []).length;
-        diffTitle.textContent = (j.changes || []).length + " proposed changes; " + left + (left === 1 ? " problem" : " problems") + " would remain. Review them.";
+        diffTitle.textContent = (j.changes || []).length + " changes, " + left + (left === 1 ? " problem" : " problems") + " left";
         diff.hidden = false;
-      }).catch(function () { rb.disabled = false; summary.textContent = was; window.skgateToast("bad", "the repair did not complete"); });
+      }).catch(function () { rb.disabled = false; summary.textContent = was; window.skgateToast("bad", "repair failed"); });
       return;
     }
     if (t.closest("[data-oa-apply]")) {
       form.elements.oa_spec_text.value = repaired;
       form.elements.oa_spec_text.dispatchEvent(new Event("input", { bubbles: true }));
       diff.hidden = true;
-      window.skgateToast("ok", "The repaired description is in the paste box. Check it again, then add the upstream.");
+      window.skgateToast("ok", "Repaired text pasted. Check it again.");
       return;
     }
     if (t.closest("[data-oa-discard]")) { diff.hidden = true; repaired = ""; }
@@ -1479,7 +1479,7 @@ function frontierHint(form) {
       t.disabled = all.length === 0;
     });
     if (rank[l] > rank[current]) {
-      window.skgateToast(l === "bad" ? "bad" : "warn", n + " tools is " + words[l] + ". Models pick worse tools, and get slower and costlier, with many tools. Expose only what you need.");
+      window.skgateToast(l === "bad" ? "bad" : "warn", n + " tools is " + words[l]);
     }
     current = l;
   }
@@ -1495,7 +1495,7 @@ function frontierHint(form) {
       });
       var verb = g.getAttribute("data-verbgroup");
       render();
-      if (t.checked && changed) window.skgateToast(verb === "GET" ? "ok" : "warn", "Switched on " + changed + " " + verb + " " + (changed === 1 ? "tool" : "tools") + ". Expose only what you need: fewer tools work better.");
+      if (t.checked && changed) window.skgateToast(verb === "GET" ? "ok" : "warn", changed + " " + verb + " " + (changed === 1 ? "tool" : "tools") + " on");
     }
   });
   function applyFilter() {
@@ -1522,10 +1522,10 @@ function frontierHint(form) {
     var body = new URLSearchParams(), n = 0, all = 0;
     body.set("csrf", root.querySelector('input[name="csrf"]').value);
     Array.prototype.forEach.call(boxes(), function (b) { if (b.checked) { all++; if (n < 40) { body.append("key", b.value); n++; } } });
-    if (!n) { window.skgateToast("bad", "Switch on the tools to describe first."); return; }
+    if (!n) { window.skgateToast("bad", "Switch on tools first"); return; }
     describe.disabled = true;
-    window.skgateToast("ok", all > n ? "Asking the assistant about the first " + n + " of " + all + " tools; run it again for the rest. This can take a minute."
-      : "Asking the assistant about " + n + " " + (n === 1 ? "tool" : "tools") + "; this can take a minute.");
+    window.skgateToast("ok", all > n ? "Suggesting for " + n + " of " + all + " tools. Run again for the rest."
+      : "Suggesting for " + n + " " + (n === 1 ? "tool" : "tools"));
     fetch(root.getAttribute("data-suggest-url"), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: body })
       .then(function (r) { return r.json(); })
       .then(function (j) {
@@ -1539,9 +1539,9 @@ function frontierHint(form) {
           if (s.description) row.querySelector("[data-tool-desc]").value = s.description;
           done++;
         });
-        window.skgateToast("ok", "Suggested names for " + done + " " + (done === 1 ? "tool" : "tools") + ". Review them, then Save.");
+        window.skgateToast("ok", "Names filled for " + done + " " + (done === 1 ? "tool" : "tools") + ". Review, then Save.");
       })
-      .catch(function () { describe.disabled = false; window.skgateToast("bad", "the suggestion did not complete"); });
+      .catch(function () { describe.disabled = false; window.skgateToast("bad", "suggestion failed"); });
   });
   render();
 })();
@@ -1579,7 +1579,7 @@ function frontierHint(form) {
     var kind = val("kind");
     if (val("mode") !== "edit" && !val("alias")) return "Enter an alias";
     if (kind === "remote" && !val("url")) return "Enter the URL";
-    if (kind === "openapi" && !val("oa_spec_url") && !val("oa_spec_text") && !form.querySelector("[data-oa-has]")) return "Enter the address of the API";
+    if (kind === "openapi" && !val("oa_spec_url") && !val("oa_spec_text") && !form.querySelector("[data-oa-has]")) return "Enter an address";
     if ((kind === "stdio" || kind === "git") && !val("source") && !val("command") && !val("command_pick") && !val("git_url")) return "Enter a source or a command";
     return "";
   }

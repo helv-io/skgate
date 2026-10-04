@@ -1,11 +1,11 @@
 {{define "body"}}{{with .Data}}
 <h2>Update <code>{{.Alias}}</code></h2>
-<div class="callout warn"><strong>Review first.</strong> {{template "oa_update_note"}}</div>
+<div class="callout warn"><strong>Review first.</strong> Nothing is replaced until you confirm.</div>
 <div class="tablewrap"><table class="table kv"><tbody>
-<tr><th>Tools exposed</th><td>{{.ToolsBefore}} now, {{.ToolsAfter}} after the update</td></tr>
+<tr><th>Tools exposed</th><td>{{.ToolsBefore}} now, {{.ToolsAfter}} after</td></tr>
 <tr><th>Operations</th><td>{{len .Added}}{{if .MoreAdded}}+{{.MoreAdded}}{{end}} added, {{len .Removed}}{{if .MoreRemoved}}+{{.MoreRemoved}}{{end}} removed, {{len .Chg}}{{if .MoreChanged}}+{{.MoreChanged}}{{end}} changed</td></tr>
-<tr><th>SI layer</th><td>{{.Layer}}</td></tr>
-<tr><th>Tool selection</th><td>Kept for every tool that still exists. New operations stay off.</td></tr>
+<tr><th>Repair</th><td>{{.Layer}}</td></tr>
+<tr><th>Tool selection</th><td>Kept. New operations stay off.</td></tr>
 </tbody></table></div>
 {{template "oa_update_list" (oaList "Added" .Added .MoreAdded)}}
 {{template "oa_update_list" (oaList "Removed" .Removed .MoreRemoved)}}
@@ -15,5 +15,4 @@
 <form method="post" action="/admin/upstreams/{{.Alias}}/spec/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="token" value="{{.Token}}"><button class="act">Cancel</button></form>
 </div>
 {{end}}{{end}}
-{{define "oa_update_note"}}Updates run through an SI layer before they are reused. Check the changes below. Nothing is replaced until you confirm.{{end}}
 {{define "oa_update_list"}}{{if .Items}}<h2>{{.Title}}</h2><ul class="diff">{{range .Items}}<li><code>{{.}}</code></li>{{end}}{{if .More}}<li class="muted">and {{.More}} more</li>{{end}}</ul>{{end}}{{end}}
