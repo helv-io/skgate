@@ -57,12 +57,27 @@ type TestResult struct {
 // its effective auth (auto upstreams without a stored detection are detected first), handling
 // JSON and SSE replies and Mcp-Session-Id. Passthrough sends no credentials because there is no
 // inbound client request.
-func (s *Server) Test(ctx context.Context, alias string) (tr TestResult) {
+func (s *Server) Test(ctx context.Context, alias string) TestResult {
 	up, ok := s.Upstreams.Get(alias)
 	if !ok {
-		tr.Error = "unknown alias"
-		return tr
+		return TestResult{Error: "unknown alias"}
 	}
+	return s.testUpstream(ctx, up)
+}
+
+// TestDraft tests a remote upstream that is not stored yet, with what a form holds. Managed upstreams are not
+// started to be tested: they pass, and OpenAPI ones are tested with TestOpenAPIDraft.
+func (s *Server) TestDraft(ctx context.Context, up Upstream) TestResult {
+	if up.Managed() || up.IsOpenAPI() {
+		return TestResult{OK: true}
+	}
+	if up.AuthKind == AuthAuto { // detect on the draft itself, not on a stored upstream of the same alias
+		up.DetectedKind, up.DetectedNote = s.Detect(ctx, up)
+	}
+	return s.testUpstream(ctx, up)
+}
+
+func (s *Server) testUpstream(ctx context.Context, up Upstream) (tr TestResult) {
 	tr.AuthMode = up.AuthKind
 	start := time.Now()
 	defer func() { tr.Latency = time.Since(start) }()

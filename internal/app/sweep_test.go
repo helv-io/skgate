@@ -81,7 +81,7 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	}
 	oaSpec := `{"openapi":"3.0.0","info":{"title":"` + strings.Repeat("Long API title ", 4) + `","version":"1"},"servers":[{"url":"https://api.example.com/` + strings.Repeat("base/", 14) + `"}],"paths":{` + strings.Join(oaPaths, ",") + `}}`
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {longName[:62] + "o"}, "oa_spec_text": {oaSpec},
-		"oa_auth_kind": {"query"}, "oa_auth_name": {"api_key"}, "oa_auth_value": {"k-" + strings.Repeat("v", 60)}, "enabled": {"1"}, "include": {"1"}})
+		"oa_auth_as": {"?api_key"}, "oa_auth_value": {"k-" + strings.Repeat("v", 60)}, "enabled": {"1"}, "include": {"1"}})
 	// an OpenAPI upstream read from an address, then a changed description: the Update review screen with long names
 	var specMu sync.Mutex
 	specText := `{"openapi":"3.0.0","info":{"title":"U","version":"1"},"servers":[{"url":"http://x.example"}],"paths":{"/a":{"get":{"operationId":"getA"}}}}`

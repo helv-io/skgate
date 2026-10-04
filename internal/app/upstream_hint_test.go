@@ -22,10 +22,21 @@ func deadHostPort(t *testing.T) (host, port string) {
 // A refused connection shows a hint with the address on the admin Test screen, and a short warning
 // without the host when saving.
 func TestRefusedUpstreamHints(t *testing.T) {
-	_, _, br, csrf := signedIn(t, nil)
+	a, _, br, csrf := signedIn(t, nil)
 	host, port := deadHostPort(t)
-	r, _ := br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"nobody"}, "url": {"http://" + host + ":" + port + "/mcp"}, "auth_kind": {"none"}, "enabled": {"1"}})
-	_, msg := flashOf(r)
+	form := url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"nobody"}, "url": {"http://" + host + ":" + port + "/mcp"}, "auth_kind": {"none"}, "enabled": {"1"}}
+	// the test before the save refuses it, in a plain sentence without the host, and stores nothing
+	r, _ := br.post("/admin/upstreams/save", form)
+	kind, msg := flashOf(r)
+	if kind != "bad" || !strings.Contains(msg, "Nothing is listening on port "+port) || strings.Contains(msg, host) || !strings.HasSuffix(r.Header.Get("Location"), "/admin/upstreams/new") {
+		t.Errorf("refusal: %q %q %s", kind, msg, r.Header.Get("Location"))
+	}
+	if _, ok := a.MCP.Upstreams.Get("nobody"); ok {
+		t.Fatal("stored although the test failed")
+	}
+	a.Admin.NoSaveTest = true // keep it anyway, to see the Test screen of an upstream nothing answers at
+	r, _ = br.post("/admin/upstreams/save", form)
+	_, msg = flashOf(r)
 	if !strings.Contains(msg, "saved") || !strings.Contains(msg, "Nothing is listening on port "+port) || strings.Contains(msg, host) {
 		t.Errorf("save message: %q", msg)
 	}
@@ -48,6 +59,7 @@ func TestUpstreamListShowsHealthOfRemoteOnly(t *testing.T) {
 	up := fakeUpstream(t)
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"fine"}, "url": {up.URL}, "auth_kind": {"none"}, "enabled": {"1"}})
 	host, port := deadHostPort(t)
+	a.Admin.NoSaveTest = true
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"broken"}, "url": {"http://" + host + ":" + port + "/mcp"}, "auth_kind": {"none"}, "enabled": {"1"}})
 	br.get("/admin/upstreams/broken/test")
 	br.get("/admin/upstreams/fine/test")

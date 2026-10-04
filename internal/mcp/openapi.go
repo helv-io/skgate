@@ -406,8 +406,8 @@ func (s *Server) TestOpenAPIDraft(ctx context.Context, up Upstream, cfg OpenAPIC
 	return s.testOpenAPIState(ctx, up, st)
 }
 
-// queryWarning is shown when the key travels in the web address.
-const queryWarning = "This API takes the key in the web address. It can show up in logs."
+// QueryKeyWarning is shown when the key travels in the web address.
+const QueryKeyWarning = "This API takes the key in the web address. It can show up in logs."
 
 func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState) (tr TestResult) {
 	tr.AuthMode = up.AuthKind
@@ -463,7 +463,7 @@ func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState)
 			tr.Warnings = append(tr.Warnings, "The server asks for a key.")
 		}
 		if auth.Kind == AuthQuery {
-			tr.Warnings = append(tr.Warnings, queryWarning)
+			tr.Warnings = append(tr.Warnings, QueryKeyWarning)
 		}
 	}
 	tr.OK = true

@@ -85,7 +85,12 @@ func (a *Admin) back(w http.ResponseWriter, r *http.Request, to, ok, errMsg stri
 	}
 	if wantsJSON(r) {
 		t.Msg = clip(t.Msg)
-		httputil.JSON(w, http.StatusOK, map[string]any{"toast": t})
+		out := map[string]any{"toast": t}
+		if r.Header.Get("X-Follow") != "" && errMsg == "" { // a form that goes on after a good save: the next page shows the toast
+			a.setFlash(w, t)
+			out["to"] = to
+		}
+		httputil.JSON(w, http.StatusOK, out)
 		return
 	}
 	if t.Msg != "" {

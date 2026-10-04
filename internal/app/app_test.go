@@ -98,6 +98,7 @@ func (b *browser) sso(idp *oidctest.Provider, next string) (*http.Response, stri
 
 func TestHealthzAndAdminFlow(t *testing.T) {
 	a, ts, idp := newApp(t, nil)
+	a.Admin.NoSaveTest = true // stores addresses nothing answers at
 	resp, _ := http.Get(ts.URL + "/healthz")
 	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 || string(b) != "ok" {

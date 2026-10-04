@@ -74,7 +74,8 @@ func TestChangesRedirectToRefreshableScreens(t *testing.T) {
 
 // Every upstream address carries the alias: screens are GET, changes are POST, and the old query form is gone.
 func TestUpstreamRoutesUseTheAlias(t *testing.T) {
-	_, _, br, csrf := signedIn(t, func(c *config.Config, _ *oidctest.Provider) {})
+	a, _, br, csrf := signedIn(t, func(c *config.Config, _ *oidctest.Provider) {})
+	a.Admin.NoSaveTest = true
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"al-1"}, "url": {"http://127.0.0.1:1/mcp"}, "auth_kind": {"none"}, "enabled": {"1"}})
 	for path, method := range map[string]string{"/admin/upstreams/al-1/edit": "GET", "/admin/upstreams/al-1/test": "GET",
 		"/admin/upstreams/al-1/toggle": "POST", "/admin/upstreams/al-1/redetect": "POST", "/admin/upstreams/al-1/delete": "POST", "/admin/upstreams/al-1/save": "POST"} {

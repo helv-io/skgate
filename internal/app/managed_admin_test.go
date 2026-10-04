@@ -413,6 +413,7 @@ func TestProcessStatusIsAPillWithDetailsInTheTooltip(t *testing.T) {
 // field is shown by the auth type (data-when) and posts like any other field.
 func TestRemoteFormAdvancedAndHeaderName(t *testing.T) {
 	a, br, csrf := managedApp(t)
+	a.Admin.NoSaveTest = true
 	form := url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"r"}, "url": {"http://127.0.0.1:1/mcp"}, "auth_kind": {"header"},
 		"auth_name": {"X-Api-Key"}, "auth_value": {"k"}, "host_override": {"svc:8000"}, "enabled": {"1"}}
 	if r, _ := br.post("/admin/upstreams/save", form); flashKind(r) != "ok" {

@@ -20,7 +20,8 @@ func TestFocusRingsInBrowser(t *testing.T) {
 // /mcp" state is neutral rather than red, and the switch that cannot be used (on-demand servers are never on /mcp)
 // is visibly disabled.
 func TestUpstreamSwitchesInBrowser(t *testing.T) {
-	_, br, csrf := managedApp(t)
+	a, br, csrf := managedApp(t)
+	a.Admin.NoSaveTest = true
 	br.post("/admin/upstreams/save", stdioForm(csrf, "od", nil))
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"plain"}, "url": {"http://127.0.0.1:1/mcp"}, "auth_kind": {"none"}, "enabled": {"1"}})
 	runBrowserScript(t, "switches.js", br.ts.URL, br)

@@ -2,6 +2,7 @@
 package admin
 
 import (
+	"cmp"
 	"crypto/subtle"
 	"embed"
 	"errors"
@@ -51,13 +52,15 @@ type Admin struct {
 	SuggestFetch *suggest.Fetcher
 	// SuggestIdle and SuggestCap override the silence and overall limits of a suggestion (tests).
 	SuggestIdle, SuggestCap time.Duration
-	Keys                    *vkeys.Manager
-	MCP                     *mcp.Server
-	tpl                     map[string]*template.Template
-	oidc                    *oidcauth.Client
-	sessions                sessionStore
-	secretMu                sync.Mutex
-	secretKey               []byte
+	// NoSaveTest skips the test that runs before an upstream is saved (tests that store an address nothing answers at).
+	NoSaveTest bool
+	Keys       *vkeys.Manager
+	MCP        *mcp.Server
+	tpl        map[string]*template.Template
+	oidc       *oidcauth.Client
+	sessions   sessionStore
+	secretMu   sync.Mutex
+	secretKey  []byte
 }
 
 var funcs = template.FuncMap{
@@ -1000,7 +1003,9 @@ func mask(u mcp.Upstream) string { return httputil.Mask(u.AuthValue) }
 
 func (a *Admin) view(u mcp.Upstream) upstreamView {
 	eff := u.AuthKind
-	if u.AuthKind == mcp.AuthAuto {
+	if u.AuthKind == mcp.AuthAuto && u.IsOpenAPI() {
+		eff = "key" // how it is sent is found by skgate and not shown
+	} else if u.AuthKind == mcp.AuthAuto {
 		eff = "auto: " + orDash(u.DetectedKind, "pending")
 	}
 	v := upstreamView{Upstream: u, Masked: mask(u), Effective: eff, Target: u.URL, TypeLabel: typeLabel(u)}
@@ -1377,6 +1382,20 @@ func (a *Admin) upstreamSave(w http.ResponseWriter, r *http.Request) {
 	if u.Managed() {
 		if ok, why := a.MCP.ManagedState(); !ok {
 			a.back(w, r, form, "", "managed upstreams: "+why)
+			return
+		}
+	}
+	if !u.Managed() && u.Enabled && !a.NoSaveTest { // test first: the server must answer before anything is stored
+		if err := u.Validate(); err != nil {
+			a.back(w, r, form, "", err.Error())
+			return
+		}
+		if tr := a.MCP.TestDraft(r.Context(), u); !tr.OK {
+			why := cmp.Or(tr.Error, "the server did not answer as an MCP server")
+			if d := a.MCP.CheckReachable(r.Context(), u); d != nil { // the plain hint, without the host
+				why = d.Hint(false)
+			}
+			a.back(w, r, form, "", why)
 			return
 		}
 	}

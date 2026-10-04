@@ -72,6 +72,9 @@
    tooltip AND as a visible hint (touch has no hover). Build it with "gate": id, label, action, csrf, reason ("" = enabled). */}}
 {{define "gated_act"}}{{if .Reason}}<span class="gated"><button type="button" class="act" disabled aria-describedby="{{.ID}}" title="{{.Reason}}">{{.Label}}</button><span class="muted" id="{{.ID}}">{{.Reason}}</span></span>{{else}}<form method="post" action="{{.Action}}"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="act">{{.Label}}</button></form>{{end}}{{end}}
 
+{{/* gated_submit: the submit button of a form that needs fields before it can go. app.js (data-upstream-form) disables it with the reason as its tooltip AND as a visible hint, like gated_act, and posts the form in place: a failed save keeps every field. Takes the label. */}}
+{{define "gated_submit"}}<span class="gated" data-gate-submit><button class="btn" type="submit">{{.}}</button><span class="muted" id="gate-reason" data-gate-reason aria-live="polite" hidden></span></span>{{end}}
+
 {{/* th_actions: the header of the column of row buttons. Every list table with row actions ends with it. */}}
 {{define "th_actions"}}<th class="actions-th">Actions</th>{{end}}
 
