@@ -37,7 +37,7 @@ func TestOpenAPIAddByURLAndPickTools(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
 	api := oaAPI(t)
 	r, _ := br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"},
-		"oa_spec_url": {api.URL + "/spec.json"}, "oa_auth_kind": {"bearer"}, "oa_auth_value": {"SECRETTOKEN123"}})
+		"oa_spec_url": {api.URL + "/spec.json"}, "oa_auth_as": {"bearer"}, "oa_auth_value": {"SECRETTOKEN123"}})
 	if r.StatusCode != 303 || r.Header.Get("Location") != "/admin/upstreams/notes/tools" {
 		t.Fatalf("add: %d %s %v", r.StatusCode, r.Header.Get("Location"), r.Header)
 	}
@@ -131,6 +131,7 @@ func TestOpenAPIAddByURLAndPickTools(t *testing.T) {
 
 func TestOpenAPIAddPasteFormatsAndErrors(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
+	a.Admin.NoSaveTest = true
 	base := url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "enabled": {"1"}}
 	add := func(alias string, extra url.Values) *http.Response {
 		v := url.Values{}
@@ -166,7 +167,7 @@ func TestOpenAPIAddPasteFormatsAndErrors(t *testing.T) {
 		"nothing given":      {},
 		"garbage":            {"oa_spec_text": {"just some words: ["}},
 		"no server, no base": {"oa_spec_text": {toml}},
-		"query without name": {"oa_spec_text": {yaml}, "oa_auth_kind": {"query"}, "oa_auth_value": {"k"}},
+		"query without name": {"oa_spec_text": {yaml}, "oa_auth_as": {"?"}, "oa_auth_value": {"k"}},
 		"file URL":           {"oa_spec_url": {"file:///etc/passwd"}},
 	} {
 		r := add("bad-"+strings.ReplaceAll(strings.ReplaceAll(name, " ", ""), ",", ""), extra)
@@ -186,9 +187,9 @@ func TestOpenAPIEditKeepsSecretAndDescription(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
 	api := oaAPI(t)
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"},
-		"oa_spec_url": {api.URL + "/spec.json"}, "oa_auth_kind": {"basic"}, "oa_auth_name": {"alice"}, "oa_auth_value": {"hunter2hunter2"}})
+		"oa_spec_url": {api.URL + "/spec.json"}, "oa_auth_as": {"basic"}, "oa_auth_value": {"alice:hunter2hunter2"}})
 	_, page := br.get("/admin/upstreams/notes/edit")
-	for _, want := range []string{`name="oa_spec_url"`, api.URL + "/spec.json", `name="oa_spec_text"`, `Notes API, 5 operations`, `<option value="basic" selected>`, `value="alice"`, "ter2"} {
+	for _, want := range []string{`name="oa_spec_url"`, api.URL + "/spec.json", `name="oa_spec_text"`, `Notes API, 5 operations`, `name="oa_auth_as" value="basic"`, "ter2"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("edit page lacks %q", want)
 		}
@@ -198,7 +199,7 @@ func TestOpenAPIEditKeepsSecretAndDescription(t *testing.T) {
 	}
 	// save without a new description or password: both are kept
 	r, _ := br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"edit"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"},
-		"oa_url": {api.URL + "/v1"}, "oa_auth_kind": {"basic"}, "oa_auth_name": {"alice"}, "oa_spec_url": {api.URL + "/spec.json"}})
+		"oa_url": {api.URL + "/v1"}, "oa_auth_as": {"basic"}, "oa_spec_url": {api.URL + "/spec.json"}})
 	if r.StatusCode != 303 || flashKind(r) != "ok" || r.Header.Get("Location") != "/admin/upstreams" {
 		t.Fatalf("edit: %d %s %q", r.StatusCode, r.Header.Get("Location"), flashKind(r))
 	}
@@ -286,6 +287,7 @@ func TestOpenAPISuggestNamesFillsAndSavesNothing(t *testing.T) {
 
 func TestOpenAPIManyToolsAreShownNotBlocked(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
+	a.Admin.NoSaveTest = true
 	var paths []string
 	for i := 0; i < 40; i++ {
 		paths = append(paths, fmt.Sprintf(`"/r%d":{"get":{"operationId":"get%d"}}`, i, i))
@@ -351,6 +353,7 @@ func TestOpenAPIUpstreamTestAndTrailingSlash(t *testing.T) {
 // the filter, and the check/repair flow with its approval step.
 func TestOpenAPIToolPickerInBrowser(t *testing.T) {
 	r := newSuggestRig(t, true, true)
+	r.a.Admin.NoSaveTest = true
 	var paths []string
 	for i := 0; i < 20; i++ {
 		paths = append(paths, fmt.Sprintf(`"/item%d":{"get":{"operationId":"getItem%d"},"delete":{"operationId":"deleteItem%d"}}`, i, i, i))
@@ -372,6 +375,7 @@ func TestOpenAPIToolPickerInBrowser(t *testing.T) {
 // "read again" needs an address, only GET and HEAD start on, and an oversized form is told so.
 func TestOpenAPIPagesSayOnlyWhatIsTrue(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
+	a.Admin.NoSaveTest = true
 	api := oaAPI(t)
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"byurl"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
 	spec := `{"openapi":"3.0.0","info":{"title":"P"},"servers":[{"url":"https://p.example.com"}],"paths":{"/a":{"get":{"operationId":"a"},"options":{"operationId":"o"},"trace":{"operationId":"tr"},"head":{"operationId":"h"}}}}`
@@ -449,4 +453,109 @@ func TestSuggestRoutesAnAPIAddressToTheOpenAPIForm(t *testing.T) {
 	if resp.StatusCode != 422 || !strings.Contains(msg, "https") {
 		t.Fatalf("public http: %d %v", resp.StatusCode, got)
 	}
+}
+
+// A bearer-protected API that serves its description openly.
+func keyedAPI(t *testing.T, good string) (*httptest.Server, string) {
+	var ts *httptest.Server
+	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/ping" || r.Header.Get("Authorization") == "Bearer "+good {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`[]`))
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(ts.Close)
+	spec := fmt.Sprintf(`{"openapi":"3.0.0","info":{"title":"Keyed","version":"1"},"servers":[{"url":"%s"}],"security":[{"b":[]}],`+
+		`"components":{"securitySchemes":{"b":{"type":"http","scheme":"bearer"}}},"paths":{"/ping":{"get":{"operationId":"ping"}}}}`, ts.URL)
+	return ts, spec
+}
+
+func TestOpenAPIAddIsTestedFirstAndAFailedAddKeepsTheForm(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	api, spec := keyedAPI(t, "GOOD")
+	form := func(key string, extra url.Values) url.Values {
+		v := url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"keyed"}, "enabled": {"1"}, "oa_spec_text": {spec}, "oa_auth_value": {key}}
+		for k, x := range extra {
+			v[k] = x
+		}
+		return v
+	}
+	// the page script posts in place and asks to be sent on after a good save
+	post := func(v url.Values) (int, map[string]any, *http.Response) {
+		req, _ := http.NewRequest("POST", br.ts.URL+"/admin/upstreams/save", strings.NewReader(v.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("X-Follow", "1")
+		resp, err := br.c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		var out map[string]any
+		json.NewDecoder(resp.Body).Decode(&out)
+		return resp.StatusCode, out, resp
+	}
+	st, out, _ := post(form("WRONG", nil))
+	toast, _ := out["toast"].(map[string]any)
+	if st != 200 || toast["k"] != "bad" || toast["m"] != "The server refused the key." || out["to"] != nil {
+		t.Fatalf("refused key: %d %v", st, out)
+	}
+	if _, ok := a.MCP.Upstreams.Get("keyed"); ok {
+		t.Fatal("stored although the test failed")
+	}
+	st, out, resp := post(form("GOOD", nil))
+	toast, _ = out["toast"].(map[string]any)
+	if st != 200 || toast["k"] != "ok" || out["to"] != "/admin/upstreams/keyed/tools" {
+		t.Fatalf("good key: %d %v", st, out)
+	}
+	if k, _ := flashOf(resp); k != "ok" {
+		t.Error("the next page shows the toast")
+	}
+	u, _ := a.MCP.Upstreams.Get("keyed")
+	if u.AuthKind != mcp.AuthAuto || u.DetectedKind != "bearer" || u.AuthValue != "GOOD" || u.URL != api.URL {
+		t.Fatalf("stored: %+v", u)
+	}
+	// an edit keeps the stored key when the field is empty, and tests again
+	r, _ := br.post("/admin/upstreams/keyed/save", form("", url.Values{"mode": {"edit"}}))
+	if r.StatusCode != 303 || flashKind(r) != "ok" {
+		t.Fatalf("edit: %d %q", r.StatusCode, flashKind(r))
+	}
+	if u, _ := a.MCP.Upstreams.Get("keyed"); u.AuthValue != "GOOD" {
+		t.Errorf("key kept: %q", u.AuthValue)
+	}
+}
+
+func TestOpenAPIAdvancedLineSetsTheWayToSendTheKey(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	a.Admin.NoSaveTest = true
+	_, spec := keyedAPI(t, "x")
+	for _, c := range []struct{ as, value, kind, name string }{
+		{"", "K", mcp.AuthAuto, ""}, {"bearer", "K", mcp.AuthBearer, ""}, {"X-Custom-Key", "K", mcp.AuthHeader, "X-Custom-Key"},
+		{"Authorization", "Token K", mcp.AuthHeader, "Authorization"}, {"?api_key", "K", mcp.AuthQuery, "api_key"}, {"basic", "al:pw", mcp.AuthBasic, "al"}, {"", "", mcp.AuthNone, ""},
+	} {
+		alias := "adv-" + strings.ToLower(strings.NewReplacer("?", "q", ":", "-", " ", "-").Replace(c.kind+c.name+c.as))
+		r, _ := br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {strings.ReplaceAll(alias, "_", "-")}, "enabled": {"1"},
+			"oa_spec_text": {spec}, "oa_auth_value": {c.value}, "oa_auth_as": {c.as}})
+		u, ok := a.MCP.Upstreams.Get(strings.ReplaceAll(alias, "_", "-"))
+		if !ok || u.AuthKind != c.kind || u.AuthName != c.name {
+			t.Errorf("as %q value %q: %d %q stored %+v", c.as, c.value, r.StatusCode, flashKind(r), u)
+		}
+	}
+	// the stored way shows on the edit page without the key
+	r, _ := br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"showas"}, "enabled": {"1"},
+		"oa_spec_text": {spec}, "oa_auth_value": {"SECRETKEY99"}, "oa_auth_as": {"X-Custom-Key"}})
+	_ = r
+	_, page := br.get("/admin/upstreams/showas/edit")
+	if !strings.Contains(page, `name="oa_auth_as" value="X-Custom-Key"`) || strings.Contains(page, "SECRETKEY99") || strings.Contains(page, `name="oa_auth_kind"`) {
+		t.Error("edit page: the way shows, the key does not, and there is no auth select")
+	}
+}
+
+func TestAddFormInBrowser(t *testing.T) {
+	a, _, br, _ := signedIn(t, nil)
+	_ = a
+	api, spec := keyedAPI(t, "GOODKEY")
+	runBrowserScript(t, "addfail.js", br.ts.URL, br, api.URL, spec)
 }

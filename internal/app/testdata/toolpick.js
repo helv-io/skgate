@@ -79,10 +79,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await pg.goto(url + "/admin/upstreams/new");
   await pg.select("[data-kind-select]", "openapi");
   const vis = await pg.evaluate(() => ({ oa: !document.querySelector('[data-kind="openapi"]').hidden, remote: !document.querySelector('.group[data-kind="remote"]').hidden,
-    nameHidden: document.querySelector('[data-when="header query basic"]').hidden }));
-  ok(vis.oa && !vis.remote && vis.nameHidden, "type switches the groups: " + JSON.stringify(vis));
-  await pg.select('select[name="oa_auth_kind"]', "query");
-  ok(await pg.evaluate(() => !document.querySelector('[data-when="header query basic"]').hidden && !document.querySelector('p[data-when="query"]').hidden && document.querySelector('p[data-when="basic"]').hidden && document.querySelector('p[data-when="header"]').hidden), "the auth select shows its own fields only");
+    advanced: document.querySelector('[data-kind="openapi"] details').open }));
+  ok(vis.oa && !vis.remote && !vis.advanced, "type switches the groups and Advanced starts closed: " + JSON.stringify(vis));
+  ok(await pg.evaluate(() => !document.querySelector('select[name="oa_auth_kind"]') && !!document.querySelector('input[name="oa_auth_value"]') && !!document.querySelector('input[name="oa_auth_as"]')), "one key field and one Advanced line");
   await pg.$eval('textarea[name="oa_spec_text"]', e => { e.value = JSON.stringify({ openapi: "3.0.0", info: { title: "Broken", version: "1" }, paths: { "/a": { get: { summary: "x" } } } }); });
   await pg.click("[data-oa-check]");
   await pg.waitForSelector("[data-oa-out]:not([hidden]) [data-oa-issues] li");

@@ -40,12 +40,13 @@ type oaForm struct {
 	Tools   int
 	Level   string
 	Servers []string
-	AI      bool // the assistant can run
+	As      string // the Advanced line: how the stored upstream sends its key
+	AI      bool   // the assistant can run
 	AIWhy   string
 }
 
 func (a *Admin) oaFormFor(r *http.Request, u mcp.Upstream) *oaForm {
-	f := &oaForm{}
+	f := &oaForm{As: oaAs(u)}
 	st := a.suggestState(r)
 	f.AI, f.AIWhy = st.Enabled, st.Why
 	if u.Alias != "" && u.IsOpenAPI() {
@@ -101,15 +102,15 @@ func readSpec(r *http.Request) (specRead, error) {
 }
 
 // baseFor chooses the base URL of an API whose form gave none: the first server of the description, unless that
-// names this machine while the description came from elsewhere, and the address the description was read from
-// when it names no server.
+// names this machine while the description came from elsewhere. A description with no server, or a relative one
+// read from no address, gets the address it was read from (scheme, host and port, with any path the search used).
 func baseFor(doc *openapi.Doc, specURL, base string) string {
 	if base == "" && specURL != "" {
 		if u, err := url.Parse(specURL); err == nil && u.Host != "" {
 			base = u.Scheme + "://" + u.Host
 		}
 	}
-	if sv := doc.Servers(specURL); len(sv) > 0 {
+	if sv := doc.Servers(specURL); len(sv) > 0 && (strings.HasPrefix(sv[0].URL, "http://") || strings.HasPrefix(sv[0].URL, "https://")) {
 		u, err := url.Parse(sv[0].URL)
 		local := err == nil && (u.Hostname() == "localhost" || u.Hostname() == "0.0.0.0" || strings.HasPrefix(u.Hostname(), "127."))
 		if bu, berr := url.Parse(base); berr == nil && err == nil && bu.Hostname() == u.Hostname() {
@@ -200,6 +201,31 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 			return
 		}
 	}
+	var prior *mcp.Upstream
+	if edit {
+		prior = &old
+	}
+	if err := applyOAAuth(r, &u, prior); err != nil {
+		a.back(w, r, form, "", err.Error())
+		return
+	}
+	if err := u.Validate(); err != nil {
+		a.back(w, r, form, "", err.Error())
+		return
+	}
+	// Test first: the server must answer and take the key before anything is stored. A failure returns to the
+	// same form, which keeps what was entered.
+	var tested mcp.TestResult
+	if u.Enabled && !a.NoSaveTest {
+		draft := cfg
+		if !edit {
+			draft.Selection = defaultSelection(doc.Operations())
+		}
+		if tested = a.MCP.TestOpenAPIDraft(r.Context(), u, draft); tested.Error != "" {
+			a.back(w, r, form, "", tested.Error)
+			return
+		}
+	}
 	var err error
 	if edit {
 		err = a.MCP.Upstreams.Update(u, true)
@@ -209,6 +235,9 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 	if err != nil {
 		a.back(w, r, form, "", err.Error())
 		return
+	}
+	if u.AuthKind == mcp.AuthAuto && tested.Way != "" {
+		_ = a.MCP.Upstreams.SetDetected(u.Alias, tested.Way, "")
 	}
 	if err := a.MCP.Upstreams.SetOpenAPI(u.Alias, cfg); err != nil {
 		if !edit {
@@ -223,21 +252,90 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 	if !edit || fresh {
 		msg := fmt.Sprintf("%s saved: %d %s exposed. Choose the tools it offers", u.Alias, n, plural(n, "tool", "tools"))
 		if issues := len(doc.Validate()); issues > 0 {
-			msg += fmt.Sprintf("; the description has %d %s (see Edit for a check and a repair)", issues, plural(issues, "problem", "problems"))
+			msg += fmt.Sprintf(". The description has %d %s; Edit checks it", issues, plural(issues, "problem", "problems"))
 		}
-		a.back(w, r, "/admin/upstreams/"+u.Alias+"/tools", msg, "")
+		a.back(w, r, "/admin/upstreams/"+u.Alias+"/tools", msg+queryNote(tested), "")
 		return
 	}
-	a.back(w, r, "/admin/upstreams", u.Alias+" saved", "")
+	a.back(w, r, "/admin/upstreams", u.Alias+" saved"+queryNote(tested), "")
 }
 
-// openAPIInput reads the OpenAPI fields of the form into u (the base URL, the credential).
+// queryNote is the short warning appended to a saved message when the key travels in the web address.
+func queryNote(tr mcp.TestResult) string {
+	for _, w := range tr.Warnings {
+		if w == mcp.QueryKeyWarning {
+			return ". " + w
+		}
+	}
+	return ""
+}
+
+// openAPIInput reads the OpenAPI fields of the form into u: the base URL when one is given. The key is read by
+// applyOAAuth, which needs the stored upstream.
 func openAPIInput(r *http.Request, u *mcp.Upstream) {
 	u.Kind = mcp.KindOpenAPI
 	u.URL = strings.TrimSpace(r.PostFormValue("oa_url"))
-	u.AuthKind = r.PostFormValue("oa_auth_kind")
-	u.AuthName = strings.TrimSpace(r.PostFormValue("oa_auth_name"))
-	u.AuthValue = r.PostFormValue("oa_auth_value")
+}
+
+// oaAs is how the Advanced line shows the way a stored upstream sends its key: empty when skgate works it out.
+func oaAs(u mcp.Upstream) string {
+	switch u.AuthKind {
+	case mcp.AuthBearer, mcp.AuthBasic:
+		return u.AuthKind
+	case mcp.AuthHeader:
+		return u.AuthName
+	case mcp.AuthQuery:
+		return "?" + u.AuthName
+	}
+	return ""
+}
+
+// applyOAAuth reads the key and the Advanced line of the form into u. A key alone is sent the way the
+// description says, or is found by trying; the Advanced line forces a way: bearer, basic, none, a header name, or
+// ?name for a query parameter. An empty key keeps the stored one when the way allows it.
+func applyOAAuth(r *http.Request, u *mcp.Upstream, old *mcp.Upstream) error {
+	value := strings.TrimSpace(r.PostFormValue("oa_auth_value"))
+	as := strings.TrimSpace(r.PostFormValue("oa_auth_as"))
+	u.AuthName, u.AuthValue, u.DetectedKind, u.DetectedNote = "", value, "", ""
+	// the stored key, when the new way can use it
+	stored := ""
+	if old != nil && old.IsOpenAPI() && old.AuthKind != mcp.AuthNone && old.AuthKind != mcp.AuthBasic {
+		stored = old.AuthValue
+	}
+	switch low := strings.ToLower(as); {
+	case low == "none":
+		u.AuthKind, u.AuthValue = mcp.AuthNone, ""
+	case low == "bearer":
+		u.AuthKind = mcp.AuthBearer
+	case low == "basic":
+		u.AuthKind = mcp.AuthBasic
+		user, pass, ok := strings.Cut(value, ":")
+		switch {
+		case value == "" && old != nil && old.AuthKind == mcp.AuthBasic:
+			u.AuthName, u.AuthValue = old.AuthName, old.AuthValue
+		case !ok || user == "" || pass == "":
+			return errors.New("enter the key as user:password")
+		default:
+			u.AuthName, u.AuthValue = user, pass
+		}
+		return nil
+	case strings.HasPrefix(as, "?"):
+		u.AuthKind, u.AuthName = mcp.AuthQuery, strings.TrimPrefix(as, "?")
+	case as != "":
+		u.AuthKind, u.AuthName = mcp.AuthHeader, as
+	case value == "" && stored == "":
+		u.AuthKind = mcp.AuthNone
+	default:
+		u.AuthKind = mcp.AuthAuto
+	}
+	if u.AuthKind != mcp.AuthNone && value == "" {
+		u.AuthValue = stored
+	}
+	// the same key and way as before: what was found to work still holds
+	if old != nil && old.AuthKind == u.AuthKind && old.AuthName == u.AuthName && old.AuthValue == u.AuthValue {
+		u.DetectedKind = old.DetectedKind
+	}
+	return nil
 }
 
 // --- the tools page ---

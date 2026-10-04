@@ -923,6 +923,7 @@ document.addEventListener("input", function (e) {
       if (sel) { sel.value = "openapi"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
       set(form, "oa_spec_url", x.result.spec_url);
       if (form.elements.alias && form.elements.alias.type !== "hidden" && !form.elements.alias.value) set(form, "alias", x.result.alias);
+      form.dispatchEvent(new Event("input", { bubbles: true })); // the Add button follows the fields
       var found = x.result.title ? "Found " + x.result.title + "." : "Found the description.";
       window.skgateToast("ok", found + " Review and save.");
       return;
@@ -1381,7 +1382,7 @@ function frontierHint(form) {
     post(btn.getAttribute("data-oa-check-url")).then(function (j) {
       btn.disabled = false;
       if (!j.ok) { show("bad", "unreadable"); summary.textContent = j.error || "the description cannot be read"; return; }
-      summary.textContent = (j.title ? j.title + ": " : "") + j.operations + " operations (" + j.reads + " read, " + j.writes + " change data)";
+      summary.textContent = (j.title ? j.title + ": " : "") + j.operations + " operations: " + j.reads + " read, " + j.writes + " change data";
       var base = form.querySelector("#oa-servers");
       if (base && j.servers) j.servers.forEach(function (u) {
         var have = Array.prototype.some.call(base.options, function (o) { return o.value === u; });
@@ -1560,5 +1561,54 @@ function frontierHint(form) {
   });
   window.addEventListener("pageshow", function (e) {
     if (e.persisted) Array.prototype.forEach.call(document.querySelectorAll("button:disabled"), function (b) { b.disabled = false; });
+  });
+})();
+
+// Upstream form: the submit button waits for what the chosen type needs, with the reason as its tooltip and as a
+// visible hint. The form posts in place (Accept: application/json). The server tests the upstream first; on a
+// failure the page stays as it is, with every field and the key kept, and a short error appears. After a good save
+// the page goes on to the address the server names.
+(function () {
+  var form = document.querySelector("form[data-upstream-form]");
+  if (!form) return;
+  var wrap = form.querySelector("[data-gate-submit]");
+  if (!wrap) return;
+  var btn = wrap.querySelector("button"), why = wrap.querySelector("[data-gate-reason]");
+  function val(n) { var f = form.elements[n]; return f && f.value != null ? String(f.value).trim() : ""; }
+  function reason() {
+    var kind = val("kind");
+    if (val("mode") !== "edit" && !val("alias")) return "Enter an alias";
+    if (kind === "remote" && !val("url")) return "Enter the URL";
+    if (kind === "openapi" && !val("oa_spec_url") && !val("oa_spec_text") && !form.querySelector("[data-oa-has]")) return "Enter the address of the API";
+    if ((kind === "stdio" || kind === "git") && !val("source") && !val("command") && !val("command_pick") && !val("git_url")) return "Enter a source or a command";
+    return "";
+  }
+  var busy = false;
+  function sync() {
+    var r = busy ? "Testing" : reason();
+    btn.disabled = !!r;
+    if (r && !busy) btn.setAttribute("title", r); else btn.removeAttribute("title");
+    btn.setAttribute("aria-describedby", why.id);
+    why.textContent = r;
+    why.hidden = !r;
+  }
+  form.addEventListener("input", sync);
+  form.addEventListener("change", sync);
+  sync();
+  form.addEventListener("submit", function (e) {
+    if (e.defaultPrevented) return;
+    e.preventDefault();
+    if (busy || reason()) return;
+    busy = true;
+    form.setAttribute("aria-busy", "true");
+    sync();
+    fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json", "X-Follow": "1" }, body: new URLSearchParams(new FormData(form)) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j.to) { window.location.assign(j.to); return; }
+        window.skgateToast(j.toast ? j.toast.k : "bad", j.toast ? j.toast.m : "The request failed.");
+      })
+      .catch(function () { window.skgateToast("bad", "The request failed."); })
+      .then(function () { busy = false; form.removeAttribute("aria-busy"); sync(); });
   });
 })();

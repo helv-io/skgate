@@ -57,7 +57,7 @@ func TestFormRightEdgesInBrowser(t *testing.T) {
 		t.Skip("set SKGATE_CHROME and SKGATE_PUPPETEER (and install node) to run the browser layout check")
 	}
 	a, br, csrf := managedApp(t)
-	_ = a
+	a.Admin.NoSaveTest = true
 	br.post("/admin/upstreams/save", stdioForm(csrf, "m", url.Values{"lifecycle": {"always"}}))
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"r"}, "url": {"http://127.0.0.1:1/mcp"},
 		"auth_kind": {"header"}, "auth_name": {"X-Api-Key"}, "auth_value": {"k"}, "hdr_name": {"X-A"}, "hdr_value": {"1"}, "host_override": {"svc:8000"}, "enabled": {"1"}})

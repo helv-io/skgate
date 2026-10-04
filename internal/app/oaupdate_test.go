@@ -170,6 +170,7 @@ const updV2 = `{"openapi":"3.0.0","info":{"title":"T","version":"2"},"servers":[
 func TestOpenAPIUpdateRunsTheSILayer(t *testing.T) {
 	for _, withHelper := range []bool{true, false} {
 		r := newSuggestRig(t, withHelper, withHelper)
+		r.a.Admin.NoSaveTest = true
 		var mu sync.Mutex
 		spec := updV1
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
