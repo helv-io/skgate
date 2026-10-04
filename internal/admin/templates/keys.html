@@ -25,7 +25,7 @@
 {{template "danger_start" .ID}}
 <p class="muted">Regenerate gives the key a new token and the current one stops working. Revoke ends the key for good.</p>
 <div class="actions">
-<form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">regenerate</button></form>
+<form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">regenerate</button></form>
 <form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form></div>
 {{template "danger_end"}}{{end}}
 <h4>Details</h4>
