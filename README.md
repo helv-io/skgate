@@ -162,7 +162,7 @@ stopped  --request-->  starting  -->  running  --10 min idle-->  stopped
 {"mcpServers": {"time": {"command": "uvx", "args": ["mcp-server-time"], "skgate": {"idleTimeoutSeconds": 120}}}}
 ```
 
-- The aggregated `/mcp` lists tools from every upstream marked **In /mcp**, which starts them all. To keep idle servers stopped, point clients at `/mcp/<alias>` or untick **In /mcp**.
+- The aggregated `/mcp` includes remote and always-on upstreams marked **In /mcp**. On-demand servers are left out, so `/mcp` never starts them. Point a client at `/mcp/<alias>` to use one.
 - Remote upstreams have no process; there is nothing to idle.
 - An admin **Stop** keeps a server stopped until **Start** or **Restart**.
 
