@@ -44,13 +44,14 @@ func DefaultDescription(o Op) string {
 	return clip(d, MaxDescription)
 }
 
-// Tools builds the tools of the enabled operations. Names are unique: a clash gets a numeric suffix. An operation
+// Tools builds the tools of the enabled operations. Names are unique: a clash gets a numeric suffix, decided over
+// all operations so that switching one off never renames another (a client may have cached the name). An operation
 // that cannot be a tool (Skip) is left out even if enabled.
 func Tools(ops []Op, sel Selection) []Tool {
 	var out []Tool
 	used := map[string]bool{}
 	for _, o := range ops {
-		if !sel.Enabled[o.Key] || o.Skip != "" {
+		if o.Skip != "" {
 			continue
 		}
 		ov := sel.Overrides[o.Key]
@@ -64,6 +65,9 @@ func Tools(ops []Op, sel Selection) []Tool {
 			name = clipName(base, MaxNameLen-len(suffix)) + suffix
 		}
 		used[name] = true
+		if !sel.Enabled[o.Key] {
+			continue // named all the same: switching one tool off never renames another
+		}
 		desc := strings.TrimSpace(ov.Description)
 		if desc == "" {
 			desc = DefaultDescription(o)
