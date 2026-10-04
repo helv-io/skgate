@@ -1460,7 +1460,14 @@ type testData struct {
 
 func (a *Admin) upstreamDelete(w http.ResponseWriter, r *http.Request) {
 	alias := r.PathValue("alias")
-	_ = a.MCP.Upstreams.Delete(alias)
+	if _, ok := a.MCP.Upstreams.Get(alias); !ok {
+		a.back(w, r, "/admin/upstreams", "", "unknown alias")
+		return
+	}
+	if err := a.MCP.Upstreams.Delete(alias); err != nil {
+		a.saveFailed(w, r, "/admin/upstreams", err)
+		return
+	}
 	a.MCP.SyncManaged(alias)
 	a.MCP.ForgetHealth(alias)
 	a.back(w, r, "/admin/upstreams", "upstream deleted", "")
@@ -1582,7 +1589,10 @@ func (a *Admin) clientCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) clientDelete(w http.ResponseWriter, r *http.Request) {
-	_ = a.MCP.Clients.Delete(r.PostFormValue("id"))
+	if err := a.MCP.Clients.Delete(r.PostFormValue("id")); err != nil {
+		a.saveFailed(w, r, "/admin/clients", err)
+		return
+	}
 	a.back(w, r, "/admin/clients", "client deleted", "")
 }
 

@@ -37,12 +37,17 @@ func connectionResult(name string, n int, err error) (ok, bad string) {
 }
 
 // settingBase stores the base URL override (none when it is the preset's own).
-func (a *Admin) settingBase(k *keyed.Provider, base string) {
+func (a *Admin) settingBase(k *keyed.Provider, base string) error {
 	if base == "" || base == strings.TrimRight(k.Preset.Base, "/") {
-		_ = a.Set.Delete(k.ID(), "base")
-		return
+		return a.Set.Delete(k.ID(), "base")
 	}
-	_ = a.Set.Set(k.ID(), "base", base)
+	return a.Set.Set(k.ID(), "base", base)
+}
+
+// saveFailed tells the admin a write did not happen. The cause stays in the log.
+func (a *Admin) saveFailed(w http.ResponseWriter, r *http.Request, to string, err error) {
+	a.MCP.Log.Printf("admin: save failed: %v", err)
+	a.back(w, r, to, "", "could not save: the database refused the change; try again")
 }
 
 // checkConnection validates the base URL and key a form sent for k. The error is shown as it is.
@@ -81,11 +86,17 @@ func (a *Admin) keyedAdd(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin#add-provider", "", err.Error())
 		return
 	}
-	a.settingBase(k, base)
-	if key != "" {
-		_ = k.SaveKey(key)
+	err = a.settingBase(k, base)
+	if err == nil && key != "" {
+		err = k.SaveKey(key)
 	}
-	_ = k.SetEnabled(true)
+	if err == nil {
+		err = k.SetEnabled(true)
+	}
+	if err != nil {
+		a.saveFailed(w, r, "/admin#add-provider", err)
+		return
+	}
 	n, terr := a.testConnection(r.Context(), k)
 	ok2, bad := connectionResult(k.Name(), n, terr)
 	if bad != "" {
@@ -107,9 +118,13 @@ func (a *Admin) keyedSave(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, dialogHash(k.ID()), "", err.Error())
 		return
 	}
-	a.settingBase(k, base)
-	if key != "" {
-		_ = k.SaveKey(key)
+	err = a.settingBase(k, base)
+	if err == nil && key != "" {
+		err = k.SaveKey(key)
+	}
+	if err != nil {
+		a.saveFailed(w, r, dialogHash(k.ID()), err)
+		return
 	}
 	n, terr := a.testConnection(r.Context(), k)
 	okMsg, bad := connectionResult(k.Name(), n, terr)

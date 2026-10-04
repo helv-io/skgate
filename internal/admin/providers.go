@@ -141,8 +141,14 @@ func (a *Admin) providerSettings(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, dialogHash(p.ID()), "", "URLs must be absolute http(s)")
 		return
 	}
-	_ = a.Set.Set(p.ID(), "base", up)
-	_ = a.Set.Set(p.ID(), "fallback", fb)
+	if err := a.Set.Set(p.ID(), "base", up); err != nil {
+		a.saveFailed(w, r, dialogHash(p.ID()), err)
+		return
+	}
+	if err := a.Set.Set(p.ID(), "fallback", fb); err != nil {
+		a.saveFailed(w, r, dialogHash(p.ID()), err)
+		return
+	}
 	a.back(w, r, dialogHash(p.ID()), "upstream saved", "")
 }
 
@@ -265,18 +271,27 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 		}
 		timeout = n
 	}
-	_ = a.Set.SetModel(p.ID(), m)
+	werr := a.Set.SetModel(p.ID(), m)
 	msg := "MCP helper model cleared"
 	if m != "" {
 		msg = "MCP helper model: " + m
 	}
 	if effort != "" {
-		_ = a.Set.SetEffort(p.ID(), effort)
+		if werr == nil {
+			werr = a.Set.SetEffort(p.ID(), effort)
+		}
 		msg += ", reasoning " + effort
 	}
 	if timeout > 0 {
-		_ = a.Set.SetHelperTimeout(p.ID(), timeout)
+		if werr == nil {
+			werr = a.Set.SetHelperTimeout(p.ID(), timeout)
+		}
 		msg += ", timeout " + strconv.Itoa(timeout) + " s"
+	}
+	if werr != nil {
+		a.MCP.Log.Printf("admin: save failed: %v", werr)
+		a.helperDone(w, r, p.ID(), "", "could not save: the database refused the change; try again")
+		return
 	}
 	a.helperDone(w, r, p.ID(), msg, "")
 }
