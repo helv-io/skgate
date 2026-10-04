@@ -1,12 +1,12 @@
 # Roadmap
 
-What is planned for skgate: MCP client authentication (how MCP clients register with and sign in to skgate) and the AI API. Order within a section is rough priority. Nothing here is a promise of a date.
+What is planned for skgate's MCP client authentication (how MCP clients register with and sign in to skgate). Order within a section is rough priority. Nothing here is a promise of a date.
 
 ## Next
 
 Small fixes to discovery.
 
-- **Protected-resource metadata for every endpoint.** `/sse` gets its own protected-resource document like `/mcp` and `/mcp/<alias>`, and the `resource` value is consistent with and without a trailing slash.
+- **Protected-resource metadata for `/sse`.** `/sse` gets its own protected-resource document like `/mcp` and `/mcp/<alias>`.
 
 ## Planned
 
