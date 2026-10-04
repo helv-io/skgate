@@ -687,18 +687,19 @@ document.addEventListener("change", function (e) {
   apply();
 })();
 
-// [data-when-select] shows the [data-when="a b"] fields that apply to its value. Without
-// JavaScript every field stays visible.
+// [data-when-select] shows the [data-when="a b"] fields that apply to its value, within its own [data-kind] group (or
+// the page). Without JavaScript every field stays visible.
 (function () {
-  var sel = document.querySelector("[data-when-select]");
-  if (!sel) return;
-  function apply() {
-    Array.prototype.forEach.call(document.querySelectorAll("[data-when]"), function (el) {
-      el.hidden = el.getAttribute("data-when").split(" ").indexOf(sel.value) < 0;
-    });
-  }
-  sel.addEventListener("change", apply);
-  apply();
+  Array.prototype.forEach.call(document.querySelectorAll("[data-when-select]"), function (sel) {
+    var scope = sel.closest("[data-kind]") || document;
+    function apply() {
+      Array.prototype.forEach.call(scope.querySelectorAll("[data-when]"), function (el) {
+        el.hidden = el.getAttribute("data-when").split(" ").indexOf(sel.value) < 0;
+      });
+    }
+    sel.addEventListener("change", apply);
+    apply();
+  });
 })();
 
 // Pairs (env vars, headers): [data-pairs] holds [data-pairs-rows], a <template data-pairs-template>
@@ -1286,4 +1287,198 @@ function frontierHint(form) {
   apply();
   toBottom();
   open();
+})();
+
+// OpenAPI form: "Check description" posts the address or the pasted text and shows what it holds and what is wrong
+// with it. With the assistant, "Repair" proposes fixes as a diff; "Apply" puts the repaired text into the paste box.
+// Nothing is saved from here: the form's own Add or Save button does that.
+(function () {
+  var btn = document.querySelector("[data-oa-check]");
+  if (!btn) return;
+  var form = btn.closest("form"), out = form.querySelector("[data-oa-out]");
+  var pill = out.querySelector("[data-oa-pill]"), summary = out.querySelector("[data-oa-summary]"), list = out.querySelector("[data-oa-issues]");
+  var repairRow = out.querySelector("[data-oa-repair-row]"), diff = out.querySelector("[data-oa-diff]");
+  var diffList = out.querySelector("[data-oa-diff-list]"), diffTitle = out.querySelector("[data-oa-diff-title]");
+  var repaired = "";
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function post(url) {
+    var body = new URLSearchParams();
+    body.set("csrf", btn.getAttribute("data-csrf"));
+    body.set("oa_spec_url", form.elements.oa_spec_url.value);
+    body.set("oa_spec_text", form.elements.oa_spec_text.value);
+    return fetch(url, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: body })
+      .then(function (r) { return r.json(); });
+  }
+  function show(cls, text) { pill.className = "pill " + cls; pill.textContent = text; out.hidden = false; }
+  function clear() { list.textContent = ""; diff.hidden = true; repairRow.hidden = true; diffList.textContent = ""; repaired = ""; }
+  btn.addEventListener("click", function () {
+    clear();
+    summary.textContent = "";
+    show("off", "checking");
+    btn.disabled = true;
+    post(btn.getAttribute("data-oa-check-url")).then(function (j) {
+      btn.disabled = false;
+      if (!j.ok) { show("bad", "unreadable"); summary.textContent = j.error || "the description cannot be read"; return; }
+      summary.textContent = (j.title ? j.title + ": " : "") + j.operations + " operations (" + j.reads + " read, " + j.writes + " change data)";
+      var base = form.querySelector("#oa-servers");
+      if (base && j.servers) j.servers.forEach(function (u) {
+        var o = el("option"); o.value = u; base.appendChild(o);
+      });
+      var n = (j.issues || []).length;
+      show(n ? "warn" : "ok", n ? n + (n === 1 ? " problem" : " problems") : "valid");
+      (j.issues || []).slice(0, 20).forEach(function (is) {
+        list.appendChild(el("li", "", is.message + " (" + is.path + ")"));
+      });
+      if (n > 20) list.appendChild(el("li", "", "and " + (n - 20) + " more"));
+      if (n) {
+        if (j.ai) repairRow.hidden = false;
+        else list.appendChild(el("li", "", "The assistant cannot repair it: " + (j.aiWhy || "unavailable") + ". The import works anyway."));
+      }
+    }).catch(function () { btn.disabled = false; show("bad", "failed"); summary.textContent = "the check did not complete"; });
+  });
+  out.addEventListener("click", function (e) {
+    var t = e.target && e.target.closest ? e.target : null;
+    if (!t) return;
+    var rb = t.closest("[data-oa-repair]");
+    if (rb) {
+      rb.disabled = true;
+      diff.hidden = true;
+      summary.textContent = "Asking the assistant; this can take a minute";
+      post(btn.getAttribute("data-oa-repair-url")).then(function (j) {
+        rb.disabled = false;
+        if (j.error) { window.skgateToast("bad", j.error); return; }
+        repaired = j.spec;
+        diffList.textContent = "";
+        (j.changes || []).forEach(function (c) {
+          var li = el("li");
+          li.appendChild(el("code", "", c.path));
+          if (c.reason) li.appendChild(el("div", "muted", c.reason));
+          if (c.before) li.appendChild(el("div", "del", "- " + c.before));
+          if (c.after) li.appendChild(el("div", "add", "+ " + c.after));
+          diffList.appendChild(li);
+        });
+        var left = (j.remaining || []).length;
+        diffTitle.textContent = (j.changes || []).length + " proposed changes; " + left + (left === 1 ? " problem" : " problems") + " would remain. Review them.";
+        diff.hidden = false;
+      }).catch(function () { rb.disabled = false; window.skgateToast("bad", "the repair did not complete"); });
+      return;
+    }
+    if (t.closest("[data-oa-apply]")) {
+      form.elements.oa_spec_text.value = repaired;
+      diff.hidden = true;
+      window.skgateToast("ok", "The repaired description is in the paste box. Check it again, then add the upstream.");
+      return;
+    }
+    if (t.closest("[data-oa-discard]")) { diff.hidden = true; repaired = ""; }
+  });
+})();
+
+// Tool picker (the tools page of an OpenAPI upstream). The counter follows the ticked tools live and is colored by
+// level (good, a lot, too many); crossing into a worse level raises a toast, and so does switching on a whole verb.
+// Nothing is ever blocked. The verb switches act on the tools the filter shows. The filter narrows the rows by their
+// text and opens the groups that have a match. "Suggest names" asks the assistant for the ticked tools and fills the
+// name and description fields; the admin reviews them and saves.
+(function () {
+  var root = document.querySelector("[data-toolpick]");
+  if (!root) return;
+  var good = Number(root.getAttribute("data-good")), warn = Number(root.getAttribute("data-warn"));
+  var counter = root.querySelector("[data-toolcount]"), callout = root.querySelector("[data-toolcallout]");
+  var nEl = root.querySelector("[data-toolcount-n]"), word = root.querySelector("[data-toolcount-word]"), lvl = root.querySelector("[data-toolcount-level]");
+  var filter = root.querySelector("[data-toolfilter]"), fcount = root.querySelector("[data-toolfilter-count]"), fempty = root.querySelector("[data-toolfilter-empty]");
+  var rank = { ok: 0, warn: 1, bad: 2 };
+  var words = { ok: "a good number", warn: "a lot", bad: "too many" };
+  function level(n) { return n <= good ? "ok" : n <= warn ? "warn" : "bad"; }
+  function boxes(scope) { return (scope || root).querySelectorAll("[data-tool-on]:not(:disabled)"); }
+  function count() {
+    var n = 0;
+    Array.prototype.forEach.call(boxes(), function (b) { if (b.checked) n++; });
+    return n;
+  }
+  var current = level(count());
+  function render() {
+    var n = count(), l = level(n);
+    nEl.textContent = n;
+    word.textContent = n === 1 ? "tool exposed" : "tools exposed";
+    lvl.textContent = words[l];
+    counter.className = "toolcount " + l;
+    callout.className = "callout " + l;
+    Array.prototype.forEach.call(root.querySelectorAll("[data-verbgroup]"), function (g) {
+      var all = boxes(g), on = 0;
+      Array.prototype.forEach.call(all, function (b) { if (b.checked) on++; });
+      g.querySelector("[data-verb-count]").textContent = on + " of " + all.length + " on";
+      var t = g.querySelector("[data-verb-toggle]");
+      t.checked = all.length > 0 && on === all.length;
+      t.indeterminate = on > 0 && on < all.length;
+      t.disabled = all.length === 0;
+    });
+    if (rank[l] > rank[current]) {
+      window.skgateToast(l === "bad" ? "bad" : "warn", n + " tools is " + words[l] + ". Models pick worse tools, and get slower and costlier, with many tools. Expose only what you need.");
+    }
+    current = l;
+  }
+  root.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.matches && t.matches("[data-tool-on]")) { render(); return; }
+    if (t.matches && t.matches("[data-verb-toggle]")) {
+      var g = t.closest("[data-verbgroup]"), changed = 0;
+      Array.prototype.forEach.call(boxes(g), function (b) {
+        if (b.closest("[data-tool]").hidden || b.checked === t.checked) return;
+        b.checked = t.checked;
+        changed++;
+      });
+      var verb = g.getAttribute("data-verbgroup");
+      render();
+      if (t.checked && changed) window.skgateToast(verb === "GET" ? "ok" : "warn", "Switched on " + changed + " " + verb + " " + (changed === 1 ? "tool" : "tools") + ". Expose only what you need: fewer tools work better.");
+    }
+  });
+  function applyFilter() {
+    var q = filter.value.trim().toLowerCase(), shown = 0, total = 0;
+    Array.prototype.forEach.call(root.querySelectorAll("[data-tool]"), function (row) {
+      total++;
+      var text = row.textContent + " " + Array.prototype.map.call(row.querySelectorAll("input[type=text]"), function (i) { return i.value; }).join(" ");
+      var hit = !q || text.toLowerCase().indexOf(q) >= 0;
+      row.hidden = !hit;
+      if (hit) shown++;
+    });
+    Array.prototype.forEach.call(root.querySelectorAll("[data-verbgroup]"), function (g) {
+      var any = g.querySelector("[data-tool]:not([hidden])");
+      g.hidden = !any;
+      if (q && any) g.open = true;
+    });
+    fcount.textContent = q ? shown + " of " + total : "";
+    fempty.hidden = !q || shown > 0;
+  }
+  filter.addEventListener("input", applyFilter);
+  filter.addEventListener("keydown", function (e) { if (e.key === "Enter") e.preventDefault(); });
+  var describe = root.querySelector("[data-tool-describe]");
+  if (describe) describe.addEventListener("click", function () {
+    var body = new URLSearchParams(), n = 0;
+    body.set("csrf", root.querySelector('input[name="csrf"]').value);
+    Array.prototype.forEach.call(boxes(), function (b) { if (b.checked && n < 40) { body.append("key", b.value); n++; } });
+    if (!n) { window.skgateToast("bad", "Switch on the tools to describe first."); return; }
+    describe.disabled = true;
+    window.skgateToast("ok", "Asking the assistant about " + n + " " + (n === 1 ? "tool" : "tools") + "; this can take a minute.");
+    fetch(root.getAttribute("data-suggest-url"), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: body })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        describe.disabled = false;
+        if (j.error) { window.skgateToast("bad", j.error); return; }
+        var done = 0;
+        Array.prototype.forEach.call(root.querySelectorAll("[data-tool]"), function (row) {
+          var s = j.tools && j.tools[row.getAttribute("data-key")];
+          if (!s) return;
+          if (s.name) row.querySelector("[data-tool-name]").value = s.name;
+          if (s.description) row.querySelector("[data-tool-desc]").value = s.description;
+          done++;
+        });
+        window.skgateToast("ok", "Suggested names for " + done + " " + (done === 1 ? "tool" : "tools") + ". Review them, then Save.");
+      })
+      .catch(function () { describe.disabled = false; window.skgateToast("bad", "the suggestion did not complete"); });
+  });
+  render();
 })();
