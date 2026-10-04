@@ -6,6 +6,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-10-04
+
+### Changed
+
+- The OpenAPI screens use shorter, plainer wording.
+
 ## [0.15.0] - 2026-10-04
 
 ### Added
@@ -427,7 +433,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.15.1...HEAD
+[0.15.1]: https://github.com/helv-io/skgate/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/helv-io/skgate/compare/v0.14.2...v0.15.0
 [0.14.2]: https://github.com/helv-io/skgate/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/helv-io/skgate/compare/v0.14.0...v0.14.1
