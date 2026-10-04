@@ -83,11 +83,12 @@
 {{define "dialog_content"}}<template data-dialog-content id="{{.ID}}" data-title="{{.Title}}"{{if .Info}} data-informational{{end}}>{{end}}
 {{define "dialog_end"}}</template>{{end}}
 
-{{/* suggest_result: the output area of the "Suggest configuration" helper. app.js fills it; the form fields are
-   filled for review and nothing is saved. */}}
+{{/* suggest_result: the output area of the "Suggest configuration" helper. app.js fills it: warnings first, each with an icon, then the review line, and the notes folded in a details block;
+   the form fields are filled for review and nothing is saved. */}}
 {{define "suggest_result"}}<div class="suggest-out" data-suggest-out aria-live="polite" hidden>
 <div class="row"><span class="pill off" data-suggest-pill></span></div>
 <ul class="muted" data-suggest-list></ul>
+<details data-suggest-notes hidden><summary class="muted">Notes</summary><ul class="muted" data-suggest-notes-list></ul></details>
 </div>{{end}}
 
 {{/* brandmark: the product mark above a Solo page's card. */}}

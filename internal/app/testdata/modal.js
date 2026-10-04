@@ -182,6 +182,9 @@ for (const native of [false,true]) {
     ok(form.elements.startup_secs.value==="45","startup timeout filled");
     ok(form.elements.alias.value==="thing","alias suggested");
     const out=d.querySelector("[data-suggest-out]"); ok(!out.hidden&&/w1/.test(out.textContent)&&/high/.test(out.textContent),"warnings and confidence shown");
+    { const lis=[...out.querySelectorAll("[data-suggest-list] li")], det=out.querySelector("[data-suggest-notes]");
+      ok(lis.length===2&&lis[0].classList.contains("warn")&&lis[0].textContent==="w1"&&/^Review before saving/.test(lis[1].textContent),"the warning comes first, then the review line: "+lis.map(x=>x.textContent));
+      ok(!/n1/.test(lis.map(x=>x.textContent).join())&&!det.hidden&&!det.open&&/Notes \(1\)/.test(det.querySelector("summary").textContent)&&det.querySelector("li").textContent==="n1","notes are folded in a closed details block"); }
     ok(!b.disabled&&!form.elements.command.disabled,"manual fields and the button stay usable");
     console.log(fails?("FAILED "+fails):"ALL OK"); process.exit(fails?1:0);
   },500);

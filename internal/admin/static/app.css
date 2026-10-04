@@ -225,6 +225,12 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 /* suggest: output area of the configuration helper */
 .suggest-out{margin:0 0 12px}
 .suggest-out ul{margin:6px 0}
+/* a warning line leads with an icon and the warning colour; the notes are a folded details block */
+.suggest-out ul{list-style:none;padding-left:0}
+.suggest-out li.warn{color:var(--warn);padding-left:22px;position:relative}
+.suggest-out li.warn::before{content:"\26A0";position:absolute;left:0}
+.suggest-out details{margin:6px 0}
+.suggest-out details ul{list-style:disc;padding-left:20px}
 .reveal{animation:reveal-in .3s ease-out}
 @keyframes reveal-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.reveal{animation:none}}

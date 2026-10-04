@@ -843,7 +843,7 @@ document.addEventListener("input", function (e) {
     if (d) d.open = true;
     refresh(form);
   }
-  function show(form, cls, label, lines, action) {
+  function show(form, cls, label, lines, action, notes) {
     var out = form.querySelector("[data-suggest-out]");
     var pill = out.querySelector("[data-suggest-pill]");
     var act = out.querySelector("[data-suggest-action]");
@@ -862,7 +862,15 @@ document.addEventListener("input", function (e) {
     pill.textContent = label;
     pill.hidden = !label;
     ul.textContent = "";
-    lines.forEach(function (l) { var li = document.createElement("li"); li.textContent = l; ul.appendChild(li); });
+    // a line is a string, or {warn: text}: a warning, drawn with an icon (CSS) and listed before the rest
+    lines.forEach(function (l) { var li = document.createElement("li"); if (l && l.warn) { li.className = "warn"; li.textContent = l.warn; } else li.textContent = l; ul.appendChild(li); });
+    // notes are folded away in a details block under the list; it is hidden when there are none
+    var det = out.querySelector("[data-suggest-notes]"), nl = out.querySelector("[data-suggest-notes-list]");
+    nl.textContent = "";
+    (notes || []).forEach(function (n) { var li = document.createElement("li"); li.textContent = n; nl.appendChild(li); });
+    det.hidden = !(notes && notes.length);
+    det.open = false;
+    det.querySelector("summary").textContent = "Notes (" + (notes ? notes.length : 0) + ")";
     out.hidden = false;
   }
   function sourceLine(s) {
@@ -885,9 +893,9 @@ document.addEventListener("input", function (e) {
       return;
     }
     apply(form, x.result);
-    var lines = (x.result.warnings || []).concat(x.result.notes || []);
-    lines.unshift("Review before saving. Fill in the values; empty ones are not passed to the server.");
-    show(form, x.result.confidence === "high" ? "ok" : "warn", x.result.confidence + " confidence", lines);
+    var lines = (x.result.warnings || []).map(function (w) { return { warn: w }; });
+    lines.push("Review before saving. Fill in the values; empty ones are not passed to the server.");
+    show(form, x.result.confidence === "high" ? "ok" : "warn", x.result.confidence + " confidence", lines, false, x.result.notes);
   }
   document.addEventListener("click", function (e) {
     var b = e.target && e.target.closest ? e.target.closest("[data-suggest]") : null;
