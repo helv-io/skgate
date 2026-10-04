@@ -1,0 +1,50 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.helv-io/skgate",
+  "title": "skgate",
+  "description": "MCP gateway: OAuth-protected endpoints for remote and hosted MCP servers, plus a Grok API.",
+  "websiteUrl": "https://github.com/helv-io/skgate",
+  "repository": {
+    "url": "https://github.com/helv-io/skgate",
+    "source": "github"
+  },
+  "version": "0.9.0",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/helv-io/skgate:0.9.0",
+      "transport": {
+        "type": "streamable-http",
+        "url": "http://localhost:8080/mcp"
+      },
+      "runtimeArguments": [
+        { "type": "named", "name": "-p", "value": "8080:8080" },
+        { "type": "named", "name": "-v", "value": "skgate-data:/data" }
+      ],
+      "environmentVariables": [
+        { "name": "PUBLIC_URL", "description": "Public origin of skgate, no trailing slash.", "isRequired": true, "format": "string", "default": "http://localhost:8080" },
+        { "name": "OIDC_ISSUER", "description": "Issuer URL of the OIDC provider used for admin sign-in.", "isRequired": true, "format": "string" },
+        { "name": "OIDC_CLIENT_ID", "description": "OIDC client ID.", "isRequired": true, "format": "string" },
+        { "name": "OIDC_CLIENT_SECRET", "description": "OIDC client secret.", "isRequired": true, "isSecret": true, "format": "string" }
+      ]
+    },
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/helv-io/skgate:0.9.0-slim",
+      "transport": {
+        "type": "streamable-http",
+        "url": "http://localhost:8080/mcp"
+      },
+      "runtimeArguments": [
+        { "type": "named", "name": "-p", "value": "8080:8080" },
+        { "type": "named", "name": "-v", "value": "skgate-data:/data" }
+      ],
+      "environmentVariables": [
+        { "name": "PUBLIC_URL", "description": "Public origin of skgate, no trailing slash.", "isRequired": true, "format": "string", "default": "http://localhost:8080" },
+        { "name": "OIDC_ISSUER", "description": "Issuer URL of the OIDC provider used for admin sign-in.", "isRequired": true, "format": "string" },
+        { "name": "OIDC_CLIENT_ID", "description": "OIDC client ID.", "isRequired": true, "format": "string" },
+        { "name": "OIDC_CLIENT_SECRET", "description": "OIDC client secret.", "isRequired": true, "isSecret": true, "format": "string" }
+      ]
+    }
+  ]
+}
