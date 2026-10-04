@@ -1,4 +1,4 @@
-# Build, vet and test on every push to the default branch and every pull request (same checks as tools/chk.sh).
+# Build, vet and test on every push to the default branch and every pull request (the checks of tools/chk.sh, with the browser tests on).
 # Skipped for changes that cannot affect the code or its tests. README.md, docs/ and AGENT.md are NOT skipped:
 # tests read them.
 
@@ -38,4 +38,5 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/go
+      - uses: ./.github/actions/browser-tools
       - run: tools/test-shard.sh ${{ matrix.shard }} 3

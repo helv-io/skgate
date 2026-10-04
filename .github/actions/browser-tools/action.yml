@@ -1,0 +1,17 @@
+name: Browser test tools
+description: Installs jsdom and puppeteer-core and points the browser tests at them and at the runner's Chrome, so they run instead of being skipped.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/jsd" "$RUNNER_TEMP/pp"
+        (cd "$RUNNER_TEMP/jsd" && npm init -y >/dev/null && npm install --silent jsdom@24)
+        (cd "$RUNNER_TEMP/pp" && npm init -y >/dev/null && npm install --silent puppeteer-core)
+        chrome=$(command -v google-chrome || command -v chromium || true)
+        test -n "$chrome" || { echo "no Chrome on this runner"; exit 1; }
+        {
+          echo "SKGATE_JSDOM=$RUNNER_TEMP/jsd"
+          echo "SKGATE_PUPPETEER=$RUNNER_TEMP/pp"
+          echo "SKGATE_CHROME=$chrome"
+        } >> "$GITHUB_ENV"
