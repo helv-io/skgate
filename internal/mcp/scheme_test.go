@@ -1,6 +1,9 @@
 package mcp
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestAddressSchemeRule(t *testing.T) {
 	for _, tc := range []struct {
@@ -18,5 +21,30 @@ func TestAddressSchemeRule(t *testing.T) {
 		if err := rm.Validate(); (err == nil) != tc.ok {
 			t.Errorf("remote %s: %v", tc.url, err)
 		}
+	}
+}
+
+func TestImportAndTesterFollowTheAddressRule(t *testing.T) {
+	items, err := ParseImport(`{"mcpServers":{"lan":{"url":"http://mealie:9000/mcp"},"web":{"url":"http://mcp.example.com/mcp"},"ok":{"url":"https://mcp.example.com/mcp"}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, it := range items {
+		got[it.Upstream.Alias] = it.Err
+	}
+	if got["lan"] != "" || got["ok"] != "" || !strings.Contains(got["web"], "https") {
+		t.Errorf("import errors: %v", got)
+	}
+	// a stored upstream from before the rule is not tested over plain http on the internet
+	e := newEnv(t, nil)
+	if err := e.srv.Upstreams.Create(Upstream{Alias: "old", URL: "http://127.0.0.1:1/mcp", AuthKind: AuthNone, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.srv.Upstreams.db.Exec(`UPDATE upstreams SET url = 'http://mcp.example.com/mcp' WHERE alias = 'old'`); err != nil {
+		t.Fatal(err)
+	}
+	if res := e.srv.Test(t.Context(), "old"); res.OK || !strings.Contains(res.Error, "https") {
+		t.Errorf("test: %+v", res)
 	}
 }
