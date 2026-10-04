@@ -89,8 +89,7 @@ func (a *Admin) resultScreen(w http.ResponseWriter, r *http.Request) {
 		d.Keys = ks
 		a.render(w, r, "keys", page{Title: "Virtual keys", Nav: "keys", Toasts: toasts, Data: d})
 	case clientsData:
-		d.List, _ = a.MCP.Clients.List()
-		a.render(w, r, "clients", page{Title: "OAuth clients", Nav: "clients", Toasts: toasts, Data: d})
+		a.render(w, r, "clients", page{Title: "OAuth clients", Nav: "clients", Toasts: toasts, Data: a.fillClients(d)})
 	case importData:
 		a.render(w, r, "upstream_import", page{Title: "Import upstreams", Nav: "upstreams", Toasts: toasts, Data: d})
 	default:
