@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// The Unraid Community Apps files in unraid/ must be well-formed XML and describe this image; the template's
+// The Unraid Community Apps files (the template and icon in unraid/, the maintainer profile at the repository root, where the CA scanner looks) must be well-formed XML and describe this image; the template's
 // Repository, TemplateURL and Icon point at files that exist in the repository.
 func TestUnraidTemplateFilesParse(t *testing.T) {
 	dir := filepath.Join("..", "..", "unraid")
@@ -48,7 +48,7 @@ func TestUnraidTemplateFilesParse(t *testing.T) {
 		XMLName xml.Name `xml:"Profile"`
 		Name    string   `xml:"Name"`
 	}
-	b, err = os.ReadFile(filepath.Join(dir, "ca_profile.xml"))
+	b, err = os.ReadFile(filepath.Join("..", "..", "ca_profile.xml"))
 	if err != nil {
 		t.Fatal(err)
 	}
