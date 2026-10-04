@@ -41,6 +41,8 @@ const (
 type Result struct {
 	Text    string
 	IsError bool
+	// Status is the HTTP status of the answer; 0 when there was none (the request did not get through).
+	Status int
 }
 
 // Caller makes the HTTP calls of one API.
@@ -293,7 +295,7 @@ func render(resp *http.Response) Result {
 	mt, _, _ := mime.ParseMediaType(ct)
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
-	res := Result{IsError: resp.StatusCode >= 400}
+	res := Result{IsError: resp.StatusCode >= 400, Status: resp.StatusCode}
 	if binaryType(mt) {
 		n, _ := io.Copy(io.Discard, io.LimitReader(resp.Body, MaxReadBytes))
 		fmt.Fprintf(&sb, "\n[binary response, %s, %d bytes, not shown]", mt, n)

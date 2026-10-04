@@ -3,8 +3,8 @@ package openapi
 import "strings"
 
 // convertSwagger turns a Swagger 2 document into OpenAPI 3: servers from host/basePath/schemes, definitions and
-// parameters into components, body and form parameters into request bodies. Security definitions are dropped
-// (credentials are chosen when the upstream is added).
+// parameters into components, body and form parameters into request bodies. Security definitions become security
+// schemes and the security requirements are kept, so the way to authenticate can be read from either version.
 func convertSwagger(in map[string]any) map[string]any {
 	out := map[string]any{"openapi": "3.0.3"}
 	for _, k := range []string{"info", "tags", "externalDocs"} {
@@ -44,6 +44,18 @@ func convertSwagger(in map[string]any) map[string]any {
 	if r := obj(in["responses"]); r != nil {
 		comps["responses"] = r
 	}
+	if sd := obj(in["securityDefinitions"]); sd != nil {
+		ss := map[string]any{}
+		for k, v := range sd {
+			if m := obj(v); m != nil {
+				ss[k] = convertScheme(m)
+			}
+		}
+		comps["securitySchemes"] = ss
+	}
+	if sec := list(in["security"]); sec != nil {
+		out["security"] = sec
+	}
 	if len(comps) > 0 {
 		out["components"] = comps
 	}
@@ -77,6 +89,15 @@ func convertSwagger(in map[string]any) map[string]any {
 	}
 	out["paths"] = paths
 	return rewriteRefs(out).(map[string]any)
+}
+
+// convertScheme turns a Swagger 2 security definition into an OpenAPI 3 security scheme: basic becomes http basic,
+// apiKey and oauth2 keep their type.
+func convertScheme(m map[string]any) map[string]any {
+	if str(m["type"]) == "basic" {
+		return map[string]any{"type": "http", "scheme": "basic"}
+	}
+	return m
 }
 
 func isMethod(k string) bool {
@@ -127,7 +148,7 @@ func convertOperation(op map[string]any, globalConsumes []string) map[string]any
 	out := map[string]any{}
 	for k, v := range op {
 		switch k {
-		case "parameters", "consumes", "produces", "security", "schemes":
+		case "parameters", "consumes", "produces", "schemes":
 		default:
 			out[k] = v
 		}
