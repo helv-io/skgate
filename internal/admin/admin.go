@@ -70,6 +70,9 @@ var funcs = template.FuncMap{
 		}
 		return timefmt.DateTime(t)
 	},
+	// wrapurl joins its parts into text that may break after a slash, ? & or = (a <wbr> there), so a long address
+	// wraps at a path segment on a phone instead of in the middle of a word.
+	"wrapurl": wrapURL,
 	"dur":     func(d time.Duration) string { return d.Round(time.Second).String() },
 	"latency": timefmt.Latency,
 	"list":    func(v ...string) []string { return v },
@@ -1468,4 +1471,16 @@ func (a *Admin) notFound(w http.ResponseWriter, r *http.Request) {
 // authorizeFailure is the error page of /authorize (an unknown client, a bad redirect address, OIDC not set up).
 func (a *Admin) authorizeFailure(w http.ResponseWriter, r *http.Request, status int, msg string) {
 	a.failure(w, r, status, "Authorization error", msg)
+}
+
+// wrapURL escapes the joined parts and puts a <wbr> after each of / ? & = so a browser prefers those places to break.
+func wrapURL(parts ...string) template.HTML {
+	var b strings.Builder
+	for _, r := range strings.Join(parts, "") {
+		b.WriteString(template.HTMLEscapeString(string(r)))
+		if strings.ContainsRune("/?&=", r) {
+			b.WriteString("<wbr>")
+		}
+	}
+	return template.HTML(b.String())
 }

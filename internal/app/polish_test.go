@@ -247,7 +247,7 @@ func TestUpstreamListSplitsTypeAndStatus(t *testing.T) {
 	}
 	row := func(alias string) string {
 		for _, r := range strings.Split(list, "<tr>")[1:] {
-			if i := strings.Index(r, "</tr>"); i >= 0 && strings.Contains(r[:i], ">"+alias+"</code>") {
+			if i := strings.Index(r, "</tr>"); i >= 0 && strings.Contains(r[:i], `href="#upstream-`+alias+`"`) {
 				return r[:i]
 			}
 		}
@@ -285,7 +285,7 @@ func TestUpstreamListPageOrder(t *testing.T) {
 	_, br, _ := managedApp(t)
 	_, page := br.get("/admin/upstreams")
 	last := -1
-	for _, m := range []string{"<h2>MCP upstreams</h2>", "/.well-known/oauth-authorization-server", ">Add upstream</a>", `href="/admin/upstreams/import"`, `href="/admin/upstreams/export"`, "<thead>"} {
+	for _, m := range []string{"<h2>MCP upstreams</h2>", ".well-known/<wbr>oauth-authorization-server", ">Add upstream</a>", `href="/admin/upstreams/import"`, `href="/admin/upstreams/export"`, "<thead>"} {
 		i := strings.Index(page, m)
 		if i < 0 || i < last {
 			t.Fatalf("%q is missing or out of order on the list page", m)
