@@ -35,6 +35,10 @@ The `Changelog` workflow runs the program on every stable `vX.Y.Z` tag and pushe
 - Fix the wording of a generated section by editing `CHANGELOG.md` in an ordinary commit (CI ignores that file). The program never rewrites an existing section.
 - A manual run (Actions, Changelog, Run workflow) takes a tag if an entry is missing.
 
+## Underlines mean "opens"
+
+A dotted underline (with a pointer) tells the reader a click shows more, so it is only drawn where that is true. A `<details>` block is used only when it has content beyond its summary. A one-line description is plain text, and app.js gives it the underline (`.expands`, `role="button"`, keyboard Enter/Space) only while the line is cut off by the column and a click shows the whole text; widen the window and the underline goes. The `tooldesc` component in `components.html` does this for the Test page's tool list; use it for any other list of tools. Names and descriptions sit in a `.table.split` table (about 30/70; the name wraps, phones get cards). `TestToolDescriptionsAreClickableOnlyWhenTheyOpen` (with `testdata/descline.js`) checks it in a browser at three widths.
+
 ## Code box
 
 The OpenAPI paste box (JSON, YAML or TOML) and the MCP import box (JSON) are code editors: syntax colours, the matching bracket, an underline on the first syntax error with its line in the status line, and auto-indent on Enter. They use **CodeMirror 6**, vendored as one committed file, `internal/admin/static/codemirror.js` (about 369 KB minified, `go:embed`ded with the rest of `static/`, loaded only by `upstream_form.html` and `upstream_import.html`). No CDN, no fetch at run time.
