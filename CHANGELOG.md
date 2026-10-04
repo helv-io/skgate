@@ -10,7 +10,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
-- The OpenAPI screens use shorter, plainer wording.
+- The OpenAPI add, edit, tool selection and update screens and their error messages use shorter, plainer wording. Hints that repeated a label are gone.
 
 ## [0.15.0] - 2026-10-04
 
