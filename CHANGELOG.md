@@ -10,14 +10,17 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Added
 
-- Add and Save test the upstream first. When the test fails the form stays as it was, with a short error.
-- The source box of Suggest takes the address of a REST API, such as http://mealie:9000, and turns the form into an OpenAPI upstream.
-- The OpenAPI form finds the description itself: enter the address of the API, such as http://mealie:9000, and skgate tries the usual places and saves the one that works.
+- The OpenAPI form finds the description itself. Enter the address of the API, such as http://mealie:9000, and skgate tries the usual places, reads linked descriptions, and saves the address that worked.
+- The server address of an OpenAPI upstream comes from the description, or from the address you gave. The Base URL in Advanced is only an override.
+- One key field for an OpenAPI upstream. skgate sends it the way the description says, bearer, basic, a header or the web address, and tries the usual alternatives when the server refuses it. A line in Advanced sets the way by hand.
+- The source box of Suggest takes the address of a REST API and turns the form into an OpenAPI upstream.
+- Add and Save test the upstream first and save only when the test passes. A failed add or save keeps the form as it was, with every field and a short error.
+- The Add and Save buttons stay disabled until the required fields are filled and say what is missing.
 
 ### Changed
 
-- One key for an OpenAPI upstream, sent the way the description says
-- A server on the internet needs an https address; plain http stays fine for names like mealie, IP addresses and .local names.
+- One rule for addresses: a server on the internet needs https; plain http stays fine for names like mealie, IP addresses and .local names. It applies to OpenAPI, remote MCP servers, import and the tester.
+- Test on an OpenAPI upstream sends one safe read to check the key and the server.
 
 ## [0.14.2] - 2026-10-04
 
