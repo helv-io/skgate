@@ -3,6 +3,7 @@
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+--bad-line:#5a3532;--ok-line:#2f4a33;--warn-line:#57492f;--well:#0c0d0f;--btn:#131518;--bad-bg:#211514;--raised:#171a1f;--raised-hover:#1c2128;--press:#1b2c40;
 --z-sticky:5;--z-header:30;--z-menu:40;--z-toast:2147483647;--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
 *{box-sizing:border-box;border-radius:0}
 /* the scrollbar keeps its room, so the page does not shift sideways when a dialog hides it */
@@ -17,7 +18,11 @@ h2{font-size:13px;font-weight:600;margin:22px 0 8px;text-transform:uppercase;let
 h2 code{text-transform:none;letter-spacing:0}
 p{margin:6px 0}
 ul{margin:6px 0;padding-left:20px}li{margin:3px 0}
-details summary{cursor:pointer;margin:8px 0}
+details summary{cursor:pointer;margin:8px 0;list-style:none}
+details summary::-webkit-details-marker{display:none}
+/* a summary has no marker (no icons): a dotted underline says it opens, and it turns accent-coloured on hover and when open */
+details:not(.verbgroup)>summary{text-decoration:underline dotted var(--dim);text-underline-offset:3px}
+details:not(.verbgroup)>summary:hover,details[open]:not(.verbgroup)>summary{text-decoration-color:var(--acc)}
 
 /* top bar: always sticky, opaque, above the page and below menus, dialogs (top layer) and toasts. app.js keeps
    --header-h at its height so anchors and focus scrolling land below it. On phones it is one row (brand, current
@@ -73,27 +78,27 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 
 /* code / mono */
 code,pre,.code,.mono{font-family:var(--mono);font-size:13px}
-code,.code{background:#0c0d0f;border:1px solid var(--line);padding:1px 6px;white-space:nowrap;display:inline-block;max-width:100%;overflow-x:auto;vertical-align:middle}
+code,.code{background:var(--well);border:1px solid var(--line);padding:1px 6px;white-space:nowrap;display:inline-block;max-width:100%;overflow-x:auto;vertical-align:middle}
 /* copybox: a value that copies itself when pressed. A little lighter than a code box, a hint line under the value,
    and the same hover, press and focus states as other buttons. The value wraps; nothing is cut off. */
-.copybox{display:block;width:100%;text-align:left;background:#171a1f;border:1px solid var(--line);padding:8px 12px;min-height:44px;color:var(--fg);line-height:1.4;white-space:normal;cursor:pointer}
+.copybox{display:block;width:100%;text-align:left;background:var(--raised);border:1px solid var(--line);padding:8px 12px;min-height:44px;color:var(--fg);line-height:1.4;white-space:normal;cursor:pointer}
 .copybox+.muted{display:block;margin-top:6px}
 .copybox code{display:block;background:none;border:0;padding:0;white-space:normal;overflow-wrap:anywhere;overflow-x:visible;max-width:100%}
 .copybox.big code{font-size:20px;letter-spacing:.2em}
 .copybox .copyhint{display:block;margin-top:2px;font-size:12px;color:var(--dim)}
-.copybox:hover,.copybox:focus-visible{border-color:var(--acc);background:#1c2128;color:var(--fg)}
+.copybox:hover,.copybox:focus-visible{border-color:var(--acc);background:var(--raised-hover);color:var(--fg)}
 .copybox:hover .copyhint,.copybox:focus-visible .copyhint{color:var(--acc)}
-.copybox:active{background:#1b2c40;border-color:var(--acc)}
-pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:auto;white-space:pre-wrap;margin:6px 0}
+.copybox:active{background:var(--press);border-color:var(--acc)}
+pre{background:var(--well);border:1px solid var(--line);padding:8px 10px;overflow:auto;white-space:pre-wrap;margin:6px 0}
 .trunc code,.trunc .code,.trunc .mono{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .big{font-size:20px;letter-spacing:.2em;padding:6px 12px}
 
 /* pills and chips */
 .tip[title]{cursor:help}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:1px 9px;border:1px solid var(--line);font-size:12px;line-height:20px;white-space:nowrap;color:var(--dim)}
-.pill.ok{color:var(--ok);border-color:#2f4a33}.pill.bad{color:var(--bad);border-color:#5a3532}.pill.warn{color:var(--warn);border-color:#57492f}
+.pill.ok{color:var(--ok);border-color:var(--ok-line)}.pill.bad{color:var(--bad);border-color:var(--bad-line)}.pill.warn{color:var(--warn);border-color:var(--warn-line)}
 .pill.off{color:var(--dim)}
-.chip{display:inline-flex;align-items:center;gap:6px;padding:1px 8px;border:1px solid var(--line);background:#0c0d0f;font-size:12px;line-height:20px;white-space:nowrap;vertical-align:middle}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:1px 8px;border:1px solid var(--line);background:var(--well);font-size:12px;line-height:20px;white-space:nowrap;vertical-align:middle}
 .chip .mono{color:var(--dim)}
 .chip.accent{color:var(--acc);border-color:var(--acc)}
 .ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}.dim,.muted{color:var(--dim)}.nw{white-space:nowrap}
@@ -105,31 +110,31 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 /* row actions: every button in a table's action cell has the same minimum width and centered text, so the
    buttons of one column line up across rows whatever their label (edit, test, process, detect, delete) */
 .table .actions .act{min-width:5.5em;text-align:center}
-.act,button,input[type=submit]{font:inherit;font-size:14px;color:var(--fg);background:#131518;border:1px solid var(--line);padding:3px 10px;line-height:20px;cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap}
+.act,button,input[type=submit]{font:inherit;font-size:14px;color:var(--fg);background:var(--btn);border:1px solid var(--line);padding:3px 10px;line-height:20px;cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap}
 .act:disabled,button:disabled,.btn:disabled{opacity:.45;cursor:not-allowed}
 .act:hover,button:hover{border-color:var(--acc);color:var(--acc);text-decoration:none;background:var(--hover)}
 .act.accent,button.accent{color:var(--acc);border-color:var(--acc)}
 /* danger: red at rest (touch screens have no hover), brighter border and a red wash on hover */
-.act.danger,button.danger{color:var(--bad);border-color:#5a3532}
-.act.danger:hover,button.danger:hover{border-color:var(--bad);color:var(--bad);background:#211514}
+.act.danger,button.danger{color:var(--bad);border-color:var(--bad-line)}
+.act.danger:hover,button.danger:hover{border-color:var(--bad);color:var(--bad);background:var(--bad-bg)}
 .act.small,button.small{padding:1px 8px;font-size:12px}
 .act.plain{border:0;background:none;padding:0;color:var(--acc)}
 /* toggle: a switch. The button is role=switch (aria-checked), a track with a knob (on: green, knob right; off:
    neutral, knob left) beside its label. A disabled switch is dimmed, shows no pointer and does not react to hover. */
-.act.toggle{display:inline-flex;align-items:center;gap:8px;color:var(--dim);background:#131518}
+.act.toggle{display:inline-flex;align-items:center;gap:8px;color:var(--dim);background:var(--btn)}
 .act.toggle::before{content:"";flex:0 0 auto;width:28px;height:16px;border:1px solid currentColor;background:linear-gradient(currentColor,currentColor) no-repeat left 2px center/10px 10px}
-.act.toggle.on{color:var(--ok);border-color:#2f4a33;background:#132016}
+.act.toggle.on{color:var(--ok);border-color:var(--ok-line);background:#132016}
 .act.toggle.on::before{background-position:right 2px center}
 .act.toggle:hover{color:var(--fg);border-color:var(--acc)}
 .act.toggle.on:hover{color:var(--ok);border-color:var(--ok)}
-.act.toggle:disabled,.act.toggle:disabled:hover{opacity:.45;cursor:not-allowed;color:var(--dim);border-color:var(--line);background:#131518}
+.act.toggle:disabled,.act.toggle:disabled:hover{opacity:.45;cursor:not-allowed;color:var(--dim);border-color:var(--line);background:var(--btn)}
 .act.toggle:disabled::before{background-position:left 2px center}
 /* action groups: the buttons of a screen in labelled groups (lifecycle, maintenance, links, danger); the danger group
    sits apart on the right, and under 720px the groups stack */
 .action-groups{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-start;margin:0 0 12px}
 .action-group{min-width:0}
 .group-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:0 0 4px}
-.action-group.danger-group{margin-left:auto;padding-left:20px;border-left:1px solid #5a3532}
+.action-group.danger-group{margin-left:auto;padding-left:20px;border-left:1px solid var(--bad-line)}
 .action-group.danger-group .group-label{color:var(--bad)}
 /* menu: the More button of a row and the list it opens. The list is fixed to the window (placed by app.js under the
    button), so a table that scrolls sideways cannot clip it. Items are the .act of the row, without their frames. */
@@ -141,7 +146,7 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 .menu .menu-list .act{display:block;width:100%;min-width:0;text-align:left;border:0;background:none;padding:7px 14px;line-height:22px}
 .menu .menu-list .act:hover,.menu .menu-list .act:focus-visible{background:var(--hover);color:var(--acc)}
 .menu .menu-list .act.danger,.menu .menu-list .act.danger:hover{color:var(--bad)}
-.menu .menu-list .act.danger:hover,.menu .menu-list .act.danger:focus-visible{background:#211514}
+.menu .menu-list .act.danger:hover,.menu .menu-list .act.danger:focus-visible{background:var(--bad-bg)}
 /* a name that opens its details */
 /* the whole cell height is the tap area of a name that opens its details */
 a.name{color:inherit;display:inline-flex;align-items:center;min-height:44px}
@@ -149,7 +154,7 @@ a.name:hover{text-decoration:none}
 a.name:hover code{border-color:var(--acc);color:var(--acc)}
 /* primary */
 .btn,a.btn{display:inline-block;padding:5px 16px;border:1px solid var(--acc);background:#14202e;color:var(--acc);font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
-.btn:hover,a.btn:hover{background:#1b2c40;color:#fff;text-decoration:none}
+.btn:hover,a.btn:hover{background:var(--press);color:#fff;text-decoration:none}
 /* fill: the one primary choice of a screen (Approve, Allow); solid accent, dark text */
 .btn.fill,a.btn.fill{background:var(--acc);color:#0b1117;font-weight:600}
 .btn.fill:hover,a.btn.fill:hover{background:#a6cdff;color:#0b1117}
@@ -171,7 +176,7 @@ a.name:hover code{border-color:var(--acc);color:var(--acc)}
 .field>label,label,.field>.label{display:block;margin:10px 0 4px;color:var(--dim);font-size:14px}
 .field>label:first-child,.field>.label:first-child{margin-top:0}
 label.check{display:inline-flex;align-items:center;gap:6px;margin:0 16px 0 0;color:var(--fg)}
-input,select,textarea{font:inherit;color:var(--fg);background:#0c0d0f;border:1px solid var(--line);padding:5px 8px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--well);border:1px solid var(--line);padding:5px 8px}
 input[type=text],input[type=password],input[type=url],input[type=search],input[type=number],textarea,select{width:100%;display:block}
 /* focus: one visible ring for everything the keyboard reaches (fields, quick buttons, links, menu items); a field
    also takes the accent border. Inside a menu or the nav panel the ring sits inside the item, so nothing clips it. */
@@ -189,7 +194,7 @@ input[type=checkbox]{width:auto;accent-color:var(--acc);margin:0}
 /* controls inside a row share its width instead of each taking all of it */
 .row>input:not([type=checkbox]),.row>select{width:auto;flex:1 1 140px;min-width:0}
 textarea{resize:vertical;min-height:64px}
-textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
+textarea.wide{min-height:180px;font-family:var(--mono);font-size:13px}
 /* pairs: a list of name/value inputs (environment, headers); the value column is masked for stored secrets */
 .pairs-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
 .pair{display:grid;grid-template-columns:minmax(110px,1fr) minmax(150px,2fr) 64px;gap:6px;align-items:center}
@@ -205,9 +210,9 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 /* toasts: fixed at the bottom right, one shared component for every notification; app.js expires and dismisses them */
 .toasts{position:fixed;bottom:14px;right:14px;z-index:var(--z-toast);display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 28px))}
 .toast{border:1px solid var(--line);background:var(--panel);padding:9px 14px;cursor:pointer;box-shadow:0 4px 16px #0009;overflow-wrap:anywhere;transition:opacity .25s}
-.toast.ok{border-color:#2f4a33;color:var(--ok)}
-.toast.bad{border-color:#5a3532;color:var(--bad)}
-.toast.warn{border-color:#57492f;color:var(--warn)}
+.toast.ok{border-color:var(--ok-line);color:var(--ok)}
+.toast.bad{border-color:var(--bad-line);color:var(--bad)}
+.toast.warn{border-color:var(--warn-line);color:var(--warn)}
 .toast.gone{opacity:0}
 .toasts[popover]{inset:auto 14px 14px auto;margin:0;padding:0;border:0;background:none;color:inherit;overflow:visible}
 /* modal: the one shared dialog, confirmation or content (native <dialog>; Escape and focus handling come with it) */
@@ -216,7 +221,7 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .modal h3{margin:0;font-size:14px;font-weight:600}
 .modal>p{margin:0 0 14px;color:var(--dim);overflow-wrap:anywhere}
 .modal .actions[data-modal-actions]{justify-content:flex-end}
-.act.confirm-danger{color:var(--bad);border-color:#5a3532;background:#211514}
+.act.confirm-danger{color:var(--bad);border-color:var(--bad-line);background:var(--bad-bg)}
 .act.confirm-danger:hover{color:#fff;border-color:var(--bad)}
 
 /* dialog: the same .modal element with room for content (provider details) */
@@ -228,7 +233,7 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .card h3{margin:0;font-size:15px;text-transform:none;letter-spacing:0;color:var(--fg)}
 .row.spread{justify-content:space-between;margin:0 0 8px}
 /* danger zone: the irreversible actions of a dialog, framed in red below the form's Save and apart from it */
-.danger-zone{border:1px solid #5a3532;padding:10px 14px 14px;margin:20px 0 4px}
+.danger-zone{border:1px solid var(--bad-line);padding:10px 14px 14px;margin:20px 0 4px}
 .dialog-body .danger-zone h4{margin:0 0 6px;color:var(--bad)}
 .danger-zone .actions{margin-top:10px}
 /* dialog sections: each one saves on its own; the heading shows a chip while it holds unsaved edits */
@@ -245,7 +250,7 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .logbar{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin:0 0 8px}
 .logbar input[type=search]{flex:1 1 220px;min-width:0;max-width:var(--form-w)}
 .logwrap{position:relative}
-.logview{max-height:70vh;overflow:auto;background:#0c0d0f;border:1px solid var(--line);font-family:var(--mono);font-size:13px;line-height:1.5}
+.logview{max-height:70vh;overflow:auto;background:var(--well);border:1px solid var(--line);font-family:var(--mono);font-size:13px;line-height:1.5}
 .logline{display:flex;gap:10px;padding:1px 10px;border-left:3px solid transparent}
 .logline[hidden],.logdivider[hidden]{display:none}
 .logline[data-src=out]{background:rgba(127,184,255,.07)}
@@ -265,9 +270,6 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 /* desc: a description on one line (ellipsis); opening it shows the whole text */
 details.desc{min-width:0;flex:1 1 0}
 details.desc>summary{display:block;margin:0;padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--fg);list-style:none}
-details.desc>summary::-webkit-details-marker{display:none}
-details.desc>summary{text-decoration:underline dotted var(--dim);text-underline-offset:3px}
-details.desc>summary:hover,details.desc[open]>summary{text-decoration-color:var(--acc)}
 details.desc[open]>summary{white-space:normal;overflow:visible}
 details.desc>p{margin:4px 0 0 1.2em;color:var(--dim);white-space:pre-line}
 /* suggest: output area of the configuration helper */
@@ -281,17 +283,18 @@ details.desc>p{margin:4px 0 0 1.2em;color:var(--dim);white-space:pre-line}
 /* callout: a notice that must not be missed, colored by level (ok, warn, bad). The tool-count notice of an OpenAPI
    upstream is one; its counter (toolcount) is the same level in a sticky bar under the top bar. */
 .callout{border:1px solid var(--line);border-left-width:4px;background:var(--panel);padding:9px 14px;margin:0 0 12px;overflow-wrap:anywhere}
-.callout.ok{border-color:#2f4a33}.callout.warn{border-color:#57492f;background:#1a1812}.callout.bad{border-color:#5a3532;background:#1d1413}
+.callout.ok{border-color:var(--ok-line)}.callout.warn{border-color:var(--warn-line);background:#1a1812}.callout.bad{border-color:var(--bad-line);background:var(--bad-bg)}
 .toolcount{position:sticky;top:var(--header-h,44px);z-index:var(--z-sticky);display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;border:1px solid var(--line);background:var(--panel);padding:6px 12px;margin:0 0 12px}
 .toolcount .btn{margin-left:auto}
 .toolcount-n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
-.toolcount.ok{color:var(--ok);border-color:#2f4a33}.toolcount.warn{color:var(--warn);border-color:#57492f}.toolcount.bad{color:var(--bad);border-color:#5a3532}
+.toolcount.ok{color:var(--ok);border-color:var(--ok-line)}.toolcount.warn{color:var(--warn);border-color:var(--warn-line)}.toolcount.bad{color:var(--bad);border-color:var(--bad-line)}
 /* verbgroup: the tools of one HTTP verb, a details block with an all-on/off switch in its heading. tool: one row. */
 .verbgroup{border:1px solid var(--line);background:var(--panel);margin:0 0 12px}
 .verbgroup>summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0;padding:8px 12px}
 .verbgroup>summary label.check{margin:0}
-.verb{font-family:var(--mono);font-size:12px;font-weight:700;padding:1px 8px;border:1px solid var(--line);background:#0c0d0f;color:var(--dim)}
-.verb.GET{color:var(--ok);border-color:#2f4a33}.verb.POST,.verb.PUT,.verb.PATCH{color:var(--warn);border-color:#57492f}.verb.DELETE{color:var(--bad);border-color:#5a3532}
+.verbgroup>summary:hover{background:var(--hover)}
+.verb{font-family:var(--mono);font-size:12px;font-weight:700;padding:1px 8px;border:1px solid var(--line);background:var(--well);color:var(--dim)}
+.verb.GET{color:var(--ok);border-color:var(--ok-line)}.verb.POST,.verb.PUT,.verb.PATCH{color:var(--warn);border-color:var(--warn-line)}.verb.DELETE{color:var(--bad);border-color:var(--bad-line)}
 .tool{border-top:1px solid var(--line2);padding:8px 12px}
 .tool.skipped{opacity:.6}
 .tool-head label.check{display:flex;margin:0;min-width:0}
@@ -305,7 +308,7 @@ details.desc>p{margin:4px 0 0 1.2em;color:var(--dim);white-space:pre-line}
 .oa-out li{overflow-wrap:anywhere;margin:2px 0}
 .diff li{border-top:1px solid var(--line2);padding:6px 0;overflow-wrap:anywhere}
 .diff .del,.diff .add{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-all;padding:1px 6px}
-.diff .del{color:var(--bad);background:#1d1413}.diff .add{color:var(--ok);background:#131f15}
+.diff .del{color:var(--bad);background:var(--bad-bg)}.diff .add{color:var(--ok);background:#131f15}
 .reveal{animation:reveal-in .3s ease-out}
 @keyframes reveal-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.reveal{animation:none}}
@@ -407,7 +410,7 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
 }
 @media (max-width:720px){
   .action-group{flex:1 1 100%}
-  .action-group.danger-group{margin-left:0;padding-left:0;border-left:0;padding-top:12px;border-top:1px solid #5a3532}
+  .action-group.danger-group{margin-left:0;padding-left:0;border-left:0;padding-top:12px;border-top:1px solid var(--bad-line)}
   .menu{flex:0 0 auto}
   .menu-list form,.actions .menu-list form{display:block;flex:none}
   .table .actions .menu .menu-btn{flex:0 0 auto;min-width:48px}

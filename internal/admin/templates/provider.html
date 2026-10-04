@@ -97,7 +97,7 @@
 <div class="tablewrap"><table class="table"><thead><tr><th>Status</th><th>Alias</th><th>Target</th>{{template "th_actions"}}</tr></thead><tbody>
 {{range .Aliases}}<tr><td class="status" data-label="Status">{{template "pill" .Pill}}</td><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Target"><code>{{.Target}}</code></td>
 <td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
-{{else}}<tr><td colspan="4" class="empty">none</td></tr>{{end}}</tbody></table></div>
+{{else}}<tr><td colspan="4" class="empty">No aliases yet</td></tr>{{end}}</tbody></table></div>
 <form method="post" action="/admin/providers/{{.ID}}/aliases/put" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="row bottom"><div class="field"><label>New alias<input type="text" name="name" maxlength="64" autocomplete="off" spellcheck="false"></label></div>
 <div class="field"><label>Target model<select name="target">{{range .Models}}<option value="{{.}}"{{if eq . $p.AliasTarget}} selected{{end}}>{{.}}</option>{{end}}</select></label></div>
@@ -159,4 +159,4 @@
 {{/* alias_overview: where every alias points, across providers. Takes a statusData. */}}
 {{define "alias_overview"}}<div class="card flush tablewrap"><table class="table"><thead><tr><th>Alias</th><th>Provider</th><th>Model</th></tr></thead><tbody>
 {{range .Aliases}}<tr><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Provider">{{.Provider}}</td><td data-label="Model"><code>{{.Target}}</code></td></tr>
-{{else}}<tr><td colspan="3" class="empty">none</td></tr>{{end}}</tbody></table></div>{{end}}
+{{else}}<tr><td colspan="3" class="empty">No aliases yet</td></tr>{{end}}</tbody></table></div>{{end}}
