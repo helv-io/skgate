@@ -43,16 +43,20 @@ type oaForm struct {
 	As      string // the Advanced line: how the stored upstream sends its key
 	AI      bool   // the assistant can run
 	AIWhy   string
+	// Check is false when the stored description has no operation that can check the connection: the form then
+	// says nothing about the check. Before a description is known it is true.
+	Check bool
 }
 
 func (a *Admin) oaFormFor(r *http.Request, u mcp.Upstream) *oaForm {
-	f := &oaForm{As: oaAs(u)}
+	f := &oaForm{As: oaAs(u), Check: true}
 	st := a.suggestState(r)
 	f.AI, f.AIWhy = st.Enabled, st.Why
 	if u.Alias != "" && u.IsOpenAPI() {
 		if s, err := a.MCP.Upstreams.OpenAPI(u.Alias); err == nil {
 			f.HasSpec, f.SpecURL, f.Title, f.Ops, f.Tools = true, s.Config.SpecURL, s.Doc.Title(), len(s.Ops), len(s.Tools)
 			f.Level = mcp.ToolLevel(f.Tools)
+			f.Check = s.HasConnectionCheck()
 			for _, sv := range s.Doc.Servers(s.Config.SpecURL) {
 				f.Servers = append(f.Servers, sv.URL)
 			}
@@ -214,9 +218,12 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 		return
 	}
 	// Test first: the server must answer and take the key before anything is stored. A failure returns to the
-	// same form, which keeps what was entered.
+	// same form, which keeps what was entered. "Skip check" saves without it. An edit asks only when what it
+	// reaches the server with changed: the key, the base URL, the description or being switched on.
+	changed := !edit || fresh || u.URL != old.URL || r.PostFormValue("oa_auth_value") != "" ||
+		u.AuthKind != old.AuthKind || u.AuthName != old.AuthName || (!old.Enabled && u.Enabled)
 	var tested mcp.TestResult
-	if u.Enabled && !a.NoSaveTest {
+	if u.Enabled && !a.NoSaveTest && changed && r.PostFormValue("oa_skip_check") != "1" {
 		draft := cfg
 		if !edit {
 			draft.Selection = defaultSelection(doc.Operations())
@@ -572,7 +579,7 @@ func (a *Admin) openAPICheck(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httputil.JSON(w, http.StatusOK, map[string]any{"ok": true, "title": d.Title(), "operations": len(ops), "reads": reads, "writes": writes,
-		"servers": servers, "issues": issueViews(d.Validate()), "ai": sug.Enabled, "aiWhy": sug.Why})
+		"servers": servers, "probe": len(d.ProbeOps(ops)) > 0, "issues": issueViews(d.Validate()), "ai": sug.Enabled, "aiWhy": sug.Why})
 }
 
 // openAPIRepair asks the assistant for fixes to the problems the reader found, applies them to a copy and returns

@@ -1,5 +1,5 @@
-// The add form in a real browser: the button waits for what the type needs, a failed add (the server refuses the
-// key) leaves the page and every field as they were with a short error, and the fixed form then saves.
+// The add form in a real browser: the button waits for what the type needs, a failed add (the server refuses or needs
+// a key) leaves the page and every field as they were with a short error, and the fixed form then saves.
 // Usage: node addfail.js <base url> <chrome> <puppeteer-core dir> <cookies json> <api url> <spec json>
 const [url, chrome, pp, cookiesJSON, api, spec] = process.argv.slice(2);
 const puppeteer = require(pp);
@@ -52,10 +52,35 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   ok(!g.disabled, "the button is back after a failure: " + JSON.stringify(g));
   ok(await pg.evaluate(() => !document.body.textContent.includes("WRONGKEY")), "the key is not echoed into the page");
 
+  // the line says what the check does, and Skip check starts off
+  const line = await pg.evaluate(() => {
+    const p = document.querySelector("[data-oa-probe]"), c = document.querySelector('input[name="oa_skip_check"]');
+    return { text: p.querySelector("p").textContent, shown: !p.hidden, skip: c.checked };
+  });
+  ok(line.shown && line.text === "Add calls the first GET tool without parameters to check the connection." && line.skip === false, "the check line and an unticked Skip check: " + JSON.stringify(line));
+
+  // no key at all: the server needs one, and the fields stay
+  await pg.$eval('input[name="oa_auth_value"]', e => { e.value = ""; });
+  await pg.evaluate(() => document.querySelectorAll(".toast").forEach(t => t.remove()));
+  await pg.click("[data-gate-submit] button");
+  await pg.waitForFunction(() => /needs a key/.test(document.body.textContent), { timeout: 20000 });
+  const nokey = await fields();
+  ok(nokey.path === "/admin/upstreams/new" && nokey.alias === "failcase" && nokey.spec === spec && nokey.as === "bearer" && nokey.key === "" && nokey.open === true,
+    "a missing key keeps every field: " + JSON.stringify(nokey));
+  ok(await pg.evaluate(() => !document.querySelector('input[name="oa_skip_check"]').checked), "Skip check stays as it was");
+
   // fix the key and add again: the form saves and goes on to the tools
   await pg.$eval('input[name="oa_auth_value"]', e => { e.value = "GOODKEY"; });
   await Promise.all([pg.waitForNavigation({ timeout: 20000 }), pg.click("[data-gate-submit] button")]);
   ok(new URL(pg.url()).pathname === "/admin/upstreams/failcase/tools", "a good add goes on to the tools: " + pg.url());
+  // Skip check saves a server that refuses: a second add, no key
+  await pg.goto(url + "/admin/upstreams/new");
+  await pg.select("[data-kind-select]", "openapi");
+  await pg.type('input[name="alias"]', "skipcase");
+  await pg.$eval('textarea[name="oa_spec_text"]', (e, v) => { e.value = v; e.dispatchEvent(new Event("input", { bubbles: true })); }, spec);
+  await pg.click('input[name="oa_skip_check"]');
+  await Promise.all([pg.waitForNavigation({ timeout: 20000 }), pg.click("[data-gate-submit] button")]);
+  ok(new URL(pg.url()).pathname === "/admin/upstreams/skipcase/tools", "Skip check saves without the key: " + pg.url());
   await b.close();
   if (bad.length) { console.log(bad.join("\n")); process.exit(1); }
   console.log("ALL OK");
