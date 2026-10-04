@@ -6,6 +6,13 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-10-04
+
+### Changed
+
+- Test page: Name/Description about 30/70 and the shared underline rule
+- Tool descriptions are plain text unless a click shows more
+
 ## [0.14.1] - 2026-10-04
 
 ### Changed
@@ -401,7 +408,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.14.1...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.14.2...HEAD
+[0.14.2]: https://github.com/helv-io/skgate/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/helv-io/skgate/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/helv-io/skgate/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/helv-io/skgate/compare/v0.12.8...v0.13.0
