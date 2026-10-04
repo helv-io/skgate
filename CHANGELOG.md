@@ -6,6 +6,14 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-04
+
+### Changed
+
+- OpenAPI upstreams: a manual Update with review and confirmation
+- Store: when and what an OpenAPI description was last read
+- OpenAPI: content hash and an operation diff
+
 ## [0.12.8] - 2026-10-04
 
 ### Changed
@@ -368,7 +376,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.12.8...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/helv-io/skgate/compare/v0.12.8...v0.13.0
 [0.12.8]: https://github.com/helv-io/skgate/compare/v0.12.7...v0.12.8
 [0.12.7]: https://github.com/helv-io/skgate/compare/v0.12.6...v0.12.7
 [0.12.6]: https://github.com/helv-io/skgate/compare/v0.12.5...v0.12.6
