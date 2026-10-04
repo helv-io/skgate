@@ -36,6 +36,15 @@ const ok = (c, m) => { if (!c) bad.push(m); };
       outside: zone && body.querySelector("form[action$='/keys/update']").contains(zone) };
   });
   ok(lay.labelAboveField, "the rate label is above its field " + JSON.stringify(lay));
+  // item 9: unreadable expiry text in the dialog's own form marks that field aria-invalid too, and clearing lifts it
+  await pg.type("[data-modal-body] [data-expiry-input]", "banana");
+  await wait(600);
+  let inv = await pg.evaluate(() => { const i = document.querySelector("[data-modal-body] [data-expiry-input]"); return [i.getAttribute("aria-invalid"), i.form.checkValidity()]; });
+  ok(inv[0] === "true" && inv[1] === false, "an unreadable expiry in the dialog is aria-invalid and blocks Save " + inv);
+  await pg.$eval("[data-modal-body] [data-expiry-input]", e => { e.value = ""; e.dispatchEvent(new Event("input", { bubbles: true })); });
+  await wait(600);
+  inv = await pg.evaluate(() => { const i = document.querySelector("[data-modal-body] [data-expiry-input]"); return [i.getAttribute("aria-invalid"), i.form.checkValidity()]; });
+  ok(inv[0] === null && inv[1] === true, "clearing it lifts the mark " + inv);
   ok(lay.zone && lay.head === "Danger zone" && lay.belowSave && lay.aboveDetails && !lay.outside && lay.both === "regenerate,revoke", "the Danger zone is below Save and above Details with both actions " + JSON.stringify(lay));
   // Cancel goes back to the dialog
   await clickIn("[data-modal-body] form[action$='/keys/revoke'] button");
