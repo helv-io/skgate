@@ -13,6 +13,10 @@ Image: `ghcr.io/helv-io/skgate`.
 
 Release tags add versioned names: `X.Y.Z` and `vX.Y.Z` (full), `X.Y.Z-slim` and `vX.Y.Z-slim` (slim). Every build also gets `<sha>` and `<sha>-slim`. Both images use the same root start, `PUID`/`PGID` drop, `/data` volume and `/skgate healthcheck`.
 
+## MCP registry
+
+Each stable release tag is listed in the [official MCP registry](https://registry.modelcontextprotocol.io) as `io.github.helv-io/skgate`, from the Release workflow's `mcp-registry` job after the images are published. The entry is `server.json`; both images carry the `io.modelcontextprotocol.server.name` label the registry checks. The job logs in with GitHub OIDC (no secret), fails when `server.json` does not match the tag, and skips a version that is already listed.
+
 ## Upgrading
 
 Back up `/data` (`skgate.db` and `secrets.key`), then:
