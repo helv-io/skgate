@@ -12,14 +12,22 @@
 <tr><th>Lifecycle</th><td>{{.Lifecycle}}</td></tr>
 {{if not .Proc.Available}}<tr><th>Managed</th><td class="warn">{{.Proc.Why}}</td></tr>{{end}}
 </tbody></table></div>
-<div class="actions">
-{{range $a := list "start" "stop" "restart"}}<form method="post" action="/admin/upstreams/{{$.Data.U.Alias}}/process"{{if eq $a "stop"}} data-confirm="Stop the process? It stays stopped until started."{{end}}><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="{{$a}}"><button class="act{{if eq $a "stop"}} danger{{end}}">{{$a}}</button></form>{{end}}
-<form method="post" action="/admin/upstreams/{{.Alias}}/process" data-confirm="{{if eq .Kind "git"}}Fetch the repository, rerun the install step and restart. The previous version is restored if that fails.{{else}}Clear this upstream's package cache and restart. Packages are downloaded again.{{end}}"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="update"><button class="act{{if .Proc.Upd.Available}} accent{{end}}">update</button></form>
-{{if eq .Kind "git"}}<form method="post" action="/admin/upstreams/{{.Alias}}/process"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="check"><button class="act">check</button></form>{{end}}
-<a class="act" href="/admin/upstreams/{{.Alias}}/test">test</a>
-<a class="act" href="/admin/upstreams/{{.Alias}}/logs">refresh</a>
-<form method="post" action="/admin/upstreams/{{.Alias}}/process" data-confirm="Clear the captured output?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="clear-logs"><button class="act danger">clear logs</button></form>
-<a class="act" href="/admin/upstreams">back</a></div>
+{{/* Buttons in groups: Lifecycle shows only what applies to the state, Maintenance changes the installed code, the links go
+   elsewhere, and Danger holds what cannot be undone. */}}
+{{$run := or (eq .Proc.State "running") (eq .Proc.State "starting")}}
+<div class="action-groups">
+<div class="action-group"><div class="group-label">Lifecycle</div><div class="actions" role="group" aria-label="Lifecycle">
+{{if $run}}{{template "proc_action" (procAction $.CSRF .Alias "restart" "restart" "" "")}}{{template "proc_action" (procAction $.CSRF .Alias "stop" "stop" "danger" "Stop the process? It stays stopped until started.")}}
+{{else if .Enabled}}{{template "proc_action" (procAction $.CSRF .Alias "start" "start" "" "")}}
+{{else}}<span class="muted">disabled: enable the upstream to start it</span>{{end}}</div></div>
+<div class="action-group"><div class="group-label">Maintenance</div><div class="actions" role="group" aria-label="Maintenance">
+{{$cls := ""}}{{if .Proc.Upd.Available}}{{$cls = "accent"}}{{end}}{{template "proc_action" (procAction $.CSRF .Alias "update" "update" $cls (updateConfirm .Kind))}}
+{{if eq .Kind "git"}}{{template "proc_action" (procAction $.CSRF .Alias "check" "check" "" "")}}{{end}}</div></div>
+<div class="action-group"><div class="group-label">Go to</div><div class="actions" role="group" aria-label="Go to">
+<a class="act" href="/admin/upstreams/{{.Alias}}/test">test</a><a class="act" href="/admin/upstreams/{{.Alias}}/logs">refresh</a><a class="act" href="/admin/upstreams">back</a></div></div>
+<div class="action-group danger-group"><div class="group-label">Danger</div><div class="actions" role="group" aria-label="Danger">
+{{template "proc_action" (procAction $.CSRF .Alias "clear-logs" "clear logs" "danger" "Clear the captured output?")}}</div></div>
+</div>
 {{end}}
 <h2>Output ({{len .Lines}} of {{.Total}} lines)</h2>
 <div class="card flush tablewrap"><table class="table compact"><thead><tr><th>Time</th><th>Source</th><th>Text</th></tr></thead><tbody>

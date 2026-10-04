@@ -133,7 +133,7 @@ Admin: upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}
 | `running` | Answering. Shows PID, uptime and restart count. |
 | `failed` | Start error or crash loop. Shows the last error. |
 
-- **Start, Stop, Restart, Update** and, for git, **Check** are on the process page, opened from **process** in the upstream's Details. An admin **Stop** holds the process stopped until Start or Restart.
+- The process page, opened from **process** in the upstream's Details, groups its buttons. **Lifecycle** shows only what applies: **Start** when the process is stopped, **Restart** and **Stop** while it runs (nothing when the upstream is disabled). **Maintenance** has **Update** and, for git, **Check**. **Go to** has Test, Refresh and Back. **Clear logs** is alone in the **Danger** group. An admin **Stop** holds the process stopped until Start or Restart.
 - A crashed child restarts with exponential backoff (1 s doubling to 30 s). Five crashes in a row mark it `failed`; a run of 30 s or more resets the count. A failed upstream is retried by a request at most every 30 s.
 - Editing the command, args, env, install step or repository replaces the process.
 - Stop sends SIGTERM to the child's process group, then SIGKILL after 5 seconds, so grandchildren do not leak. The same happens for every child when skgate exits.
