@@ -91,9 +91,8 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 /* pills and chips */
 .tip[title]{cursor:help}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:1px 9px;border:1px solid var(--line);font-size:12px;line-height:20px;white-space:nowrap;color:var(--dim)}
-.pill::before{content:"";width:7px;height:7px;background:currentColor;display:inline-block}
 .pill.ok{color:var(--ok);border-color:#2f4a33}.pill.bad{color:var(--bad);border-color:#5a3532}.pill.warn{color:var(--warn);border-color:#57492f}
-.pill.off{color:var(--dim)}.pill.off::before{background:none;border:1px solid currentColor}
+.pill.off{color:var(--dim)}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:1px 8px;border:1px solid var(--line);background:#0c0d0f;font-size:12px;line-height:20px;white-space:nowrap;vertical-align:middle}
 .chip .mono{color:var(--dim)}
 .chip.accent{color:var(--acc);border-color:var(--acc)}
@@ -287,7 +286,6 @@ details.desc>p{margin:4px 0 0 1.2em;color:var(--dim);white-space:pre-line}
 .toolcount .btn{margin-left:auto}
 .toolcount-n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
 .toolcount.ok{color:var(--ok);border-color:#2f4a33}.toolcount.warn{color:var(--warn);border-color:#57492f}.toolcount.bad{color:var(--bad);border-color:#5a3532}
-.toolcount.ok::before,.toolcount.warn::before,.toolcount.bad::before{content:"";width:10px;height:10px;background:currentColor;display:inline-block}
 /* verbgroup: the tools of one HTTP verb, a details block with an all-on/off switch in its heading. tool: one row. */
 .verbgroup{border:1px solid var(--line);background:var(--panel);margin:0 0 12px}
 .verbgroup>summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0;padding:8px 12px}
