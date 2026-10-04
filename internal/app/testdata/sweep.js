@@ -98,6 +98,16 @@ const measure = () => {
     });
   });
   if (plain[0] && plainRef) { const t = tinted(plain[0]); if (t && t.r === 230) out.push("a plain key row carries the tint"); }
+  // on phones every control is a finger-sized target: at least 44px tall (and wide) as the page shows it, folded panels aside
+  if (vw <= 720) {
+    const sel = "button, a.act, a.btn, a.name, select, textarea, summary, label.check, header a, input:not([type=hidden]):not([type=checkbox]):not([type=radio])";
+    document.querySelectorAll(sel).forEach(e => {
+      if (e.offsetParent === null && getComputedStyle(e).position !== "fixed") return;
+      const r = e.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      if (r.height < 43.5 || r.width < 43.5) out.push("touch target " + e.tagName.toLowerCase() + (e.className ? "." + String(e.className).split(" ")[0] : "") + " '" + (e.textContent || e.name || "").trim().slice(0, 24) + "' is " + Math.round(r.width) + "x" + Math.round(r.height) + ", under 44px");
+    });
+  }
   window.__tinted = rows.length;
   if (out.length) {
     const bad = [];

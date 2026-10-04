@@ -287,12 +287,14 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .actions form{flex:1 1 40%;display:flex}
   .actions form .act,.actions form button{flex:1}
   .table .actions .act,.actions .act{flex:1 1 40%;min-width:0;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:6px 12px}
-  .act,button,input[type=submit]{min-height:40px}
-  .act.small,button.small{min-height:36px}
-  .table:not(.kv) td .act.toggle{min-height:40px;min-width:8em}
-  input,select,textarea{min-height:40px}
+  /* touch targets: every control is at least 44px tall and wide, one shared size (the sweep measures them) */
+  .act,button,input[type=submit],.act.small,button.small,.btn,a.btn{min-height:44px;min-width:44px}
+  .table:not(.kv) td .act.toggle{min-width:8em}
+  input,select,textarea{min-height:44px}
   input[type=checkbox]{min-height:0}
-  .btn,a.btn{min-height:44px}
+  label.check{min-height:44px}
+  summary{min-height:44px;padding:10px 0;margin:0}
+  a.name{display:inline-flex;align-items:center;min-height:44px;min-width:44px}
   /* top bar: one row, the rest in the panel */
   header{flex-wrap:nowrap;align-items:center;min-height:52px}
   header .brand{flex:0 0 auto;border-right:0;padding:4px 10px 4px 12px}
