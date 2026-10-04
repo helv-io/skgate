@@ -68,7 +68,7 @@ func TestClientsDeleteUnusedForThirtyDays(t *testing.T) {
 	seedClient(t, a, "recent", "dcr", now.Add(-80*24*time.Hour), now.Add(-2*24*time.Hour), "https://c.example/cb")
 	seedClient(t, a, "new", "dcr", now.Add(-2*time.Hour), time.Time{}, "https://d.example/cb")
 	_, page = br.get("/admin/clients")
-	if !strings.Contains(page, `data-confirm="Delete 2 clients unused for 30 days, with their tokens?"`) || !strings.Contains(page, ">delete unused for 30 days (2)</button>") {
+	if !strings.Contains(page, `data-confirm="Delete 2 clients unused for 30 days, with their tokens?"`) || !strings.Contains(page, ">Delete unused for 30 days (2)</button>") {
 		t.Fatalf("the confirmation says how many:\n%s", page)
 	}
 	if r, _ := br.get("/admin/clients/delete-unused"); r.StatusCode != 405 {

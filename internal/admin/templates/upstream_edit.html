@@ -2,5 +2,5 @@
 {{if .Form.New}}<h2>Add upstream</h2>{{else}}<h2>Edit upstream <code>{{.U.Alias}}</code></h2>{{end}}<div class="card">
 <form method="post" action="{{if .Form.New}}/admin/upstreams/save{{else}}/admin/upstreams/{{.U.Alias}}/save{{end}}" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="mode" value="{{if .Form.New}}new{{else}}edit{{end}}">{{if not .Form.New}}<input type="hidden" name="alias" value="{{.U.Alias}}">{{end}}
 {{template "upstream_fields" .Form}}
-<div class="row"><button class="btn">{{if .Form.New}}Add{{else}}Save{{end}}</button> <a class="act" href="/admin/upstreams">cancel</a></div></form></div>
+<div class="row"><button class="btn">{{if .Form.New}}Add{{else}}Save{{end}}</button> <a class="act" href="/admin/upstreams">Cancel</a></div></form></div>
 {{end}}{{end}}

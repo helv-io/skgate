@@ -12,7 +12,7 @@
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Name</th><th>Key</th><th>Usage</th><th>Expires</th><th>Last used</th>{{template "th_actions"}}</tr></thead><tbody>
 {{range .Keys}}<tr{{if .URLKey}} class="geturl" title="?key= is allowed for this key"{{end}}><td class="status" data-label="Status">{{template "pill" (keyStatus .)}}</td><td class="primary" data-label="Name">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td data-label="Key"><code>{{.Masked}}</code></td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
 {{with keyEnds .}}<td class="nw {{.Class}}" data-label="Expires"{{if .Tip}} title="{{.Tip}}"{{end}}>{{.Text}}</td>{{end}}{{with keyLastUsed .}}<td class="nw {{.Class}}" data-label="Last used">{{.Text}}</td>{{end}}
-<td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#key-{{.ID}}">{{if .Revoked}}details{{else}}edit{{end}}</button></div></td></tr>
+<td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#key-{{.ID}}">{{if .Revoked}}Details{{else}}Edit{{end}}</button></div></td></tr>
 {{else}}<tr><td colspan="7" class="empty">none</td></tr>{{end}}</tbody></table></div>
 {{range .Keys}}{{template "dialog_content" (dlg (printf "key-%d" .ID) "Virtual key")}}
 {{if not .Revoked}}<form method="post" action="/admin/keys/update" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
@@ -25,8 +25,8 @@
 {{template "danger_start" .ID}}
 <p class="muted">Regenerate gives the key a new token and the current one stops working. Revoke ends the key for good.</p>
 <div class="actions">
-<form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">regenerate</button></form>
-<form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">revoke</button></form></div>
+<form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">Regenerate</button></form>
+<form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">Revoke</button></form></div>
 {{template "danger_end"}}{{end}}
 <h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>

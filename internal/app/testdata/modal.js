@@ -99,7 +99,7 @@ for (const native of [false,true]) {
 // process page: stop is confirmed
 { const {w,d}=load("logs.html",false);
   const stop=[...d.querySelectorAll("form[data-confirm]")].map(f=>f.querySelector("button").textContent.trim());
-  ok(stop.includes("stop")&&stop.includes("clear logs"),"process page confirms stop and clear logs: "+stop);
+  ok(stop.includes("Stop")&&stop.includes("Clear logs"),"process page confirms stop and clear logs: "+stop);
   const restart=[...d.querySelectorAll("form")].find(f=>f.querySelector("[value=restart]")); ok(restart&&!restart.hasAttribute("data-confirm"),"restart is not confirmed");
 }
 { const {d}=load("list.html",false); const f=[...d.querySelectorAll("form[data-confirm]")].map(x=>x.action.split("/").pop()); ok(f.includes("delete"),"upstream delete confirmed"); }

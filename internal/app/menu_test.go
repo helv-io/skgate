@@ -44,7 +44,7 @@ func TestUpstreamRowActionsAndMenuMarkup(t *testing.T) {
 		t.Fatal("no menu on the row")
 	}
 	visible, inMenu := cell[:menuAt], cell[menuAt:]
-	for _, w := range []string{">copy URL</button>", `href="/admin/upstreams/alpha/test"`} {
+	for _, w := range []string{">Copy URL</button>", `href="/admin/upstreams/alpha/test"`} {
 		if !strings.Contains(visible, w) {
 			t.Errorf("the row must show %q outside the menu", w)
 		}
@@ -71,10 +71,10 @@ func TestUpstreamRowActionsAndMenuMarkup(t *testing.T) {
 		i := strings.Index(page, `id="upstream-`+alias+`"`)
 		return page[i : i+strings.Index(page[i:], "</template>")]
 	}
-	for alias, extra := range map[string]string{"alpha": ">detect</button>", "beta": `href="/admin/upstreams/beta/logs"`} {
+	for alias, extra := range map[string]string{"alpha": ">Detect</button>", "beta": `href="/admin/upstreams/beta/logs"`} {
 		d := dlg(alias)
 		acts := d[:strings.Index(d, "<h4>")]
-		for _, w := range []string{">copy URL</button>", `href="/admin/upstreams/` + alias + `/test"`, `href="/admin/upstreams/` + alias + `/edit"`, `action="/admin/upstreams/` + alias + `/delete"`, extra} {
+		for _, w := range []string{">Copy URL</button>", `href="/admin/upstreams/` + alias + `/test"`, `href="/admin/upstreams/` + alias + `/edit"`, `action="/admin/upstreams/` + alias + `/delete"`, extra} {
 			if !strings.Contains(acts, w) {
 				t.Errorf("the %s dialog lacks %q among its actions", alias, w)
 			}
