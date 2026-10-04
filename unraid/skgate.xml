@@ -7,7 +7,7 @@
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>REPLACE_WITH_UNRAID_FORUM_THREAD_URL</Support>
+  <Support>https://forums.unraid.net/topic/200787-support-skgate-an-mcp-proxy-that-just-works/</Support>
   <Project>https://github.com/helv-io/skgate</Project>
   <ReadMe>https://github.com/helv-io/skgate#readme</ReadMe>
   <Overview>MCP proxy with OAuth. Paste a GitHub repo URL (or a remote MCP server URL) and skgate builds it, runs it and serves it as an MCP endpoint behind OAuth, so Grok, Claude, Cursor and other MCP clients can connect with a normal sign-in. Idle servers are stopped to save RAM. It also gives you virtual API keys, and it can serve an OpenAI-compatible API on your Grok subscription.&#xD;
