@@ -711,3 +711,7 @@ func (c *Client) FinishBrowser(ctx context.Context, code, state string) (err err
 	c.fetchAccount(ctx, t.Access)
 	return nil
 }
+
+// Ready reports whether Grok can take requests: signed in with tokens that can be opened. The proxy uses it to
+// leave Grok out of the routing while it is signed out and another provider is configured.
+func (c *Client) Ready() bool { return c.Status().SignedIn }

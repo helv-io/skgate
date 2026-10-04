@@ -25,6 +25,7 @@ type fakeBackend struct {
 	refreshes      int32
 }
 
+func (f *fakeBackend) Ready() bool             { return !f.signedOut }
 func (f *fakeBackend) ID() string              { return "fake" }
 func (f *fakeBackend) DefaultBase() string     { return f.base }
 func (f *fakeBackend) DefaultFallback() string { return f.fallback }

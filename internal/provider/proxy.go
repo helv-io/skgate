@@ -38,7 +38,8 @@ type Backend interface {
 // /api/v1, /api or no prefix at all (see Normalize), rewrites model aliases and injects them into
 // the model list.
 type Proxy struct {
-	Backend Backend
+	Backend Backend   // the first provider: serves what no other provider claims
+	Others  []Backend // further providers (see Add); a request goes to one of them by its model
 	Set     Settings
 	Keys    *vkeys.Manager
 	Client  *http.Client
@@ -52,6 +53,13 @@ func NewProxy(b Backend, set Settings, k *vkeys.Manager) *Proxy {
 	return &Proxy{Backend: b, Set: set, Keys: k, Models: NewModelCache(),
 		Client: &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
+
+// Add registers a further provider behind the proxy. Requests reach it through an alias that points at one of its
+// models, or by naming a model only it lists (see route).
+func (p *Proxy) Add(b Backend) { p.Others = append(p.Others, b) }
+
+// Pool is every provider behind the proxy, the first one first.
+func (p *Proxy) Pool() []Backend { return append([]Backend{p.Backend}, p.Others...) }
 
 // apiRoots are the first path segments of the OpenAI-style API. They are served without a prefix.
 // "messages" is left out: /messages belongs to the MCP SSE bridge, use /v1/messages.
@@ -128,21 +136,9 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body = b
 	}
 	rest := Normalize(r.URL.EscapedPath())
-	aliases := p.Set.Aliases(p.Backend.ID())
 	list := r.Method == http.MethodGet && strings.TrimRight(rest, "/") == "/models"
-	if len(aliases) > 0 {
-		if id, ok := strings.CutPrefix(rest, "/models/"); ok && r.Method == http.MethodGet {
-			if name, err := url.PathUnescape(id); err == nil {
-				if a, ok := findAlias(aliases, name); ok {
-					rest = "/models/" + url.PathEscape(a.Target)
-				}
-			}
-		}
-		if len(body) > 0 {
-			body = rewriteModel(body, aliases)
-		}
-	}
-	resp, err := p.send(r.Context(), r.Method, rest, r.URL.RawQuery, r.Header, body)
+	be, rest, body := p.route(r.Method, rest, body)
+	resp, err := p.sendTo(r.Context(), be, r.Method, rest, r.URL.RawQuery, r.Header, body)
 	if err != nil {
 		var ae authError
 		if errors.As(err, &ae) {
@@ -155,8 +151,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 	if list && resp.StatusCode == http.StatusOK {
 		if raw, err := io.ReadAll(io.LimitReader(resp.Body, maxList)); err == nil {
-			p.Models.Set(p.Backend.ID(), ModelIDs(raw))
-			resp.Body = io.NopCloser(bytes.NewReader(injectAliases(raw, aliases)))
+			if f, ok := be.(ListFilter); ok {
+				raw = f.FilterModels(raw)
+			}
+			p.Models.Set(be.ID(), ModelIDs(raw))
+			resp.Body = io.NopCloser(bytes.NewReader(injectAliases(raw, p.allAliases())))
 			httputil.CopyResponse(w, resp, "Content-Length", "Content-Encoding")
 			return
 		}
@@ -183,21 +182,33 @@ func (p *Proxy) recordUsage(keyID int64, method string, status int, tap *usageTa
 // authError marks a failure to obtain a provider token.
 type authError struct{ error }
 
-// send forwards one request to the provider with its bearer token. A 401 refreshes the token and
-// retries once; a 402/403 retries once against the fallback base.
+// send forwards one request to the provider the model routes to (see route).
 func (p *Proxy) send(ctx context.Context, method, rest, rawQuery string, hdr http.Header, body []byte) (*http.Response, error) {
-	access, err := p.Backend.Token(ctx)
+	be, rest, body := p.route(method, rest, body)
+	return p.sendTo(ctx, be, method, rest, rawQuery, hdr, body)
+}
+
+// sendTo forwards one request to be with its credential. A 401 refreshes the token and retries once (not for a
+// fixed API key); a 402/403 retries once against the fallback base. A provider whose API is not OpenAI compatible
+// answers the request itself (Transport).
+func (p *Proxy) sendTo(ctx context.Context, be Backend, method, rest, rawQuery string, hdr http.Header, body []byte) (*http.Response, error) {
+	if t, ok := be.(Transport); ok {
+		return t.RoundTrip(ctx, method, rest, rawQuery, hdr, body)
+	}
+	access, err := be.Token(ctx)
 	if err != nil {
 		return nil, authError{err}
 	}
-	id := p.Backend.ID()
-	base := p.Set.Base(p.Backend)
-	fallback := p.Set.Fallback(p.Backend)
-	do := func(b string) (*http.Response, error) { return p.do(ctx, method, b, rest, rawQuery, hdr, body, access) }
+	id := be.ID()
+	base := p.Set.Base(be)
+	fallback := p.Set.Fallback(be)
+	do := func(b string) (*http.Response, error) {
+		return p.do(ctx, be, method, b, rest, rawQuery, hdr, body, access)
+	}
 	resp, err := do(base)
-	if err == nil && resp.StatusCode == http.StatusUnauthorized {
+	if err == nil && resp.StatusCode == http.StatusUnauthorized && !isStatic(be) {
 		resp.Body.Close()
-		if na, rerr := p.Backend.ForceRefresh(ctx); rerr == nil {
+		if na, rerr := be.ForceRefresh(ctx); rerr == nil {
 			access = na
 		}
 		resp, err = do(base)
@@ -217,7 +228,7 @@ func hostOf(u string) string {
 	return u
 }
 
-func (p *Proxy) do(ctx context.Context, method, base, rest, rawQuery string, hdr http.Header, body []byte, access string) (*http.Response, error) {
+func (p *Proxy) do(ctx context.Context, be Backend, method, base, rest, rawQuery string, hdr http.Header, body []byte, access string) (*http.Response, error) {
 	target := strings.TrimRight(base, "/") + rest
 	if rawQuery != "" {
 		target += "?" + rawQuery
@@ -241,39 +252,52 @@ func (p *Proxy) do(ctx context.Context, method, base, rest, rawQuery string, hdr
 			req.Header.Add(k, v)
 		}
 	}
-	req.Header.Set("Authorization", "Bearer "+access)
-	for k, v := range p.Backend.Headers(base) {
+	if access != "" { // a local server needs no key
+		req.Header.Set("Authorization", "Bearer "+access)
+	}
+	for k, v := range be.Headers(base) {
 		req.Header.Set(k, v)
 	}
 	return p.Client.Do(req)
 }
 
-// FetchModels lists the model ids of the signed-in account and refreshes the cache.
+// FetchModels lists the model ids of the first provider's account and refreshes the cache.
 func (p *Proxy) FetchModels(ctx context.Context) ([]string, error) {
+	return p.FetchModelsOf(ctx, p.Backend.ID())
+}
+
+// FetchModelsOf lists the model ids of the provider with the given id and refreshes the cache. An unknown id is an error.
+func (p *Proxy) FetchModelsOf(ctx context.Context, id string) ([]string, error) {
+	be, ok := p.backend(id)
+	if !ok {
+		return nil, errors.New("unknown provider")
+	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	resp, err := p.send(ctx, http.MethodGet, "/models", "", http.Header{"Accept": {"application/json"}}, nil)
+	resp, err := p.sendTo(ctx, be, http.MethodGet, "/models", "", http.Header{"Accept": {"application/json"}}, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, maxList))
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("model list: HTTP " + http.StatusText(resp.StatusCode))
+		return nil, errors.New("model list: HTTP " + strconv.Itoa(resp.StatusCode) + " " + http.StatusText(resp.StatusCode))
+	}
+	if f, ok := be.(ListFilter); ok {
+		raw = f.FilterModels(raw)
 	}
 	ids := ModelIDs(raw)
 	if len(ids) == 0 {
 		return nil, errors.New("model list is empty or unreadable")
 	}
-	p.Models.Set(p.Backend.ID(), ids)
+	p.Models.Set(id, ids)
 	return ids, nil
 }
 
 // Post sends a JSON request to a provider endpoint (for example /chat/completions) and returns the
-// status and body. A "model" that names one of skgate's aliases for this provider is resolved to its target, as for
-// a /v1 request, so the helper may be set to an alias.
+// status and body. The provider is chosen as for a /v1 request: a "model" that names a skgate alias is resolved to
+// its provider and target, so the helper may be set to an alias.
 func (p *Proxy) Post(ctx context.Context, rest string, body []byte) (int, []byte, error) {
-	body = rewriteModel(body, p.Set.Aliases(p.Backend.ID()))
 	resp, err := p.send(ctx, http.MethodPost, rest, "", http.Header{"Content-Type": {"application/json"}, "Accept": {"application/json"}}, body)
 	if err != nil {
 		return 0, nil, err
@@ -281,32 +305,6 @@ func (p *Proxy) Post(ctx context.Context, rest string, body []byte) (int, []byte
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxList))
 	return resp.StatusCode, raw, err
-}
-
-// rewriteModel replaces a top-level "model" that names an alias with its target. Other bodies are
-// returned unchanged, byte for byte.
-func rewriteModel(body []byte, aliases []Alias) []byte {
-	if len(body) == 0 || body[0] != '{' {
-		return body
-	}
-	var m map[string]json.RawMessage
-	if json.Unmarshal(body, &m) != nil {
-		return body
-	}
-	var name string
-	if json.Unmarshal(m["model"], &name) != nil {
-		return body
-	}
-	a, ok := findAlias(aliases, name)
-	if !ok {
-		return body
-	}
-	m["model"], _ = json.Marshal(a.Target)
-	nb, err := json.Marshal(m)
-	if err != nil {
-		return body
-	}
-	return nb
 }
 
 // ModelIDs extracts the model ids of an OpenAI-style list ({"data":[{"id":...}]}).
