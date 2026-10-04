@@ -38,7 +38,8 @@
 {{with .OA}}<p class="muted">skgate turns each operation of a REST API into an MCP tool and makes the HTTP calls itself. Give the address of the description or paste it. You choose the tools next, and only those are offered.</p>
 <div class="field"><label>Description URL<input type="url" name="oa_spec_url" placeholder="https://api.example.com/openapi.json" value="{{.SpecURL}}" autocomplete="off" spellcheck="false" data-oa-spec-url></label>
 {{if and .HasSpec .SpecURL}}<p class="muted">Read the address again with Update on the <a href="/admin/upstreams/{{$.U.Alias}}/tools">tools page</a>.</p>{{end}}</div>
-<div class="field"><label>Or paste the description (JSON, YAML or TOML)<textarea name="oa_spec_text" rows="8" spellcheck="false" autocomplete="off" placeholder="{{if .HasSpec}}Empty keeps the stored description: {{.Title}}, {{.Ops}} operations{{else}}openapi: 3.0.3{{end}}" data-oa-spec-text></textarea></label>
+<div class="field"><label>Or paste the description (JSON, YAML or TOML)<textarea name="oa_spec_text" rows="8" spellcheck="false" autocomplete="off" placeholder="{{if .HasSpec}}Empty keeps the stored description: {{.Title}}, {{.Ops}} operations{{else}}openapi: 3.0.3{{end}}" data-code="auto" data-oa-spec-text></textarea></label>
+<p class="muted" data-code-status aria-live="polite"></p>
 <p class="muted">OpenAPI 3.x, or Swagger 2 (converted on import). A problem in the description never stops the import: skgate reads what it can.</p></div>
 {{if .HasSpec}}<p class="muted">{{.Tools}} of {{.Ops}} operations are exposed as tools. <a href="/admin/upstreams/{{$.U.Alias}}/tools">Choose the tools</a></p>{{end}}
 <div class="row"><button type="button" class="act" data-oa-check data-oa-check-url="/admin/openapi/check" data-oa-repair-url="/admin/openapi/repair" data-csrf="{{$.CSRF}}">Check description</button></div>
