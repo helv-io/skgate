@@ -28,7 +28,7 @@ Auto detection runs on save, on **detect**, and lazily on first use. 401/403 cou
 
 **Addresses.** An address on the internet needs `https`; plain `http` is accepted for a single-label name (a Docker service), an IP address, `localhost` and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`. The rule is the same for remote and OpenAPI upstreams, Test and import, and Suggest. Git clones are always https.
 
-**Add and Save test first.** The form posts in place and the upstream is tested before anything is stored: a remote upstream must answer `initialize`, an OpenAPI one must answer and take its key. A failed test leaves the page as it is, every field and secret kept, with a short error. Managed upstreams are not started for it. The button is off, with the reason shown, until the type has what it needs.
+**Add and Save test first.** The form posts in place and the upstream is tested before anything is stored: a remote upstream must answer `initialize`, an OpenAPI one must answer its first GET without parameters with a 2xx (see [the connection check](openapi.md#the-connection-check)). A failed test leaves the page as it is, every field and secret kept, with a short error. Managed upstreams are not started for it. The button is off, with the reason shown, until the type has what it needs.
 
 **Host override** (`hostname[:port]`, under **Advanced** in the form; shown in the alias's hover text when set) replaces the outbound `Host` header, for servers that validate it. Probes and Test honor it.
 
