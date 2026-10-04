@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -52,6 +53,23 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"docs"}, "url": {"http://127.0.0.1:1/mcp"}, "auth_kind": {"auto"}})
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"git"}, "alias": {"gitsrv"}, "git_url": {"https://git.example.com/" + strings.Repeat("org/", 15) + "repo.git"},
 		"command": {"python3"}, "args": {"-m", "srv"}, "lifecycle": {"on-demand"}, "enabled": {"1"}})
+	// an OpenAPI upstream with long names and more tools than a model handles, so the red counter, the callout and the
+	// verb groups are swept too
+	var oaPaths []string
+	for i := 0; i < 36; i++ {
+		long := fmt.Sprintf("/v1/%s/{id}/%d", strings.Repeat("a-very-long-path-segment/", 5), i)
+		oaPaths = append(oaPaths, fmt.Sprintf(`%q:{"get":{"operationId":"get%s%d","summary":"Reads item %d with a long summary %s"},"delete":{"operationId":"delete%s%d","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}]}}`,
+			long, strings.Repeat("Item", 12), i, i, strings.Repeat("that goes on ", 8), strings.Repeat("Item", 12), i))
+	}
+	oaSpec := `{"openapi":"3.0.0","info":{"title":"` + strings.Repeat("Long API title ", 4) + `","version":"1"},"servers":[{"url":"https://api.example.com/` + strings.Repeat("base/", 14) + `"}],"paths":{` + strings.Join(oaPaths, ",") + `}}`
+	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {longName[:62] + "o"}, "oa_spec_text": {oaSpec},
+		"oa_auth_kind": {"query"}, "oa_auth_name": {"api_key"}, "oa_auth_value": {"k-" + strings.Repeat("v", 60)}, "enabled": {"1"}, "include": {"1"}})
+	var on, keys, names, descs []string
+	for i := 0; i < 36; i++ {
+		k := fmt.Sprintf("GET /v1/%s/{id}/%d", strings.Repeat("a-very-long-path-segment/", 5), i)
+		on, keys, names, descs = append(on, k), append(keys, k), append(names, fmt.Sprintf("get%s%d", strings.Repeat("Item", 12), i)), append(descs, "")
+	}
+	post("/admin/upstreams/"+longName[:62]+"o/tools/save", url.Values{"on": on, "key": keys, "name": names, "desc": descs})
 	for _, l := range []string{"production service key " + strings.Repeat("with a very long label ", 3), "short"} {
 		post("/admin/keys/create", url.Values{"label": {l}, "rate": {"30"}, "expires": {"2031-12-31 18:00"}})
 	}
@@ -80,6 +98,9 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	add("upstream-new", get("/admin/upstreams/new"), true)
 	add("upstream-edit-remote", get("/admin/upstreams/"+longName[:63]+"/edit"), false)
 	add("upstream-edit-managed", get("/admin/upstreams/mgd/edit"), false)
+	add("upstream-edit-openapi", get("/admin/upstreams/"+longName[:62]+"o/edit"), false)
+	add("upstream-tools", get("/admin/upstreams/"+longName[:62]+"o/tools"), false)
+	add("upstream-test-openapi", get("/admin/upstreams/"+longName[:62]+"o/test"), false)
 	add("upstream-test", get("/admin/upstreams/docs/test"), false)
 	add("upstream-test-managed", get("/admin/upstreams/mgd/test"), false)
 	add("upstream-logs", get("/admin/upstreams/mgd/logs"), false)
