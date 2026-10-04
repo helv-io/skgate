@@ -16,12 +16,14 @@ const (
 	testTimeout  = 20 * time.Second
 	maxTestTools = 100 // tool list cap in the Test result
 	maxDescRunes = 200
+	maxMoreRunes = 1000
 )
 
 // ToolInfo is one tool from tools/list.
 type ToolInfo struct {
 	Name string
 	Desc string // first line, clipped
+	More string // the rest of the description after the first line, clipped; empty when there is none
 }
 
 // TestResult is the outcome of the admin "Test" button.
@@ -163,7 +165,7 @@ func (s *Server) Test(ctx context.Context, alias string) (tr TestResult) {
 			tr.ToolsCapped = true
 			break
 		}
-		tr.Tools = append(tr.Tools, ToolInfo{Name: clipText(t.Name, 100), Desc: firstLine(t.Description)})
+		tr.Tools = append(tr.Tools, ToolInfo{Name: clipText(t.Name, 100), Desc: firstLine(t.Description), More: restAfterFirstLine(t.Description)})
 	}
 	if lr.NextCursor != "" {
 		tr.ToolsCapped = true
@@ -203,6 +205,17 @@ func (s *Server) endSession(ctx context.Context, up Upstream, sid, protocol stri
 		io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 		resp.Body.Close()
 	}
+}
+
+// restAfterFirstLine is the description below its first line, trimmed and clipped (what the Test screen shows when
+// a description is opened).
+func restAfterFirstLine(s string) string {
+	s = strings.TrimSpace(s)
+	i := strings.IndexAny(s, "\r\n")
+	if i < 0 {
+		return ""
+	}
+	return clipText(strings.TrimSpace(s[i:]), maxMoreRunes)
 }
 
 func firstLine(s string) string {
