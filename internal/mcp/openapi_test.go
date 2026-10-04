@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -176,5 +177,30 @@ func TestOpenAPIUpstreamsAreLeftOutOfTheJSONExport(t *testing.T) {
 	out := string(ExportJSON(ups))
 	if strings.Contains(out, `"a"`) || !strings.Contains(out, `"r"`) {
 		t.Errorf("export: %s", out)
+	}
+}
+
+// A description that declares its API key as a parameter: the upstream's credential fills it in, the model is never
+// asked for it, and a required one does not make the tool uncallable.
+func TestOpenAPICredentialParameterIsNotTheModelsToFill(t *testing.T) {
+	e := newEnv(t, nil)
+	var gotKey string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { gotKey = r.Header.Get("X-Key"); w.Write([]byte("ok")) }))
+	defer api.Close()
+	spec := `{"openapi":"3.0.0","info":{"title":"K"},"paths":{"/a":{"get":{"operationId":"a","parameters":[{"name":"X-Key","in":"header","required":true,"schema":{"type":"string"}}]}}}}`
+	if err := e.srv.Upstreams.Create(Upstream{Alias: "k", Kind: KindOpenAPI, URL: api.URL, AuthKind: AuthHeader, AuthName: "X-Key", AuthValue: "SEKRET", Enabled: true, IncludeInMCP: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.srv.Upstreams.SetOpenAPI("k", OpenAPIConfig{Spec: spec, Selection: openapi.Selection{Enabled: map[string]bool{"GET /a": true}}}); err != nil {
+		t.Fatal(err)
+	}
+	key, _, _ := e.keys.Create("t")
+	_, m := e.rpc(key, "/mcp/k", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
+	if b, _ := json.Marshal(m); strings.Contains(string(b), "X-Key") {
+		t.Errorf("the tool still asks for the credential: %s", b)
+	}
+	_, m = e.rpc(key, "/mcp/k", `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"a","arguments":{}}}`)
+	if res := m["result"].(map[string]any); res["isError"] != false || gotKey != "SEKRET" {
+		t.Errorf("call: %v key %q", m, gotKey)
 	}
 }
