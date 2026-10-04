@@ -367,3 +367,32 @@ func TestOpenAPIToolPickerInBrowser(t *testing.T) {
 	r.reply = `{"patches":[{"op":"set","path":"/paths/~1a/get/operationId","value":"getA","reason":"missing id"}]}`
 	runBrowserScript(t, "toolpick.js", r.br.ts.URL, r.br, "items")
 }
+
+// Small corrections to what the OpenAPI pages say: the test page shows no HTTP exchange that never happened,
+// "read again" needs an address, only GET and HEAD start on, and an oversized form is told so.
+func TestOpenAPIPagesSayOnlyWhatIsTrue(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	api := oaAPI(t)
+	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"byurl"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
+	spec := `{"openapi":"3.0.0","info":{"title":"P"},"servers":[{"url":"https://p.example.com"}],"paths":{"/a":{"get":{"operationId":"a"},"options":{"operationId":"o"},"trace":{"operationId":"tr"},"head":{"operationId":"h"}}}}`
+	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"pasted"}, "enabled": {"1"}, "oa_spec_text": {spec}})
+
+	_, test := br.get("/admin/upstreams/byurl/test")
+	for _, bad := range []string{"HTTP status", "no response", "(mode", "(protocol )"} {
+		if strings.Contains(test, bad) {
+			t.Errorf("test page says %q for an OpenAPI upstream", bad)
+		}
+	}
+	_, withURL := br.get("/admin/upstreams/byurl/edit")
+	_, noURL := br.get("/admin/upstreams/pasted/edit")
+	if !strings.Contains(withURL, `name="oa_refetch"`) || strings.Contains(noURL, `name="oa_refetch"`) {
+		t.Error(`"read the address again" belongs to an upstream that has an address, and only to it`)
+	}
+	if n := a.MCP.Upstreams.OpenAPIToolCount("pasted"); n != 2 { // GET and HEAD; OPTIONS and TRACE start off
+		t.Errorf("default tools = %d, want 2", n)
+	}
+	big := url.Values{"csrf": {csrf}, "name": {strings.Repeat("x", 1<<20+10)}}
+	if r, body := br.post("/admin/keys/create", big); r.StatusCode != 413 || !strings.Contains(body, "too large") {
+		t.Errorf("oversized form: %d %.100q", r.StatusCode, body)
+	}
+}

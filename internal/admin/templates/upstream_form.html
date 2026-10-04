@@ -37,7 +37,7 @@
 <div class="group" data-kind="openapi">
 {{with .OA}}<p class="muted">skgate turns each operation of a REST API into an MCP tool and makes the HTTP calls itself. Give the address of the description or paste it. You choose the tools next, and only those are offered.</p>
 <div class="field"><label>Description URL<input type="url" name="oa_spec_url" placeholder="https://api.example.com/openapi.json" value="{{.SpecURL}}" autocomplete="off" spellcheck="false" data-oa-spec-url></label>
-{{if .HasSpec}}<label class="check"><input type="checkbox" name="oa_refetch" value="1"> read the address again on save</label>{{end}}</div>
+{{if and .HasSpec .SpecURL}}<label class="check"><input type="checkbox" name="oa_refetch" value="1"> read the address again on save</label>{{end}}</div>
 <div class="field"><label>Or paste the description (JSON, YAML or TOML)<textarea name="oa_spec_text" rows="8" spellcheck="false" autocomplete="off" placeholder="{{if .HasSpec}}Empty keeps the stored description: {{.Title}}, {{.Ops}} operations{{else}}openapi: 3.0.3{{end}}" data-oa-spec-text></textarea></label>
 <p class="muted">OpenAPI 3.x, or Swagger 2 (converted on import). A problem in the description never stops the import: skgate reads what it can.</p></div>
 {{if .HasSpec}}<p class="muted">{{.Tools}} of {{.Ops}} operations are exposed as tools. <a href="/admin/upstreams/{{$.U.Alias}}/tools">Choose the tools</a></p>{{end}}

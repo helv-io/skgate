@@ -210,7 +210,16 @@ func (a *Admin) guard(h http.HandlerFunc) http.HandlerFunc {
 				limit = oaBodyLimit // a pasted OpenAPI description can be large
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, limit)
-			if r.ParseForm() != nil || subtle.ConstantTimeCompare([]byte(csrf), []byte(r.PostFormValue("csrf"))) != 1 {
+			if err := r.ParseForm(); err != nil {
+				var tooBig *http.MaxBytesError
+				if errors.As(err, &tooBig) {
+					http.Error(w, "the form is too large; for an OpenAPI description give its address instead of pasting it", http.StatusRequestEntityTooLarge)
+					return
+				}
+				http.Error(w, "invalid CSRF token", http.StatusForbidden)
+				return
+			}
+			if subtle.ConstantTimeCompare([]byte(csrf), []byte(r.PostFormValue("csrf"))) != 1 {
 				http.Error(w, "invalid CSRF token", http.StatusForbidden)
 				return
 			}

@@ -25,7 +25,7 @@ import (
 var verbOrder = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"}
 
 // writeVerb reports whether a verb changes data. Those start switched off.
-func writeVerb(v string) bool { return v != "GET" && v != "HEAD" && v != "OPTIONS" && v != "TRACE" }
+func writeVerb(v string) bool { return v != "GET" && v != "HEAD" }
 
 // oaBodyLimit is how large a form may be on the pages that carry a pasted description (a URL avoids it).
 const oaBodyLimit = 24 << 20
@@ -297,9 +297,13 @@ func (a *Admin) upstreamTools(w http.ResponseWriter, r *http.Request) {
 func (a *Admin) upstreamToolsSave(w http.ResponseWriter, r *http.Request) {
 	alias := r.PathValue("alias")
 	back := "/admin/upstreams/" + alias + "/tools"
-	st, err := a.MCP.Upstreams.OpenAPI(alias)
-	if u, ok := a.MCP.Upstreams.Get(alias); !ok || !u.IsOpenAPI() || err != nil {
+	if u, ok := a.MCP.Upstreams.Get(alias); !ok || !u.IsOpenAPI() {
 		a.back(w, r, "/admin/upstreams", "", "that upstream is not an OpenAPI upstream")
+		return
+	}
+	st, err := a.MCP.Upstreams.OpenAPI(alias)
+	if err != nil {
+		a.back(w, r, "/admin/upstreams", "", err.Error())
 		return
 	}
 	byKey := map[string]openapi.Op{}
