@@ -1,10 +1,14 @@
 package admin
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/helv-io/skgate/internal/managed"
 	"github.com/helv-io/skgate/internal/mcp"
 	"github.com/helv-io/skgate/internal/timefmt"
 )
@@ -31,20 +35,37 @@ func (a *Admin) upstreamProcess(w http.ResponseWriter, r *http.Request) {
 	a.back(w, r, to, fmt.Sprintf("%s: %s", alias, msg), "")
 }
 
+// logLine is one line of a process log, as the page shows it and as the live stream sends it.
 type logLine struct {
-	T         string
-	Src, Text string
-	Class     string
+	ID    uint64 `json:"id"`
+	Run   int    `json:"run"`
+	Ms    int64  `json:"ms"`   // when, in Unix milliseconds (the page shows it as a clock time or as "5 s ago")
+	Abs   string `json:"abs"`  // the clock time in the configured zone
+	Full  string `json:"full"` // date and time in the configured zone
+	Src   string `json:"src"`
+	Level string `json:"lvl,omitempty"`
+	Text  string `json:"text"`
+	Trunc bool   `json:"trunc,omitempty"`
+	Start bool   `json:"start,omitempty"`
+	// Mark is the divider label before a run's first line (page only): "since last start" or "previous run".
+	Mark string `json:"-"`
+}
+
+func toLogLine(l managed.Line) logLine {
+	return logLine{ID: l.ID, Run: l.Run, Ms: l.T.UnixMilli(), Abs: timefmt.Second(l.T), Full: timefmt.Log(l.T), Src: l.Src,
+		Level: l.Level, Text: l.Text, Trunc: l.Trunc, Start: l.Start}
 }
 
 type logsData struct {
-	U     upstreamView
-	Lines []logLine
-	N     int
-	Total int
+	U      upstreamView
+	Lines  []logLine
+	LastID uint64
+	Max    int  // lines the page keeps
+	Levels bool // some line carries a level, so the level filter is offered
 }
 
-// upstreamLogs shows the status and the captured output of a managed process.
+// upstreamLogs shows the status and the captured output of a managed process; the page then follows the live
+// stream (see upstreamLogStream).
 func (a *Admin) upstreamLogs(w http.ResponseWriter, r *http.Request) {
 	alias := r.PathValue("alias")
 	u, ok := a.MCP.Upstreams.Get(alias)
@@ -52,26 +73,100 @@ func (a *Admin) upstreamLogs(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin/upstreams", "", "unknown managed upstream")
 		return
 	}
-	n, _ := strconv.Atoi(r.URL.Query().Get("n"))
-	if n < 1 || n > 5000 {
-		n = 300
-	}
-	all := a.MCP.ProcessLogs(alias, 0)
-	d := logsData{U: a.view(u), N: n, Total: len(all)}
-	if len(all) > n {
-		all = all[len(all)-n:]
-	}
-	for _, l := range all {
-		c := ""
-		switch l.Src {
-		case "err":
-			c = "warn"
-		case "sys":
-			c = "dim"
+	d := logsData{U: a.view(u), Max: a.Cfg.ManagedLogLines}
+	if ring, ok := a.MCP.ProcessLog(alias); ok {
+		lines := ring.Last(0)
+		lastStart := -1
+		for i, l := range lines {
+			d.Lines = append(d.Lines, toLogLine(l))
+			d.LastID = l.ID
+			d.Levels = d.Levels || l.Level != ""
+			if l.Start {
+				lastStart = i
+			}
 		}
-		d.Lines = append(d.Lines, logLine{T: timefmt.Second(l.T), Src: l.Src, Text: l.Text, Class: c})
+		for i := range d.Lines {
+			if d.Lines[i].Start {
+				d.Lines[i].Mark = "previous run"
+				if i == lastStart {
+					d.Lines[i].Mark = "since last start"
+				}
+			}
+		}
 	}
 	a.render(w, r, "upstream_logs", page{Title: "Process " + alias, Nav: "upstreams", Data: d})
+}
+
+// upstreamLogStream is the live view of a process log: server-sent events, one "line" event per line (its id is
+// the line's, so a reconnecting browser resumes with Last-Event-ID) and a "reset" event when the log was
+// cleared. It exists only while the page is open; nothing is kept per viewer.
+func (a *Admin) upstreamLogStream(w http.ResponseWriter, r *http.Request) {
+	ring, ok := a.MCP.ProcessLog(r.PathValue("alias"))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	after, _ := strconv.ParseUint(r.Header.Get("Last-Event-ID"), 10, 64)
+	if after == 0 {
+		after, _ = strconv.ParseUint(r.URL.Query().Get("after"), 10, 64)
+	}
+	rc := http.NewResponseController(w)
+	h := w.Header()
+	h.Set("Content-Type", "text/event-stream")
+	h.Set("Cache-Control", "no-cache, no-transform")
+	h.Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(w, "retry: 3000\n\n")
+	_ = rc.Flush()
+	gen := ring.Gen()
+	tick := time.NewTicker(20 * time.Second)
+	defer tick.Stop()
+	for {
+		wake := ring.Wait() // taken before reading, so a line added in between wakes the next round
+		lines, g, reset := ring.Since(after, gen)
+		gen = g
+		if reset {
+			if _, err := io.WriteString(w, "event: reset\ndata: {}\n\n"); err != nil {
+				return
+			}
+		}
+		for _, l := range lines {
+			b, _ := json.Marshal(toLogLine(l))
+			if _, err := fmt.Fprintf(w, "id: %d\nevent: line\ndata: %s\n\n", l.ID, b); err != nil {
+				return
+			}
+			after = l.ID
+		}
+		if reset || len(lines) > 0 {
+			_ = rc.Flush()
+		}
+		select {
+		case <-r.Context().Done():
+			return
+		case <-wake:
+		case <-tick.C:
+			if _, err := io.WriteString(w, ": ping\n\n"); err != nil {
+				return
+			}
+			_ = rc.Flush()
+		}
+	}
+}
+
+// upstreamLogDownload sends the kept output of a process as a text file.
+func (a *Admin) upstreamLogDownload(w http.ResponseWriter, r *http.Request) {
+	alias := r.PathValue("alias")
+	ring, ok := a.MCP.ProcessLog(alias)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+alias+`-output.txt"`)
+	w.Header().Set("Cache-Control", "no-store")
+	for _, l := range ring.Last(0) {
+		_, _ = fmt.Fprintf(w, "%s [%s] %s\n", timefmt.Log(l.T), l.Src, l.Text)
+	}
 }
 
 type importData struct {

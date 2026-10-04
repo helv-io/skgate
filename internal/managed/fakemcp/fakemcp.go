@@ -9,6 +9,7 @@
 //	FAKE_CRASH_AFTER     exit(3) after this many tools/call requests
 //	FAKE_CRASH_ON_START  exit(4) immediately
 //	FAKE_STDERR          write this line to stderr at startup
+//	FAKE_STDERR_COUNT    write this many noise lines to stderr at startup: INFO, every 5th WARN, every 10th ERROR with a stack line
 //	FAKE_NAME            serverInfo.name (default fake-stdio)
 //
 // Tools: echo, slow, progress, notify, roots, env, pid, spawn, crash, bigtext, log.
@@ -60,6 +61,18 @@ func Run(in io.Reader, out io.Writer) {
 	}
 	if v := os.Getenv("FAKE_STDERR"); v != "" {
 		fmt.Fprintln(os.Stderr, v)
+	}
+	if n, _ := strconv.Atoi(os.Getenv("FAKE_STDERR_COUNT")); n > 0 {
+		for i := 1; i <= n; i++ {
+			switch {
+			case i%10 == 0:
+				fmt.Fprintf(os.Stderr, "ERROR noise %d failed\n    at stack frame %d\n", i, i)
+			case i%5 == 0:
+				fmt.Fprintf(os.Stderr, "WARN noise %d is slow\n", i)
+			default:
+				fmt.Fprintf(os.Stderr, "INFO noise %d\n", i)
+			}
+		}
 	}
 	s := &server{out: out, waiters: map[string]chan msg{}, cancelled: map[string]bool{}}
 	if os.Getenv("FAKE_JUNK") != "" {
