@@ -39,14 +39,14 @@ type oaForm struct {
 	Tools   int
 	Level   string
 	Servers []string
-	SI      bool // the assistant can run
-	SIWhy   string
+	AI      bool // the assistant can run
+	AIWhy   string
 }
 
 func (a *Admin) oaFormFor(r *http.Request, u mcp.Upstream) *oaForm {
 	f := &oaForm{}
 	st := a.suggestState(r)
-	f.SI, f.SIWhy = st.Enabled, st.Why
+	f.AI, f.AIWhy = st.Enabled, st.Why
 	if u.Alias != "" && u.IsOpenAPI() {
 		if s, err := a.MCP.Upstreams.OpenAPI(u.Alias); err == nil {
 			f.HasSpec, f.SpecURL, f.Title, f.Ops, f.Tools = true, s.Config.SpecURL, s.Doc.Title(), len(s.Ops), len(s.Tools)
@@ -224,8 +224,8 @@ type toolsData struct {
 	Level  string
 	Good   int
 	Warn   int
-	SI     bool
-	SIWhy  string
+	AI     bool
+	AIWhy  string
 	Title  string
 }
 
@@ -243,7 +243,7 @@ func (a *Admin) upstreamTools(w http.ResponseWriter, r *http.Request) {
 	}
 	d := toolsData{U: a.view(u), Good: mcp.ToolsGood, Warn: mcp.ToolsWarn, Title: st.Doc.Title()}
 	sug := a.suggestState(r)
-	d.SI, d.SIWhy = sug.Enabled, sug.Why
+	d.AI, d.AIWhy = sug.Enabled, sug.Why
 	byVerb := map[string]*verbGroup{}
 	for _, o := range st.Ops {
 		g := byVerb[o.Method]

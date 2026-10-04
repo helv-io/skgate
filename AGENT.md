@@ -49,7 +49,12 @@ What skgate is, in one wording used everywhere it is described (README, registry
 - Values with details (usage counts, and the like) use the `tip` component: short visible text, the rest in the hover tooltip. Large counts go through `numfmt.Compact` (K, M, B, T), exact numbers through `numfmt.Exact`; never format counts in a template.
 - Status pills carry their details in a hover tooltip. No subtitle or parenthesis beside a pill. Use the `pill` component.
 - No icons anywhere in the UI: no icon fonts, no symbol or emoji glyphs (a "more" menu says More, a warning says Warning). A thing is shown to be tappable with text and styling: a button-like box, a hint line, hover, focus and pressed states.
-- SI naming rule: write SI (SuperIntelligence), never "AI", in the UI, the docs and the descriptions. Names that contain the letters stay as they are (OpenAI, OpenAI-compatible, xAI, SpaceXAI, Google AI Studio). Never rename a URL, environment variable, database key or stored value for this.
+- SI naming rule: write "SI" (SuperIntelligence) instead of "AI" only in text that is entirely ours: UI copy, tooltips, docs, descriptions and disclaimers. Never rename an identifier, file name, config key, JSON key, environment variable, database column, URL, API path or parameter, or anything external. "AI" stays in:
+  - Company and product names: OpenAI, OpenAI-compatible, Google AI Studio, xAI, SpaceXAI (they are names, not our wording).
+  - URLs and hostnames: `aistudio.google.com`, `glama.ai`, `claude.ai`, `x.ai`, `api.mistral.ai`, `openrouter.ai`, `auth.x.ai`, `api.x.ai` (they would break).
+  - Go identifiers and the JSON field the page script reads (`AI`, `AIWhy`, `"ai"`, `"aiWhy"` in the OpenAPI screens): renaming gains nothing and could break a cached script.
+  - External protocol, spec and schema identifiers, for example the Glama schema URL `https://glama.ai/mcp/schemas/server.json`, and quoted third-party text.
+  The tests `TestDocsSaySINotAI` and `TestScreensSaySINotAI` check text only.
 - A value people copy (an address, a client ID or secret, a key, a sign-in code) goes in the `copybox` component (`copyurl`, `copytext` or `copycode` build its data): the whole box is the button, it wraps instead of scrolling, says "Tap to copy", and answers with a toast. Do not add a separate Copy button or a bare `<code>` for such a value.
 - Tokens are shown masked: asterisks plus the last 4 characters; under 8 characters, asterisks only. Refresh tokens appear only in the provider dialog.
 - Name/value data (env, headers) and lists (args) use the dynamic rows components.
