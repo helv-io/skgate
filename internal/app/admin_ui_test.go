@@ -14,7 +14,7 @@ func TestKeysPageFooterAndCodeNoWrap(t *testing.T) {
 	for _, want := range []string{
 		`aria-label="Copy the address of the OpenAI-compatible API"><code>` + ts.URL + "/v1</code>",
 		"<li>MCP: <code>" + ts.URL + "/mcp/&lt;alias&gt;</code></li>",
-		"X-API-Key",
+		"Authorization: Bearer",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("keys footer missing %q", want)

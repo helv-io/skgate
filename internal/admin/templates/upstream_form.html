@@ -2,8 +2,8 @@
 {{if not .New}}<div class="field"><div class="label">Alias</div><code>{{.U.Alias}}</code></div>{{end}}
 <div class="field">
 {{if .New}}<label>Type<select name="kind" data-kind-select>
-<option value="remote" {{if eq .U.Kind "remote"}}selected{{end}}>remote (URL)</option>
-<option value="stdio" {{if or (eq .U.Kind "stdio") (eq .U.Kind "git")}}selected{{end}} {{if not .Managed}}disabled{{end}}>managed (package or repository)</option>
+<option value="remote" {{if eq .U.Kind "remote"}}selected{{end}}>remote server</option>
+<option value="stdio" {{if or (eq .U.Kind "stdio") (eq .U.Kind "git")}}selected{{end}} {{if not .Managed}}disabled{{end}}>managed process</option>
 <option value="openapi" {{if eq .U.Kind "openapi"}}selected{{end}}>OpenAPI</option></select></label>
 {{if not .Managed}}<p class="muted">Managed upstreams: {{.Why}}.</p>{{end}}
 {{else}}<div class="label">Type</div><input type="hidden" name="kind" value="{{.U.Kind}}" data-kind-select><span class="chip">{{.U.TypeLabel}}</span>{{end}}</div>
@@ -11,7 +11,7 @@
 {{/* The order follows the work: Type, then Source with Suggest and its results (they fill the rest), then the alias. */}}
 <div class="group" data-kind="stdio git">
 <div class="field"><label>MCP source URL / package<input type="text" name="source" value="{{.Source}}" placeholder="https://host/org/repo, npm or PyPI package" autocomplete="off" spellcheck="false" data-suggest-source></label></div>
-{{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Access token (private repositories){{if .TokenMasked}} (<code>{{.TokenMasked}}</code>, empty keeps){{end}}<input type="password" name="git_token" autocomplete="off" data-suggest-token></label></div>
+{{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Access token{{if .TokenMasked}} <code>{{.TokenMasked}}</code>{{end}}<input type="password" name="git_token" placeholder="{{if .TokenMasked}}Empty keeps it{{else}}Private repositories{{end}}" autocomplete="off" data-suggest-token></label></div>
 {{if .TokenMasked}}<div class="row" data-show-for="git"><label class="check"><input type="checkbox" name="clear_token" value="1"> remove the stored token</label></div>{{end}}{{end}}
 {{template "suggest_controls" .Suggest}}
 {{template "suggest_result"}}
@@ -25,12 +25,12 @@
 <option value="none" {{if and (not .New) (eq .U.AuthKind "none")}}selected{{end}}>none</option>
 <option value="bearer" {{if eq .U.AuthKind "bearer"}}selected{{end}}>bearer</option>
 <option value="header" {{if eq .U.AuthKind "header"}}selected{{end}}>header</option>
-<option value="passthrough" {{if eq .U.AuthKind "passthrough"}}selected{{end}}>passthrough (X-Upstream-Authorization)</option></select></label></div>
+<option value="passthrough" {{if eq .U.AuthKind "passthrough"}}selected{{end}}>passthrough</option></select></label></div>
 <div class="field" data-when="header auto"><label>Header name<input type="text" name="auth_name" placeholder="X-Api-Key" value="{{.U.AuthName}}"></label></div>
-<div class="field"><label>Token / header value {{if .U.Masked}}(<code>{{.U.Masked}}</code>, empty keeps){{end}}<input type="password" name="auth_value" autocomplete="off"></label></div>
+<div class="field"><label>Token or header value{{if .U.Masked}} <code>{{.U.Masked}}</code>{{end}}<input type="password" name="auth_value" placeholder="{{if .U.Masked}}Empty keeps it{{end}}" autocomplete="off"></label></div>
 {{template "pairs" .Hdr}}
 <details {{if .U.HostOverride}}open{{end}}><summary class="muted">Advanced</summary>
-<div class="field"><label>Host override (hostname[:port])<input type="text" name="host_override" placeholder="localhost:8000" value="{{.U.HostOverride}}"></label></div>
+<div class="field"><label>Host override<input type="text" name="host_override" placeholder="localhost:8000" value="{{.U.HostOverride}}"></label></div>
 </details>
 </div>
 
@@ -53,15 +53,15 @@
 
 <div class="group" data-kind="stdio git">
 <details data-manual {{if not .New}}open{{end}}><summary class="muted">Manual configuration</summary>
-{{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Ref (branch or tag, empty = default branch)<input type="text" name="git_ref" placeholder="main" value="{{.U.GitRef}}" autocomplete="off"></label></div>{{end}}
+{{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Ref<input type="text" name="git_ref" placeholder="Default branch" value="{{.U.GitRef}}" autocomplete="off"></label></div>{{end}}
 {{template "pick" .Cmd}}
 {{template "rows" .Args}}
-<div class="row"><label class="check"><input type="checkbox" name="shell" value="1" {{if .U.Shell}}checked{{end}}> shell mode (run the command with /bin/sh -c)</label></div>
+<div class="row"><label class="check"><input type="checkbox" name="shell" value="1" {{if .U.Shell}}checked{{end}}> run in a shell</label></div>
 {{template "pairs" .Env}}
-<div class="field" data-hide-for="package"><label>Install command (runs before start when it or the checkout changed, and on Update)<textarea name="install" rows="2" placeholder="npm ci">{{.U.Install}}</textarea></label></div>
+<div class="field" data-hide-for="package"><label>Install command<textarea name="install" rows="2" placeholder="npm ci">{{.U.Install}}</textarea></label></div>
 <div class="field"><label>Lifecycle<select name="lifecycle">
-<option value="on-demand" {{if ne .U.Lifecycle "always"}}selected{{end}}>on-demand (start on first request, stop when idle)</option>
-<option value="always" {{if eq .U.Lifecycle "always"}}selected{{end}}>always-on (start at boot)</option></select></label></div>
+<option value="on-demand" {{if ne .U.Lifecycle "always"}}selected{{end}}>on demand, stops when idle</option>
+<option value="always" {{if eq .U.Lifecycle "always"}}selected{{end}}>always on, starts at boot</option></select></label></div>
 <div class="field"><label>Auto-update<select name="auto_update">
 <option value="0" {{if eq .U.AutoUpdateSecs 0}}selected{{end}}>off</option>
 <option value="900" {{if eq .U.AutoUpdateSecs 900}}selected{{end}}>every 15 minutes</option>
@@ -70,7 +70,7 @@
 <option value="86400" {{if eq .U.AutoUpdateSecs 86400}}selected{{end}}>daily</option>
 <option value="604800" {{if eq .U.AutoUpdateSecs 604800}}selected{{end}}>weekly</option>
 {{if not .U.AutoUpdatePreset}}<option value="{{.U.AutoUpdateSecs}}" selected>every {{.U.AutoUpdateMins}} minutes</option>{{end}}</select></label>
-<p class="muted">Branches and unpinned packages only. Tags, commits and pinned versions are never updated. A failed update keeps the previous version.</p></div>
+<p class="muted">Only branches and unpinned packages update.</p></div>
 <input type="hidden" name="startup_secs" value="{{if .U.StartupSecs}}{{.U.StartupSecs}}{{end}}">
 </details>
 </div>
@@ -78,5 +78,5 @@
 
 <div class="row"><label class="check"><input type="checkbox" name="enabled" value="1" {{if or .New .U.Enabled}}checked{{end}}> enabled</label></div>
 <div class="field"><label class="check"><input type="checkbox" name="include" value="1" data-include {{if .Include}}checked{{end}}{{if and (ne .U.Kind "remote") (ne .U.Kind "openapi") (ne .U.Lifecycle "always")}} disabled{{end}}> include in /mcp</label>
-<p class="muted" data-kind="stdio git">Only always-on servers can be exposed on /mcp. On-demand servers are excluded automatically, so /mcp does not start every process at once. Default: off.</p></div>
+<p class="muted" data-kind="stdio git">Only always-on servers can be in /mcp.</p></div>
 {{end}}

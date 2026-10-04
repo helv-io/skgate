@@ -1,10 +1,9 @@
 {{define "body"}}{{with .Data}}
 <h2>Virtual keys</h2>
-{{if .NewKey}}<div class="card"><p class="ok">New key, shown once</p>{{template "copybox" (copytext "the new key" .NewKey)}}
-<p class="muted">Send it as <code>Authorization: Bearer &lt;key&gt;</code> to <code>{{$.Public}}/v1</code> or an MCP endpoint.</p></div>{{end}}
+{{if .NewKey}}<div class="card"><p class="ok">New key, shown once</p>{{template "copybox" (copytext "the new key" .NewKey)}}</div>{{end}}
 <div class="card"><form method="post" action="/admin/keys/create" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>Name<input type="text" name="label" maxlength="80" placeholder="Home Assistant" autocomplete="off"></label></div>
-<details><summary class="muted">Limits (optional)</summary>
+<details><summary class="muted">Limits</summary>
 <div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit"></label></div>
 {{template "expiry_field" neverExpires}}
 </details>
@@ -20,10 +19,9 @@
 <div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></label></div>
 {{template "expiry_field" (expiry .ExpiresAt)}}
 <div class="field"><label class="check"><input type="checkbox" name="urlkey" value="1" {{if .URLKey}}checked{{end}}> Accept this key in the URL as <code>?key=</code></label>
-<p class="muted">For MCP clients that cannot send headers. The key can then appear in logs, browser history and referrers.</p></div>
+<p class="muted">The key can show up in logs and browser history.</p></div>
 <div class="row"><button class="btn">Save</button></div></form>
 {{template "danger_start" .ID}}
-<p class="muted">Regenerate gives the key a new token and the current one stops working. Revoke ends the key for good.</p>
 <div class="actions">
 <form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">Regenerate</button></form>
 <form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">Revoke</button></form></div>
@@ -38,10 +36,9 @@
 <tr><th>usage</th><td>{{template "tip" (keyUsage .)}}</td></tr>
 </tbody></table></div>
 {{template "dialog_end"}}{{end}}
-<p class="muted">Send as <code>Authorization: Bearer sk-...</code></p>
+<p class="muted">Send it as <code>Authorization: Bearer</code></p>
 <ul class="muted">
 <li>OpenAI API: {{template "copybox" (copyurl "the address of the OpenAI-compatible API" $.Public "/v1")}}</li>
 <li>MCP: <code>{{wrapurl $.Public "/mcp/"}}&lt;alias&gt;</code></li>
-<li>Both also accept <code>X-API-Key</code></li>
 </ul>
 {{end}}{{end}}

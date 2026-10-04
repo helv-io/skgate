@@ -5,7 +5,7 @@
 <p class="muted" data-json-status aria-live="polite"></p></div>
 <script src="/admin/static/codemirror.js" defer></script>
 <div class="row"><label class="check"><input type="checkbox" name="include" value="1" {{if .Include}}checked{{end}}> include in /mcp</label></div>
-{{if not .Managed}}<p class="muted">Managed upstreams: {{.Why}}. Command entries are rejected.</p>{{end}}
+{{if not .Managed}}<p class="muted">Command entries are rejected: {{.Why}}</p>{{end}}
 <div class="row"><button class="btn">Import</button> <a class="act" href="/admin/upstreams">Back</a></div></form></div>
 {{if .Done}}<h2>Result</h2>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Alias</th><th>Result</th><th>Detail</th></tr></thead><tbody>

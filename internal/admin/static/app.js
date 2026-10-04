@@ -930,7 +930,7 @@ document.addEventListener("input", function (e) {
     }
     apply(form, x.result);
     var lines = (x.result.warnings || []).map(function (w) { return { warn: w }; });
-    lines.push("Review before saving. Fill in the values; empty ones are not passed to the server.");
+    lines.push("Review before saving");
     show(form, x.result.confidence === "high" ? "ok" : "warn", x.result.confidence + " confidence", lines, false, x.result.notes);
   }
   document.addEventListener("click", function (e) {

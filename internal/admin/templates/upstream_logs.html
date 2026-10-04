@@ -3,7 +3,7 @@
 <div class="card flush tablewrap"><table class="table kv"><tbody>
 <tr><th>State</th><td>{{template "proc_pill" .Proc}}</td></tr>
 <tr><th>Command</th><td><code>{{.Target}}</code></td></tr>
-{{with .Proc.Upd}}{{if .Rev}}<tr><th>Installed</th><td><code>{{.Rev}}</code>{{if .Ref}} <span class="muted">{{.Ref}}{{if .RefKind}} ({{.RefKind}}){{end}}</span>{{end}} {{template "upd_chips" .}}</td></tr>{{end}}
+{{with .Proc.Upd}}{{if .Rev}}<tr><th>Installed</th><td><code>{{.Rev}}</code>{{if .Ref}} <span class="muted">{{.Ref}}{{if .RefKind}} {{.RefKind}}{{end}}</span>{{end}} {{template "upd_chips" .}}</td></tr>{{end}}
 {{if .Remote}}<tr><th>Remote</th><td><code>{{.Remote}}</code> <span class="muted">checked {{.Checked}}</span></td></tr>{{else if .CheckErr}}<tr><th>Remote</th><td class="warn">{{.CheckErr}} <span class="muted">{{.Checked}}</span></td></tr>{{end}}
 {{if .Package}}<tr><th>Package</th><td><code>{{.Package}}</code> {{template "upd_chips" .}}</td></tr>{{end}}
 {{if .Last}}<tr><th>Last update</th><td>{{.Last}}</td></tr>{{end}}
@@ -47,7 +47,7 @@
 </div>
 <button type="button" class="act accent logjump" data-log-jump hidden>Jump to latest</button>
 </div>
-<p class="muted" data-log-empty{{if .Lines}} hidden{{end}}>No output yet. Lines appear here as the process writes them.</p>
+<p class="muted" data-log-empty{{if .Lines}} hidden{{end}}>No output yet</p>
 <pre id="log-copy" hidden></pre>
 </div>
 {{end}}{{end}}

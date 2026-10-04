@@ -181,7 +181,7 @@ func TestHealthzAndAdminFlow(t *testing.T) {
 	if !strings.Contains(ups, "************"+"ALUE") || !strings.Contains(edit, "************"+"ALUE") || strings.Contains(ups+edit, "SECRET-VAL") {
 		t.Fatal("upstream credential must render as asterisks plus the last 4 characters only")
 	}
-	if strings.Contains(ups+edit, "SUPER-SECRET-VALUE") || !strings.Contains(ups, "/mcp/demo") || !strings.Contains(ups, "DCR clients: leave client ID and secret empty") {
+	if strings.Contains(ups+edit, "SUPER-SECRET-VALUE") || !strings.Contains(ups, "/mcp/demo") {
 		t.Fatal("secret rendered or connection notes missing")
 	}
 	// editing with empty secret keeps it

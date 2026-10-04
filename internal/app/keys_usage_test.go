@@ -189,7 +189,7 @@ func TestKeyEditFormInKeyDialog(t *testing.T) {
 	ks, _ := a.Keys.List()
 	id := strconv.FormatInt(ks[0].ID, 10)
 	_, page := br.get("/admin/keys")
-	for _, want := range []string{`action="/admin/keys/update"`, `name="label" maxlength="80" value="one"`, `<input type="checkbox" name="urlkey" value="1" >`, "browser history and referrers"} {
+	for _, want := range []string{`action="/admin/keys/update"`, `name="label" maxlength="80" value="one"`, `<input type="checkbox" name="urlkey" value="1" >`, "browser history"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("keys page lacks %q", want)
 		}
