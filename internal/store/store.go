@@ -196,6 +196,8 @@ func (d *DB) sealLegacy() error {
 // remote. headers, env and git_token hold sealed secrets (headers and env as sealed JSON lists); args is a JSON list.
 // upstreams.auto_update_secs is the opt-in auto-update interval of a managed upstream (0 = off).
 // key_usage holds cumulative per-key usage (tokens reported by the API proxy, request counts); its rows go with the key.
+// upstream_openapi.fetched_at is the unix time the stored description was last read from its address (0 = never, or
+// pasted) and spec_hash the SHA-256 of the text fetched then ("" = not recorded); a manual update compares with them.
 // vkeys.last4 is the last 4 characters of a key, only for display (older keys have none).
 // vkeys.rate_per_min (requests per minute) and vkeys.expires_at (unix time, 0 = never) are optional; old keys stay unlimited and never expire.
 // vkeys.url_key (0/1) allows that key as ?key= on MCP endpoints; it replaced the global allow_query_key setting.
@@ -223,6 +225,7 @@ func migrate(db *sql.DB) error {
 		{"vkeys", "last4", "TEXT NOT NULL DEFAULT ''"},
 		{"vkeys", "rate_per_min", "INTEGER NOT NULL DEFAULT 0"}, {"vkeys", "hard_stop", "INTEGER NOT NULL DEFAULT 0"}, {"vkeys", "expires_at", "INTEGER NOT NULL DEFAULT 0"},
 		{"vkeys", "url_key", "INTEGER NOT NULL DEFAULT 0"},
+		{"upstream_openapi", "fetched_at", "INTEGER NOT NULL DEFAULT 0"}, {"upstream_openapi", "spec_hash", "TEXT NOT NULL DEFAULT ''"},
 		{"oauth_clients", "last_used_at", "INTEGER NOT NULL DEFAULT 0"},
 		{"oauth_clients", "pkce_seen", "INTEGER NOT NULL DEFAULT 0"},
 	} {

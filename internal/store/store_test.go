@@ -249,6 +249,37 @@ func TestMigrateAddsClientLastUsed(t *testing.T) {
 	}
 }
 
+// upstream_openapi gained fetched_at and spec_hash: old rows keep their description and selection and read 0 and "".
+func TestMigrateAddsOpenAPIFetchColumns(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v0127.db")
+	old, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`CREATE TABLE upstream_openapi (alias TEXT PRIMARY KEY, spec TEXT NOT NULL DEFAULT '', spec_url TEXT NOT NULL DEFAULT '', selection TEXT NOT NULL DEFAULT '{}')`,
+		`INSERT INTO upstream_openapi(alias,spec,spec_url,selection) VALUES('a','{"openapi":"3.0.0"}','http://x.example/spec','{"enabled":{"GET /a":true}}')`,
+	} {
+		if _, err := old.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old.Close()
+	for i := 0; i < 3; i++ {
+		db, err := Open(path)
+		if err != nil {
+			t.Fatalf("open #%d: %v", i, err)
+		}
+		var spec, url, sel, hash string
+		var at int64
+		if err := db.QueryRow(`SELECT spec,spec_url,selection,fetched_at,spec_hash FROM upstream_openapi WHERE alias='a'`).Scan(&spec, &url, &sel, &at, &hash); err != nil ||
+			spec != `{"openapi":"3.0.0"}` || url != "http://x.example/spec" || sel != `{"enabled":{"GET /a":true}}` || at != 0 || hash != "" {
+			t.Fatalf("old row: %q %q %q %d %q %v", spec, url, sel, at, hash, err)
+		}
+		db.Close()
+	}
+}
+
 // Upstream credentials stored as plaintext by older releases are sealed on open, once, and stay
 // readable; an already sealed value is left alone.
 func TestOpenSealsLegacyUpstreamSecrets(t *testing.T) {
