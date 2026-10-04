@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -59,31 +60,66 @@ func (a *Admin) oaFormFor(r *http.Request, u mcp.Upstream) *oaForm {
 	return f
 }
 
-// readSpec returns the description a form carries: the pasted text when there is any, else the document at the URL.
-func readSpec(r *http.Request) (*openapi.Doc, string, error) {
+// specRead is a description a form carries and where it came from.
+type specRead struct {
+	Doc *openapi.Doc
+	// URL is the address the description was read from ("" for pasted text). When the form held a base address
+	// or a page, it is the place the search settled on.
+	URL string
+	// Base is the address entered when the search found the description under it ("" for pasted text).
+	Base string
+}
+
+// readSpec returns the description a form carries: the pasted text when there is any, else what is found at the
+// address. The address may be the description itself, a base address or a documentation page.
+func readSpec(r *http.Request) (specRead, error) {
 	text, specURL := strings.TrimSpace(r.PostFormValue("oa_spec_text")), strings.TrimSpace(r.PostFormValue("oa_spec_url"))
 	var raw []byte
+	var out specRead
 	switch {
 	case text != "":
 		raw = []byte(text)
 	case specURL != "":
-		b, err := openapi.Fetch(r.Context(), specURL)
+		f, err := openapi.Discover(r.Context(), specURL)
 		if err != nil {
-			return nil, specURL, err
+			return specRead{}, err
 		}
-		raw = b
+		raw, out.URL, out.Base = f.Raw, f.URL, f.Base
 	default:
-		return nil, specURL, errors.New("give the address of the OpenAPI description or paste it")
+		return specRead{}, errors.New("give the address of the API or paste its OpenAPI description")
 	}
 	d, err := openapi.Parse(raw)
 	if err != nil {
-		return nil, specURL, err
+		return specRead{}, err
 	}
-	d.Source = specURL
+	d.Source = out.URL
 	if text == "" {
 		d.SourceHash = openapi.Hash(raw)
 	}
-	return d, specURL, nil
+	out.Doc = d
+	return out, nil
+}
+
+// baseFor chooses the base URL of an API whose form gave none: the first server of the description, unless that
+// names this machine while the description came from elsewhere, and the address the description was read from
+// when it names no server.
+func baseFor(doc *openapi.Doc, specURL, base string) string {
+	if base == "" && specURL != "" {
+		if u, err := url.Parse(specURL); err == nil && u.Host != "" {
+			base = u.Scheme + "://" + u.Host
+		}
+	}
+	if sv := doc.Servers(specURL); len(sv) > 0 {
+		u, err := url.Parse(sv[0].URL)
+		local := err == nil && (u.Hostname() == "localhost" || u.Hostname() == "0.0.0.0" || strings.HasPrefix(u.Hostname(), "127."))
+		if bu, berr := url.Parse(base); berr == nil && err == nil && bu.Hostname() == u.Hostname() {
+			local = false // the description was read from that very host
+		}
+		if !local || base == "" {
+			return sv[0].URL
+		}
+	}
+	return base
 }
 
 // defaultSelection enables the reading operations (GET and HEAD) of a new upstream, unless there are more of them
@@ -109,6 +145,7 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 	openAPIInput(r, &u)
 	var cfg mcp.OpenAPIConfig
 	var doc *openapi.Doc
+	var found string // the address a search found the description under
 	var old mcp.Upstream
 	if edit {
 		var ok bool
@@ -130,12 +167,13 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 	fresh := !edit || text != "" || (specURL != "" && specURL != cfg.SpecURL)
 	switch {
 	case fresh:
-		d, specURL, err := readSpec(r)
+		rd, err := readSpec(r)
 		if err != nil {
 			a.back(w, r, form, "", err.Error())
 			return
 		}
-		doc = d
+		d, specURL := rd.Doc, rd.URL
+		doc, found = d, rd.Base
 		cfg.Spec, cfg.SpecURL = string(d.JSON()), specURL
 		cfg.FetchedAt, cfg.SpecHash = 0, ""
 		if d.SourceHash != "" {
@@ -157,12 +195,10 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 		doc = d
 	}
 	if strings.TrimSpace(u.URL) == "" {
-		sv := doc.Servers(cfg.SpecURL)
-		if len(sv) == 0 {
+		if u.URL = baseFor(doc, cfg.SpecURL, found); u.URL == "" {
 			a.back(w, r, form, "", "the description names no server: give the base URL of the API")
 			return
 		}
-		u.URL = sv[0].URL
 	}
 	var err error
 	if edit {
@@ -411,15 +447,19 @@ func issueViews(is []openapi.Issue) []issueView {
 
 // openAPICheck reads a description and reports what it holds and what is wrong with it. It saves nothing.
 func (a *Admin) openAPICheck(w http.ResponseWriter, r *http.Request) {
-	d, specURL, err := readSpec(r)
+	rd, err := readSpec(r)
 	if err != nil {
 		httputil.JSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
+	d, specURL := rd.Doc, rd.URL
 	ops := d.Operations()
 	var servers []string
 	for _, s := range d.Servers(specURL) {
 		servers = append(servers, s.URL)
+	}
+	if len(servers) == 0 && rd.Base != "" {
+		servers = append(servers, rd.Base)
 	}
 	sug := a.suggestState(r)
 	reads, writes := 0, 0
@@ -441,11 +481,12 @@ func (a *Admin) openAPICheck(w http.ResponseWriter, r *http.Request) {
 // the changes for approval together with the repaired description. Nothing is saved.
 func (a *Admin) openAPIRepair(w http.ResponseWriter, r *http.Request) {
 	fail := func(status int, msg string) { httputil.JSON(w, status, map[string]any{"error": msg}) }
-	d, _, err := readSpec(r)
+	rd, err := readSpec(r)
 	if err != nil {
 		fail(http.StatusBadRequest, err.Error())
 		return
 	}
+	d := rd.Doc
 	issues := d.Validate()
 	for _, is := range issues {
 		if is.Fatal {

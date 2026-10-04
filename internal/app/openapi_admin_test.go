@@ -398,3 +398,34 @@ func TestOpenAPIPagesSayOnlyWhatIsTrue(t *testing.T) {
 		t.Errorf("oversized form: %d %.100q", r.StatusCode, body)
 	}
 }
+
+func TestOpenAPIAddByBaseAddressFindsTheDescription(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/openapi.json" { // the description names this machine, as many do
+			fmt.Fprint(w, `{"openapi":"3.0.3","info":{"title":"Meals","version":"1"},"servers":[{"url":"http://localhost:9000"}],"paths":{"/recipes":{"get":{"operationId":"list","responses":{"200":{"description":"ok"}}}}}}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+	r, _ := br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"meals"}, "enabled": {"1"},
+		"oa_spec_url": {ts.URL}})
+	if r.StatusCode != 303 || r.Header.Get("Location") != "/admin/upstreams/meals/tools" {
+		t.Fatalf("add: %d %s", r.StatusCode, r.Header.Get("Location"))
+	}
+	u, _ := a.MCP.Upstreams.Get("meals")
+	st, err := a.MCP.Upstreams.OpenAPI("meals")
+	if err != nil || st.Config.SpecURL != ts.URL+"/openapi.json" || u.URL != ts.URL {
+		t.Fatalf("stored spec_url %q base %q: %v", st.Config.SpecURL, u.URL, err)
+	}
+	// nothing there: one plain sentence, nothing saved
+	empty := httptest.NewServer(http.NotFoundHandler())
+	defer empty.Close()
+	r, _ = br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"none"}, "enabled": {"1"},
+		"oa_spec_url": {empty.URL}})
+	if _, ok := a.MCP.Upstreams.Get("none"); ok {
+		t.Error("saved without a description")
+	}
+	_ = r
+}
