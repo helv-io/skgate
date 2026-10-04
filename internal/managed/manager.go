@@ -30,7 +30,7 @@ type Options struct {
 	CacheDir   string        // root of the per-alias package caches (default <Dir>/.cache)
 	MaxProcs   int           // concurrent processes (starting or running); 0 = unlimited
 	StopGrace  time.Duration // SIGTERM to SIGKILL
-	LogLines   int           // ring buffer size per process
+	LogLines   int           // lines kept per process log (the last two runs; also capped at MaxLogBytes)
 	InstallMax time.Duration // limit for one install/clone/pull step
 	Logf       func(format string, args ...any)
 	Environ    func() []string // parent environment, default os.Environ
@@ -58,7 +58,7 @@ func (o *Options) defaults() {
 		o.StopGrace = 5 * time.Second
 	}
 	if o.LogLines < 1 {
-		o.LogLines = 2000
+		o.LogLines = DefaultLogLines
 	}
 	if o.InstallMax <= 0 {
 		o.InstallMax = 15 * time.Minute
