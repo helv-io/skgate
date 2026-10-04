@@ -13,8 +13,8 @@ func TestUpstreamToggleButtons(t *testing.T) {
 	up := fakeUpstream(t)
 	a.MCP.Upstreams.Create(mcp.Upstream{Alias: "t1", URL: up.URL, AuthKind: mcp.AuthBearer, AuthName: "", AuthValue: "keepme-1234", HostOverride: "h.example:81", Enabled: true, IncludeInMCP: false})
 	_, page := br.get("/admin/upstreams")
-	if !strings.Contains(page, `<button class="act toggle on" title="toggle enabled">enabled</button>`) ||
-		!strings.Contains(page, `<button class="act toggle off" title="toggle in /mcp">not in /mcp</button>`) {
+	if !strings.Contains(page, `<button class="act toggle on" role="switch" aria-checked="true" title="toggle enabled">enabled</button>`) ||
+		!strings.Contains(page, `<button class="act toggle off" role="switch" aria-checked="false" title="toggle in /mcp">not in /mcp</button>`) {
 		t.Fatalf("toggle buttons missing:\n%s", page)
 	}
 	// POST + CSRF only
@@ -36,8 +36,8 @@ func TestUpstreamToggleButtons(t *testing.T) {
 		t.Fatalf("toggle must change only the flag: %+v", u)
 	}
 	_, page = br.get("/admin/upstreams")
-	if !strings.Contains(page, `class="act toggle on" title="toggle in /mcp">in /mcp<`) {
-		t.Error("included must render as green 'on'")
+	if !strings.Contains(page, `class="act toggle on" role="switch" aria-checked="true" title="toggle in /mcp">in /mcp<`) {
+		t.Error("included must render as an 'on' switch")
 	}
 	r, _ = br.post("/admin/upstreams/t1/toggle", url.Values{"csrf": {csrf}, "flag": {"enabled"}})
 	if _, m := flashOf(r); m != "t1: enabled off" {
@@ -48,8 +48,8 @@ func TestUpstreamToggleButtons(t *testing.T) {
 		t.Fatalf("%+v", u)
 	}
 	_, page = br.get("/admin/upstreams")
-	if !strings.Contains(page, `class="act toggle off" title="toggle enabled">disabled<`) {
-		t.Error("disabled must render as red 'off'")
+	if !strings.Contains(page, `class="act toggle off" role="switch" aria-checked="false" title="toggle enabled">disabled<`) {
+		t.Error("disabled must render as an 'off' switch")
 	}
 	for _, v := range []url.Values{{"alias": {"nope"}, "flag": {"enabled"}}, {"alias": {"t1"}, "flag": {"x"}}} {
 		v.Set("csrf", csrf)
