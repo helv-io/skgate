@@ -53,6 +53,10 @@ const measure = () => {
     if (nav.length) out.push("header link past the screen: " + nav[0].textContent.trim());
   }
   if (navShown && navBtn.getAttribute("aria-expanded") === "true") navBtn.click();
+  // a table never scrolls inside its card at desktop widths: that hides the row's actions without a scrollbar to tell
+  if (vw > 800) document.querySelectorAll(".tablewrap").forEach(w => {
+    if (w.scrollWidth > w.clientWidth + 1) out.push("a table scrolls sideways inside its card (" + w.scrollWidth + " > " + w.clientWidth + ") cells " + [...w.querySelectorAll("tbody tr:first-child > *")].map(c => c.className + ":" + Math.round(c.getBoundingClientRect().width)).join(","));
+  });
   // folded sections (the create form's Limits) are opened so what is inside is measured too
   document.querySelectorAll("details:not([open])").forEach(d => { d.open = true; });
   // the expiration presets are finger-sized on phones and the field and its preview fit the screen
