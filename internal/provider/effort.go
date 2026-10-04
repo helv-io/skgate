@@ -40,8 +40,7 @@ func EffortParam(v string) string {
 
 // Stream sends a JSON request and returns the response with its body unread, so the caller can consume
 // a streamed (server-sent events) answer as it arrives. The caller closes the body and bounds the time.
-// A "model" naming one of skgate's aliases for this provider is resolved to its target, as Post does.
+// The provider is chosen as Post does it.
 func (p *Proxy) Stream(ctx context.Context, rest string, body []byte) (*http.Response, error) {
-	body = rewriteModel(body, p.Set.Aliases(p.Backend.ID()))
 	return p.send(ctx, http.MethodPost, rest, "", http.Header{"Content-Type": {"application/json"}, "Accept": {"text/event-stream"}}, body)
 }
