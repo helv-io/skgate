@@ -1327,7 +1327,8 @@ function frontierHint(form) {
       summary.textContent = (j.title ? j.title + ": " : "") + j.operations + " operations (" + j.reads + " read, " + j.writes + " change data)";
       var base = form.querySelector("#oa-servers");
       if (base && j.servers) j.servers.forEach(function (u) {
-        var o = el("option"); o.value = u; base.appendChild(o);
+        var have = Array.prototype.some.call(base.options, function (o) { return o.value === u; });
+        if (!have) { var o = el("option"); o.value = u; base.appendChild(o); }
       });
       var n = (j.issues || []).length;
       show(n ? "warn" : "ok", n ? n + (n === 1 ? " problem" : " problems") : "valid");
@@ -1348,9 +1349,11 @@ function frontierHint(form) {
     if (rb) {
       rb.disabled = true;
       diff.hidden = true;
+      var was = summary.textContent;
       summary.textContent = "Asking the assistant; this can take a minute";
       post(btn.getAttribute("data-oa-repair-url")).then(function (j) {
         rb.disabled = false;
+        summary.textContent = was;
         if (j.error) { window.skgateToast("bad", j.error); return; }
         repaired = j.spec;
         diffList.textContent = "";
@@ -1365,7 +1368,7 @@ function frontierHint(form) {
         var left = (j.remaining || []).length;
         diffTitle.textContent = (j.changes || []).length + " proposed changes; " + left + (left === 1 ? " problem" : " problems") + " would remain. Review them.";
         diff.hidden = false;
-      }).catch(function () { rb.disabled = false; window.skgateToast("bad", "the repair did not complete"); });
+      }).catch(function () { rb.disabled = false; summary.textContent = was; window.skgateToast("bad", "the repair did not complete"); });
       return;
     }
     if (t.closest("[data-oa-apply]")) {
@@ -1457,12 +1460,13 @@ function frontierHint(form) {
   filter.addEventListener("keydown", function (e) { if (e.key === "Enter") e.preventDefault(); });
   var describe = root.querySelector("[data-tool-describe]");
   if (describe) describe.addEventListener("click", function () {
-    var body = new URLSearchParams(), n = 0;
+    var body = new URLSearchParams(), n = 0, all = 0;
     body.set("csrf", root.querySelector('input[name="csrf"]').value);
-    Array.prototype.forEach.call(boxes(), function (b) { if (b.checked && n < 40) { body.append("key", b.value); n++; } });
+    Array.prototype.forEach.call(boxes(), function (b) { if (b.checked) { all++; if (n < 40) { body.append("key", b.value); n++; } } });
     if (!n) { window.skgateToast("bad", "Switch on the tools to describe first."); return; }
     describe.disabled = true;
-    window.skgateToast("ok", "Asking the assistant about " + n + " " + (n === 1 ? "tool" : "tools") + "; this can take a minute.");
+    window.skgateToast("ok", all > n ? "Asking the assistant about the first " + n + " of " + all + " tools; run it again for the rest. This can take a minute."
+      : "Asking the assistant about " + n + " " + (n === 1 ? "tool" : "tools") + "; this can take a minute.");
     fetch(root.getAttribute("data-suggest-url"), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: body })
       .then(function (r) { return r.json(); })
       .then(function (j) {
