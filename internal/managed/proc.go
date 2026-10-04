@@ -116,6 +116,7 @@ func newProc(m *Manager, spec Spec) *Proc {
 		changed: make(chan struct{}), sessions: map[string]*Session{}, pending: map[int64]*pendingCall{},
 		tokens: map[string]*pendingCall{}, srvReqs: map[string]*serverReq{}, lastActive: time.Now()}
 	p.applySpec(spec)
+	p.loadLogs()
 	return p
 }
 
@@ -135,6 +136,8 @@ func (p *Proc) setSpec(s Spec) bool {
 		return true
 	}
 	p.spec.Lifecycle, p.spec.IdleTimeout, p.spec.StartupTimeout = s.Lifecycle, s.IdleTimeout, s.StartupTimeout
+	p.spec.PlainEnv = s.PlainEnv // which values are secret does not restart anything, but the masking follows it
+	p.redact = newRedactor(secretValues(p.spec)...)
 	if p.spec.AutoUpdate != s.AutoUpdate {
 		p.spec.AutoUpdate, p.autoNext = s.AutoUpdate, time.Time{}
 	}
@@ -143,8 +146,14 @@ func (p *Proc) setSpec(s Spec) bool {
 
 func secretValues(s Spec) []string {
 	var v []string
+	plain := map[string]bool{}
+	for _, n := range s.PlainEnv {
+		plain[n] = true
+	}
 	for _, kv := range s.Env {
-		v = append(v, kv.Value)
+		if !plain[kv.Name] {
+			v = append(v, kv.Value)
+		}
 	}
 	if s.Git != nil && s.Git.Token != "" {
 		v = append(v, s.Git.Token, gitAuthValue(s.Git.Token), strings.TrimPrefix(gitAuthValue(s.Git.Token), "Authorization: Basic "))
@@ -189,7 +198,7 @@ func (p *Proc) note(format string, args ...any) {
 func (p *Proc) Logs(n int) []Line { return p.ring.Last(n) }
 
 // ClearLogs empties the log buffer.
-func (p *Proc) ClearLogs() { p.ring.Clear() }
+func (p *Proc) ClearLogs() { p.ring.Clear(); p.saveLogs() }
 
 // Status returns a snapshot.
 func (p *Proc) Status() Status {
@@ -288,6 +297,7 @@ func (p *Proc) stopLocked(hold bool) {
 	}
 	p.notifyLocked()
 	p.mu.Unlock()
+	p.saveLogs()
 }
 
 // Restart stops and starts again, clearing failure and hold.
@@ -401,6 +411,7 @@ func (p *Proc) supervise(ctx context.Context, done chan struct{}, h startHint) {
 			p.notifyLocked()
 			p.mu.Unlock()
 			p.note("failed: %v", err)
+			p.saveLogs()
 			return
 		}
 		delay := p.backoff(crashes)
@@ -409,6 +420,7 @@ func (p *Proc) supervise(ctx context.Context, done chan struct{}, h startHint) {
 		p.notifyLocked()
 		p.mu.Unlock()
 		p.note("exited: %v; restarting in %s (%d/%d)", err, delay.Round(10*time.Millisecond), crashes, p.m.o.MaxCrashes)
+		p.saveLogs()
 		select {
 		case <-ctx.Done():
 			p.setState(StateStopped, "")
@@ -489,6 +501,8 @@ func lookPath(name string, env []string, dir string) (string, error) {
 }
 
 func (p *Proc) runOnce(ctx context.Context, h startHint) error {
+	p.ring.BeginRun("starting")
+	defer p.saveLogs()
 	p.mu.Lock()
 	spec := p.spec
 	force := p.forceSync
@@ -538,7 +552,7 @@ func (p *Proc) runOnce(ctx context.Context, h startHint) error {
 	p.mu.Lock()
 	p.cur, p.pid, p.startedAt = c, c.pid, time.Now()
 	p.mu.Unlock()
-	p.logf("started pid %d", c.pid)
+	p.note("started, pid %d", c.pid)
 	go func() {
 		werr := cmd.Wait()
 		errW.Flush()
@@ -563,6 +577,7 @@ func (p *Proc) runOnce(ctx context.Context, h startHint) error {
 	p.mu.Unlock()
 	p.failPending("the managed process exited")
 	if ctx.Err() != nil {
+		p.note("stopped (%s)", exitText(c.waitErr))
 		return ctx.Err()
 	}
 	if initErr != nil {

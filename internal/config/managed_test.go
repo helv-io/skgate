@@ -7,7 +7,7 @@ import (
 )
 
 func clearManaged(t *testing.T) {
-	for _, k := range []string{"MANAGED_DIR", "MANAGED_CACHE_DIR", "MANAGED_MAX_PROCS", "MANAGED_STOP_GRACE", "MANAGED_LOG_LINES", "MANAGED_INSTALL_TIMEOUT"} {
+	for _, k := range []string{"MANAGED_DIR", "MANAGED_CACHE_DIR", "MANAGED_MAX_PROCS", "MANAGED_STOP_GRACE", "MANAGED_LOG_LINES", "MANAGED_INSTALL_TIMEOUT", "LOG_LINES"} {
 		t.Setenv(k, "")
 	}
 }
@@ -17,7 +17,7 @@ func TestManagedDefaults(t *testing.T) {
 	t.Setenv("DB_PATH", "/var/lib/sk/skgate.db")
 	c := Load()
 	if c.ManagedCacheDir != filepath.Join("/var/lib/sk", "cache", "managed") || c.ManagedDir != filepath.Join("/var/lib/sk", "managed") || c.ManagedMaxProcs != 0 || c.ManagedStopGrace != 5*time.Second ||
-		c.ManagedLogLines != 2000 || c.ManagedInstallMax != 15*time.Minute {
+		c.ManagedLogLines != 1000 || c.ManagedInstallMax != 15*time.Minute {
 		t.Fatalf("defaults: %+v", c)
 	}
 }
@@ -36,8 +36,15 @@ func TestManagedOverridesAndRemovedKnobs(t *testing.T) {
 	if c.ManagedDir != "/srv/m" || c.ManagedMaxProcs != 3 {
 		t.Fatalf("overrides: %+v", c)
 	}
-	if c.ManagedCacheDir != filepath.Join("/var/lib/sk", "cache", "managed") || c.ManagedStopGrace != 5*time.Second || c.ManagedLogLines != 2000 || c.ManagedInstallMax != 15*time.Minute {
+	if c.ManagedCacheDir != filepath.Join("/var/lib/sk", "cache", "managed") || c.ManagedStopGrace != 5*time.Second || c.ManagedLogLines != 1000 || c.ManagedInstallMax != 15*time.Minute {
 		t.Fatalf("removed variables must be ignored: %+v", c)
+	}
+	// LOG_LINES is the one log knob: lines of output kept per managed process, 10 to 10000, else the default.
+	for in, want := range map[string]int{"": 1000, "250": 250, "5": 1000, "20000": 1000, "lots": 1000, "10000": 10000} {
+		t.Setenv("LOG_LINES", in)
+		if got := Load().ManagedLogLines; got != want {
+			t.Errorf("LOG_LINES=%q gives %d, want %d", in, got, want)
+		}
 	}
 	t.Setenv("MANAGED_MAX_PROCS", "many")
 	if Load().ManagedMaxProcs != 0 {

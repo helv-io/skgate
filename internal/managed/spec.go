@@ -43,9 +43,10 @@ type Spec struct {
 	Command        string
 	Args           []string
 	Env            []KV
-	Shell          bool   // run Command through /bin/sh -c (Args become $1..)
-	WorkDir        string // absolute; empty means the per-alias default (repo dir for git)
-	Install        string // shell command run before start when its inputs changed
+	PlainEnv       []string // names of Env values known not to be secret (URLs, hosts, ports): they may show in the output
+	Shell          bool     // run Command through /bin/sh -c (Args become $1..)
+	WorkDir        string   // absolute; empty means the per-alias default (repo dir for git)
+	Install        string   // shell command run before start when its inputs changed
 	StartupTimeout time.Duration
 	Lifecycle      string
 	IdleTimeout    time.Duration

@@ -57,7 +57,7 @@ func (u Upstream) KindOrRemote() string {
 
 // Spec converts a managed upstream into the process specification.
 func (u Upstream) Spec() managed.Spec {
-	s := managed.Spec{Alias: u.Alias, Command: u.Command, Args: u.Args, Env: toManaged(u.Env), Shell: u.Shell, WorkDir: u.WorkDir,
+	s := managed.Spec{Alias: u.Alias, Command: u.Command, Args: u.Args, Env: toManaged(u.Env), PlainEnv: u.PlainEnv, Shell: u.Shell, WorkDir: u.WorkDir,
 		Install: u.Install, StartupTimeout: time.Duration(u.StartupSecs) * time.Second, Lifecycle: u.Lifecycle,
 		IdleTimeout: time.Duration(u.IdleSecs) * time.Second, AutoUpdate: time.Duration(u.AutoUpdateSecs) * time.Second}
 	if u.Kind == KindGit {

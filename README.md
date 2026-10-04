@@ -252,6 +252,7 @@ Set under `environment:` (or `env_file`); placeholders in [`.env.example`](.env.
 | `LISTEN_ADDR` | `:8080` | Listen address. |
 | `DB_PATH` | `/data/skgate.db` | SQLite file. |
 | `LOG_LEVEL` | `info` | `info` or `debug`. |
+| `LOG_LINES` | `1000` | Lines of output kept per managed process (its current and previous run, at most 512 KB). |
 | `TZ` | `UTC` | Time zone for the UI and logs, for example `America/New_York`. |
 | `PUID`, `PGID` | `1000` | Run-as ids; never `0`. |
 | `MANAGED_DIR` | `/data/managed` | Work dirs and clones of managed upstreams. |

@@ -20,7 +20,7 @@ var Edition = "full"
 const (
 	DefaultManagedMaxProcs   = 0 // 0 = unlimited
 	DefaultManagedStopGrace  = 5 * time.Second
-	DefaultManagedLogLines   = 2000
+	DefaultManagedLogLines   = 1000
 	DefaultManagedInstallMax = 15 * time.Minute
 )
 
@@ -49,7 +49,7 @@ type Config struct {
 	ManagedCacheDir   string        // per-alias package caches (npm, uv, pip), <db dir>/cache/managed
 	ManagedMaxProcs   int           // MANAGED_MAX_PROCS: concurrent child processes, 0 = unlimited
 	ManagedStopGrace  time.Duration // SIGTERM to SIGKILL delay (internal default)
-	ManagedLogLines   int           // stderr lines kept per process (internal default)
+	ManagedLogLines   int           // LOG_LINES: lines of output kept per managed process (also capped at 512 KB)
 	ManagedInstallMax time.Duration // limit for one install step (internal default)
 	UpdateCheckURL    string        // GitHub latest-release API polled for the header's update hint; empty = no check (UPDATE_CHECK=false)
 	GitHubToken       string        // GITHUB_TOKEN: Suggest reads GitHub repositories with it unless the upstream has its own token
@@ -157,7 +157,7 @@ func Load() *Config {
 		ManagedDir:        strings.TrimSpace(os.Getenv("MANAGED_DIR")),
 		ManagedMaxProcs:   intEnv("MANAGED_MAX_PROCS", DefaultManagedMaxProcs, 0, 100000),
 		ManagedStopGrace:  DefaultManagedStopGrace,
-		ManagedLogLines:   DefaultManagedLogLines,
+		ManagedLogLines:   intEnv("LOG_LINES", DefaultManagedLogLines, 10, 10000),
 		ManagedInstallMax: DefaultManagedInstallMax,
 	}
 	if c.ManagedDir == "" {

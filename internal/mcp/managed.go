@@ -49,6 +49,9 @@ func (s *Server) SyncManaged(alias string) {
 	up, ok := s.Upstreams.Get(alias)
 	if !ok || !up.Managed() || !up.Enabled {
 		s.Managed.Forget(alias)
+		if !ok {
+			s.Managed.DropLog(alias) // the upstream is gone: so is its kept output
+		}
 		return
 	}
 	if ok, _ := s.ManagedState(); !ok {
@@ -373,6 +376,9 @@ func (s *Server) ProcessAction(up Upstream, action string) (string, error) {
 	}
 	return "", errors.New("unknown action")
 }
+
+// ProcessLog returns the output log of a managed upstream: the live one, or the one kept from its last runs.
+func (s *Server) ProcessLog(alias string) (*managed.Ring, bool) { return s.Managed.Log(alias) }
 
 // ProcessLogs returns the last n captured lines of a managed process (oldest first).
 func (s *Server) ProcessLogs(alias string, n int) []managed.Line {
