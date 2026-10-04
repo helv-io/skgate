@@ -44,6 +44,15 @@ func (p *Proxy) backend(id string) (Backend, bool) {
 	return nil, false
 }
 
+// Has reports whether a provider with this id is behind the proxy.
+func (p *Proxy) Has(id string) bool { _, ok := p.backend(id); return ok }
+
+// IsReady reports whether the provider with this id can take requests now.
+func (p *Proxy) IsReady(id string) bool {
+	b, ok := p.backend(id)
+	return ok && isReady(b)
+}
+
 // firstReady is the provider that serves a request which names no model: the first one that can take it (Grok when
 // it is signed in), else the first provider, whose sign-in error then explains what is missing.
 func (p *Proxy) firstReady() Backend {
