@@ -1,3 +1,9 @@
 .git
 *.db
 *.db-*
+/data/
+.env
+.env.*
+!.env.example
+*.key
+_*
