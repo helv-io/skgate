@@ -115,7 +115,7 @@ Aliases are listed first in `/v1/models`.
 
 Needs the `latest` image and an MCP helper model from any ready provider. The first time, **Pick MCP helper model** next to the button opens the model picker right on the page.
 
-**mcp upstreams** > **Add upstream** > Type `managed (package or repository)`:
+**mcp upstreams** > **Add upstream** > Type `managed process`:
 
 1. **MCP source URL / package**, one of:
 
@@ -201,7 +201,7 @@ Served at `https://skgate.example.com/mcp/everything`. For Python servers use `"
 
 <details><summary>Remote MCP server</summary>
 
-**mcp upstreams** > **Add upstream** > Type `remote (URL)`, or import:
+**mcp upstreams** > **Add upstream** > Type `remote server`, or import:
 
 ```json
 {"mcpServers": {"docs": {"type": "http", "url": "https://mcp.example.com/mcp",

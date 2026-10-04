@@ -6,7 +6,7 @@ An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API
 
 ## Add one
 
-**Add upstream**, type **OpenAPI (REST API)**.
+**Add upstream**, type **OpenAPI**.
 
 | Field | Meaning |
 | --- | --- |
