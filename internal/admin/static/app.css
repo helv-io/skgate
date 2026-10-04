@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .compact .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .stack .dialog-head .dialog-body .reveal .dsec .danger-zone .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -209,6 +209,10 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .dialog-body h4,.card h3{margin:16px 0 6px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
 .card h3{margin:0;font-size:15px;text-transform:none;letter-spacing:0;color:var(--fg)}
 .row.spread{justify-content:space-between;margin:0 0 8px}
+/* danger zone: the irreversible actions of a dialog, framed in red below the form's Save and apart from it */
+.danger-zone{border:1px solid #5a3532;padding:10px 14px 14px;margin:20px 0 4px}
+.dialog-body .danger-zone h4{margin:0 0 6px;color:var(--bad)}
+.danger-zone .actions{margin-top:10px}
 /* dialog sections: each one saves on its own; the heading shows a chip while it holds unsaved edits */
 .dsec{display:block;padding:0 0 12px;border-top:1px solid var(--line2)}
 .dsec:first-child{border-top:0}
