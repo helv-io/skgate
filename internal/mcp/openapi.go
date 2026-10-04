@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"time"
 
 	"github.com/helv-io/skgate/internal/config"
 	"github.com/helv-io/skgate/internal/httputil"
@@ -61,6 +62,10 @@ func (u *Upstream) validateOpenAPI() error {
 	case "":
 		u.AuthKind = AuthNone
 	case AuthNone:
+	case AuthAuto: // one key: the way to send it comes from the description, or is found by trying
+		if u.AuthValue == "" {
+			return errors.New("enter the key or token")
+		}
 	case AuthBearer:
 		if u.AuthValue == "" {
 			return errors.New("bearer auth needs a token")
@@ -80,7 +85,7 @@ func (u *Upstream) validateOpenAPI() error {
 	default:
 		return errors.New("auth kind must be none, bearer, header, query or basic")
 	}
-	if u.AuthKind == AuthNone || u.AuthKind == AuthBearer {
+	if u.AuthKind == AuthNone || u.AuthKind == AuthBearer || u.AuthKind == AuthAuto {
 		u.AuthName = ""
 	}
 	u.Lifecycle = "always"
@@ -113,6 +118,8 @@ type OAState struct {
 	Doc    *openapi.Doc
 	Ops    []openapi.Op
 	Tools  []openapi.Tool
+	// Scheme is the way the description says a key is sent (Kind "" when it says nothing).
+	Scheme openapi.Scheme
 }
 
 // OpenAPI returns the stored description of an OpenAPI upstream, parsed. The result is cached until it changes.
@@ -146,7 +153,7 @@ func buildState(cfg OpenAPIConfig) (*OAState, error) {
 		return nil, fmt.Errorf("the stored description is unreadable: %w", err)
 	}
 	ops := doc.Operations()
-	return &OAState{Config: cfg, Doc: doc, Ops: ops, Tools: openapi.Tools(ops, cfg.Selection)}, nil
+	return &OAState{Config: cfg, Doc: doc, Ops: ops, Tools: openapi.Tools(ops, cfg.Selection), Scheme: doc.Scheme()}, nil
 }
 
 // SetOpenAPI stores the description and selection of an OpenAPI upstream.
@@ -172,10 +179,25 @@ func (s *Upstreams) OpenAPIToolCount(alias string) int {
 	return len(st.Tools)
 }
 
+// oaAuth is the credential an OpenAPI upstream sends, given the way its description says a key is sent. A single
+// key (auto) goes the way that was found to work, else the way the description names, else as a bearer token.
+func (u Upstream) oaAuth(sch openapi.Scheme) openapi.Auth {
+	if u.AuthKind == AuthAuto {
+		if u.AuthValue == "" {
+			return openapi.Auth{Kind: AuthNone}
+		}
+		w := openapi.Way(u.DetectedKind)
+		if !w.Valid() {
+			w = sch.Way()
+		}
+		return w.Auth(u.AuthValue)
+	}
+	return openapi.Auth{Kind: u.AuthKind, Name: u.AuthName, Value: u.AuthValue}
+}
+
 // caller makes the HTTP calls of an OpenAPI upstream.
-func (u Upstream) caller() *openapi.Caller {
-	a := openapi.Auth{Kind: u.AuthKind, Name: u.AuthName, Value: u.AuthValue}
-	return &openapi.Caller{Base: u.URL, Auth: a, UA: "skgate-openapi/" + config.Version}
+func (u Upstream) caller(sch openapi.Scheme) *openapi.Caller {
+	return &openapi.Caller{Base: u.URL, Auth: u.oaAuth(sch), UA: "skgate-openapi/" + config.Version}
 }
 
 func oaToolJSON(t openapi.Tool) map[string]any {
@@ -197,7 +219,7 @@ func (s *Server) oaDispatch(ctx context.Context, up Upstream, method string, par
 		}
 		tools := make([]any, 0, len(st.Tools))
 		for _, t := range st.Tools {
-			tools = append(tools, oaToolJSON(t.WithoutCredential(up.caller().Auth)))
+			tools = append(tools, oaToolJSON(t.WithoutCredential(up.caller(st.Scheme).Auth)))
 		}
 		return map[string]any{"tools": tools}, nil
 	case "tools/call":
@@ -219,7 +241,14 @@ func (s *Server) oaDispatch(ctx context.Context, up Upstream, method string, par
 			if up.SecretErr {
 				return toolText("the stored credential cannot be decrypted (SECRETS_KEY changed); set it again on the upstream", true), nil
 			}
-			res := up.caller().Call(ctx, t.WithoutCredential(up.caller().Auth), p.Arguments)
+			cl := up.caller(st.Scheme)
+			res := cl.Call(ctx, t.WithoutCredential(cl.Auth), p.Arguments)
+			if openapi.Refused(res.Status) && s.findKeyWay(ctx, &up, st) { // first use: the usual ways are tried, once
+				if t.Op.Method == http.MethodGet || t.Op.Method == http.MethodHead {
+					cl = up.caller(st.Scheme)
+					res = cl.Call(ctx, t.WithoutCredential(cl.Auth), p.Arguments)
+				}
+			}
 			return toolText(res.Text, res.IsError), nil
 		}
 		return nil, &rpcError{Code: rpcInvalidParams, Message: "unknown tool " + clipText(p.Name, 80)}
@@ -355,11 +384,35 @@ func (s *Server) oaInitialize(up Upstream, params json.RawMessage) map[string]an
 // testOpenAPI is Test for an OpenAPI upstream: the description must be readable and the base URL well formed.
 // Nothing is requested: an operation could change data, and a bare request could not tell a wrong credential apart.
 func (s *Server) testOpenAPI(ctx context.Context, up Upstream) (tr TestResult) {
-	tr.AuthMode, tr.Auth = up.AuthKind, up.AuthKind
 	st, err := s.Upstreams.OpenAPI(up.Alias)
 	if err != nil {
+		tr.AuthMode, tr.Auth = up.AuthKind, up.AuthKind
 		tr.Error = err.Error()
 		return tr
+	}
+	tr = s.testOpenAPIState(ctx, up, st)
+	if tr.Way != "" && tr.Way != up.DetectedKind && up.AuthKind == AuthAuto {
+		_ = s.Upstreams.SetDetected(up.Alias, tr.Way, "")
+	}
+	return tr
+}
+
+// TestOpenAPIDraft tests an OpenAPI upstream that is not stored yet: its description and tool choice are cfg.
+func (s *Server) TestOpenAPIDraft(ctx context.Context, up Upstream, cfg OpenAPIConfig) TestResult {
+	st, err := buildState(cfg)
+	if err != nil {
+		return TestResult{Error: err.Error()}
+	}
+	return s.testOpenAPIState(ctx, up, st)
+}
+
+// queryWarning is shown when the key travels in the web address.
+const queryWarning = "This API takes the key in the web address. It can show up in logs."
+
+func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState) (tr TestResult) {
+	tr.AuthMode = up.AuthKind
+	if up.AuthKind != AuthAuto {
+		tr.Auth = up.AuthKind
 	}
 	tr.ToolTotal = len(st.Tools)
 	for i, t := range st.Tools {
@@ -376,6 +429,73 @@ func (s *Server) testOpenAPI(ctx context.Context, up Upstream) (tr TestResult) {
 	if n := len(st.Tools); n == 0 {
 		tr.Warnings = append(tr.Warnings, "no operation is enabled: the server offers no tools")
 	}
+	if up.SecretErr {
+		tr.Error = "the stored key cannot be read; enter it again"
+		return tr
+	}
+	if op, ok := st.Doc.ProbeOp(st.Ops); ok { // one safe read tells whether the server takes the key
+		ua := "skgate-openapi/" + config.Version
+		auth := up.oaAuth(st.Scheme)
+		status := 0
+		switch {
+		case up.AuthKind == AuthAuto:
+			ways := openapi.Ways(st.Scheme, up.AuthValue)
+			if d := openapi.Way(up.DetectedKind); d.Valid() {
+				ways = append([]openapi.Way{d}, ways...)
+			}
+			got := openapi.TryKey(ctx, up.URL, op, up.AuthValue, ways, ua)
+			status = got.Status
+			if got.OK {
+				tr.Way = string(got.Way)
+				auth = got.Way.Auth(up.AuthValue)
+			}
+		default:
+			status = openapi.TryAuth(ctx, up.URL, op, auth, ua)
+		}
+		switch {
+		case status == 0:
+			tr.Error = "skgate cannot reach the server."
+			return tr
+		case openapi.Refused(status) && auth.Kind != AuthNone:
+			tr.Error = "The server refused the key."
+			return tr
+		case openapi.Refused(status):
+			tr.Warnings = append(tr.Warnings, "The server asks for a key.")
+		}
+		if auth.Kind == AuthQuery {
+			tr.Warnings = append(tr.Warnings, queryWarning)
+		}
+	}
 	tr.OK = true
 	return tr
+}
+
+// findKeyWay tries the usual ways to send the key of up after the server refused it, when the description says
+// nothing about it and nothing was found before. It stores the way that works and updates up. At most once a minute
+// per upstream.
+func (s *Server) findKeyWay(ctx context.Context, up *Upstream, st *OAState) bool {
+	if up.AuthKind != AuthAuto || up.DetectedKind != "" || st.Scheme.Kind != "" || up.AuthValue == "" || !s.Upstreams.allowKeyProbe(up.Alias) {
+		return false
+	}
+	op, ok := st.Doc.ProbeOp(st.Ops)
+	if !ok {
+		return false
+	}
+	got := openapi.TryKey(ctx, up.URL, op, up.AuthValue, openapi.Ways(st.Scheme, up.AuthValue), "skgate-openapi/"+config.Version)
+	if !got.OK {
+		return false
+	}
+	up.DetectedKind = string(got.Way)
+	_ = s.Upstreams.SetDetected(up.Alias, up.DetectedKind, "")
+	return true
+}
+
+// allowKeyProbe lets one search for the way to send a key run per minute and upstream.
+func (s *Upstreams) allowKeyProbe(alias string) bool {
+	now := time.Now()
+	if v, ok := s.keyTried.Load(alias); ok && now.Sub(v.(time.Time)) < time.Minute {
+		return false
+	}
+	s.keyTried.Store(alias, now)
+	return true
 }

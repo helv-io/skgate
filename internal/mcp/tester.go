@@ -30,11 +30,13 @@ type ToolInfo struct {
 
 // TestResult is the outcome of the admin "Test" button.
 type TestResult struct {
-	OK          bool
-	Status      int    // HTTP status of the initialize call (0 when unreachable)
-	Auth        string // effective auth used: none, bearer, header, passthrough
-	AuthMode    string // configured mode (auto, ...)
-	Detected    string
+	OK       bool
+	Status   int    // HTTP status of the initialize call (0 when unreachable)
+	Auth     string // effective auth used: none, bearer, header, passthrough
+	AuthMode string // configured mode (auto, ...)
+	Detected string
+	// Way is the way an OpenAPI key was sent that worked. It is stored, never shown.
+	Way         string
 	Latency     time.Duration
 	Server      string // serverInfo name and version
 	Protocol    string
