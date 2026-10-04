@@ -19,7 +19,7 @@ The plane in the logo is an inside joke. The public wouldn't understand it, and 
 
 Before you start: an [OIDC provider](#oidc-setup) with a confidential client for skgate (admin login is OIDC only). Just trying it on one machine? [docs/quickstart.md](docs/quickstart.md) runs skgate with a bundled provider and no accounts.
 
-A Grok subscription is recommended but not required.
+Grok is the best fit: works with your subscription, no API key. But skgate also speaks to OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama and any OpenAI-compatible endpoint. Point your apps at one skgate URL and switch their AI provider in one place, with no app changes.
 
 ```yaml
 # docker-compose.yml
