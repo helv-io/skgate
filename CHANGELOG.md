@@ -8,10 +8,13 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [0.14.2] - 2026-10-04
 
+### Fixed
+
+- Tool descriptions on the Test page no longer look clickable when a click shows nothing: text that fits is plain, and only a line that is cut off gets the dotted underline and opens on a click or Enter
+
 ### Changed
 
-- Test page: Name/Description about 30/70 and the shared underline rule
-- Tool descriptions are plain text unless a click shows more
+- The Test page's tools table is split about 30% Name and 70% Description on wide screens; long names wrap and phones keep the card layout
 
 ## [0.14.1] - 2026-10-04
 
