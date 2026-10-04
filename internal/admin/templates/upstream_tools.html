@@ -11,7 +11,7 @@
 {{range .Rows}}<div class="tool{{if .Skip}} skipped{{end}}" data-tool data-key="{{.Key}}">
 <div class="tool-head"><label class="check"><input type="checkbox" name="on" value="{{.Key}}" data-tool-on{{if .Enabled}} checked{{end}}{{if .Skip}} disabled{{end}} aria-label="expose {{.Key}}"><code class="tool-path">{{.Path}}</code></label>{{if .Deprecated}} <span class="chip">deprecated</span>{{end}}{{if .Skip}} <span class="chip">skipped: {{.Skip}}</span>{{end}}</div>
 {{if not .Skip}}<input type="hidden" name="key" value="{{.Key}}">
-<div class="tool-fields"><label>Name<input type="text" name="name" value="{{.Name}}" maxlength="64" pattern="[A-Za-z0-9_\-]+" autocomplete="off" spellcheck="false" data-tool-name></label>
+<div class="tool-fields"><label>Name<input type="text" name="name" value="{{.Name}}" maxlength="64" pattern="[A-Za-z0-9_\-]+" title="letters, digits, underscores and dashes" autocomplete="off" spellcheck="false" data-tool-name></label>
 <label>Description<input type="text" name="desc" value="{{.Desc}}" maxlength="1000" autocomplete="off" data-tool-desc></label></div>{{end}}
 </div>{{end}}
 </details>

@@ -639,7 +639,6 @@ type oaView struct {
 // healthView is the health pill of a remote upstream and its last error.
 type healthView struct {
 	Class, Text, Tip string
-	LastErr          string // short text, shown under the pill while the upstream is failing
 }
 
 // healthOf describes the latest calls to a remote upstream. Nothing has been called since start: "no calls yet".
@@ -649,7 +648,7 @@ func healthOf(h mcp.Health, known bool) *healthView {
 	}
 	v := &healthView{Class: "ok", Text: "ok", Tip: "last call worked at " + stamp(h.At)}
 	if !h.OK {
-		v.Class, v.Text, v.LastErr = "bad", "failing", h.LastErr
+		v.Class, v.Text = "bad", "failing"
 		v.Tip = "last call failed at " + stamp(h.LastErrAt) + ": " + h.LastErr
 		if !h.LastOK.IsZero() {
 			v.Tip += "\nlast success at " + stamp(h.LastOK)
@@ -1020,9 +1019,6 @@ func (a *Admin) view(u mcp.Upstream) upstreamView {
 		h, known := a.MCP.HealthOf(u.Alias)
 		v.Health = healthOf(h, known)
 		v.Facts = append(v.Facts, fact{Name: "health", Value: v.Health.Text + map[bool]string{true: " (" + v.Health.Tip + ")", false: ""}[known]})
-		if known && !h.OK {
-			v.Facts = append(v.Facts, fact{Name: "last error", Value: h.LastErr})
-		}
 	}
 	return v
 }

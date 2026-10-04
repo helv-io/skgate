@@ -16,7 +16,7 @@
 {{template "suggest_controls" .Suggest}}
 {{template "suggest_result"}}
 </div>
-{{if .New}}<div class="field"><label>Alias<input type="text" name="alias" required pattern="[a-z0-9\-]+" maxlength="63" value="{{.U.Alias}}"></label></div>{{end}}
+{{if .New}}<div class="field"><label>Alias<input type="text" name="alias" required pattern="[a-z0-9\-]+" title="lowercase letters, digits and dashes" maxlength="63" value="{{.U.Alias}}"></label></div>{{end}}
 
 <div class="group" data-kind="remote">
 <div class="field"><label>URL<input type="url" name="url" placeholder="http://mcp-server:8000/mcp" value="{{.U.URL}}"></label></div>
