@@ -99,6 +99,8 @@ func containsAny(s, chars string) bool {
 type OpenAPIConfig struct {
 	Spec      string // the normalized description, JSON
 	SpecURL   string // where it came from, if a URL (for the admin to refetch; never fetched at run time)
+	FetchedAt int64  // unix time the description was last read from SpecURL (0: never, or pasted)
+	SpecHash  string // SHA-256 of the text fetched then ("" when not recorded)
 	Selection openapi.Selection
 }
 
@@ -118,7 +120,7 @@ func (s *Upstreams) OpenAPI(alias string) (*OAState, error) {
 	gen := s.oaGen.Load()
 	var cfg OpenAPIConfig
 	var sel string
-	err := s.db.QueryRow(`SELECT spec,spec_url,selection FROM upstream_openapi WHERE alias=?`, alias).Scan(&cfg.Spec, &cfg.SpecURL, &sel)
+	err := s.db.QueryRow(`SELECT spec,spec_url,selection,fetched_at,spec_hash FROM upstream_openapi WHERE alias=?`, alias).Scan(&cfg.Spec, &cfg.SpecURL, &sel, &cfg.FetchedAt, &cfg.SpecHash)
 	if err != nil {
 		return nil, errors.New("no OpenAPI description is stored for this upstream")
 	}
@@ -150,8 +152,9 @@ func (s *Upstreams) SetOpenAPI(alias string, cfg OpenAPIConfig) error {
 		return err
 	}
 	sel, _ := json.Marshal(cfg.Selection)
-	_, err := s.db.Exec(`INSERT INTO upstream_openapi(alias,spec,spec_url,selection) VALUES(?,?,?,?)
-		ON CONFLICT(alias) DO UPDATE SET spec=excluded.spec,spec_url=excluded.spec_url,selection=excluded.selection`, alias, cfg.Spec, cfg.SpecURL, string(sel))
+	_, err := s.db.Exec(`INSERT INTO upstream_openapi(alias,spec,spec_url,selection,fetched_at,spec_hash) VALUES(?,?,?,?,?,?)
+		ON CONFLICT(alias) DO UPDATE SET spec=excluded.spec,spec_url=excluded.spec_url,selection=excluded.selection,
+		fetched_at=excluded.fetched_at,spec_hash=excluded.spec_hash`, alias, cfg.Spec, cfg.SpecURL, string(sel), cfg.FetchedAt, cfg.SpecHash)
 	s.oaCache.Delete(alias)
 	s.oaGen.Add(1)
 	return err
