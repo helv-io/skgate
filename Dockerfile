@@ -25,6 +25,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/skgate-
 RUN mkdir -p /out/data /out/data/cache
 
 FROM gcr.io/distroless/static:nonroot AS slim
+# The official MCP registry checks this label against the name in server.json.
+LABEL io.modelcontextprotocol.server.name="io.github.helv-io/skgate"
 COPY --from=build /out/skgate-slim /skgate
 COPY --from=build --chown=1000:1000 /out/data /data
 ENV DB_PATH=/data/skgate.db LISTEN_ADDR=:8080
@@ -46,6 +48,8 @@ FROM golang:${GO_RUNTIME_VERSION}-bookworm AS gotool
 RUN rm -rf /usr/local/go/doc /usr/local/go/test /usr/local/go/misc /usr/local/go/api
 
 FROM node:${NODE_VERSION}-bookworm-slim AS full
+# The official MCP registry checks this label against the name in server.json.
+LABEL io.modelcontextprotocol.server.name="io.github.helv-io/skgate"
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates git libgcc-s1 libssl3 libstdc++6 python3 python3-pip python3-venv tini zlib1g \
  && rm -rf /var/lib/apt/lists/* /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
