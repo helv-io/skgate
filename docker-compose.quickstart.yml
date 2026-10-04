@@ -1,0 +1,71 @@
+# Try skgate on one machine with no accounts: skgate plus Dex, a small OIDC provider with one fixed login.
+# For a local trial only: the login, client secret and plain http are public knowledge. Do not expose it.
+# Needs Docker Compose 2.23.1 or newer (inline configs).
+#   docker compose -f docker-compose.quickstart.yml up -d
+# Open http://localhost:8080/admin and sign in as admin@example.com with the password "password".
+# Ports and the image tag can be changed in a .env file (see quickstart.env.example).
+services:
+  skgate:
+    container_name: skgate
+    image: ghcr.io/helv-io/skgate:${SKGATE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${SKGATE_PORT:-8080}:8080
+    environment:
+      - PUBLIC_URL=http://localhost:${SKGATE_PORT:-8080}
+      - OIDC_ISSUER=http://dex.localhost:${DEX_PORT:-5556}/dex
+      - OIDC_CLIENT_ID=skgate
+      - OIDC_CLIENT_SECRET=quickstart-secret-not-for-production
+      - OIDC_ALLOWED_EMAILS=admin@example.com
+    volumes:
+      - skgate-data:/data
+    depends_on:
+      - dex
+    healthcheck:
+      test: ["CMD", "/skgate", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  dex:
+    container_name: skgate-dex
+    image: ghcr.io/dexidp/dex:latest
+    restart: unless-stopped
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    ports:
+      - 127.0.0.1:${DEX_PORT:-5556}:5556
+    configs:
+      - source: dex-config
+        target: /etc/dex/config.yaml
+    networks:
+      default:
+        # skgate reaches Dex under the same name your browser uses; *.localhost is loopback in browsers.
+        aliases:
+          - dex.localhost
+
+configs:
+  dex-config:
+    content: |
+      issuer: http://dex.localhost:${DEX_PORT:-5556}/dex
+      storage:
+        type: memory
+      web:
+        http: 0.0.0.0:5556
+      oauth2:
+        skipApprovalScreen: true
+      enablePasswordDB: true
+      staticPasswords:
+        # admin@example.com / password (bcrypt)
+        - email: admin@example.com
+          hash: "$$2a$$10$$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+          username: admin
+          userID: 08a8684b-db88-4b73-90a9-3cd1661f5466
+      staticClients:
+        - id: skgate
+          name: skgate
+          secret: quickstart-secret-not-for-production
+          redirectURIs:
+            - http://localhost:${SKGATE_PORT:-8080}/admin/oidc/callback
+
+volumes:
+  skgate-data:
