@@ -61,7 +61,7 @@ The managed form has two main fields: **MCP source URL / package** and **Access 
 | Git URL (GitHub, GitLab, Gitea/Forgejo, Bitbucket; `/tree/<ref>/<dir>` accepted) | Git upstream. Node, Python, .NET (`dotnet`) and Go (`go`) repositories are detected. |
 | npm package (`pkg`, `@scope/pkg@1.2.3`, `npm:pkg`, npmjs.com URL) | Runs with `npx`. |
 | PyPI package (`pkg==1.2.3`, `pypi:pkg`, pypi.org URL) | Runs with `uvx`. |
-| crates.io, Go modules, Docker, NuGet, RubyGems, Maven, JSR/Deno | Refused with a message: the image has no `cargo`, `go`, `docker`, `gem`, `mvn` or `deno`, and NuGet packages are not run directly (point at the git repository instead). |
+| crates.io, Go modules, Docker, NuGet, RubyGems, Maven, JSR/Deno | Refused with a message: the image has no `cargo`, `docker`, `gem`, `mvn` or `deno`, and NuGet packages and Go module addresses are not run directly (point at the git repository instead). |
 
 How Suggest configuration works:
 
@@ -69,7 +69,7 @@ How Suggest configuration works:
 - skgate fetches the README and manifests itself (`package.json`, `pyproject.toml`, `server.json`, ...) through the host's API, with the token when given. The model sees those documents, never the token; the token is not logged.
 - The model call is streamed, with the reasoning chosen in the MCP helper model dialog (auto: the model decides). It ends after the helper timeout without data (default 120 seconds, set next to the model; for models that look like heavy reasoners the dialog suggests 600) or after 5 minutes overall, twice the timeout when that is longer; the progress line then shows a timed-out state with the stage and elapsed time and a **Lower reasoning** button. A provider that rejects `reasoning_effort` gets the request again without it.
 - Validated suggestions use a command available on the host, name and pin the package, list only environment variables the documents mention, each marked secret or not and required or optional, and come with confidence and warnings. The result lists the warnings first, each with an icon, then the review line; the notes are folded under **Notes (n)**. The variable fields start empty: the placeholder says Required or Optional, and secret ones are masked.
-- Disabled, with a tooltip, until you are signed in and an MCP helper model is picked. **Pick MCP helper model** next to it opens the picker in place; the button enables without a page reload.
+- Disabled, with a tooltip, until an MCP helper model of a ready provider is picked. **Pick MCP helper model** next to it opens the picker in place; the button enables without a page reload.
 
 ### Kinds
 
@@ -82,10 +82,10 @@ How Suggest configuration works:
 | Env | Name/value rows (up to 64), encrypted at rest. Secret values (keys, tokens, passwords) are masked; URLs, hosts and the like show in clear. A variable with an empty value is not set, so the server keeps its own default. |
 | Shell mode | Opt-in. Runs `sh -c` on the command line. Off by default. |
 | Install command | Optional. Runs once before start (again when it changes, or on **Update**), in the upstream's directory, limited to 15 minutes. |
-| Lifecycle | `on-demand` (start on first request, stop after 10 minutes idle) or `always` (start at boot). |
+| Lifecycle | `on-demand` (start on first request, stop after 10 minutes idle) or `always-on` (start at boot; `always` in JSON). |
 | Startup timeout | Not in the form. Seconds until the child must answer `initialize`; 60 unless the suggestion helper or an imported `startupTimeoutSeconds` sets it. A stored value is kept on save. |
 
-**Git repository.** Same as above, with the repository URL in the source field (https, http or local path; no ssh), ref (branch or tag, default the remote's HEAD) and an optional token for private repos. skgate clones into `<MANAGED_DIR>/<alias>/repo` (shallow), runs the install step (for example `npm ci`, `uv sync`, `pip install -r requirements.txt`), then the command with the repo as working dir. **Update** fetches the ref, reruns install and restarts ([updates](#updates)). The token is encrypted at rest and passed to git only as an `http.extraHeader` through its environment, never in arguments or logs.
+**Git repository.** Same as above, with the repository URL in the source field (an https address; `git@host:owner/repo` is converted to https). Import JSON `gitUrl` also accepts http and `file://`, ref (branch or tag, default the remote's HEAD) and an optional token for private repos. skgate clones into `<MANAGED_DIR>/<alias>/repo` (shallow), runs the install step (for example `npm ci`, `uv sync`, `pip install -r requirements.txt`), then the command with the repo as working dir. **Update** fetches the ref, reruns install and restarts ([updates](#updates)). The token is encrypted at rest and passed to git only as an `http.extraHeader` through its environment, never in arguments or logs.
 
 Env and header lists start with one row; **Add** appends rows, **Delete** removes an added row, and blank rows are ignored on save, and unused variables need no deleting. A masked value left unchanged keeps the stored one.
 
@@ -121,8 +121,8 @@ Admin: upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}
 - `type` is `stdio`, `http` or `sse`. Without it, `command` means stdio and `url` means remote. `sse` is imported as Streamable HTTP with a note.
 - `cwd` is ignored; every command runs in its own directory (below).
 - `headers` with a `Bearer` authorization become bearer auth; other headers become custom headers.
-- An `skgate` block carries settings other clients lack: `lifecycle`, `shell`, `install`, `startupTimeoutSeconds`, `gitUrl`, `gitRef`, `autoUpdateSeconds`, `hostOverride`, `includeInAggregate`. `disabled: true` imports the upstream disabled.
-- Managed entries are refused while managed upstreams are off.
+- An `skgate` block carries settings other clients lack: `lifecycle`, `shell`, `install`, `startupTimeoutSeconds`, `gitUrl`, `gitRef`, `autoUpdateSeconds`, `idleTimeoutSeconds`, `hostOverride`, `includeInAggregate`. `disabled: true` imports the upstream disabled.
+- Managed entries are refused in the `slim` image.
 - **Export JSON** writes the same shape. Secret values (env, headers, tokens) are left empty.
 
 ### Process lifecycle

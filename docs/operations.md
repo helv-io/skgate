@@ -8,7 +8,7 @@ Image: `ghcr.io/helv-io/skgate`.
 
 | Tag | Contents |
 | --- | --- |
-| `latest` | Full: proxy + managed upstreams. Adds Node.js (npm/npx), Python 3 (pip), uv/uvx, git and tini as PID 1. |
+| `latest` | Full: proxy + managed upstreams. Adds Node.js (npm/npx), Python 3 (pip), uv/uvx, the .NET SDK (`dotnet`), Go, git and tini as PID 1. |
 | `slim` | Proxy only: MCP and provider proxying. No runtimes; managed upstreams are unavailable. |
 
 Release tags add versioned names: `X.Y.Z` and `vX.Y.Z` (full), `X.Y.Z-slim` and `vX.Y.Z-slim` (slim). Every build also gets `<sha>` and `<sha>-slim`. Both images use the same root start, `PUID`/`PGID` drop, `/data` volume and `/skgate healthcheck`.
@@ -48,7 +48,7 @@ The version number in the admin header links to the GitHub repository. It turns 
 - **Consent.** `MCP_OAUTH_REQUIRE_CONSENT` defaults to `true`.
 - **Managed runners** (servers, install and git steps) run as `nobody` (65534) by default, each upstream with its own writable work, home, tmp and cache directories, so a compromised runner cannot read `SECRETS_KEY`, the key file or the database. skgate itself keeps only the capabilities needed to start and stop them. If it is started as a non-root user without them (for example `user:` in compose), it cannot switch users: runners then run as skgate's own user and a warning is logged.
 - **Runner identity.** skgate refuses to start as `nobody` or `nogroup`, or with `PUID` or `PGID` set to 65534; it needs access to `SECRETS_KEY` and the database, which runners must not have.
-- **`/mcp`** includes only always-on managed upstreams. On-demand ones are excluded automatically, so `/mcp` does not start every process; the upstream form says so next to the option.
+- **`/mcp`** includes remote and OpenAPI upstreams marked **In /mcp**, and of the managed ones only the always-on. On-demand ones are excluded automatically, so `/mcp` does not start every process; the upstream form says so next to the option.
 - **Key limits** (optional, per virtual key; a key has none until you set them). A **rate limit** allows N requests per minute (fixed one-minute window, kept in memory) and answers `429` with `Retry-After` beyond it; rejected requests do not count. An **expiration** ends the key at a moment you choose: from then on the key is refused with `401` and a message that says it expired, on `/v1` and on MCP alike, and the keys table shows it as `expired`. Type the expiration as plain text (`30d`, `2w`, `6 months`, `tomorrow`, `friday`, `2026-12-31`, `dec 31`, optionally with a time such as `5pm`); the field shows what it understood, in the server's time zone, before you save, and a date alone means the end of that day. Empty means it never expires, and moving the date brings an expired key back with the same secret. Set both under **Limits** when creating a key, or with **edit** on the key's row.
 
 ### Logging

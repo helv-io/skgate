@@ -2,7 +2,6 @@
 
 Part of the [skgate README](../README.md).
 
-
 ```sh
 go build ./... && go vet ./... && go test ./...
 docker build -t skgate .                  # full (default target)
