@@ -45,14 +45,20 @@ func TestUnraidTemplateFilesParse(t *testing.T) {
 		}
 	}
 	var profile struct {
-		XMLName xml.Name `xml:"Profile"`
-		Name    string   `xml:"Name"`
+		XMLName xml.Name `xml:"CommunityApplications"`
+		Profile string   `xml:"Profile"`
+		Icon    string   `xml:"Icon"`
+		Web     string   `xml:"WebPage"`
+		Forum   string   `xml:"Forum"`
 	}
 	b, err = os.ReadFile(filepath.Join("..", "..", "ca_profile.xml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := xml.Unmarshal(b, &profile); err != nil || profile.Name == "" {
-		t.Fatalf("ca_profile.xml does not parse or has no name: %v %+v", err, profile)
+	if err := xml.Unmarshal(b, &profile); err != nil || strings.TrimSpace(profile.Profile) == "" {
+		t.Fatalf("ca_profile.xml does not parse or has no Profile text: %v %+v", err, profile)
+	}
+	if !strings.HasPrefix(profile.Icon, "https://raw.githubusercontent.com/helv-io/skgate/master/unraid/") || !strings.HasPrefix(profile.Web, "https://github.com/helv-io/skgate") || !strings.HasPrefix(profile.Forum, "https://forums.unraid.net/") {
+		t.Errorf("ca_profile.xml links: %+v", profile)
 	}
 }
