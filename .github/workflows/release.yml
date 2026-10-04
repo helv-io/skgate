@@ -14,6 +14,8 @@
 # A manual run (workflow_dispatch) does the same but tags the result ci-test-<run id> (and ci-test-<run id>-slim)
 # only, never a version, latest or slim, so a change to this file can be proven without releasing.
 #
+#   mcp-registry   after merge, on stable tags only: lists server.json in the official MCP registry through GitHub OIDC.
+#
 # Uses the built-in GITHUB_TOKEN; no other secret is needed.
 # The first push creates the package; set its visibility under the repository's Packages settings.
 
@@ -161,3 +163,67 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(for f in *; do printf '${{ env.IMAGE }}@sha256:%s ' "${f#*.}"; done)
       - run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ env.VERSION }}${{ matrix.sfx }}
+
+  # After the images are tagged, list this version in the official MCP registry (server.json). GitHub OIDC proves the
+  # repository owner, which grants io.github.helv-io/*; no secret and no user token. Stable tags only, never a manual run.
+  # The job fails when server.json does not match the tag, and skips when the registry already has the version.
+  # Pinned mcp-publisher: to move it, take the version and the linux_amd64 tarball's sha256 from
+  # https://github.com/modelcontextprotocol/registry/releases and change both below.
+  mcp-registry:
+    name: publish to the MCP registry
+    needs: [merge]
+    if: ${{ startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.1
+      MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: server.json matches the tag
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          have="$(jq -r .version server.json)"
+          if [ "$have" != "$want" ]; then
+            echo "::error file=server.json::version is $have but the tag is $GITHUB_REF_NAME; bump server.json with Version and tag again"
+            exit 1
+          fi
+          bad="$(jq -r --arg v "$want" '.packages[].identifier | select((endswith(":" + $v) or endswith(":" + $v + "-slim")) | not)' server.json)"
+          if [ -n "$bad" ]; then
+            echo "::error file=server.json::package identifiers must end in :$want or :$want-slim, found: $bad"
+            exit 1
+          fi
+
+      - id: listed
+        name: Is this version already in the registry
+        run: |
+          name="$(jq -r .name server.json)"
+          version="$(jq -r .version server.json)"
+          code="$(curl -s -o /dev/null -w '%{http_code}' "https://registry.modelcontextprotocol.io/v0.1/servers/${name//\//%2F}/versions/$version")"
+          case "$code" in
+            200) echo "::notice::$name $version is already in the MCP registry; nothing to publish"; echo "listed=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "listed=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::the registry answered $code when asked for $name $version"; exit 1 ;;
+          esac
+
+      - name: Install mcp-publisher ${{ env.MCP_PUBLISHER_VERSION }}
+        if: steps.listed.outputs.listed != 'true'
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+
+      - name: Validate server.json
+        if: steps.listed.outputs.listed != 'true'
+        run: ./mcp-publisher validate server.json
+
+      - name: Log in with GitHub OIDC
+        if: steps.listed.outputs.listed != 'true'
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish
+        if: steps.listed.outputs.listed != 'true'
+        run: ./mcp-publisher publish
