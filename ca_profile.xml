@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <CommunityApplications>
-  <Profile>skgate is an MCP proxy with OAuth: paste a GitHub repo URL or a remote MCP server URL and it builds, runs and serves it behind one sign-in, so Grok, Claude, Cursor and other MCP clients can connect. This repository maintains the skgate Docker container (a full image and a slim proxy-only image). Support: the Unraid forum thread and the GitHub issues.</Profile>
+  <Profile>skgate is an MCP proxy with OAuth: paste a GitHub repo URL, a remote MCP server URL or an OpenAPI description and it builds, runs or wraps it and serves it behind one sign-in, so Grok, Claude, Cursor and other MCP clients can connect. This repository maintains the skgate Docker container (a full image and a slim proxy-only image). Support: the Unraid forum thread and the GitHub issues.</Profile>
   <Icon>https://raw.githubusercontent.com/helv-io/skgate/master/unraid/skgate.png</Icon>
   <WebPage>https://github.com/helv-io/skgate</WebPage>
   <Forum>https://forums.unraid.net/topic/200787-support-skgate-an-mcp-proxy-that-just-works/</Forum>

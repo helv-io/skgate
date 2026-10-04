@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.helv-io/skgate",
   "title": "skgate",
-  "description": "MCP gateway: OAuth-protected endpoints for remote and hosted MCP servers, plus a Grok API.",
+  "description": "OAuth gateway for MCP servers and REST APIs, plus an OpenAI-compatible API for Grok and other AI.",
   "websiteUrl": "https://github.com/helv-io/skgate",
   "repository": {
     "url": "https://github.com/helv-io/skgate",

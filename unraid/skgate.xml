@@ -10,7 +10,7 @@
   <Support>https://forums.unraid.net/topic/200787-support-skgate-an-mcp-proxy-that-just-works/</Support>
   <Project>https://github.com/helv-io/skgate</Project>
   <ReadMe>https://github.com/helv-io/skgate#readme</ReadMe>
-  <Overview>MCP proxy with OAuth. Paste a GitHub repo URL (or a remote MCP server URL) and skgate builds it, runs it and serves it as an MCP endpoint behind OAuth, so Grok, Claude, Cursor and other MCP clients can connect with a normal sign-in. Idle servers are stopped to save RAM. It also gives you virtual API keys, and it can serve an OpenAI-compatible API on your Grok subscription.&#xD;
+  <Overview>MCP proxy with OAuth. Paste a GitHub repo URL (or a remote MCP server URL) and skgate builds it, runs it and serves it as an MCP endpoint behind OAuth, so Grok, Claude, Cursor and other MCP clients can connect with a normal sign-in. Idle servers are stopped to save RAM. It also gives you virtual API keys, it can turn a REST API with an OpenAPI description into MCP tools, and it can serve an OpenAI-compatible API on your Grok subscription or another AI provider.&#xD;
 &#xD;
 skgate is not an Unraid plugin and does not manage Unraid. It needs an OIDC provider for admin sign-in (Authelia, Authentik, Keycloak, Pocket ID, Zitadel and similar). Create a confidential client with the redirect URI PUBLIC_URL/admin/oidc/callback. Put it behind a reverse proxy with HTTPS: MCP clients need a public https address.</Overview>
   <Category>Tools: Network:Web Network:Management</Category>
