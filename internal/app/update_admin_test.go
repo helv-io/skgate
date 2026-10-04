@@ -133,7 +133,7 @@ func TestClientPresetMarkupAndHomeAssistantFlow(t *testing.T) {
 		}
 	}
 	r, body := br.post("/admin/clients/create", url.Values{"csrf": {csrf}, "name": {"Home Assistant"}, "redirects": {"https://my.home-assistant.io/redirect/oauth"}, "method": {"client_secret_post"}})
-	if r.StatusCode != 200 || !strings.Contains(body, "new-client-secret") {
+	if r.StatusCode != 200 || !strings.Contains(body, "Copy the client secret") {
 		t.Fatalf("create: %d", r.StatusCode)
 	}
 }

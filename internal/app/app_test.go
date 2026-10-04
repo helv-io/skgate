@@ -158,7 +158,7 @@ func TestHealthzAndAdminFlow(t *testing.T) {
 		t.Fatalf("missing csrf: %d", r.StatusCode)
 	}
 	r, body := post("/admin/keys/create", url.Values{"label": {"ha"}, "csrf": {csrf}})
-	key := between(body, `id="new-token">`, "</code>")
+	key := between(body, `class="copybox" data-copy-text="`, `"`)
 	if r.StatusCode != 200 || !strings.HasPrefix(key, "sk-") || len(key) != 51 {
 		t.Fatalf("key create: %d %q", r.StatusCode, key)
 	}
@@ -190,7 +190,7 @@ func TestHealthzAndAdminFlow(t *testing.T) {
 	}
 	// manual OAuth client
 	r, body = post("/admin/clients/create", url.Values{"csrf": {csrf}, "name": {"manual"}, "redirects": {"https://client.example/cb"}, "method": {"client_secret_post"}})
-	if r.StatusCode != 200 || !strings.Contains(body, "skc-") || !strings.Contains(body, `id="new-client-secret"`) {
+	if r.StatusCode != 200 || !strings.Contains(body, "skc-") || !strings.Contains(body, `aria-label="Copy the client secret"`) {
 		t.Fatalf("client create: %d", r.StatusCode)
 	}
 	if r, _ := post("/admin/clients/create", url.Values{"csrf": {csrf}, "redirects": {"http://evil.example/cb"}, "method": {"none"}}); r.StatusCode != 303 || flashKind(r) != "bad" {

@@ -148,18 +148,21 @@ func TestOnlyInformationalDialogsCloseByTheBackdrop(t *testing.T) {
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})
 	br.post("/admin/clients/create", url.Values{"csrf": {csrf}, "name": {"c"}, "redirects": {"https://x.example/cb"}, "method": {"client_secret_post"}})
 	tpl := regexp.MustCompile(`(?s)<template data-dialog-content id="([^"]+)"[^>]*?>(.*?)</template>`)
-	interactive := regexp.MustCompile(`<(form|input|select|textarea|button)\b|<a [^>]*class="act`)
+	interactive := regexp.MustCompile(`<(form|input|select|textarea)\b|<button\b[^>]*>|<a [^>]*class="act`)
+	// a copybox is a button, but it changes nothing: a dialog holding only copyboxes is still informational
+	copybox := regexp.MustCompile(`<button type="button" class="copybox[^>]*>.*?</button>`)
+	interactiveIn := func(h string) bool { return interactive.MatchString(copybox.ReplaceAllString(h, "")) }
 	informational, withForms := 0, 0
 	for _, path := range []string{"/admin", "/admin/keys", "/admin/clients", "/admin/upstreams"} {
 		_, page := br.get(path)
 		for _, m := range tpl.FindAllStringSubmatch(page, -1) {
 			flagged := regexp.MustCompile(`<template data-dialog-content id="` + regexp.QuoteMeta(m[1]) + `"[^>]*data-informational`).MatchString(page)
 			switch {
-			case flagged && interactive.MatchString(m[2]):
+			case flagged && interactiveIn(m[2]):
 				t.Errorf("%s: dialog %s is flagged informational but has a form, field or button", path, m[1])
 			case flagged:
 				informational++
-			case interactive.MatchString(m[2]):
+			case interactiveIn(m[2]):
 				withForms++
 			default:
 				t.Errorf("%s: dialog %s shows information only; flag it with infodlg", path, m[1])

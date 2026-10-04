@@ -12,7 +12,7 @@ func TestKeysPageFooterAndCodeNoWrap(t *testing.T) {
 	_, page := br.get("/admin/keys")
 	page = strings.ReplaceAll(page, "<wbr>", "") // addresses may break after a slash; the text is the same
 	for _, want := range []string{
-		"<li>OpenAI API: <code>" + ts.URL + "/v1</code></li>",
+		`aria-label="Copy the address of the OpenAI-compatible API"><code>` + ts.URL + "/v1</code>",
 		"<li>MCP: <code>" + ts.URL + "/mcp/&lt;alias&gt;</code></li>",
 		"X-API-Key",
 	} {

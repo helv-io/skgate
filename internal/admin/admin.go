@@ -77,6 +77,17 @@ var funcs = template.FuncMap{
 	// wrapurl joins its parts into text that may break after a slash, ? & or = (a <wbr> there), so a long address
 	// wraps at a path segment on a phone instead of in the middle of a word.
 	"wrapurl": wrapURL,
+	// copyurl, copytext and copycode feed the "copybox" component: a box that copies its value when pressed.
+	// The label names it for a screen reader ("Copy <label>").
+	"copyurl": func(label string, parts ...string) copyBox {
+		return copyBox{Label: label, Text: strings.Join(parts, ""), Shown: wrapURL(parts...)}
+	},
+	"copytext": func(label, text string) copyBox {
+		return copyBox{Label: label, Text: text, Shown: template.HTML(template.HTMLEscapeString(text))}
+	},
+	"copycode": func(label, text string) copyBox {
+		return copyBox{Label: label, Text: text, Shown: template.HTML(template.HTMLEscapeString(text)), Big: true}
+	},
 	"dur":     func(d time.Duration) string { return d.Round(time.Second).String() },
 	"latency": timefmt.Latency,
 	"list":    func(v ...string) []string { return v },
@@ -1633,6 +1644,14 @@ func wrapURL(parts ...string) template.HTML {
 		}
 	}
 	return template.HTML(b.String())
+}
+
+// copyBox feeds the copybox component. Text is what is copied; Shown is what is displayed (an address may carry
+// <wbr> break points); Big is for a short code read aloud or typed on another device.
+type copyBox struct {
+	Label, Text string
+	Shown       template.HTML
+	Big         bool
 }
 
 // filterBoxData feeds the filter_box component.

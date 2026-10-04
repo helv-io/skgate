@@ -1,6 +1,6 @@
 {{define "body"}}{{with .Data}}
 <h2>Virtual keys</h2>
-{{if .NewKey}}<div class="card"><p class="ok">New key, shown once</p><div class="row"><code class="code" id="new-token">{{.NewKey}}</code><button type="button" class="btn" data-copy="#new-token">Copy</button></div>
+{{if .NewKey}}<div class="card"><p class="ok">New key, shown once</p>{{template "copybox" (copytext "the new key" .NewKey)}}
 <p class="muted">Send it as <code>Authorization: Bearer &lt;key&gt;</code> to <code>{{$.Public}}/v1</code> or an MCP endpoint.</p></div>{{end}}
 <div class="card"><form method="post" action="/admin/keys/create" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>Name<input type="text" name="label" maxlength="80" placeholder="Home Assistant" autocomplete="off"></label></div>
@@ -40,7 +40,7 @@
 {{template "dialog_end"}}{{end}}
 <p class="muted">Send as <code>Authorization: Bearer sk-...</code></p>
 <ul class="muted">
-<li>OpenAI API: <code>{{wrapurl $.Public "/v1"}}</code></li>
+<li>OpenAI API: {{template "copybox" (copyurl "the address of the OpenAI-compatible API" $.Public "/v1")}}</li>
 <li>MCP: <code>{{wrapurl $.Public "/mcp/"}}&lt;alias&gt;</code></li>
 <li>Both also accept <code>X-API-Key</code></li>
 </ul>

@@ -14,8 +14,7 @@ func TestStatusOverviewAndReadablePills(t *testing.T) {
 	br.post("/admin/providers/grok/models/reload", url.Values{"csrf": {csrf}})
 	_, page := br.get("/admin")
 	plain := strings.ReplaceAll(page, "<wbr>", "")
-	for _, w := range []string{"<h2>Overview</h2>", "<th>OpenAI API</th><td><code>" + ts.URL + "/v1</code>", "<th>MCP</th><td><code>" + ts.URL + "/mcp</code>",
-		`data-copy-text="` + ts.URL + `/v1" data-copied="URL copied"`, `data-copy-text="` + ts.URL + `/mcp" data-copied="URL copied"`} {
+	for _, w := range []string{"<h2>Overview</h2>", `<th>OpenAI API</th><td><button type="button" class="copybox" data-copy-text="` + ts.URL + `/v1"`, `<th>MCP</th><td><button type="button" class="copybox" data-copy-text="` + ts.URL + `/mcp"`} {
 		if !strings.Contains(plain, w) {
 			t.Errorf("status page misses %q", w)
 		}

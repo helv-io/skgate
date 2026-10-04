@@ -73,7 +73,7 @@ func TestCopyURLOnlyForEnabledUpstreams(t *testing.T) {
 	br.post("/admin/upstreams/save", stdioForm(csrf, "on", nil))
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"off"}, "url": {"http://127.0.0.1:1/mcp"}, "auth_kind": {"auto"}})
 	_, page := br.get("/admin/upstreams")
-	copyBtn := regexp.MustCompile(`data-copy-text="([^"]*)"`)
+	copyBtn := regexp.MustCompile(`<button[^>]*data-copy-text="([^"]*)"[^>]*data-copied="URL copied"`)
 	got := copyBtn.FindAllStringSubmatch(page, -1)
 	// one on the row and one in the details dialog, both for the enabled upstream
 	if len(got) != 2 || !strings.HasSuffix(got[0][1], "/mcp/on") || got[0][1] != got[1][1] {
