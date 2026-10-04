@@ -15,21 +15,21 @@ func TestAdminHeaderLabel(t *testing.T) {
 	// preferred_username wins over email and sub
 	_, _, br, _ := signedIn(t, func(c *config.Config, p *oidctest.Provider) { p.Username = "admin" })
 	_, page := br.get("/admin")
-	if !strings.Contains(page, `<span class="who">admin</span>`) || strings.Contains(page, `>u-1<`) {
+	if !strings.Contains(page, `<span class="who" title="admin">admin</span>`) || strings.Contains(page, `>u-1<`) {
 		t.Fatalf("who label: %s", between(page, `<header>`, `</header>`))
 	}
 	// info-only providers (claims only in userinfo) still give a label
 	_, _, br, _ = signedIn(t, func(c *config.Config, p *oidctest.Provider) { p.Username = "fromuserinfo"; p.InfoOnly = true })
-	if _, page = br.get("/admin"); !strings.Contains(page, `<span class="who">fromuserinfo</span>`) {
+	if _, page = br.get("/admin"); !strings.Contains(page, `<span class="who" title="fromuserinfo">fromuserinfo</span>`) {
 		t.Fatal("label from userinfo")
 	}
 	// no preferred_username: email, then the subject as a last resort
 	_, _, br, _ = signedIn(t, nil)
-	if _, page = br.get("/admin"); !strings.Contains(page, `<span class="who">admin@example.com</span>`) {
+	if _, page = br.get("/admin"); !strings.Contains(page, `<span class="who" title="admin@example.com">admin@example.com</span>`) {
 		t.Fatal("email fallback")
 	}
 	_, _, br, _ = signedIn(t, func(c *config.Config, p *oidctest.Provider) { p.Email = "" })
-	if _, page = br.get("/admin"); !strings.Contains(page, `<span class="who">u-1</span>`) {
+	if _, page = br.get("/admin"); !strings.Contains(page, `<span class="who" title="u-1">u-1</span>`) {
 		t.Fatal("subject last resort")
 	}
 }
@@ -53,7 +53,7 @@ func TestAdminLabelSurvivesRestart(t *testing.T) {
 	}
 	b, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	if resp.StatusCode != 200 || !strings.Contains(string(b), `<span class="who">admin</span>`) {
+	if resp.StatusCode != 200 || !strings.Contains(string(b), `<span class="who" title="admin">admin</span>`) {
 		t.Fatalf("after restart: %d %s", resp.StatusCode, b)
 	}
 }
