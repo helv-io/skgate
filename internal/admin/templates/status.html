@@ -1,4 +1,9 @@
 {{define "body"}}{{with .Data}}
+<h2>Overview</h2>
+<div class="card flush tablewrap"><table class="table kv"><tbody>
+<tr><th>OpenAI API</th><td><code>{{wrapurl $.Public "/v1"}}</code> <button type="button" class="act small" data-copy-text="{{$.Public}}/v1" data-copied="URL copied" title="copy the address of the OpenAI-compatible API">copy</button></td></tr>
+<tr><th>MCP</th><td><code>{{wrapurl $.Public "/mcp"}}</code> <button type="button" class="act small" data-copy-text="{{$.Public}}/mcp" data-copied="URL copied" title="copy the address of the MCP endpoint with every included upstream">copy</button></td></tr>
+</tbody></table></div>
 <h2>Sign-in</h2>
 {{range .Providers}}{{template "provider_card" .}}{{end}}
 {{range .Providers}}{{template "provider_dialog" .}}{{end}}

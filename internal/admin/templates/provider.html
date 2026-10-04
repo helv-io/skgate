@@ -4,7 +4,7 @@
 <div class="tablewrap"><table class="table kv"><tbody>
 {{if .S.Account}}<tr><th>Account</th><td>{{.S.Account}}</td></tr>{{end}}
 {{if .Expiry}}<tr><th>Token</th><td>{{.Expiry}}</td></tr>{{end}}
-{{if .CanModels}}<tr><th>MCP helper model</th><td>{{template "pill" .ModelPill}}{{if .Model}} {{template "pill" .EffortPill}}{{end}}</td></tr>
+{{if .CanModels}}<tr><th>MCP helper model</th><td>{{template "pill" .ModelPill}}</td></tr>
 <tr><th>Aliases</th><td>{{template "pill" .AliasPill}}</td></tr>{{end}}
 </tbody></table></div>
 {{if eq .Dev.State "error"}}<p class="bad">Sign-in failed: {{.Dev.Err}}</p>{{end}}
