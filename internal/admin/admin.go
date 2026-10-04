@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"time"
 
@@ -55,6 +56,8 @@ type Admin struct {
 	tpl                     map[string]*template.Template
 	oidc                    *oidcauth.Client
 	sessions                sessionStore
+	secretMu                sync.Mutex
+	secretKey               []byte
 }
 
 var funcs = template.FuncMap{
@@ -427,7 +430,7 @@ func (a *Admin) signedOut(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, "signedout", page{Title: "Signed out", Solo: true})
 }
 
-// logout (POST needs the CSRF token) clears the session and, if the IdP advertises end_session_endpoint,
+// logout (POST only, with the CSRF token; a GET just goes back to the admin) clears the session and, if the IdP advertises end_session_endpoint,
 // continues there; otherwise it shows the signed-out page. Without a session it just shows that page.
 func (a *Admin) logout(w http.ResponseWriter, r *http.Request) {
 	if a.oidc == nil {
@@ -439,15 +442,18 @@ func (a *Admin) logout(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/signed-out", http.StatusSeeOther)
 		return
 	}
-	if r.Method == http.MethodPost { // same rule as guard: POSTs need the CSRF token
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-		if r.ParseForm() != nil || subtle.ConstantTimeCompare([]byte(csrf), []byte(r.PostFormValue("csrf"))) != 1 {
-			http.Error(w, "invalid CSRF token", http.StatusForbidden)
-			return
-		}
+	if r.Method != http.MethodPost { // a link on another site must not be able to sign the admin out
+		http.Redirect(w, r, "/admin", http.StatusSeeOther)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	if r.ParseForm() != nil || subtle.ConstantTimeCompare([]byte(csrf), []byte(r.PostFormValue("csrf"))) != 1 {
+		http.Error(w, "invalid CSRF token", http.StatusForbidden)
+		return
 	}
 	nonce, si := a.sessionWho(r)
 	a.sessions.del(nonce)
+	a.sessions.revoke(nonce)
 	a.clearSession(w)
 	if u := a.oidc.EndSessionURL(r.Context(), si.idToken, ""); u != "" {
 		http.Redirect(w, r, u, http.StatusSeeOther)
