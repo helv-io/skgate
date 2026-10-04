@@ -8,11 +8,16 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [0.13.0] - 2026-10-04
 
+### Added
+
+- OpenAPI upstreams: an Update button on the tools page reads the description again from its address, runs it through the SI layer, and shows what changed (tool count, added, removed and changed operations). Nothing is replaced until you confirm; Cancel leaves everything as it was
+- A pasted description has the Update button off, with the reason shown next to it
+- "Updated <time>" or "unchanged" on the tools page, from the time and hash stored with each OpenAPI description
+
 ### Changed
 
-- OpenAPI upstreams: a manual Update with review and confirmation
-- Store: when and what an OpenAPI description was last read
-- OpenAPI: content hash and an operation diff
+- The "read the address again" checkbox on the edit form is replaced by the Update button
+- Tool selection is kept for operations that still exist; new operations start off
 
 ## [0.12.8] - 2026-10-04
 
