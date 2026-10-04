@@ -7,21 +7,37 @@ import (
 	"time"
 
 	"github.com/helv-io/skgate/internal/provider"
+	"github.com/helv-io/skgate/internal/provider/keyed"
 	"github.com/helv-io/skgate/internal/timefmt"
 )
 
 // statusData is the status page: one card per provider.
-type statusData struct{ Providers []providerView }
+// Providers are the sign-in providers (Grok); Others are the key-based providers that were added; Presets feed the
+// Add provider dialog; Aliases shows where every alias points.
+type statusData struct {
+	Providers []providerView
+	Others    []providerView
+	Presets   []presetView
+	Aliases   []aliasRow
+	CSRF      string
+}
 
 // providerView is a provider as the status page and its dialog show it.
 type providerView struct {
 	ID, Name, CSRF string
-	Inline         bool // the MCP helper model form posts in place (no page reload)
-	S              provider.Status
-	Dev            provider.DeviceFlow
-	State          pillView // sign-in pill; the hover text carries the detail
-	Expiry         string   // "in 59m", "expired" or ""
-	Info           []provider.InfoRow
+	// Key-based providers (see keyed): the card shows a masked key and the host instead of a sign-in.
+	Keyed       bool
+	Preset      keyed.Preset
+	BaseHost    string
+	ModelCount  int
+	HelperReady bool // the helper model can run: some provider is ready (Grok signed in, or a key-based one)
+	Default     bool // the provider whose settings hold the helper model (Grok): its dialog has the helper picker
+	Inline      bool // the MCP helper model form posts in place (no page reload)
+	S           provider.Status
+	Dev         provider.DeviceFlow
+	State       pillView // sign-in pill; the hover text carries the detail
+	Expiry      string   // "in 59m", "expired" or ""
+	Info        []provider.InfoRow
 
 	Base, Fallback, DefaultBase string
 
@@ -110,6 +126,12 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	v := providerView{ID: id, Name: p.Name(), S: p.Status(), Dev: p.Device(), Info: p.Info(),
 		Base: a.Set.Base(p), Fallback: a.Set.Fallback(p), DefaultBase: p.DefaultBase(), CanModels: a.proxyFor(id) != nil}
 	v.State, v.Expiry = stateOf(v.S), expiryText(v.S)
+	v.Default = id == a.Providers.Default().ID()
+	v.HelperReady = len(a.readyProviders()) > 0
+	if k, ok := keyed.Keyed(p); ok {
+		v.Keyed, v.Preset, v.BaseHost = true, k.Preset, baseHost(v.Base)
+		v.State = keyedState(v.S, k)
+	}
 	if v.CanModels {
 		var at time.Time
 		v.Models, at, v.ModelsKnown = a.models(r.Context(), p)
@@ -117,9 +139,14 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 			v.ModelsAt = timefmt.Minute(at)
 		}
 	}
+	v.ModelCount = len(v.Models)
 	v.Model = a.Set.Model(id)
-	v.Choices = modelChoices(v.Models, a.Set.Aliases(id), v.Model)
-	v.Groups = groupChoices(v.Choices)
+	if v.Default { // the helper picks among Grok's models, every alias, and the models of the other ready providers
+		a.helperChoices(&v)
+	} else {
+		v.Choices = modelChoices(v.Models, a.Set.Aliases(id), v.Model)
+		v.Groups = groupChoices(v.Choices)
+	}
 	v.AliasTarget = v.Model
 	for _, al := range a.Set.Aliases(id) {
 		if al.Name == v.Model {
@@ -142,7 +169,7 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	switch {
 	case v.Model == "":
 		v.ModelPill = pillView{"off", "no model", "pick a model in the details to enable Suggest configuration"}
-	case v.ModelsKnown && !contains(v.Models, v.Model) && !isAlias(a.Set.Aliases(id), v.Model):
+	case v.ModelsKnown && !contains(v.Models, v.Model) && !a.knownModel(v.Model):
 		v.ModelPill = pillView{"warn", modelWithReasoning(v.Model, v.Effort.Value), "no longer in the provider's model list"}
 	default:
 		v.ModelPill = pillView{"ok", modelWithReasoning(v.Model, v.Effort.Value), "used as the MCP helper model"}
@@ -172,11 +199,21 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 func (a *Admin) status(w http.ResponseWriter, r *http.Request) {
 	var d statusData
 	csrf, _ := a.Session(r)
+	d.CSRF = csrf
 	for _, p := range a.Providers.List() {
+		k, isKeyed := keyed.Keyed(p)
+		if isKeyed && !k.Enabled() {
+			continue
+		}
 		v := a.providerView(r, p)
 		v.CSRF = csrf
-		d.Providers = append(d.Providers, v)
+		if isKeyed {
+			d.Others = append(d.Others, v)
+		} else {
+			d.Providers = append(d.Providers, v)
+		}
 	}
+	d.Presets, d.Aliases = a.presetViews(), a.aliasRows()
 	a.render(w, r, "status", page{Title: "Status", Nav: "status", Data: d})
 }
 
@@ -264,4 +301,63 @@ func isAlias(aliases []provider.Alias, name string) bool {
 // ("grok-4.7 · reasoning low", "grok-4.7 · reasoning auto").
 func modelWithReasoning(model, effort string) string {
 	return model + " \u00b7 reasoning " + effort
+}
+
+// keyedState renders the state of a key-based provider as one pill.
+func keyedState(s provider.Status, k *keyed.Provider) pillView {
+	switch {
+	case s.State == "secret_error":
+		return pillView{"bad", "cannot decrypt", tipJoin("", s.LastError)}
+	case !s.SignedIn:
+		return pillView{"bad", "no key", "the API key is missing"}
+	}
+	return pillView{"ok", "ready", ""}
+}
+
+// helperChoices builds the helper model picker of the default provider (Grok): its models, then every alias of
+// every provider, then the models the other ready providers list, one group each. The helper model is a plain model
+// name that skgate routes like any request.
+func (a *Admin) helperChoices(v *providerView) {
+	owner := map[string]string{} // model -> name of the provider that lists it, for models Grok does not list
+	var names []string
+	all := append([]string(nil), v.Models...)
+	for _, p := range a.readyProviders() {
+		ids, _, ok := a.Proxy.Models.Get(p.ID())
+		if p.ID() == v.ID || !ok {
+			continue
+		}
+		names = append(names, p.Name())
+		for _, id := range ids {
+			if _, dup := owner[id]; !dup && !contains(v.Models, id) {
+				owner[id] = p.Name()
+				all = append(all, id)
+			}
+		}
+	}
+	v.Choices = modelChoices(all, a.allAliases(), v.Model)
+	groups := groupChoices(v.Choices)
+	perProvider := map[string][]modelChoice{}
+	var out []choiceGroup
+	for _, g := range groups {
+		if g.Label == "Models" {
+			var keep []modelChoice
+			for _, c := range g.Choices {
+				if n, ok := owner[c.Value]; ok {
+					perProvider[n] = append(perProvider[n], c)
+				} else {
+					keep = append(keep, c)
+				}
+			}
+			g.Choices = keep
+		}
+		if len(g.Choices) > 0 {
+			out = append(out, g)
+		}
+	}
+	for _, n := range names {
+		if cs := perProvider[n]; len(cs) > 0 {
+			out = append(out, choiceGroup{Label: n + " models", Choices: cs})
+		}
+	}
+	v.Groups = out
 }

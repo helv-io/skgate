@@ -27,7 +27,7 @@ func (a *Admin) suggestState(r *http.Request) suggestState {
 	v.Inline = true
 	st := suggestState{P: &v}
 	switch {
-	case !v.S.SignedIn:
+	case !v.HelperReady:
 		st.Why = "sign in on the status page"
 	case v.Model == "":
 		st.Why = "pick an MCP helper model first"

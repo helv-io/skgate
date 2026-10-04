@@ -2,8 +2,10 @@
 package app
 
 import (
+	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/helv-io/skgate/internal/admin"
 	"github.com/helv-io/skgate/internal/config"
@@ -11,6 +13,7 @@ import (
 	"github.com/helv-io/skgate/internal/mcp"
 	"github.com/helv-io/skgate/internal/provider"
 	"github.com/helv-io/skgate/internal/provider/grok"
+	"github.com/helv-io/skgate/internal/provider/keyed"
 	"github.com/helv-io/skgate/internal/reqlog"
 	"github.com/helv-io/skgate/internal/store"
 	"github.com/helv-io/skgate/internal/vkeys"
@@ -34,16 +37,37 @@ func New(cfg *config.Config, db *store.DB) *App {
 	cfg.Bind(db)
 	a := &App{Cfg: cfg, DB: db}
 	g := grok.New(cfg, db)
-	a.Providers = provider.NewRegistry(g)
+	keyedProviders := keyed.New(db)
+	a.Providers = provider.NewRegistry(append([]provider.Provider{g}, keyedProviders...)...)
 	set := provider.Settings{KV: db}
 	set.MigrateLegacy(g.ID())
 	a.Keys = vkeys.New(db)
 	_ = a.Keys.MigrateGlobalURLKey(db) // the old global ?key= switch becomes a per-key one
 	a.MCP = mcp.NewServer(cfg, db, a.Keys)
 	a.Proxy = provider.NewProxy(g, set, a.Keys)
+	for _, p := range keyedProviders {
+		a.Proxy.Add(p.(provider.Backend))
+	}
 	a.Admin = admin.New(cfg, db, a.Providers, a.Proxy, a.Keys, a.MCP)
 	a.Log = a.MCP.Log
 	return a
+}
+
+// WarmModels loads the model lists of the ready key-based providers in the background, one after the other, so the
+// helper model picker and alias targets know them without a click. It never blocks the caller or fails startup:
+// an unreachable provider is skipped and its list loads later, on demand.
+func (a *App) WarmModels(ctx context.Context) {
+	for _, p := range a.Providers.List()[1:] {
+		if ctx.Err() != nil {
+			return
+		}
+		if !a.Proxy.IsReady(p.ID()) {
+			continue
+		}
+		c, cancel := context.WithTimeout(ctx, 15*time.Second)
+		_, _ = a.Proxy.FetchModelsOf(c, p.ID())
+		cancel()
+	}
 }
 
 // Handler returns the root handler.

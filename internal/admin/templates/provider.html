@@ -39,16 +39,7 @@
 <div class="row"><button class="act">Save</button></div></form>
 </div>
 
-{{if .CanModels}}<div class="dsec" data-section="aliases">{{template "section_head" "Model aliases"}}
-<div class="tablewrap"><table class="table"><thead><tr><th>Status</th><th>Alias</th><th>Target</th>{{template "th_actions"}}</tr></thead><tbody>
-{{range .Aliases}}<tr><td class="status" data-label="Status">{{template "pill" .Pill}}</td><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Target"><code>{{.Target}}</code></td>
-<td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
-{{else}}<tr><td colspan="4" class="empty">none</td></tr>{{end}}</tbody></table></div>
-<form method="post" action="/admin/providers/{{.ID}}/aliases/put" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<div class="row bottom"><div class="field"><label>New alias<input type="text" name="name" maxlength="64" autocomplete="off" spellcheck="false"></label></div>
-<div class="field"><label>Target model<select name="target">{{range .Models}}<option value="{{.}}"{{if eq . $p.AliasTarget}} selected{{end}}>{{.}}</option>{{end}}</select></label></div>
-<button class="act" {{if not .ModelsKnown}}disabled title="load the model list first"{{end}}>Add alias</button></div></form>
-</div>{{end}}
+{{if .CanModels}}{{template "alias_section" .}}{{end}}
 
 <div class="dsec" data-section="signin">{{template "section_head" "Sign-in"}}
 <p class="muted">Refresh now renews the access token before it expires. Browser sign-in is for when the device sign-in does not work: start it, sign in, then paste the address of the page that fails to load.</p>
@@ -97,5 +88,75 @@
    model dialog. Takes a suggestState. Re-rendered by the server after the model changed, and swapped in by app.js. */}}
 {{define "suggest_controls"}}<div class="row" data-suggest-controls>
 <button type="button" class="act" data-suggest="/admin/upstreams/suggest" {{if not .Enabled}}disabled title="{{.Why}}" data-suggest-off{{end}}>Suggest configuration</button>
-{{with .P}}{{if .S.SignedIn}}<button type="button" class="act" data-dialog-open="#helper-model">{{if .Model}}MCP helper model: {{.Model}}{{else}}Pick MCP helper model{{end}}</button>{{end}}{{template "helper_dialog" .}}{{end}}
+{{with .P}}{{if .HelperReady}}<button type="button" class="act" data-dialog-open="#helper-model">{{if .Model}}MCP helper model: {{.Model}}{{else}}Pick MCP helper model{{end}}</button>{{end}}{{template "helper_dialog" .}}{{end}}
 </div>{{end}}
+
+{{/* alias_section: the Model aliases of a provider (alias = this provider + a model of it). Takes a providerView.
+   An alias name means one model across all providers: adding a name that exists elsewhere moves it here. */}}
+{{define "alias_section"}}{{$p := .}}<div class="dsec" data-section="aliases">{{template "section_head" "Model aliases"}}
+<div class="tablewrap"><table class="table"><thead><tr><th>Status</th><th>Alias</th><th>Target</th>{{template "th_actions"}}</tr></thead><tbody>
+{{range .Aliases}}<tr><td class="status" data-label="Status">{{template "pill" .Pill}}</td><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Target"><code>{{.Target}}</code></td>
+<td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
+{{else}}<tr><td colspan="4" class="empty">none</td></tr>{{end}}</tbody></table></div>
+<form method="post" action="/admin/providers/{{.ID}}/aliases/put" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<div class="row bottom"><div class="field"><label>New alias<input type="text" name="name" maxlength="64" autocomplete="off" spellcheck="false"></label></div>
+<div class="field"><label>Target model<select name="target">{{range .Models}}<option value="{{.}}"{{if eq . $p.AliasTarget}} selected{{end}}>{{.}}</option>{{end}}</select></label></div>
+<button class="act" {{if not .ModelsKnown}}disabled title="load the model list first"{{end}}>Add alias</button></div></form>
+</div>{{end}}
+
+{{/* keyed_card: a key-based provider (OpenAI, Anthropic, ...) on the status page. Takes a providerView. */}}
+{{define "keyed_card"}}<div class="card" id="{{.ID}}">
+<div class="row spread"><h3>{{.Name}}</h3>{{template "pill" .State}}</div>
+<div class="tablewrap"><table class="table kv"><tbody>
+{{if .S.AccessMasked}}<tr><th>API key</th><td><code>{{.S.AccessMasked}}</code></td></tr>{{end}}
+<tr><th>Server</th><td><code>{{.BaseHost}}</code></td></tr>
+<tr><th>Models</th><td>{{if .ModelsKnown}}{{.ModelCount}}{{else}}not loaded{{end}}</td></tr>
+<tr><th>Aliases</th><td>{{template "pill" .AliasPill}}</td></tr>
+</tbody></table></div>
+<div class="actions"><button type="button" class="act" data-dialog-open="#provider-{{.ID}}">Details</button></div>
+</div>{{end}}
+
+{{/* keyed_dialog: settings of a key-based provider in the shared modal: connection (base URL, API key, test), model
+   aliases, removal. Every section posts in place (data-save); removal reloads the page. Takes a providerView. */}}
+{{define "keyed_dialog"}}{{$p := .}}{{template "dialog_content" (dlg (printf "provider-%s" .ID) .Name)}}
+<div class="dsec" data-section="connection">{{template "section_head" "Connection"}}
+<p class="muted">{{.Preset.Hint}}{{if .Preset.Docs}} <a href="{{.Preset.Docs}}" target="_blank" rel="noopener noreferrer">Get a key</a>{{end}}</p>
+<form method="post" action="/admin/providers/{{.ID}}/key" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<div class="field"><label>Base URL<input type="url" name="base" value="{{.Base}}" placeholder="{{.DefaultBase}}" autocomplete="off" spellcheck="false"></label></div>
+{{if or .Preset.NeedsKey .Preset.Optional}}<div class="field"><label>API key{{if .S.AccessMasked}} (leave empty to keep {{.S.AccessMasked}}){{end}}<input type="password" name="key" autocomplete="new-password" spellcheck="false" placeholder="{{if .S.AccessMasked}}{{.S.AccessMasked}}{{end}}"></label></div>{{end}}
+<div class="row"><button class="act">Save</button></div></form>
+<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/test" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Test connection</button></form>
+<form method="post" action="/admin/providers/{{.ID}}/models/reload" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Reload models</button></form>
+<span class="muted">{{if .ModelsKnown}}{{.ModelCount}} models, loaded {{.ModelsAt}}{{else}}models not loaded{{end}}</span></div>
+</div>
+{{template "alias_section" .}}
+<p class="muted">To use a model of {{.Name}} as the MCP helper model, pick it in the Grok details.</p>
+{{template "danger_start" .ID}}
+<p class="muted">Remove forgets the API key, the address and the aliases of {{.Name}}. Requests for its models fail until you add it again.</p>
+<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/remove" data-confirm="Remove {{.Name}}? Its API key and aliases are deleted." data-confirm-title="Remove {{.Name}}" data-confirm-ok="Remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Remove provider</button></form></div>
+{{template "danger_end"}}
+<details class="dsec" data-section="technical"><summary>Technical details</summary>
+<div class="tablewrap"><table class="table kv"><tbody>
+{{range .Info}}<tr><th>{{.Name}}</th><td class="wrap">{{.Value}}</td></tr>{{end}}
+{{if .S.LastError}}<tr><th>Last error</th><td class="bad">{{.S.LastError}}</td></tr>{{end}}
+</tbody></table></div>
+</details>
+{{template "dialog_end"}}{{end}}
+
+{{/* add_provider_dialog: choose a provider, give its API key, connect. Choosing a preset fills the base URL and the
+   hint (data-preset). Takes a statusData. */}}
+{{define "add_provider_dialog"}}{{template "dialog_content" (dlg "add-provider" "Add provider")}}
+{{with index .Presets 0}}{{$first := .}}
+<form method="post" action="/admin/providers/add" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<div class="field"><label>Provider<select name="preset" data-preset>{{range $.Presets}}<option value="{{.ID}}" data-set-base="{{.Base}}" data-set-hint="{{.Hint}}" data-set-docs="{{.Docs}}">{{.Name}}{{if .Added}} (added){{end}}</option>{{end}}</select></label></div>
+<p class="muted"><output name="hint">{{$first.Hint}}</output> <a href="{{$first.Docs}}" target="_blank" rel="noopener noreferrer" data-preset-href="docs"{{if not $first.Docs}} hidden{{end}}>Get a key</a></p>
+<div class="field"><label>Base URL<input type="url" name="base" value="{{$first.Base}}" autocomplete="off" spellcheck="false"></label></div>
+<div class="field"><label>API key (empty for a local server)<input type="password" name="key" autocomplete="new-password" spellcheck="false"></label></div>
+<div class="row"><button class="btn">Add and test</button></div></form>
+{{end}}
+{{template "dialog_end"}}{{end}}
+
+{{/* alias_overview: where every alias points, across providers. Takes a statusData. */}}
+{{define "alias_overview"}}<div class="card flush tablewrap"><table class="table"><thead><tr><th>Alias</th><th>Provider</th><th>Model</th></tr></thead><tbody>
+{{range .Aliases}}<tr><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Provider">{{.Provider}}</td><td data-label="Model"><code>{{.Target}}</code></td></tr>
+{{else}}<tr><td colspan="3" class="empty">none</td></tr>{{end}}</tbody></table></div>{{end}}
