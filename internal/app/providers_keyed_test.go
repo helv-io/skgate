@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // openAIUpstream is an OpenAI-compatible server: it lists models and records the Authorization header and body of
@@ -271,5 +272,18 @@ func TestAddDialogListsPresets(t *testing.T) {
 		if !strings.Contains(d, want) {
 			t.Errorf("Add dialog lacks %q", want)
 		}
+	}
+}
+
+// Warming the model lists at start never fails or blocks it: an unreachable provider is skipped.
+func TestWarmModelsIgnoresUnreachableProviders(t *testing.T) {
+	a, _, br, csrf := signedIn(t, nil)
+	addProvider(br, csrf, "ollama", "http://127.0.0.1:1/v1", "")
+	done := make(chan struct{})
+	go func() { a.WarmModels(t.Context()); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("WarmModels blocked")
 	}
 }
