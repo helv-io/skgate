@@ -54,6 +54,21 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 		"auth_name": {"X-Api-Key"}, "auth_value": {"k-" + strings.Repeat("v", 60)}, "hdr_name": {"X-A"}, "hdr_value": {"1"},
 		"host_override": {strings.Repeat("h", 40) + ".internal.example.com:8000"}, "enabled": {"1"}, "include": {"1"}})
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"docs"}, "url": {"http://127.0.0.1:1/mcp"}, "auth_kind": {"auto"}})
+	// an MCP server with tools, so the Test page's Name/Description table is swept with long names and descriptions
+	toolsSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.Contains(string(b), `"initialize"`):
+			io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","serverInfo":{"name":"fake","version":"0.1"}}}`)
+		case strings.Contains(string(b), `"tools/list"`):
+			io.WriteString(w, `{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"short","description":"Does one thing."},{"name":"`+strings.Repeat("very_long_tool_name_", 5)+`","description":"`+strings.Repeat("A long single line that never fits. ", 6)+`"},{"name":"more","description":"First line.\nThe second line, shown when opened."}]}}`)
+		default:
+			w.WriteHeader(202)
+		}
+	}))
+	t.Cleanup(toolsSrv.Close)
+	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {"withtools"}, "url": {toolsSrv.URL}, "auth_kind": {"auto"}, "enabled": {"1"}})
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"git"}, "alias": {"gitsrv"}, "git_url": {"https://git.example.com/" + strings.Repeat("org/", 15) + "repo.git"},
 		"command": {"python3"}, "args": {"-m", "srv"}, "lifecycle": {"on-demand"}, "enabled": {"1"}})
 	// an OpenAPI upstream with long names and more tools than a model handles, so the red counter, the callout and the
@@ -125,6 +140,7 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	add("upstream-tools", get("/admin/upstreams/"+longName[:62]+"o/tools"), false)
 	add("upstream-test-openapi", get("/admin/upstreams/"+longName[:62]+"o/test"), false)
 	add("upstream-test", get("/admin/upstreams/docs/test"), false)
+	add("upstream-test-tools", get("/admin/upstreams/withtools/test"), false)
 	add("upstream-test-managed", get("/admin/upstreams/mgd/test"), false)
 	add("upstream-logs", get("/admin/upstreams/mgd/logs"), false)
 	add("upstream-import", post("/admin/upstreams/import", url.Values{"json": {`{"mcpServers": {"` + strings.Repeat("n", 40) + `": {"url": "https://h.example.com/` + strings.Repeat("p/", 40) + `"}, "bad": {}}}`}}), false)
