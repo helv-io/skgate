@@ -8,10 +8,15 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [0.14.0] - 2026-10-04
 
+### Added
+
+- The OpenAPI paste box (JSON, YAML or TOML) and the MCP import box (JSON) show syntax colours, mark the matching bracket, point at the first syntax error with its line, and indent new lines for you
+- A line under the OpenAPI paste box says what the text reads as, or where it goes wrong
+
 ### Changed
 
-- Use the code box for the OpenAPI paste box and the MCP import JSON
-- Code box: colours, bracket match, error marker and auto-indent for a textarea
+- The boxes work well on phones: 16 px text, they scroll inside instead of the page, and the phone keyboard's Enter indents too
+- Colours stop for very long text (over 200 000 characters); the text stays readable
 
 ## [0.13.0] - 2026-10-04
 
