@@ -56,12 +56,12 @@ func (d *Doc) Validate() []Issue {
 		}
 	}
 	if ops == 0 {
-		return append(out, Issue{Code: "no-operations", Path: "/paths", Message: "the paths have no operations (get, post, ...)", Fatal: true})
+		return append(out, Issue{Code: "no-operations", Path: "/paths", Message: "the paths have no operations", Fatal: true})
 	}
 	walk(d.Raw, "", func(ptr string, node map[string]any) {
 		if r, ok := node["$ref"].(string); ok {
 			if strings.HasPrefix(r, "#") && lookup(d.Raw, r) == nil {
-				out = append(out, Issue{Code: "broken-ref", Path: ptr + "/$ref", Message: fmt.Sprintf("the reference %s points at nothing", r)})
+				out = append(out, Issue{Code: "broken-ref", Path: ptr + "/$ref", Message: fmt.Sprintf("broken reference %s", r)})
 			}
 		}
 		if t, ok := node["type"]; ok && looksLikeSchema(node) {
@@ -117,9 +117,9 @@ func (d *Doc) checkParam(ptr string, x any, path string) []Issue {
 	name, in := str(pm["name"]), str(pm["in"])
 	switch {
 	case name == "" || in == "":
-		return []Issue{{Code: "invalid-parameter", Path: ptr, Message: "a parameter needs a name and an \"in\" (path, query, header or cookie)"}}
+		return []Issue{{Code: "invalid-parameter", Path: ptr, Message: "a parameter needs a name and \"in\""}}
 	case in != "path" && in != "query" && in != "header" && in != "cookie":
-		return []Issue{{Code: "invalid-parameter", Path: ptr + "/in", Message: fmt.Sprintf("a parameter cannot be \"in\" %q", in)}}
+		return []Issue{{Code: "invalid-parameter", Path: ptr + "/in", Message: fmt.Sprintf("bad parameter \"in\": %q", in)}}
 	case in == "path" && !strings.Contains(path, "{"+name+"}"):
 		return []Issue{{Code: "invalid-parameter", Path: ptr + "/name", Message: fmt.Sprintf("path parameter %q is not in the path %s", name, path)}}
 	}

@@ -134,7 +134,7 @@ func TestOneKeyRefusedEveryWayAndNothingGuessedForQuery(t *testing.T) {
 	api := newKeyAPI(t, func(r *http.Request) bool { return false })
 	addAuto(t, e, "n", api.URL, oaSpec, "KEY")
 	tr := e.srv.Test(t.Context(), "n")
-	if tr.OK || tr.Error != "The server refused the key." {
+	if tr.OK || tr.Error != "the server refused the key" {
 		t.Fatalf("%+v", tr)
 	}
 	for _, s := range api.seen {

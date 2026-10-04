@@ -34,7 +34,7 @@ func PublicHost(host string) bool {
 }
 
 // ErrNeedHTTPS is the plain sentence for an address on the internet that does not use https.
-var ErrNeedHTTPS = errors.New("use an https address for a server on the internet")
+var ErrNeedHTTPS = errors.New("use https for a server on the internet")
 
 // CheckScheme accepts an absolute http(s) address and applies one rule: plain http only for a host that is not
 // on the internet, https for every other.

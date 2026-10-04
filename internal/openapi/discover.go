@@ -41,8 +41,8 @@ const (
 
 // Plain sentences for the two ways a search ends without a description.
 var (
-	ErrNoSpec      = errors.New("skgate found no description at that address; paste it instead")
-	ErrUnreachable = errors.New("skgate cannot reach that address")
+	ErrNoSpec      = errors.New("no description at that address, paste it instead")
+	ErrUnreachable = errors.New("cannot reach that address")
 )
 
 // Found is the description a search settled on.
@@ -84,18 +84,18 @@ func Discover(ctx context.Context, raw string) (*Found, error) {
 func entryURLs(raw string) ([]*url.URL, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return nil, errors.New("give the address of the API or paste its description")
+		return nil, errors.New("enter an address or paste the description")
 	}
 	if strings.ContainsAny(raw, " \t\r\n") {
-		return nil, errors.New("the address must not contain spaces")
+		return nil, errors.New("the address has spaces")
 	}
 	if strings.Contains(raw, "://") {
 		u, err := url.Parse(raw)
 		if err != nil || u.Host == "" {
-			return nil, errors.New("the address must be an absolute http(s) URL")
+			return nil, errors.New("the address must be http or https")
 		}
 		if u.User != nil {
-			return nil, errors.New("the address must not carry a user name or password")
+			return nil, errors.New("the address cannot hold a user name or password")
 		}
 		if err := httputil.CheckScheme(u); err != nil {
 			return nil, err
@@ -105,7 +105,7 @@ func entryURLs(raw string) ([]*url.URL, error) {
 	}
 	u, err := url.Parse("http://" + raw)
 	if err != nil || u.Host == "" || u.User != nil || u.Hostname() == "" {
-		return nil, errors.New("the address must be an absolute http(s) URL")
+		return nil, errors.New("the address must be http or https")
 	}
 	u.Fragment = ""
 	if httputil.PublicHost(u.Host) {

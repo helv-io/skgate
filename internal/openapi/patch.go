@@ -33,7 +33,7 @@ const MaxPatches = 200
 // the whole repair, so an approval never covers half a fix.
 func (d *Doc) Apply(patches []Patch) (*Doc, []Change, error) {
 	if len(patches) > MaxPatches {
-		return nil, nil, fmt.Errorf("a repair of more than %d changes is refused", MaxPatches)
+		return nil, nil, fmt.Errorf("repair refused: over %d changes", MaxPatches)
 	}
 	var cp map[string]any
 	b, _ := json.Marshal(d.Raw)

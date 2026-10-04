@@ -33,7 +33,7 @@ type Doc struct {
 // problems that can be repaired are reported by Validate.
 func Parse(raw []byte) (*Doc, error) {
 	if len(raw) > MaxSpecBytes {
-		return nil, fmt.Errorf("the description is larger than %d MB", MaxSpecBytes>>20)
+		return nil, fmt.Errorf("the description is over %d MB", MaxSpecBytes>>20)
 	}
 	return ParseStored(raw)
 }
@@ -55,9 +55,9 @@ func ParseStored(raw []byte) (*Doc, error) {
 	case strings.HasPrefix(str(m["swagger"]), "2"):
 		d.Raw, d.Source = convertSwagger(m), "swagger 2"
 	case v != "":
-		return nil, fmt.Errorf("OpenAPI version %q is not supported (3.x and Swagger 2 are)", v)
+		return nil, fmt.Errorf("OpenAPI %q is not supported, use 3.x or Swagger 2", v)
 	default:
-		return nil, errors.New("this is not an OpenAPI or Swagger description: it has no \"openapi\" or \"swagger\" field")
+		return nil, errors.New("not an OpenAPI description, no \"openapi\" or \"swagger\" field")
 	}
 	return d, nil
 }
@@ -89,9 +89,9 @@ func decode(raw []byte) (map[string]any, error) {
 		return normalize(t).(map[string]any), nil
 	}
 	if first != nil {
-		return nil, fmt.Errorf("cannot read the description as JSON, YAML or TOML (%s)", first)
+		return nil, fmt.Errorf("cannot read it as JSON, YAML or TOML: %s", first)
 	}
-	return nil, errors.New("cannot read the description as JSON, YAML or TOML")
+	return nil, errors.New("cannot read it as JSON, YAML or TOML")
 }
 
 // normalize turns decoder output into plain JSON data: string keys, float64 numbers, string dates.
