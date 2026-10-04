@@ -1007,6 +1007,35 @@ document.addEventListener("input", function (e) {
   Array.prototype.forEach.call(document.querySelectorAll("[data-json-check]"), check);
 })();
 
+// Description lines: a [data-desc-line] is one line of text with an ellipsis. Only while the text is cut off does it get
+// .expands (the dotted underline, a pointer, button semantics) and open on a click or Enter/Space to show all of it; when it
+// fits there is nothing to open and nothing looks clickable. It is checked again whenever the line changes size.
+(function () {
+  function fit(el) {
+    var lh = parseFloat(getComputedStyle(el).lineHeight) || 20;
+    if (el.classList.contains("open") && el.offsetHeight < lh * 1.5) el.classList.remove("open");
+    var cut = el.classList.contains("open") || el.scrollWidth > el.clientWidth + 1;
+    el.classList.toggle("expands", cut);
+    if (cut) { el.setAttribute("role", "button"); el.tabIndex = 0; el.setAttribute("aria-expanded", el.classList.contains("open") ? "true" : "false"); }
+    else { el.removeAttribute("role"); el.removeAttribute("tabindex"); el.removeAttribute("aria-expanded"); }
+  }
+  function toggle(el) {
+    if (!el.classList.contains("expands")) return;
+    el.setAttribute("aria-expanded", el.classList.toggle("open") ? "true" : "false");
+  }
+  document.addEventListener("click", function (e) { var el = e.target.closest && e.target.closest("[data-desc-line]"); if (el) toggle(el); });
+  document.addEventListener("keydown", function (e) {
+    var el = e.target.closest && e.target.closest("[data-desc-line]");
+    if (el && el === e.target && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggle(el); }
+  });
+  var lines = Array.prototype.slice.call(document.querySelectorAll("[data-desc-line]"));
+  lines.forEach(fit);
+  if (window.ResizeObserver) {
+    var ro = new ResizeObserver(function (list) { list.forEach(function (r) { fit(r.target); }); });
+    lines.forEach(function (el) { ro.observe(el); });
+  } else window.addEventListener("resize", function () { lines.forEach(fit); });
+})();
+
 // Filter box: [data-filter="#table"] narrows the rows marked data-filter-row to those whose text contains what is
 // typed (case-insensitive), shows "n of N" beside the field and the row marked data-filter-empty when none match.
 (function () {
