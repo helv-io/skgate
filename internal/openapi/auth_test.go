@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -121,5 +122,37 @@ func TestTryKeyFindsTheWayThatIsNotRefused(t *testing.T) {
 	srv.Close()
 	if gone := TryKey(context.Background(), srv.URL, op, "x", []Way{"bearer"}, "t"); gone.Status != 0 || gone.OK {
 		t.Errorf("unreachable: %+v", gone)
+	}
+}
+
+func TestProbeOpsAreSafeReadsInAStableOrder(t *testing.T) {
+	spec := []byte(`{"openapi":"3.0.0","security":[{"b":[]}],"components":{"securitySchemes":{"b":{"type":"http","scheme":"bearer"}}},"paths":{
+	 "/z":{"get":{"operationId":"z"}},"/a":{"get":{"operationId":"a","security":[]}},"/m":{"get":{"operationId":"m"}},
+	 "/d":{"delete":{"operationId":"d"}},"/p":{"post":{"operationId":"p"}},"/h":{"head":{"operationId":"h"}},
+	 "/b":{"get":{"operationId":"b","requestBody":{"content":{"application/json":{"schema":{"type":"object"}}}}}},
+	 "/hdr":{"get":{"operationId":"hdr","parameters":[{"name":"X-Tenant","in":"header","required":true,"schema":{"type":"string"}}]}},
+	 "/opt":{"get":{"operationId":"opt","parameters":[{"name":"limit","in":"query","schema":{"type":"integer"}}]}}}}`)
+	d, err := Parse(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var first []string
+	for i := 0; i < 5; i++ {
+		var got []string
+		for _, o := range d.ProbeOps(d.Operations()) {
+			got = append(got, o.Method+" "+o.Path)
+		}
+		if i == 0 {
+			first = got
+			continue
+		}
+		if strings.Join(got, ",") != strings.Join(first, ",") {
+			t.Fatalf("the order changes: %v / %v", first, got)
+		}
+	}
+	// protected reads first, then the open one; no write, no body, no required argument
+	want := "GET /m,GET /opt,GET /z,GET /a"
+	if strings.Join(first, ",") != want {
+		t.Errorf("got %v, want %s", first, want)
 	}
 }
