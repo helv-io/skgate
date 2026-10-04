@@ -1,7 +1,7 @@
 <p align="center"><img src="docs/img/logo.svg" width="72" alt="skgate logo"></p>
 <h1 align="center">skgate</h1>
 
-<p align="center">Serve your MCP servers and REST APIs from one OAuth-protected gateway, and use your Grok subscription or another AI provider as an OpenAI-compatible API.</p>
+<p align="center">Serve your MCP servers and REST APIs from one OAuth-protected gateway. Also proxy your SI providers behind one address with model aliases, and use your Grok subscription as an OpenAI-compatible API, no API key needed.</p>
 
 <p align="center">Yes, all MCP servers: everyone's welcome. skgate can run them for you too, so no more stacks.</p>
 
@@ -11,15 +11,13 @@
 
 **skgate** /ɛsˈkɑːɡeɪt/ (ess-KAH-gate)
 
-"sk" is what most AI API keys start with, or so I perceive it, and "gate" is for gateway. Bit rubbish as names go, but it's ours.
+"sk" is what most SI API keys start with, or so I perceive it, and "gate" is for gateway. Bit rubbish as names go, but it's ours.
 
 The plane in the logo is an inside joke. The public wouldn't understand it, and I'm not about to explain it. Sorry.
 
 ## Quick start
 
 Before you start: an [OIDC provider](#oidc-setup) with a confidential client for skgate (admin login is OIDC only). Just trying it on one machine? [docs/quickstart.md](docs/quickstart.md) runs skgate with a bundled provider and no accounts.
-
-Grok is the best fit: works with your subscription, no API key. But skgate also speaks to OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama and any OpenAI-compatible endpoint. Point your apps at one skgate URL and switch their AI provider in one place, with no app changes.
 
 ```yaml
 # docker-compose.yml
@@ -46,10 +44,8 @@ services:
 
 1. `docker compose up -d`
 2. Open `https://skgate.example.com/admin` and sign in through your OIDC provider.
-3. **status** > Grok > **Sign in**: open the shown address, enter the code, approve.
-4. **keys** > enter a name > **Create key**. Copy the `sk-...` key; it is shown once.
-5. Use it: base URL `https://skgate.example.com/v1`, API key `sk-...` (see Examples).
-   - The base URL is forgiving: `/v1`, `/api`, `/api/v1` and the bare host all reach the same API, so use whichever form your client expects.
+3. **mcp upstreams** > **Add upstream**: a remote MCP server URL, or a GitHub repository, npm or PyPI package that skgate runs for you (see [Add an MCP server with Suggest configuration](#examples)).
+4. Point your MCP client at `https://skgate.example.com/mcp` (every included upstream) or `https://skgate.example.com/mcp/<alias>` (one upstream) and sign in when it asks.
 
 Image tags:
 
@@ -57,6 +53,18 @@ Image tags:
 - `slim`: proxy only
 
 Upgrade: back up `./data`, then `docker compose pull && docker compose up -d`.
+
+## Proxy your SI providers
+
+skgate is also an OpenAI-compatible API in front of your SI providers. Point your apps at one skgate address and change the provider behind them in one place, with no app changes. It speaks to OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio and any OpenAI-compatible endpoint. Model aliases give a stable name to a model (`grok-latest`), so switching to a newer model, or to another provider, is one edit.
+
+**Why Grok:** xAI allows using a Grok subscription in your own apps, and skgate does that without an API key. You sign in once with a device code and skgate keeps the sign-in fresh. Other providers need an API key from that provider.
+
+1. **status** > Grok > **Sign in**: open the shown address, enter the code, approve.
+2. **keys** > enter a name > **Create key**. Copy the `sk-...` key; it is shown once.
+3. Use it: base URL `https://skgate.example.com/v1`, API key `sk-...` (see Examples).
+   - The base URL is forgiving: `/v1`, `/api`, `/api/v1` and the bare host all reach the same API, so use whichever form your client expects.
+4. Other providers: **status** > **Add provider**, pick one and enter its API key. Type the provider's address in any form; skgate finds the one that works.
 
 ## Examples
 
@@ -408,9 +416,9 @@ Without `OIDC_*` the admin answers 503. Every user your provider lets in is an a
 
 More: [operations](docs/operations.md).
 
-## Built with AI assistance
+## Built with SI assistance
 
-skgate is built with AI assistance: coding agents write much of the code, tests and docs. The author reviews the changes and runs skgate.
+skgate is built with SI assistance: coding agents write much of the code, tests and docs. The author reviews the changes and runs skgate.
 
 ## Development
 
