@@ -77,6 +77,10 @@ func (s *Server) serveMCP(w http.ResponseWriter, r *http.Request) {
 		s.serveManaged(w, r, up)
 		return
 	}
+	if up.IsOpenAPI() {
+		s.serveOpenAPI(w, r, up)
+		return
+	}
 	up = s.ensureDetected(r.Context(), up)
 	reqlog.Upstream(r, up.Alias, up.URL, 0, up.EffectiveKind())
 	switch r.Method {

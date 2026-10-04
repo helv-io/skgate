@@ -124,6 +124,9 @@ func (c *upClient) call(s *Server, ctx context.Context, up Upstream, method stri
 	if up.Managed() {
 		return c.callManaged(s, ctx, up, method, params, timeout)
 	}
+	if up.IsOpenAPI() {
+		return c.callOpenAPI(s, ctx, up, method, params)
+	}
 	up = s.ensureDetected(ctx, up)
 	eff := withKind(up, up.EffectiveKind())
 	for attempt := 0; attempt < 2; attempt++ {

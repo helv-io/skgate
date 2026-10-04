@@ -13,9 +13,10 @@ import (
 
 // Upstream kinds.
 const (
-	KindRemote = "remote" // an MCP server reached over HTTP
-	KindStdio  = "stdio"  // a command skgate runs and talks to over stdin/stdout
-	KindGit    = "git"    // like stdio, from a checkout of a git repository
+	KindRemote  = "remote"  // an MCP server reached over HTTP
+	KindStdio   = "stdio"   // a command skgate runs and talks to over stdin/stdout
+	KindGit     = "git"     // like stdio, from a checkout of a git repository
+	KindOpenAPI = "openapi" // a REST API described by an OpenAPI document, served as MCP tools by skgate itself
 )
 
 // KV is a name/value pair: an environment variable of a managed process or an outbound header.

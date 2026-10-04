@@ -84,6 +84,10 @@ func (s *Server) serveSSE(w http.ResponseWriter, r *http.Request) {
 			jsonErr(w, status, "not_found", msg)
 			return
 		}
+		if up.IsOpenAPI() {
+			jsonErr(w, http.StatusNotFound, "not_found", "an OpenAPI upstream is served on /mcp/"+alias+" only (Streamable HTTP)")
+			return
+		}
 		if up.Managed() {
 			reqlog.Upstream(r, up.Alias, "", 0, "managed")
 		} else {
