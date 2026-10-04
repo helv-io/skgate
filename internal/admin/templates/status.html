@@ -9,7 +9,7 @@
 {{range .Providers}}{{template "provider_card" .}}{{end}}
 <div class="row spread"><h2>Other providers</h2><button type="button" class="act" data-dialog-open="#add-provider">Add provider</button></div>
 {{range .Others}}{{template "keyed_card" .}}{{else}}<p class="muted">Grok needs no API key. Add OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama or any OpenAI-compatible endpoint, and your apps reach it through the same address.</p>{{end}}
-{{if .Aliases}}<h3>Model aliases</h3>{{template "alias_overview" .}}{{end}}
+{{if .Aliases}}<h2>Model aliases</h2>{{template "alias_overview" .}}{{end}}
 {{range .Providers}}{{template "provider_dialog" .}}{{end}}
 {{range .Others}}{{template "keyed_dialog" .}}{{end}}
 {{template "add_provider_dialog" .}}

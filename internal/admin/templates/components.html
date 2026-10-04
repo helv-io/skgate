@@ -7,7 +7,7 @@
 <div class="pairs" role="group" aria-label="{{.Label}}" data-pairs{{if .SecretPattern}} data-secret-pattern="{{.SecretPattern}}"{{end}}>
 <div class="pairs-rows" data-pairs-rows>{{$l := .}}{{range $i, $r := .Rows}}{{template "pair_row" (pairRow $l $r (gt $i 0))}}{{end}}</div>
 <template data-pairs-template>{{template "pair_row" (pairRow . (pair) true)}}</template>
-<button type="button" class="act small" data-pairs-add>Add</button>
+<button type="button" class="act small" data-pairs-add>Add row</button>
 </div></div>{{end}}
 
 {{define "row_item"}}<div class="pair single"><input type="text" name="{{.Key}}" aria-label="{{.Label}}" value="{{.Value}}" placeholder="{{.PH}}" autocomplete="off" spellcheck="false">{{if .Removable}}<button type="button" class="act small danger" data-pairs-remove title="remove row">Delete</button>{{end}}</div>{{end}}
@@ -16,7 +16,7 @@
 <div class="pairs" role="group" aria-label="{{.Label}}" data-pairs>
 <div class="pairs-rows" data-pairs-rows>{{$l := .}}{{range $i, $v := .Values}}{{template "row_item" (rowItem $l $v (gt $i 0))}}{{end}}</div>
 <template data-pairs-template>{{template "row_item" (rowItem . "" true)}}</template>
-<button type="button" class="act small" data-pairs-add>Add</button>
+<button type="button" class="act small" data-pairs-add>Add row</button>
 </div></div>{{end}}
 
 {{/* pick: a select of known values (name + hint) and a "Custom" option that reveals a text input.

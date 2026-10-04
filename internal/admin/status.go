@@ -120,7 +120,7 @@ func expiryText(s provider.Status) string {
 	if s.ExpiresIn <= 0 {
 		return "expired"
 	}
-	return "in " + s.ExpiresIn.Round(time.Minute).String()
+	return "in " + untilText(s.ExpiresIn)
 }
 
 func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView {
