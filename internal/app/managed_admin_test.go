@@ -207,14 +207,22 @@ func TestAdminManagedProcessActionsAndLogsPage(t *testing.T) {
 	if a.MCP.Managed.Lookup("tools").Status().PID == pid {
 		t.Fatal("start after stop must spawn a new process")
 	}
+	before := a.MCP.Managed.Lookup("tools").Status().PID
 	act("restart")
-	time.Sleep(100 * time.Millisecond)
 	waitState("running")
+	for end := time.Now().Add(10 * time.Second); a.MCP.Managed.Lookup("tools").Status().PID == before; time.Sleep(20 * time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatal("restart left the old process running")
+		}
+	}
 	if m := act("update"); !strings.Contains(*m, "update started") {
 		t.Fatalf("update on a command upstream: %s", *m)
 	}
 	end := time.Now().Add(10 * time.Second)
-	for a.MCP.Managed.Lookup("tools").UpdateInfo().LastUpdate == "" && time.Now().Before(end) { // the update runs in the background
+	for a.MCP.Managed.Lookup("tools").UpdateInfo().LastUpdate == "" { // the update runs in the background
+		if time.Now().After(end) {
+			t.Fatal("the update never finished")
+		}
 		time.Sleep(20 * time.Millisecond)
 	}
 	waitState("running")
@@ -225,7 +233,9 @@ func TestAdminManagedProcessActionsAndLogsPage(t *testing.T) {
 		t.Fatal(*m)
 	}
 	// the log ring got skgate's own notes; clearing empties it
-	a.MCP.Managed.Lookup("tools").Logs(0)
+	if len(a.MCP.ProcessLogs("tools", 0)) == 0 {
+		t.Fatal("the ring has no lines to clear: the check below would prove nothing")
+	}
 	act("clear-logs")
 	if len(a.MCP.ProcessLogs("tools", 0)) != 0 {
 		t.Fatal("logs not cleared")
@@ -255,10 +265,11 @@ func TestAdminManagedTestButtonAndStderrOnLogsPage(t *testing.T) {
 	}
 	p := a.MCP.Managed.Lookup("tools")
 	p.Call(t.Context(), "tools/call", map[string]any{"name": "log"})
-	time.Sleep(100 * time.Millisecond)
-	_, logs := br.get("/admin/upstreams/tools/logs")
-	if !strings.Contains(logs, "fake log line from tool") {
-		t.Fatal("stderr must appear on the logs page")
+	var logs string
+	for end := time.Now().Add(5 * time.Second); !strings.Contains(logs, "fake log line from tool"); time.Sleep(50 * time.Millisecond) {
+		if _, logs = br.get("/admin/upstreams/tools/logs"); time.Now().After(end) {
+			t.Fatal("stderr must appear on the logs page")
+		}
 	}
 }
 

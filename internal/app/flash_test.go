@@ -116,8 +116,15 @@ func TestToastsAreInFrontOfEverything(t *testing.T) {
 	if !strings.Contains(page, `<div class="toasts" popover="manual">`) {
 		t.Errorf("the toast container must be a popover:\n%s", page)
 	}
-	css, _ := os.ReadFile(filepath.Join("..", "admin", "static", "app.css"))
-	for _, m := range regexp.MustCompile(`z-index:\s*([^;}\s]+)`).FindAllStringSubmatch(string(css), -1) {
+	css, err := os.ReadFile(filepath.Join("..", "admin", "static", "app.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	zs := regexp.MustCompile(`z-index:\s*([^;}\s]+)`).FindAllStringSubmatch(string(css), -1)
+	if len(zs) == 0 {
+		t.Fatal("no z-index found in app.css: the stylesheet moved or the check is blind")
+	}
+	for _, m := range zs {
 		if m[1] != "var(--z-toast)" {
 			v := m[1]
 			if tok := regexp.MustCompile(`^var\((--z-[a-z]+)\)$`).FindStringSubmatch(v); tok != nil { // a layer token: its value counts

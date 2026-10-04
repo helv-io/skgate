@@ -144,10 +144,8 @@
     textEl.hidden = actionsEl.hidden = content;
     if (!content) bodyEl.textContent = "";
   }
-  function fragmentId() {
-    var h = location.hash.slice(1);
-    try { return decodeURIComponent(h); } catch (err) { return h; }
-  }
+  function safeDecode(h) { try { return decodeURIComponent(h); } catch (err) { return h; } }
+  function fragmentId() { return safeDecode(location.hash.slice(1)); }
   function urlWith(id) {
     return location.pathname + location.search + (id ? "#" + encodeURIComponent(id) : "");
   }
@@ -393,7 +391,7 @@
           var o = document.getElementById(f.id);
           if (o) o.replaceWith(document.importNode(f, true));
         });
-        var body = document.querySelector("[data-modal-body]"), id = decodeURIComponent(location.hash.slice(1)), tpl = id && document.getElementById(id);
+        var body = document.querySelector("[data-modal-body]"), id = (function (h) { try { return decodeURIComponent(h); } catch (err) { return h; } })(location.hash.slice(1)), tpl = id && document.getElementById(id);
         if (body && !body.hidden && tpl && tpl.content) merge(body, tpl);
       });
   }

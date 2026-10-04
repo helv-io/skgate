@@ -3,6 +3,7 @@ package app
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -50,5 +51,17 @@ func TestLogoutRevokesTheCookieAndNeedsAPost(t *testing.T) {
 	other.c.Jar.SetCookies(u, []*http.Cookie{copied})
 	if r, _ := other.get("/admin"); r.StatusCode != 302 {
 		t.Errorf("a copied cookie still works after logout: %d", r.StatusCode)
+	}
+}
+
+// An upstream is edited through its own address; the generic save address refuses an edit. (The test browser maps
+// one onto the other, so this goes around it.)
+func TestEditThroughTheGenericAddressIsRefused(t *testing.T) {
+	_, _, br, csrf := signedIn(t, nil)
+	req, _ := http.NewRequest("POST", br.ts.URL+"/admin/upstreams/save", strings.NewReader(url.Values{"csrf": {csrf}, "mode": {"edit"}, "alias": {"x"}, "url": {"http://127.0.0.1:1/mcp"}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r, _ := br.do(req)
+	if flashKind(r) != "bad" {
+		t.Errorf("edit through /admin/upstreams/save: %d %q", r.StatusCode, flashKind(r))
 	}
 }
