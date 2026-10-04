@@ -30,12 +30,18 @@ type Doc struct {
 // Parse reads a description in JSON, YAML or TOML. It fails only when nothing usable can be made of the text;
 // problems that can be repaired are reported by Validate.
 func Parse(raw []byte) (*Doc, error) {
+	if len(raw) > MaxSpecBytes {
+		return nil, fmt.Errorf("the description is larger than %d MB", MaxSpecBytes>>20)
+	}
+	return ParseStored(raw)
+}
+
+// ParseStored reads a description that skgate stored itself (normalized JSON). It has no size limit of its own:
+// the limit applies to what a person sends, and a description under it can be a little larger once normalized.
+func ParseStored(raw []byte) (*Doc, error) {
 	raw = bytes.TrimPrefix(bytes.TrimSpace(raw), []byte("\xef\xbb\xbf"))
 	if len(raw) == 0 {
 		return nil, errors.New("the description is empty")
-	}
-	if len(raw) > MaxSpecBytes {
-		return nil, fmt.Errorf("the description is larger than %d MB", MaxSpecBytes>>20)
 	}
 	m, err := decode(raw)
 	if err != nil {
@@ -147,9 +153,9 @@ func sortedKeys(m map[string]any) []string {
 	return out
 }
 
-// JSON renders the normalized description, indented.
+// JSON renders the normalized description, compact.
 func (d *Doc) JSON() []byte {
-	b, _ := json.MarshalIndent(d.Raw, "", "  ")
+	b, _ := json.Marshal(d.Raw)
 	return b
 }
 

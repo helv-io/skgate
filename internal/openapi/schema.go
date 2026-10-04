@@ -2,21 +2,31 @@ package openapi
 
 import "strings"
 
-const maxSchemaDepth = 5
+const (
+	maxSchemaDepth = 5
+	maxInlineDepth = 24   // nesting without references stops here
+	maxSchemaNodes = 3000 // schemas visited for one tool; a small description can otherwise fan out to billions
+)
 
 // Schema inlines the references of a schema and removes what a model does not need (examples, XML hints), so the
-// result stands alone as a tool's input schema. Cycles and very deep schemas end in a plain object.
+// result stands alone as a tool's input schema. Cycles, very deep schemas and schemas that fan out past a fixed
+// budget of nodes end in a plain object.
 func (d *Doc) Schema(v any) map[string]any {
 	m := obj(v)
 	if m == nil {
 		return nil
 	}
-	return d.schema(m, 0, nil)
+	budget := maxSchemaNodes
+	return d.schema(m, 0, nil, &budget)
 }
 
 var dropKeys = map[string]bool{"xml": true, "externalDocs": true, "example": true, "examples": true, "discriminator": true, "deprecated": true, "readOnly": true, "writeOnly": true}
 
-func (d *Doc) schema(m map[string]any, depth int, stack []string) map[string]any {
+func (d *Doc) schema(m map[string]any, depth int, stack []string, budget *int) map[string]any {
+	*budget--
+	if *budget < 0 || depth > maxInlineDepth {
+		return map[string]any{"type": "object"}
+	}
 	if r := str(m["$ref"]); r != "" {
 		for _, s := range stack {
 			if s == r {
@@ -27,7 +37,7 @@ func (d *Doc) schema(m map[string]any, depth int, stack []string) map[string]any
 		if target == nil || depth >= maxSchemaDepth {
 			return map[string]any{"type": "object"}
 		}
-		return d.schema(target, depth+1, append(stack, r))
+		return d.schema(target, depth+1, append(stack, r), budget)
 	}
 	out := map[string]any{}
 	for k, v := range m {
@@ -39,13 +49,13 @@ func (d *Doc) schema(m map[string]any, depth int, stack []string) map[string]any
 			props := map[string]any{}
 			for name, pv := range obj(v) {
 				if pm := obj(pv); pm != nil {
-					props[name] = d.schema(pm, depth+1, stack)
+					props[name] = d.schema(pm, depth+1, stack, budget)
 				}
 			}
 			out[k] = props
 		case "items", "additionalProperties", "not":
 			if sm := obj(v); sm != nil {
-				out[k] = d.schema(sm, depth+1, stack)
+				out[k] = d.schema(sm, depth+1, stack, budget)
 			} else {
 				out[k] = v
 			}
@@ -53,7 +63,7 @@ func (d *Doc) schema(m map[string]any, depth int, stack []string) map[string]any
 			var l []any
 			for _, e := range list(v) {
 				if em := obj(e); em != nil {
-					l = append(l, d.schema(em, depth+1, stack))
+					l = append(l, d.schema(em, depth+1, stack, budget))
 				}
 			}
 			out[k] = l

@@ -126,13 +126,17 @@ func (d *Doc) checkParam(ptr string, x any, path string) []Issue {
 	return nil
 }
 
-// walk calls fn for every JSON object in the tree with its pointer. Examples are skipped: their content is data.
+// walk calls fn for every JSON object in the tree with its pointer. Examples and extensions (x-) are skipped: their
+// content is data. So are the security schemes, which have a "type" of their own.
 func walk(v any, ptr string, fn func(string, map[string]any)) {
 	switch x := v.(type) {
 	case map[string]any:
 		fn(ptr, x)
 		for _, k := range sortedKeys(x) {
-			if k == "example" || k == "examples" || k == "default" || k == "enum" || k == "const" {
+			if k == "example" || k == "examples" || k == "default" || k == "enum" || k == "const" || strings.HasPrefix(k, "x-") {
+				continue
+			}
+			if k == "securitySchemes" && ptr == "/components" { // their "type" is apiKey, http, oauth2: not a schema's
 				continue
 			}
 			walk(x[k], ptr+"/"+escPtr(k), fn)
