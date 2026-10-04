@@ -49,11 +49,11 @@ func (u *Upstream) validateOpenAPI() error {
 		return errors.New("alias must be 1-63 chars of a-z, 0-9 and dash")
 	}
 	if u.Command != "" || len(u.Args) > 0 || len(u.Env) > 0 || u.GitURL != "" || u.Install != "" || u.WorkDir != "" || len(u.Headers) > 0 || u.HostOverride != "" {
-		return errors.New("an OpenAPI upstream has no process, extra headers or host override")
+		return errors.New("an OpenAPI upstream takes no process, headers or host override")
 	}
 	pu, err := url.Parse(u.URL)
 	if err != nil || (pu.Scheme != "http" && pu.Scheme != "https") || pu.Host == "" || pu.User != nil {
-		return errors.New("the base URL must be an absolute http(s) URL without credentials")
+		return errors.New("the base URL must be http or https, without a user name")
 	}
 	if err := httputil.CheckScheme(pu); err != nil {
 		return err
@@ -64,26 +64,26 @@ func (u *Upstream) validateOpenAPI() error {
 	case AuthNone:
 	case AuthAuto: // one key: the way to send it comes from the description, or is found by trying
 		if u.AuthValue == "" {
-			return errors.New("enter the key or token")
+			return errors.New("enter the key")
 		}
 	case AuthBearer:
 		if u.AuthValue == "" {
-			return errors.New("bearer auth needs a token")
+			return errors.New("bearer needs a key")
 		}
 	case AuthHeader:
 		if u.AuthValue == "" || !validHeaderName(u.AuthName) {
-			return errors.New("header auth needs a valid header name and a value")
+			return errors.New("header needs a name and a key")
 		}
 	case AuthQuery:
 		if u.AuthValue == "" || !queryNameRE.MatchString(u.AuthName) {
-			return errors.New("query auth needs a valid parameter name and a value")
+			return errors.New("query needs a name and a key")
 		}
 	case AuthBasic:
 		if u.AuthName == "" || u.AuthValue == "" || len(u.AuthName) > 200 || containsAny(u.AuthName, ":\r\n") {
-			return errors.New("basic auth needs a user name (without a colon) and a password")
+			return errors.New("basic needs a user name and a password")
 		}
 	default:
-		return errors.New("auth kind must be none, bearer, header, query or basic")
+		return errors.New("auth must be none, bearer, header, query or basic")
 	}
 	if u.AuthKind == AuthNone || u.AuthKind == AuthBearer || u.AuthKind == AuthAuto {
 		u.AuthName = ""
@@ -135,7 +135,7 @@ func (s *Upstreams) OpenAPI(alias string) (*OAState, error) {
 		return nil, errors.New("no OpenAPI description is stored for this upstream")
 	}
 	if err := json.Unmarshal([]byte(sel), &cfg.Selection); err != nil {
-		return nil, errors.New("the stored tool selection is unreadable; save the tools page again")
+		return nil, errors.New("the tool selection is unreadable, save the tools page again")
 	}
 	st, err := buildState(cfg)
 	if err != nil {
@@ -239,7 +239,7 @@ func (s *Server) oaDispatch(ctx context.Context, up Upstream, method string, par
 				continue
 			}
 			if up.SecretErr {
-				return toolText("the stored credential cannot be decrypted (SECRETS_KEY changed); set it again on the upstream", true), nil
+				return toolText("the stored key cannot be decrypted, set it again", true), nil
 			}
 			cl := up.caller(st.Scheme)
 			res := cl.Call(ctx, t.WithoutCredential(cl.Auth), p.Arguments)
@@ -407,7 +407,7 @@ func (s *Server) TestOpenAPIDraft(ctx context.Context, up Upstream, cfg OpenAPIC
 }
 
 // QueryKeyWarning is shown when the key travels in the web address.
-const QueryKeyWarning = "This API takes the key in the web address. It can show up in logs."
+const QueryKeyWarning = "the key travels in the web address and can show up in logs"
 
 func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState) (tr TestResult) {
 	tr.AuthMode = up.AuthKind
@@ -424,13 +424,13 @@ func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState)
 	}
 	tr.Server = clipText(st.Doc.Title(), 80)
 	if n := len(st.Tools); n > ToolsWarn {
-		tr.Warnings = append(tr.Warnings, fmt.Sprintf("%d tools are exposed: models pick worse tools and get slower and costlier with many tools; expose only what you need", n))
+		tr.Warnings = append(tr.Warnings, fmt.Sprintf("%d tools is too many", n))
 	}
 	if n := len(st.Tools); n == 0 {
-		tr.Warnings = append(tr.Warnings, "no operation is enabled: the server offers no tools")
+		tr.Warnings = append(tr.Warnings, "no tools on")
 	}
 	if up.SecretErr {
-		tr.Error = "the stored key cannot be read; enter it again"
+		tr.Error = "the stored key cannot be read, enter it again"
 		return tr
 	}
 	if op, ok := st.Doc.ProbeOp(st.Ops); ok { // one safe read tells whether the server takes the key
@@ -454,13 +454,13 @@ func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState)
 		}
 		switch {
 		case status == 0:
-			tr.Error = "skgate cannot reach the server."
+			tr.Error = "cannot reach the server"
 			return tr
 		case openapi.Refused(status) && auth.Kind != AuthNone:
-			tr.Error = "The server refused the key."
+			tr.Error = "the server refused the key"
 			return tr
 		case openapi.Refused(status):
-			tr.Warnings = append(tr.Warnings, "The server asks for a key.")
+			tr.Warnings = append(tr.Warnings, "the server wants a key")
 		}
 		if auth.Kind == AuthQuery {
 			tr.Warnings = append(tr.Warnings, QueryKeyWarning)

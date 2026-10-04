@@ -127,7 +127,7 @@ func (a Assist) Repair(ctx context.Context, d *Doc, issues []Issue) ([]Patch, er
 		keep = append(keep, p)
 	}
 	if len(keep) == 0 {
-		return nil, errors.New("the model proposed no usable change")
+		return nil, errors.New("no usable change proposed")
 	}
 	return keep, nil
 }
@@ -136,7 +136,7 @@ func (a Assist) Repair(ctx context.Context, d *Doc, issues []Issue) ([]Patch, er
 // that were not asked, invalid names and repeated names are dropped; the caller keeps what it has for those.
 func (a Assist) Describe(ctx context.Context, ops []Op) (map[string]Override, error) {
 	if len(ops) == 0 {
-		return nil, errors.New("pick the tools to describe first")
+		return nil, errors.New("switch on tools first")
 	}
 	if len(ops) > MaxDescribeOps {
 		ops = ops[:MaxDescribeOps]
@@ -186,7 +186,7 @@ func (a Assist) Describe(ctx context.Context, ops []Op) (map[string]Override, er
 		}
 	}
 	if len(res) == 0 {
-		return nil, errors.New("the model proposed no usable names")
+		return nil, errors.New("no usable names proposed")
 	}
 	return res, nil
 }
@@ -214,12 +214,12 @@ func (a Assist) ask(ctx context.Context, system, user string, out any) error {
 	}
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return errors.New("the model took too long")
+			return errors.New("the helper model timed out")
 		}
-		return errors.New("the model request failed")
+		return errors.New("the helper model failed")
 	}
 	if status != http.StatusOK {
-		return fmt.Errorf("the model request failed (HTTP %d)", status)
+		return fmt.Errorf("the helper model failed: HTTP %d", status)
 	}
 	var r struct {
 		Choices []struct {
@@ -229,7 +229,7 @@ func (a Assist) ask(ctx context.Context, system, user string, out any) error {
 		} `json:"choices"`
 	}
 	if json.Unmarshal(reply, &r) != nil || len(r.Choices) == 0 {
-		return errors.New("the model returned no content")
+		return errors.New("the helper model returned nothing")
 	}
 	content := strings.TrimSpace(r.Choices[0].Message.Content)
 	content = strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(content, "```json"), "```"), "```")
@@ -238,7 +238,7 @@ func (a Assist) ask(ctx context.Context, system, user string, out any) error {
 	}
 	dec := json.NewDecoder(strings.NewReader(content))
 	if err := dec.Decode(out); err != nil {
-		return errors.New("the model's answer is not the JSON that was asked for")
+		return errors.New("the helper model answered with invalid JSON")
 	}
 	return nil
 }
