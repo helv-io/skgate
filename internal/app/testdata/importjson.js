@@ -9,16 +9,17 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await pg.setViewport({ width: 390, height: 900 });
   await pg.setCookie(...JSON.parse(cookiesJSON));
   await pg.goto(url + "/admin/upstreams/import");
-  const st = () => pg.evaluate(() => { const a = document.querySelector("textarea[name=json]"), p = document.querySelector("[data-json-status]"); return { invalid: a.getAttribute("aria-invalid"), valid: a.validity.valid, formValid: a.form.checkValidity(), text: p.textContent, bad: p.classList.contains("bad"), border: getComputedStyle(a).borderTopColor }; });
+  const st = () => pg.evaluate(() => { const a = document.querySelector("textarea[name=json]"), p = document.querySelector("[data-json-status]"); return { invalid: a.getAttribute("aria-invalid"), valid: a.validity.valid, formValid: a.form.checkValidity(), text: p.textContent, bad: p.classList.contains("bad"), border: getComputedStyle((document.querySelector(".codehost") || {}).shadowRoot ? document.querySelector(".codehost").shadowRoot.querySelector(".cm-editor") : a).borderTopColor }; });
+  const typeIn = async t => { await pg.click(".codehost"); await pg.keyboard.press("End"); await pg.keyboard.type(t); await wait(700); }; // the editor is what people type into
   let s = await st();
   ok(!s.invalid && !s.valid && /Paste or type/.test(s.text) && !s.bad, "empty: quietly blocked " + JSON.stringify(s));
-  await pg.type("textarea[name=json]", '{"mcpServers": {"fixed": {"url": "http://127.0.0.1:1/mcp"},');
+  await typeIn('{"mcpServers": {"fixed": {"url": "http://127.0.0.1:1/mcp"},');
   s = await st();
   ok(s.invalid === "true" && !s.formValid && s.bad && /^Not valid JSON: /.test(s.text) && s.border === "rgb(255, 138, 128)", "broken JSON while typing: marked, explained, blocked " + JSON.stringify(s));
   await pg.click("form[action='/admin/upstreams/import'] button.btn");
   await wait(500);
   ok(pg.url().endsWith("/admin/upstreams/import"), "Import does nothing while the JSON is broken: " + pg.url());
-  await pg.type("textarea[name=json]", ' "other": {"url": "http://127.0.0.1:2/mcp"}}}');
+  await typeIn(' "other": {"url": "http://127.0.0.1:2/mcp"}}}');
   s = await st();
   ok(!s.invalid && s.formValid && !s.bad && s.text === "Valid JSON · 2 servers", "fixed: valid and counted " + JSON.stringify(s));
   // one server only: drop the second entry

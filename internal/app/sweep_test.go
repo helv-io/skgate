@@ -164,6 +164,8 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	js, _ := os.ReadFile(filepath.Join("..", "admin", "static", "app.js"))
 	os.WriteFile(filepath.Join(dir, "app.css"), css, 0o600)
 	os.WriteFile(filepath.Join(dir, "app.js"), js, 0o600)
+	cm, _ := os.ReadFile(filepath.Join("..", "admin", "static", "codemirror.js")) // the editors are swept as they appear
+	os.WriteFile(filepath.Join(dir, "codemirror.js"), cm, 0o600)
 	script, _ := filepath.Abs(filepath.Join("testdata", "sweep.js"))
 	args := []string{script, dir, chrome, filepath.Join(pp, "node_modules", "puppeteer-core")}
 	if shots := os.Getenv("SKGATE_SHOTS"); shots != "" {
