@@ -404,6 +404,10 @@ Without `OIDC_*` the admin answers 503. Every user your provider lets in is an a
 
 More: [operations](docs/operations.md).
 
+## Built with AI assistance
+
+skgate is built with AI assistance: coding agents write much of the code, tests and docs. The author reviews the changes and runs skgate.
+
 ## Development
 
 ```sh
