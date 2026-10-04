@@ -7,7 +7,7 @@
 #   docker build --target slim -t skgate:slim .
 #   docker build -t skgate:latest .
 
-ARG GO_VERSION=1.24
+ARG GO_VERSION=1.25
 ARG NODE_VERSION=22
 ARG UV_VERSION=0.12
 ARG DOTNET_VERSION=10.0
