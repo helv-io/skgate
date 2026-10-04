@@ -386,7 +386,7 @@ func TestSuggestTimeoutStateInJSDOM(t *testing.T) {
 	}
 }
 
-// The status page shows the helper model's reasoning as a pill next to the model: auto, low, medium or high.
+// The status page shows the helper model and its reasoning as one pill: "plain · reasoning auto", low, medium or high.
 func TestStatusShowsReasoningPill(t *testing.T) {
 	up, _ := aliasUpstream(t)
 	a, _, br, csrf, _ := signedInProvider(t, up)
@@ -396,22 +396,22 @@ func TestStatusShowsReasoningPill(t *testing.T) {
 		i := strings.Index(page, "<th>MCP helper model</th>")
 		return page[i : i+strings.Index(page[i:], "</tr>")]
 	}
-	if r := row(); strings.Contains(r, ">auto</span>") {
-		t.Errorf("no model, no reasoning pill:\n%s", r)
+	if r := row(); strings.Contains(r, "reasoning") {
+		t.Errorf("no model, no reasoning:\n%s", r)
 	}
 	br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"plain"}})
-	if r := row(); !strings.Contains(r, `<span class="pill off" title="Reasoning of the helper model: the model decides">auto</span>`) {
+	if r := row(); !strings.Contains(r, ">plain \u00b7 reasoning auto</span>") {
 		t.Errorf("unset reasoning shows auto:\n%s", r)
 	}
 	for _, v := range []string{"low", "medium", "high"} {
 		br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"plain"}, "effort": {v}})
-		if r := row(); !strings.Contains(r, ">"+v+"</span>") || strings.Contains(r, ">auto</span>") {
+		if r := row(); !strings.Contains(r, ">plain \u00b7 reasoning "+v+"</span>") || strings.Contains(r, "auto") {
 			t.Errorf("%s: %s", v, r)
 		}
 	}
 	// a value stored under the earlier name reads as auto
 	a.DB.SetSetting("provider.grok.effort", "default")
-	if r := row(); !strings.Contains(r, ">auto</span>") {
+	if r := row(); !strings.Contains(r, ">plain \u00b7 reasoning auto</span>") {
 		t.Errorf("stored default must read as auto:\n%s", r)
 	}
 }

@@ -153,7 +153,7 @@ func TestProviderAliasesEndToEnd(t *testing.T) {
 	if !regexp.MustCompile(`<span class="pill warn" title="target grok-mini is no longer in the provider&#39;s model list">stale</span>`).MatchString(page) {
 		t.Fatalf("stale alias not flagged:\n%s", page[strings.Index(page, "Model aliases"):])
 	}
-	if !regexp.MustCompile(`<span class="pill warn" title="[^"]*">1 of 1 stale</span>`).MatchString(page) {
+	if !regexp.MustCompile(`<span class="pill warn" title="[^"]*">1 of 1 alias stale</span>`).MatchString(page) {
 		t.Fatal("summary on the main screen must warn too")
 	}
 	// delete
@@ -183,7 +183,7 @@ func TestHelperModelSelection(t *testing.T) {
 		t.Fatalf("stored %q", v)
 	}
 	_, page := br.get("/admin")
-	if !strings.Contains(page, `<span class="pill ok" title="used as the MCP helper model">m2</span>`) {
+	if !strings.Contains(page, `<span class="pill ok" title="used as the MCP helper model">m2 · reasoning auto</span>`) {
 		t.Fatal("model summary missing on the main screen")
 	}
 	post(url.Values{"model": {""}})

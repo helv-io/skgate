@@ -145,7 +145,7 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	case v.ModelsKnown && !contains(v.Models, v.Model) && !isAlias(a.Set.Aliases(id), v.Model):
 		v.ModelPill = pillView{"warn", modelWithReasoning(v.Model, v.Effort.Value), "no longer in the provider's model list"}
 	default:
-		v.ModelPill = pillView{"ok", modelWithReasoning(v.Model, v.Effort.Value), effortTip + ": used as the MCP helper model"}
+		v.ModelPill = pillView{"ok", modelWithReasoning(v.Model, v.Effort.Value), "used as the MCP helper model"}
 	}
 	stale := 0
 	for _, al := range a.Set.Aliases(id) {
