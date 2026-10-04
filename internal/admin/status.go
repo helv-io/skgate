@@ -130,19 +130,22 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 		v.ModelHeavy = v.ModelHeavy || c.Selected && c.Frontier
 	}
 	v.Effort = effortOf("effort", a.Set.Effort(id))
+	effortTip := "Reasoning of the helper model"
 	if v.Effort.Value == "auto" {
-		v.EffortPill = pillView{"off", "auto", "Reasoning of the helper model: the model decides"}
-	} else {
-		v.EffortPill = pillView{"ok", v.Effort.Value, "Reasoning of the helper model"}
+		effortTip = "Reasoning of the helper model: the model decides"
+	}
+	v.EffortPill = pillView{Class: "off", Text: "auto", Tip: effortTip}
+	if v.Effort.Value != "auto" {
+		v.EffortPill.Class, v.EffortPill.Text = "ok", v.Effort.Value
 	}
 	v.Timeout, v.Frontier = int(a.Set.HelperTimeout(id)/time.Second), provider.FrontierTimeoutSecs
 	switch {
 	case v.Model == "":
 		v.ModelPill = pillView{"off", "no model", "pick a model in the details to enable Suggest configuration"}
 	case v.ModelsKnown && !contains(v.Models, v.Model) && !isAlias(a.Set.Aliases(id), v.Model):
-		v.ModelPill = pillView{"warn", v.Model, "no longer in the provider's model list"}
+		v.ModelPill = pillView{"warn", modelWithReasoning(v.Model, v.Effort.Value), "no longer in the provider's model list"}
 	default:
-		v.ModelPill = pillView{"ok", v.Model, "used as the MCP helper model"}
+		v.ModelPill = pillView{"ok", modelWithReasoning(v.Model, v.Effort.Value), effortTip + ": used as the MCP helper model"}
 	}
 	stale := 0
 	for _, al := range a.Set.Aliases(id) {
@@ -157,11 +160,11 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	}
 	switch {
 	case len(v.Aliases) == 0:
-		v.AliasPill = pillView{"off", "none", "no model aliases"}
+		v.AliasPill = pillView{"off", "no aliases", "no model aliases"}
 	case stale > 0:
-		v.AliasPill = pillView{"warn", fmt.Sprintf("%d of %d stale", stale, len(v.Aliases)), "an alias points at a model the provider no longer lists"}
+		v.AliasPill = pillView{"warn", fmt.Sprintf("%d of %d %s stale", stale, len(v.Aliases), plural(len(v.Aliases), "alias", "aliases")), "an alias points at a model the provider no longer lists"}
 	default:
-		v.AliasPill = pillView{"ok", fmt.Sprint(len(v.Aliases)), "aliases resolve to listed models"}
+		v.AliasPill = pillView{"ok", fmt.Sprintf("%d %s", len(v.Aliases), plural(len(v.Aliases), "alias", "aliases")), "aliases resolve to listed models"}
 	}
 	return v
 }
@@ -255,4 +258,10 @@ func isAlias(aliases []provider.Alias, name string) bool {
 		}
 	}
 	return false
+}
+
+// modelWithReasoning is the text of the helper model pill: the model and its reasoning, as one phrase
+// ("grok-4.7 · reasoning low", "grok-4.7 · reasoning auto").
+func modelWithReasoning(model, effort string) string {
+	return model + " \u00b7 reasoning " + effort
 }
