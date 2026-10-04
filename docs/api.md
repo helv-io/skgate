@@ -1,4 +1,4 @@
-# OpenAI-compatible API (Grok)
+# OpenAI-compatible API
 
 Part of the [skgate README](../README.md).
 
@@ -11,3 +11,15 @@ export OPENAI_BASE_URL=https://skgate.example.com/v1 OPENAI_API_KEY=sk-...
 ```
 
 **Model aliases.** In the details dialog, map a name to one of the account's models (`grok-latest` to `grok-4.7`). Alias names are letters, digits and `. _ : -`, and may not equal a real model id. The model list shows aliases first; a request with an alias as `model` is sent upstream with the target, streaming included; changes apply to the next request. Responses are relayed as the provider sent them, so `model` in a response names the target. An alias whose target left the provider's list gets a warning pill with the detail on hover.
+
+## Other providers
+
+Grok needs no API key. **Other providers** on the status page adds the rest: OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, or a custom endpoint that speaks the OpenAI API. **Add provider**, pick one (the base URL and a hint for the key fill in), paste the API key and **Add and test**. skgate loads the provider's model list to test the connection; the provider is saved even when that fails, for example while a local server is down.
+
+- The API key is encrypted at rest like the other secrets and shown masked; the key field never carries it. Leave the key empty when saving to keep the stored one. Ollama and LM Studio need no key (from a container, use an address skgate can reach, not `localhost`).
+- **Details** of a provider has the base URL, the key, **Test connection**, **Reload models**, its model aliases, and **Remove provider**, which deletes the key and its aliases.
+- Anthropic's own API is translated: chat requests (text, images, tools, streaming) go to the Messages API and come back as OpenAI responses. Other Anthropic endpoints are not offered.
+- Apps keep using one address. A request goes to the provider by its model: an alias goes to the provider and model it points at; a model that only one provider lists goes to that provider; anything else goes to Grok, or to the first ready provider while Grok is signed out. The model list shows the aliases of every provider.
+- Alias names are unique across providers. Adding a name that exists under another provider moves it, and the toast says so. To change the AI provider behind an app, point the alias at another provider's model.
+- The MCP helper model may be any alias or model of a ready provider, so Suggest configuration works without a Grok subscription. A provider that rejects the reasoning setting is asked again without it.
+- The model lists of ready providers load in the background at start. An unreachable provider never delays or fails startup.
