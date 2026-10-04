@@ -1,7 +1,9 @@
 {{define "body"}}{{with .Data}}
 <h2>OAuth clients</h2>
-{{if .NewID}}<div class="card"><p class="ok">Client created, secret shown once</p><div class="row">Client ID <code class="code" id="new-client-id">{{.NewID}}</code><button type="button" class="act" data-copy="#new-client-id">Copy</button></div>{{if .NewSecret}}<div class="row">Client secret <code class="code" id="new-client-secret">{{.NewSecret}}</code><button type="button" class="act" data-copy="#new-client-secret">Copy</button></div>{{end}}</div>{{end}}
-<p class="muted">DCR clients are listed too (newest 500 kept). authorize <code>{{wrapurl $.Public "/authorize"}}</code> token <code>{{wrapurl $.Public "/token"}}</code></p>
+{{if .NewID}}<div class="card"><p class="ok">Client created, secret shown once</p><div class="field"><div class="label">Client ID</div>{{template "copybox" (copytext "the client ID" .NewID)}}</div>{{if .NewSecret}}<div class="field"><div class="label">Client secret</div>{{template "copybox" (copytext "the client secret" .NewSecret)}}</div>{{end}}</div>{{end}}
+<p class="muted">DCR clients are listed too (newest 500 kept).</p>
+<div class="field"><div class="label">Authorize address</div>{{template "copybox" (copyurl "the authorize address" $.Public "/authorize")}}</div>
+<div class="field"><div class="label">Token address</div>{{template "copybox" (copyurl "the token address" $.Public "/token")}}</div>
 <div class="row spread"><span class="muted">Most recently used first.</span>
 <form method="post" action="/admin/clients/delete-unused" data-confirm="Delete {{.Unused}} {{plural .Unused "client" "clients"}} unused for {{.Days}} days, with {{if eq .Unused 1}}its{{else}}their{{end}} tokens?" data-confirm-title="Delete unused clients" data-confirm-ok="Delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger"{{if not .Unused}} disabled title="no client has gone unused for {{.Days}} days"{{end}}>delete unused for {{.Days}} days{{if .Unused}} ({{.Unused}}){{end}}</button></form></div>
 <div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Source</th><th>Redirect host</th><th>Created</th><th>Last used</th>{{template "th_actions"}}</tr></thead><tbody>
@@ -17,7 +19,7 @@
 <tr><th>source</th><td><span class="chip"{{if $c.SourceTip}} title="{{$c.SourceTip}}"{{end}}>{{$c.SourceLabel}}</span></td></tr>
 <tr><th>created</th><td>{{ts $c.CreatedAt}}</td></tr>
 <tr><th>last used</th><td>{{ts $c.LastUsed}}</td></tr>
-<tr><th>redirect URIs</th><td>{{range $c.RedirectURIs}}<code>{{.}}</code><br>{{end}}</td></tr>
+<tr><th>redirect URIs</th><td>{{range $c.RedirectURIs}}{{template "copybox" (copyurl "the redirect URI" .)}}{{end}}</td></tr>
 </tbody></table></div>
 {{template "dialog_end"}}{{end}}
 <h2>Create client</h2><div class="card">

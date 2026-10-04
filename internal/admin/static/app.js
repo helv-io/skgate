@@ -427,7 +427,7 @@
   });
 })();
 
-// Menus (the menu_start component, the ⋯ button of a row): the button opens its list below it, fixed to the window
+// Menus (the menu_start component, the More button of a row): the button opens its list below it, fixed to the window
 // so a scrolling table cannot clip it, and the first item takes the focus. Arrow keys, Home and End move between
 // items; Escape closes and returns to the button; so do a click outside, Tab, a scroll or resize, and choosing an
 // item (the item then does its own thing: a link, a dialog, a form). One menu is open at a time. Taps work as clicks.
@@ -602,6 +602,19 @@ document.addEventListener("click", function (e) {
     text = src.textContent.trim();
   }
   function done(ok) {
+    if (!ok) {
+      // nothing could be copied: select the text, so the person can copy it by hand
+      var code = b.querySelector ? b.querySelector("code") : null;
+      if (code && window.getSelection && document.createRange) {
+        var range = document.createRange();
+        range.selectNodeContents(code);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        window.skgateToast("bad", "Couldn't copy. The text is selected, copy it by hand.");
+        return;
+      }
+    }
     window.skgateToast(ok ? "ok" : "bad", ok ? (b.getAttribute("data-copied") || "Copied") : "Copy failed");
   }
   function fallback() {
@@ -870,8 +883,8 @@ document.addEventListener("input", function (e) {
     pill.textContent = label;
     pill.hidden = !label;
     ul.textContent = "";
-    // a line is a string, or {warn: text}: a warning, drawn with an icon (CSS) and listed before the rest
-    lines.forEach(function (l) { var li = document.createElement("li"); if (l && l.warn) { li.className = "warn"; li.textContent = l.warn; } else li.textContent = l; ul.appendChild(li); });
+    // a line is a string, or {warn: text}: a warning, led by the word Warning and listed before the rest
+    lines.forEach(function (l) { var li = document.createElement("li"); if (l && l.warn) { li.className = "warn"; li.textContent = "Warning: " + l.warn; } else li.textContent = l; ul.appendChild(li); });
     // notes are folded away in a details block under the list; it is hidden when there are none
     var det = out.querySelector("[data-suggest-notes]"), nl = out.querySelector("[data-suggest-notes-list]");
     nl.textContent = "";

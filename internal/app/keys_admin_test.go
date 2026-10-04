@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var tokenRe = regexp.MustCompile(`id="new-token">(sk-[A-Za-z0-9_-]+)<`)
+var tokenRe = regexp.MustCompile(`class="copybox" data-copy-text="(sk-[A-Za-z0-9_-]+)"`)
 
 func TestKeyCreateShowsTokenOnceWithCopyButton(t *testing.T) {
 	_, ts, br, csrf := signedIn(t, nil)
@@ -19,7 +19,7 @@ func TestKeyCreateShowsTokenOnceWithCopyButton(t *testing.T) {
 	if r.StatusCode != 200 || m == nil {
 		t.Fatalf("token not shown: %d", r.StatusCode)
 	}
-	if !strings.Contains(page, `data-copy="#new-token"`) || !strings.Contains(page, ">Copy</button>") {
+	if !strings.Contains(page, `aria-label="Copy the new key"`) || !strings.Contains(page, "Tap to copy") {
 		t.Error("one-time token needs a Copy button")
 	}
 	if _, again := br.get("/admin/keys"); strings.Contains(again, m[1]) {
@@ -55,7 +55,7 @@ func TestKeyRegenerateFlow(t *testing.T) {
 	if r.StatusCode != 200 || m == nil || m[1] == old {
 		t.Fatalf("regenerate: %d, new token %v", r.StatusCode, m)
 	}
-	if !strings.Contains(page, `data-copy="#new-token"`) {
+	if !strings.Contains(page, `aria-label="Copy the new key"`) {
 		t.Error("regenerated token needs a Copy button")
 	}
 	if _, ok := a.Keys.Verify(old); ok {

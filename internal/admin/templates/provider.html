@@ -11,7 +11,7 @@
 {{if eq .Dev.State "pending"}}
 <div id="device-poll" data-poll="/admin/providers/{{.ID}}/device/state"></div>
 <p><a href="{{if .Dev.VerificationURIComplete}}{{.Dev.VerificationURIComplete}}{{else}}{{.Dev.VerificationURI}}{{end}}" target="_blank" rel="noopener noreferrer">{{.Dev.VerificationURI}}</a> code:</p>
-<p><code class="big">{{.Dev.UserCode}}</code></p>
+{{template "copybox" (copycode "the sign-in code" .Dev.UserCode)}}
 <div class="actions"><form method="post" action="/admin/providers/{{.ID}}/device/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Cancel</button></form></div>
 {{else}}
 <div class="actions">
