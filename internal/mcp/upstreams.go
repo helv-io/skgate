@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/store"
 )
 
@@ -140,6 +141,9 @@ func (u *Upstream) Validate() error {
 	pu, err := url.Parse(u.URL)
 	if err != nil || (pu.Scheme != "http" && pu.Scheme != "https") || pu.Host == "" {
 		return errors.New("url must be an absolute http(s) URL")
+	}
+	if err := httputil.CheckScheme(pu); err != nil {
+		return err
 	}
 	if !validHostOverride(u.HostOverride) {
 		return errors.New("host override must be a hostname[:port] with no spaces or slashes")
