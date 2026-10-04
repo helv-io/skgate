@@ -109,7 +109,7 @@ func (p *Provider) StaticKey() bool { return true }
 func (p *Provider) Token(context.Context) (string, error) {
 	k, err := p.Key()
 	if err != nil {
-		return "", errors.New("the saved API key cannot be opened (check SECRET_KEY)")
+		return "", errors.New("the saved API key cannot be opened (check SECRETS_KEY)")
 	}
 	if k == "" && p.Preset.NeedsKey {
 		return "", errors.New("no API key saved for " + p.Preset.Name)
@@ -141,7 +141,7 @@ func (p *Provider) Run(context.Context) {}
 func (p *Provider) Status() provider.Status {
 	s := provider.Status{SignedIn: p.Ready()}
 	if k, err := p.Key(); err != nil {
-		s.State, s.LastError = "secret_error", "the saved API key cannot be opened (check SECRET_KEY)"
+		s.State, s.LastError = "secret_error", "the saved API key cannot be opened (check SECRETS_KEY)"
 	} else {
 		s.AccessMasked = httputil.Mask(k)
 	}
