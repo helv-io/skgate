@@ -103,11 +103,16 @@ pre{background:#0c0d0f;border:1px solid var(--line);padding:8px 10px;overflow:au
 .act.danger:hover,button.danger:hover{border-color:var(--bad);color:var(--bad);background:#211514}
 .act.small,button.small{padding:1px 8px;font-size:12px}
 .act.plain,button.link{border:0;background:none;padding:0;color:var(--acc)}
-/* toggle: a button whose state is its color (green on, red off) */
+/* toggle: a switch. The button is role=switch (aria-checked), a track with a knob (on: green, knob right; off:
+   neutral, knob left) beside its label. A disabled switch is dimmed, shows no pointer and does not react to hover. */
+.act.toggle{display:inline-flex;align-items:center;gap:8px;color:var(--dim);background:#131518}
+.act.toggle::before{content:"";flex:0 0 auto;width:28px;height:16px;border:1px solid currentColor;background:linear-gradient(currentColor,currentColor) no-repeat left 2px center/10px 10px}
 .act.toggle.on{color:var(--ok);border-color:#2f4a33;background:#132016}
-.act.toggle.off{color:var(--bad);border-color:#5a3532;background:#211514}
-.act.toggle:hover{color:#fff}
-.act.toggle.on:hover{border-color:var(--ok)}.act.toggle.off:hover{border-color:var(--bad)}
+.act.toggle.on::before{background-position:right 2px center}
+.act.toggle:hover{color:var(--fg);border-color:var(--acc)}
+.act.toggle.on:hover{color:var(--ok);border-color:var(--ok)}
+.act.toggle:disabled,.act.toggle:disabled:hover{opacity:.45;cursor:not-allowed;color:var(--dim);border-color:var(--line);background:#131518}
+.act.toggle:disabled::before{background-position:left 2px center}
 /* menu: the ⋯ button of a row and the list it opens. The list is fixed to the window (placed by app.js under the
    button), so a table that scrolls sideways cannot clip it. Items are the .act of the row, without their frames. */
 .menu{display:inline-flex}
@@ -289,7 +294,7 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .table .actions .act,.actions .act{flex:1 1 40%;min-width:0;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:6px 12px}
   /* touch targets: every control is at least 44px tall and wide, one shared size (the sweep measures them) */
   .act,button,input[type=submit],.act.small,button.small,.btn,a.btn{min-height:44px;min-width:44px}
-  .table:not(.kv) td .act.toggle{min-width:8em}
+  .table:not(.kv) td .act.toggle{min-width:8em;justify-content:flex-start}
   input,select,textarea{min-height:44px}
   input[type=checkbox]{min-height:0}
   label.check{min-height:44px}
