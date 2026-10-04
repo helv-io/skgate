@@ -82,4 +82,23 @@ func TestRegistryFilesAgreeWithTheVersion(t *testing.T) {
 	if err := json.Unmarshal(gb, &gl); err != nil || len(gl.Maintainers) == 0 || !regexp.MustCompile(`^https://glama\.ai/mcp/schemas/server\.json$`).MatchString(gl.Schema) {
 		t.Errorf("glama.json must carry the Glama schema and a maintainer: %v %+v", err, gl)
 	}
+	// the release workflow publishes server.json: OIDC permission on that job only, a pinned and checksummed publisher
+	wf, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "release.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := string(wf)
+	if strings.Count(w, "id-token: write") != 1 {
+		t.Errorf("release.yml must grant id-token: write exactly once, on the mcp-registry job")
+	}
+	job := w[strings.Index(w, "\n  mcp-registry:"):]
+	if !strings.Contains(job, "id-token: write") || !strings.Contains(job, "needs: [merge]") {
+		t.Errorf("the mcp-registry job needs id-token: write and needs: [merge]")
+	}
+	if !regexp.MustCompile(`MCP_PUBLISHER_VERSION: v\d+\.\d+\.\d+\n`).MatchString(job) || !regexp.MustCompile(`MCP_PUBLISHER_SHA256: [0-9a-f]{64}\n`).MatchString(job) || !strings.Contains(job, "sha256sum -c") {
+		t.Errorf("mcp-publisher must be pinned to a version and verified against a sha256")
+	}
+	if !regexp.MustCompile(`(?m)^permissions:\n  contents: read\n`).MatchString(w) {
+		t.Errorf("the workflow-level permissions must stay contents: read")
+	}
 }
