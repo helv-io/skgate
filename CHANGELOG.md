@@ -10,7 +10,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
-- SI wording: only our own text; identifiers go back to SI
+- SI wording covers only text that is ours (screens, docs, descriptions, tooltips); names, keys, file names and links are unchanged
 
 ## [0.12.7] - 2026-10-04
 
@@ -18,7 +18,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - README is MCP-first; a new section covers proxying SI providers, model aliases and using a Grok subscription as an OpenAI-compatible API with no API key
 - One description of skgate in the registry, Docker labels and Unraid template
-- SI (not SI) in docs and screens; shorter /mcp note in operations.md
+- SI wording in docs and screens; shorter /mcp note in operations.md
 
 ## [0.12.6] - 2026-10-04
 
@@ -43,42 +43,48 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
-- Stopping the server now also stops managed MCP servers cleanly (with a test)
 - Docs corrected against the code: MCP, operations, API, OpenAPI, forward-auth paths, alias form labels, and PUID/PGID (must not be 65534)
+
+### Fixed
+
+- Stopping the server now also stops managed MCP servers cleanly (with a test)
 
 ## [0.12.3] - 2026-10-04
 
 ### Changed
 
-- Admin sign-out revokes the session and is a POST; the session secret is read once
-- The token endpoint refuses a `resource` wider than the one granted
-- Long names wrap and no table scrolls sideways inside its card
-- Disabled buttons are dimmed, a failing upstream's error is only in the hover text, a failed save says why, and plain forms cannot be double-submitted
 - Browser tests now run in CI; log times go through one formatter; tests that could not fail now check what they say; the managed-process tests stop everything before cleanup
 
 ### Fixed
 
 - A refused write is no longer reported as saved (provider, alias, upstream and client changes)
 - Migrations run in one transaction; a failed legacy-env migration is retried; the OpenAPI cache no longer keeps a stale read
+- Long names wrap and no table scrolls sideways inside its card
+- Disabled buttons are dimmed, a failing upstream's error is only in the hover text, a failed save says why, and plain forms cannot be double-submitted
 
 ### Security
 
 - Go-jose 4.1.4 (GO-2026-4865) and Go 1.25 for the images and CI; govulncheck runs in CI and finds nothing
+- The token endpoint refuses a `resource` wider than the one granted
+- Admin sign-out revokes the session and is a POST; the session secret is read once
 
 ## [0.12.1] - 2026-10-04
 
 ### Changed
 
-- Tool names stay put when another tool is switched off. The test page of an OpenAPI upstream shows only what is true
-- An oversized form now says so. The saved-key error names SECRETS_KEY
 - Docs, README, registry and Unraid text corrected to match the code
 
 ### Fixed
 
+- Tool names stay put when another tool is switched off. The test page of an OpenAPI upstream shows only what is true
+- An oversized form now says so. The saved-key error names SECRETS_KEY
+- Real security schemes are no longer reported as problems. A description under 10 MB is no longer refused after it is normalized. Repair can never touch servers or security anywhere in the description
+
+### Security
+
 - A description whose references fan out can no longer use all of the gateway's memory: schemas are inlined under a budget
 - A parameter named like the upstream's own credential is no longer offered to the model, and no longer makes a tool uncallable
 - A credential no longer follows a redirect from https to http. A query in the base URL is kept. Long non-UTF-8 answers are no longer cut at the first bad byte
-- Real security schemes are no longer reported as problems. A description under 10 MB is no longer refused after it is normalized. Repair can never touch servers or security anywhere in the description
 - Suggest refuses a token in a repository address and no longer sends it to the model
 
 ## [0.12.0] - 2026-10-04
@@ -117,8 +123,11 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Filter by text or /regex/, by level, or stderr only; times as a clock or "5 s ago"; copy the shown lines or download the whole output
 - Stdout, stderr and skgate's own lines (starting, started, stopped, exited) are tinted and named, with a divider at each run start
 - Each process keeps its current and previous run only, at most LOG_LINES lines (default 1000) or 512 KB. The log survives a restart of skgate
-- Values of secret environment variables and the git token are masked before a line is stored
 - Unraid Community Apps template and profile files added
+
+### Security
+
+- Values of secret environment variables and the git token are masked before a line is stored
 
 ## [0.10.0] - 2026-10-03
 
@@ -192,19 +201,22 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
-- An https client ID is resolved through its client ID metadata document, fetched with a restricted fetcher (public addresses only, no redirects, size and time limits, cached)
 - Discovery advertises `client_id_metadata_document_supported`
+
+### Security
+
+- An https client ID is resolved through its client ID metadata document, fetched with a restricted fetcher (public addresses only, no redirects, size and time limits, cached)
 
 ## [0.8.2] - 2026-10-03
 
 ### Changed
 
-- Dynamic client registration ignores unusable redirect URIs and reduces grants and auth methods to what skgate supports
 - The Test button is on every upstream row; remote upstreams show their health and last error in the list
 
 ### Fixed
 
 - Test explains refused connections and unresolvable names and names the port that answers MCP. Upstream errors no longer carry addresses
+- Dynamic client registration ignores unusable redirect URIs and reduces grants and auth methods to what skgate supports
 
 ## [0.8.1] - 2026-10-03
 
@@ -277,14 +289,17 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
-- Refuse to run skgate as nobody or nogroup; keep the database files private
-- Run managed servers as nobody, each with its own writable directories
 - /mcp includes only always-on managed servers; on-demand ones are excluded automatically
-- Seal the Grok tokens at rest with the secrets box
 - Store: GetSecret, SetSecret and an idempotent step that seals the Grok token settings at open
 - Admin: set key limits when creating a key and in a per-key dialog
 - Optional per-key limits on /v1: requests per minute and a hard stop
+
+### Security
+
+- Refuse to run skgate as nobody or nogroup; keep the database files private
+- Seal the Grok tokens at rest with the secrets box
 - Require OAuth consent by default
+- Run managed servers as nobody, each with its own writable directories
 
 ## [0.7.5] - 2026-10-03
 
@@ -345,10 +360,13 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [0.6.2] - 2026-10-02
 
+### Added
+
+- First tagged version: an OAuth-protected MCP gateway that proxies remote MCP servers and runs managed ones, with Grok sign-in and an OpenAI-compatible API
+
 ### Changed
 
-- Require Go 1.24
-- skgate
+- Requires Go 1.24
 
 [Unreleased]: https://github.com/helv-io/skgate/compare/v0.12.8...HEAD
 [0.12.8]: https://github.com/helv-io/skgate/compare/v0.12.7...v0.12.8
