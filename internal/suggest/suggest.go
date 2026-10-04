@@ -382,7 +382,7 @@ type chatMsg struct {
 
 func buildRequest(model, effort string, src Source, doc Context, runners []string, token string) ([]byte, error) {
 	var u strings.Builder
-	fmt.Fprintf(&u, "Source: %s (%s)\n", src.Raw, doc.Kind)
+	fmt.Fprintf(&u, "Source: %s (%s)\n", src.Label(), doc.Kind)
 	if doc.Version != "" {
 		fmt.Fprintf(&u, "Latest version: %s\n", doc.Version)
 	}

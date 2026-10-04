@@ -157,6 +157,9 @@ func gitOrRegistry(s Source, in string) (Source, error) {
 	if err != nil || u.Host == "" {
 		return s, errors.New("not a valid URL")
 	}
+	if u.User != nil {
+		return s, errors.New("the address must not carry a user name or token")
+	}
 	host := strings.ToLower(u.Host)
 	segs := strings.Split(strings.Trim(u.EscapedPath(), "/"), "/")
 	if len(segs) == 1 && segs[0] == "" {
