@@ -46,6 +46,8 @@ skgate must work out of the box. Users are not security experts.
 - A `data-confirm` form may sit inside a content dialog (regenerate and revoke are in the key dialog): the content is hidden, not removed, while it asks, so the form can still submit; Cancel and Escape go back to the content. Never clear the body of a dialog whose form is pending.
 - Values with details (usage counts, and the like) use the `tip` component: short visible text, the rest in the hover tooltip. Large counts go through `numfmt.Compact` (K, M, B, T), exact numbers through `numfmt.Exact`; never format counts in a template.
 - Status pills carry their details in a hover tooltip. No subtitle or parenthesis beside a pill. Use the `pill` component.
+- No icons anywhere in the UI: no icon fonts, no symbol or emoji glyphs (a "more" menu says More, a warning says Warning). A thing is shown to be tappable with text and styling: a button-like box, a hint line, hover, focus and pressed states.
+- A value people copy (an address, a client ID or secret, a key, a sign-in code) goes in the `copybox` component (`copyurl`, `copytext` or `copycode` build its data): the whole box is the button, it wraps instead of scrolling, says "Tap to copy", and answers with a toast. Do not add a separate Copy button or a bare `<code>` for such a value.
 - Tokens are shown masked: asterisks plus the last 4 characters; under 8 characters, asterisks only. Refresh tokens appear only in the provider dialog.
 - Name/value data (env, headers) and lists (args) use the dynamic rows components.
 - Manual input is never gated behind an account or a helper.
