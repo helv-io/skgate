@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -403,7 +404,7 @@ func streamResponse(resp *http.Response, model string) *http.Response {
 }
 
 func translateStream(r io.Reader, w io.Writer, model string) error {
-	id := "chatcmpl-" + time.Now().Format("20060102150405")
+	id := "chatcmpl-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	created := time.Now().Unix()
 	send := func(delta map[string]any, finish any, u map[string]any) error {
 		chunk := map[string]any{"id": id, "object": "chat.completion.chunk", "created": created, "model": model,

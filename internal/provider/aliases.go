@@ -156,3 +156,10 @@ func (c *ModelCache) Get(id string) (ids []string, at time.Time, ok bool) {
 	e, ok := c.m[id]
 	return append([]string(nil), e.ids...), e.at, ok
 }
+
+// Delete forgets the list of a provider (when it is removed).
+func (c *ModelCache) Delete(id string) {
+	c.mu.Lock()
+	delete(c.m, id)
+	c.mu.Unlock()
+}
