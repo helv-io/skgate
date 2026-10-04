@@ -75,5 +75,5 @@ skgate must work out of the box. Users are not security experts.
 
 1. Bump `Version` in `internal/config/config.go` (semver only, no suffixes) and the version and image tags in `server.json` (the MCP registry entry; `TestRegistryFilesAgreeWithTheVersion` checks they match).
 2. Full test run, then tag `vX.Y.Z` on the final commit.
-3. Push `main` and the tag to GitHub. The Release workflow builds the images (`vX.Y.Z`, `X.Y.Z`, `latest`, slim variants) for amd64 and arm64 and pushes them to `ghcr.io/helv-io/skgate`.
+3. Push `main` and the tag to GitHub. The Release workflow builds the images (`vX.Y.Z`, `X.Y.Z`, `latest`, slim variants) for amd64 and arm64 and pushes them to `ghcr.io/helv-io/skgate`. Then its `mcp-registry` job lists `server.json` in the official MCP registry through GitHub OIDC (stable tags only). It fails if `server.json` does not match the tag and skips a version the registry already has. Watch it: a failure there does not undo the images. The pinned `mcp-publisher` version and sha256 are in `release.yml`.
 4. Deploy: `docker compose pull skgate && docker compose up -d skgate`.
