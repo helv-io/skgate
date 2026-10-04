@@ -818,3 +818,16 @@ func TestSchemaAsksForSecretAndRequired(t *testing.T) {
 		t.Fatal("the prompt must explain both flags")
 	}
 }
+
+// A token typed into the address must not be accepted: it would be sent to the model with the rest of the source.
+func TestParseSourceRefusesCredentialsInTheAddress(t *testing.T) {
+	for _, in := range []string{"https://ghp_secret@github.com/o/r", "https://user:pw@gitlab.com/o/r", "user:pw@github.com/o/r"} {
+		if src, err := ParseSource(in); err == nil && src.Kind == KindGit {
+			t.Errorf("accepted %q as %s", in, src.Label())
+		}
+	}
+	src, err := ParseSource("https://github.com/o/r/tree/main/sub?x=1")
+	if err != nil || strings.Contains(src.Label(), "?") {
+		t.Errorf("%v %q", err, src.Label())
+	}
+}
