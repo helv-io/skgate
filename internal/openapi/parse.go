@@ -25,6 +25,8 @@ type Doc struct {
 	Raw map[string]any
 	// Source is "swagger 2" when the file was converted, else "openapi 3".
 	Source string
+	// SourceHash is the hash of the text a fetch returned ("" for pasted text and stored descriptions).
+	SourceHash string
 }
 
 // Parse reads a description in JSON, YAML or TOML. It fails only when nothing usable can be made of the text;
