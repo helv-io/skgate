@@ -623,7 +623,7 @@ document.addEventListener("click", function (e) {
 });
 
 // Presets: choosing an option of a [data-preset] select copies its data-set-<field> attributes into the
-// form fields of that name.
+// form fields of that name (a field may be an <output>, for a hint).
 document.addEventListener("change", function (e) {
   var sel = e.target && e.target.closest ? e.target.closest("[data-preset]") : null;
   if (!sel || !sel.form) return;
@@ -632,6 +632,12 @@ document.addEventListener("change", function (e) {
     if (a.name.indexOf("data-set-") !== 0) return;
     var f = sel.form.elements[a.name.slice(9)];
     if (f) f.value = a.value;
+  });
+  // [data-preset-href="docs"] is a link that follows the option's data-set-docs and hides when it is empty.
+  Array.prototype.forEach.call(sel.form.querySelectorAll("[data-preset-href]"), function (l) {
+    var u = opt.getAttribute("data-set-" + l.getAttribute("data-preset-href")) || "";
+    if (u) l.setAttribute("href", u);
+    l.hidden = !u;
   });
 });
 

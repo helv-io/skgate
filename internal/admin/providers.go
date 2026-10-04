@@ -20,6 +20,7 @@ func dialogHash(id string) string { return "/admin#provider-" + id }
 
 // providerRoutes registers /admin/providers/<id>/<action>.
 func (a *Admin) providerRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /admin/providers/add", a.guard(a.keyedAdd))
 	act := map[string]http.HandlerFunc{
 		"device/start":   a.deviceStart,
 		"device/cancel":  a.deviceCancel,
@@ -33,6 +34,9 @@ func (a *Admin) providerRoutes(mux *http.ServeMux) {
 		"model":          a.modelSelect,
 		"aliases/put":    a.aliasPut,
 		"aliases/delete": a.aliasDelete,
+		"key":            a.keyedSave,
+		"test":           a.keyedTest,
+		"remove":         a.keyedRemove,
 	}
 	for name, h := range act {
 		h := h
@@ -182,14 +186,14 @@ func (a *Admin) models(ctx context.Context, p provider.Provider) (ids []string, 
 	}
 	c, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
-	if ids, err := px.FetchModels(c); err == nil {
+	if ids, err := px.FetchModelsOf(c, p.ID()); err == nil {
 		return ids, time.Now(), true
 	}
 	return nil, time.Time{}, false
 }
 
 func (a *Admin) proxyFor(id string) *provider.Proxy {
-	if a.Proxy != nil && a.Proxy.Backend.ID() == id {
+	if a.Proxy != nil && a.Proxy.Has(id) {
 		return a.Proxy
 	}
 	return nil
@@ -229,7 +233,7 @@ func (a *Admin) modelsReload(w http.ResponseWriter, r *http.Request) {
 		a.helperDone(w, r, p.ID(), "", "models are not available for this provider")
 		return
 	}
-	ids, err := px.FetchModels(r.Context())
+	ids, err := px.FetchModelsOf(r.Context(), p.ID())
 	if err != nil {
 		a.helperDone(w, r, p.ID(), "", err.Error())
 		return
@@ -242,7 +246,7 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 	m := r.PostFormValue("model")
 	if m != "" {
 		ids, _, known := a.models(r.Context(), p)
-		if !known || !(contains(ids, m) || isAlias(a.Set.Aliases(p.ID()), m)) {
+		if !(known && contains(ids, m)) && !a.knownModel(m) {
 			a.helperDone(w, r, p.ID(), "", "not one of the provider's models")
 			return
 		}
@@ -289,11 +293,20 @@ func contains(l []string, s string) bool {
 func (a *Admin) aliasPut(w http.ResponseWriter, r *http.Request) {
 	p := providerOf(r)
 	ids, _, _ := a.models(r.Context(), p)
-	if err := a.Set.PutAlias(p.ID(), r.PostFormValue("name"), r.PostFormValue("target"), ids); err != nil {
+	name := strings.TrimSpace(r.PostFormValue("name"))
+	if err := a.Set.PutAlias(p.ID(), name, r.PostFormValue("target"), ids); err != nil {
 		a.back(w, r, dialogHash(p.ID()), "", err.Error())
 		return
 	}
-	a.back(w, r, dialogHash(p.ID()), "alias saved", "")
+	// An alias name means one model: putting it here moves it away from the provider that had it.
+	msg := "alias saved"
+	for _, o := range a.Providers.List() {
+		if o.ID() != p.ID() && isAlias(a.Set.Aliases(o.ID()), name) {
+			_ = a.Set.DeleteAlias(o.ID(), name)
+			msg = "alias saved; it moved here from " + o.Name()
+		}
+	}
+	a.back(w, r, dialogHash(p.ID()), msg, "")
 }
 
 func (a *Admin) aliasDelete(w http.ResponseWriter, r *http.Request) {

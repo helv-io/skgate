@@ -56,6 +56,7 @@ func main() {
 	for _, p := range a.Providers.List() {
 		go p.Run(ctx)
 	}
+	go a.WarmModels(ctx)
 	a.MCP.StartManaged()
 	defer a.MCP.ShutdownManaged()
 	go a.Keys.RunPurge(ctx, 24*time.Hour)
