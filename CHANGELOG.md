@@ -10,8 +10,9 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
-- Replace the hand-written code box with the vendored editor
-- Vendor CodeMirror 6 as one committed bundle
+- The OpenAPI paste box and the MCP import box use CodeMirror 6, a maintained editor bundled into skgate, instead of our own code. Same features: colours for JSON, YAML and TOML, matching brackets, an underline on syntax errors (TOML now checked too), and auto-indent
+- The paste box keeps working without script, and the page's content security policy is unchanged
+- Third-party licence notices are in THIRD_PARTY_NOTICES.md
 
 ## [0.14.0] - 2026-10-04
 
