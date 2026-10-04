@@ -169,3 +169,12 @@ func TestToolLevel(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenAPIUpstreamsAreLeftOutOfTheJSONExport(t *testing.T) {
+	ups := []Upstream{{Alias: "a", Kind: KindOpenAPI, URL: "https://api.example.com", Enabled: true},
+		{Alias: "r", Kind: KindRemote, URL: "https://mcp.example.com/mcp", AuthKind: AuthNone, Enabled: true}}
+	out := string(ExportJSON(ups))
+	if strings.Contains(out, `"a"`) || !strings.Contains(out, `"r"`) {
+		t.Errorf("export: %s", out)
+	}
+}

@@ -3,7 +3,8 @@
 <div class="field">
 {{if .New}}<label>Type<select name="kind" data-kind-select>
 <option value="remote" {{if eq .U.Kind "remote"}}selected{{end}}>remote (URL)</option>
-<option value="stdio" {{if ne .U.Kind "remote"}}{{if .U.Kind}}selected{{end}}{{end}} {{if not .Managed}}disabled{{end}}>managed (package or repository)</option></select></label>
+<option value="stdio" {{if or (eq .U.Kind "stdio") (eq .U.Kind "git")}}selected{{end}} {{if not .Managed}}disabled{{end}}>managed (package or repository)</option>
+<option value="openapi" {{if eq .U.Kind "openapi"}}selected{{end}}>OpenAPI (REST API)</option></select></label>
 {{if not .Managed}}<p class="muted">Managed upstreams: {{.Why}}.</p>{{end}}
 {{else}}<div class="label">Type</div><input type="hidden" name="kind" value="{{.U.Kind}}" data-kind-select><span class="chip">{{.U.TypeLabel}}</span>{{end}}</div>
 
@@ -33,6 +34,29 @@
 </details>
 </div>
 
+<div class="group" data-kind="openapi">
+{{with .OA}}<p class="muted">skgate turns each operation of a REST API into an MCP tool and makes the HTTP calls itself. Give the address of the description or paste it. You choose the tools next, and only those are offered.</p>
+<div class="field"><label>Description URL<input type="url" name="oa_spec_url" placeholder="https://api.example.com/openapi.json" value="{{.SpecURL}}" autocomplete="off" spellcheck="false" data-oa-spec-url></label>
+{{if .HasSpec}}<label class="check"><input type="checkbox" name="oa_refetch" value="1"> read the address again on save</label>{{end}}</div>
+<div class="field"><label>Or paste the description (JSON, YAML or TOML)<textarea name="oa_spec_text" rows="8" spellcheck="false" autocomplete="off" placeholder="{{if .HasSpec}}Empty keeps the stored description: {{.Title}}, {{.Ops}} operations{{else}}openapi: 3.0.3{{end}}" data-oa-spec-text></textarea></label>
+<p class="muted">OpenAPI 3.x, or Swagger 2 (converted on import). A problem in the description never stops the import: skgate reads what it can.</p></div>
+{{if .HasSpec}}<p class="muted">{{.Tools}} of {{.Ops}} operations are exposed as tools. <a href="/admin/upstreams/{{$.U.Alias}}/tools">Choose the tools</a></p>{{end}}
+<div class="row"><button type="button" class="act" data-oa-check data-oa-check-url="/admin/openapi/check" data-oa-repair-url="/admin/openapi/repair" data-csrf="{{$.CSRF}}">Check description</button></div>
+{{template "oa_check_result"}}
+<div class="field"><label>Base URL<input type="url" name="oa_url" value="{{$.U.URL}}" list="oa-servers" placeholder="empty: the first server of the description" autocomplete="off" spellcheck="false" data-oa-base></label>
+<datalist id="oa-servers">{{range .Servers}}<option value="{{.}}">{{end}}</datalist></div>
+<div class="field"><label>Outbound auth<select name="oa_auth_kind" data-when-select>
+<option value="none" {{if or (not $.U.AuthKind) (eq $.U.AuthKind "none") (eq $.U.AuthKind "auto")}}selected{{end}}>none</option>
+<option value="bearer" {{if eq $.U.AuthKind "bearer"}}selected{{end}}>bearer token</option>
+<option value="header" {{if eq $.U.AuthKind "header"}}selected{{end}}>API key in a header</option>
+<option value="query" {{if eq $.U.AuthKind "query"}}selected{{end}}>API key in the query string</option>
+<option value="basic" {{if eq $.U.AuthKind "basic"}}selected{{end}}>basic (user and password)</option></select></label>
+<p class="muted">Static credentials only. skgate sends them with every call and keeps them encrypted; a model never sees them.</p></div>
+<div class="field" data-when="header query basic"><label>Name<input type="text" name="oa_auth_name" value="{{$.U.AuthName}}" placeholder="X-Api-Key, api_key or a user name" autocomplete="off" spellcheck="false"></label>
+<p class="muted" data-when="header">The header that carries the key.</p><p class="muted" data-when="query">The query parameter that carries the key.</p><p class="muted" data-when="basic">The user name.</p></div>
+<div class="field" data-when="bearer header query basic"><label>Token, key or password {{if $.U.Masked}}(<code>{{$.U.Masked}}</code>, empty keeps){{end}}<input type="password" name="oa_auth_value" autocomplete="new-password"></label></div>
+{{end}}</div>
+
 <div class="group" data-kind="stdio git">
 <details data-manual {{if not .New}}open{{end}}><summary class="muted">Manual configuration</summary>
 {{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Ref (branch or tag, empty = default branch)<input type="text" name="git_ref" placeholder="main" value="{{.U.GitRef}}" autocomplete="off"></label></div>{{end}}
@@ -59,6 +83,6 @@
 
 
 <div class="row"><label class="check"><input type="checkbox" name="enabled" value="1" {{if or .New .U.Enabled}}checked{{end}}> enabled</label></div>
-<div class="field"><label class="check"><input type="checkbox" name="include" value="1" data-include {{if .Include}}checked{{end}}{{if and (ne .U.Kind "remote") (ne .U.Lifecycle "always")}} disabled{{end}}> include in /mcp</label>
+<div class="field"><label class="check"><input type="checkbox" name="include" value="1" data-include {{if .Include}}checked{{end}}{{if and (ne .U.Kind "remote") (ne .U.Kind "openapi") (ne .U.Lifecycle "always")}} disabled{{end}}> include in /mcp</label>
 <p class="muted" data-kind="stdio git">Only always-on servers can be exposed on /mcp. On-demand servers are excluded automatically, so /mcp does not start every process at once. Default: off.</p></div>
 {{end}}
