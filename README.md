@@ -92,7 +92,7 @@ print(r.choices[0].message.content)
 
 Map `grok-latest` to the latest available model. Change the target in this one place and every app using `grok-latest` is upgraded at once, with no client config changes.
 
-Grok > **Details** > Model aliases: alias `grok-latest`, target the newest model in the list (for example `grok-4.7`), **Save**.
+Grok > **Details** > Model aliases: **New alias** `grok-latest`, **Target model** the newest model in the list (for example `grok-4.7`), **Add alias**.
 
 ```text
 client sends   {"model": "grok-latest", ...}
@@ -154,8 +154,8 @@ stopped  --request-->  starting  -->  running  --10 min idle-->  stopped
 ```
 
 - Default is on-demand; **Lifecycle** `always-on` starts the server at boot instead.
-- The first request after a stop waits until the server answers `initialize` (up to 60 s).
-- A server with a request in flight is never stopped. Stopping is SIGTERM, then SIGKILL after 5 s.
+- The first request after a stop waits until the server is up.
+- A server with a request in flight is never stopped.
 - Idle time is `idleTimeoutSeconds` in import JSON (default 600; not in the form):
 
 ```json
@@ -257,7 +257,7 @@ Set under `environment:` (or `env_file`); placeholders in [`.env.example`](.env.
 | `LOG_LEVEL` | `info` | `info` or `debug`. |
 | `LOG_LINES` | `1000` | Lines of output kept per managed process (its current and previous run, at most 512 KB). |
 | `TZ` | `UTC` | Time zone for the UI and logs, for example `America/New_York`. |
-| `PUID`, `PGID` | `1000` | Run-as ids; never `0`. |
+| `PUID`, `PGID` | `1000` | Run-as ids; never `0` or `65534`. |
 | `MANAGED_DIR` | `/data/managed` | Work dirs and clones of managed upstreams. |
 | `MANAGED_MAX_PROCS` | `0` | Concurrent managed processes; `0` is unlimited. |
 
@@ -267,7 +267,7 @@ Everything lives in `/data` (`skgate.db`, `secrets.key`): back up both.
 
 ## Reverse proxy
 
-Set `PUBLIC_URL` to the public https origin. No forward-auth on `/v1`, `/mcp`, `/authorize`, `/token`, `/register`, `/.well-known`. Only Traefik is tested by the author; [open an issue](https://github.com/helv-io/skgate/issues) with feedback.
+Set `PUBLIC_URL` to the public https origin. No forward-auth on `/v1`, `/api`, `/mcp`, `/sse`, `/messages`, `/authorize`, `/token`, `/register`, `/.well-known`. Only Traefik is tested by the author; [open an issue](https://github.com/helv-io/skgate/issues) with feedback.
 
 <details><summary>Traefik</summary>
 
@@ -291,7 +291,7 @@ services:
       timeout: 5s
       retries: 3
     labels:
-      # no forward-auth middleware on /v1, /mcp, /authorize, /token, /register, /.well-known
+      # no forward-auth middleware on /v1, /api, /mcp, /sse, /messages, /authorize, /token, /register, /.well-known
       - traefik.enable=true
       - traefik.http.routers.skgate.rule=Host(`skgate.example.com`)
       - traefik.http.routers.skgate.entryPoints=websecure
