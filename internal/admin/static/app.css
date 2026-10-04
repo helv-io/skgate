@@ -3,7 +3,7 @@
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
---z-header:30;--z-menu:40;--z-toast:2147483647;--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
+--z-sticky:5;--z-header:30;--z-menu:40;--z-toast:2147483647;--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--pad:8px 12px;--form-w:620px}
 *{box-sizing:border-box;border-radius:0}
 /* the scrollbar keeps its room, so the page does not shift sideways when a dialog hides it */
 html{scrollbar-gutter:stable}
@@ -197,6 +197,7 @@ textarea.wide{min-height:180px;font-family:var(--mono);font-size:12.5px}
 .toast{border:1px solid var(--line);background:var(--panel);padding:9px 14px;cursor:pointer;box-shadow:0 4px 16px #0009;overflow-wrap:anywhere;transition:opacity .25s}
 .toast.ok{border-color:#2f4a33;color:var(--ok)}
 .toast.bad{border-color:#5a3532;color:var(--bad)}
+.toast.warn{border-color:#57492f;color:var(--warn)}
 .toast.gone{opacity:0}
 .toasts[popover]{inset:auto 14px 14px auto;margin:0;padding:0;border:0;background:none;color:inherit;overflow:visible}
 /* modal: the one shared dialog, confirmation or content (native <dialog>; Escape and focus handling come with it) */
@@ -268,6 +269,35 @@ details.desc>p{margin:4px 0 0 1.2em;color:var(--dim);white-space:pre-line}
 .suggest-out li.warn::before{content:"\26A0";position:absolute;left:0}
 .suggest-out details{margin:6px 0}
 .suggest-out details ul{list-style:disc;padding-left:20px}
+/* callout: a notice that must not be missed, colored by level (ok, warn, bad). The tool-count notice of an OpenAPI
+   upstream is one; its counter (toolcount) is the same level in a sticky bar under the top bar. */
+.callout{border:1px solid var(--line);border-left-width:4px;background:var(--panel);padding:9px 14px;margin:0 0 12px;overflow-wrap:anywhere}
+.callout.ok{border-color:#2f4a33}.callout.warn{border-color:#57492f;background:#1a1812}.callout.bad{border-color:#5a3532;background:#1d1413}
+.toolcount{position:sticky;top:var(--header-h,44px);z-index:var(--z-sticky);display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;border:1px solid var(--line);background:var(--panel);padding:6px 12px;margin:0 0 12px}
+.toolcount .btn{margin-left:auto}
+.toolcount-n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.toolcount.ok{color:var(--ok);border-color:#2f4a33}.toolcount.warn{color:var(--warn);border-color:#57492f}.toolcount.bad{color:var(--bad);border-color:#5a3532}
+.toolcount.ok::before,.toolcount.warn::before,.toolcount.bad::before{content:"";width:10px;height:10px;background:currentColor;display:inline-block}
+/* verbgroup: the tools of one HTTP verb, a details block with an all-on/off switch in its heading. tool: one row. */
+.verbgroup{border:1px solid var(--line);background:var(--panel);margin:0 0 12px}
+.verbgroup>summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0;padding:8px 12px}
+.verbgroup>summary label.check{margin:0}
+.verb{font-family:var(--mono);font-size:12px;font-weight:700;padding:1px 8px;border:1px solid var(--line);background:#0c0d0f;color:var(--dim)}
+.verb.GET{color:var(--ok);border-color:#2f4a33}.verb.POST,.verb.PUT,.verb.PATCH{color:var(--warn);border-color:#57492f}.verb.DELETE{color:var(--bad);border-color:#5a3532}
+.tool{border-top:1px solid var(--line2);padding:8px 12px}
+.tool.skipped{opacity:.6}
+.tool-head label.check{display:flex;margin:0;min-width:0}
+.tool-path{overflow-wrap:anywhere;word-break:break-all}
+.tool-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:0 10px;margin-top:4px}
+.tool-fields label{margin:6px 0 2px;font-size:12px}
+@media (max-width:720px){.tool-fields{grid-template-columns:minmax(0,1fr)}}
+/* oa-out: the result of checking an OpenAPI description, and diff: the repair the assistant proposes (before and after) */
+.oa-out{margin:0 0 12px}
+.oa-out ul,.diff ul{list-style:none;padding-left:0;margin:6px 0}
+.oa-out li{overflow-wrap:anywhere;margin:2px 0}
+.diff li{border-top:1px solid var(--line2);padding:6px 0;overflow-wrap:anywhere}
+.diff .del,.diff .add{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-all;padding:1px 6px}
+.diff .del{color:var(--bad);background:#1d1413}.diff .add{color:var(--ok);background:#131f15}
 .reveal{animation:reveal-in .3s ease-out}
 @keyframes reveal-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.reveal{animation:none}}
