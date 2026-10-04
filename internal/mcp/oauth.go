@@ -574,10 +574,26 @@ func (s *Server) grantCode(w http.ResponseWriter, r *http.Request, c Client, res
 		httputil.OAuthError(w, 400, "invalid_grant", "PKCE verification failed")
 		return
 	}
+	if resource != "" && !s.withinGranted(resource, res) {
+		reqlog.Reject(r, "invalid_target: the resource is wider than the one the code was issued for")
+		httputil.OAuthError(w, 400, "invalid_target", "resource is not within the authorized resource")
+		return
+	}
 	if resource == "" {
 		resource = res
 	}
 	s.mintTokens(w, r, c, resource, scope, sub.String, email.String)
+}
+
+// withinGranted reports whether a resource asked for at the token endpoint is the one that was authorized or inside
+// it (RFC 8707: a token request may narrow the resource, never widen it). Nothing granted, or the whole server, allows
+// any resource of this server.
+func (s *Server) withinGranted(want, granted string) bool {
+	want, granted = strings.TrimRight(want, "/"), strings.TrimRight(granted, "/")
+	if granted == "" || granted == s.Issuer() {
+		return true
+	}
+	return want == granted || strings.HasPrefix(want, granted+"/")
 }
 
 func (s *Server) grantRefresh(w http.ResponseWriter, r *http.Request, c Client, resource string) {
@@ -602,6 +618,11 @@ func (s *Server) grantRefresh(w http.ResponseWriter, r *http.Request, c Client, 
 			reqlog.Reject(r, "invalid_grant: refresh token has expired")
 		}
 		httputil.OAuthError(w, 400, "invalid_grant", "refresh token is invalid or expired")
+		return
+	}
+	if resource != "" && !s.withinGranted(resource, res) {
+		reqlog.Reject(r, "invalid_target: the resource is wider than the one the refresh token was issued for")
+		httputil.OAuthError(w, 400, "invalid_target", "resource is not within the authorized resource")
 		return
 	}
 	if resource == "" {
