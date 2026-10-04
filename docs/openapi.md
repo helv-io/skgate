@@ -15,7 +15,7 @@ An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API
 | Base URL | Where the calls go. Empty takes the first server of the description (variables replaced by their defaults, a relative address resolved against the description's URL). A dropdown of the description's servers is offered; any address is accepted. |
 | Outbound auth | Static credentials only: `none`, bearer token, an API key in a header, an API key in the query string, or basic (user and password). skgate sends the credential with every call and applies it last, so a model's arguments can never replace it. OAuth flows are not supported. |
 
-OpenAPI 3.0 and 3.1 are read as they are. Swagger 2 is converted on import. The description is stored as normalized JSON; editing the upstream with an empty paste box keeps it, and a changed URL, new pasted text or **read the address again on save** replaces it. Credentials are encrypted at rest like those of other upstreams and shown masked; they are never sent to a model.
+OpenAPI 3.0 and 3.1 are read as they are. Swagger 2 is converted on import. The description is stored as normalized JSON; editing the upstream with an empty paste box keeps it, and a changed URL or new pasted text replaces it, and **Update** on the tools page reads the address again (see [Update from the address](#update-from-the-address)). Credentials are encrypted at rest like those of other upstreams and shown masked; they are never sent to a model.
 
 A new upstream opens its **tools page** right away.
 
@@ -50,6 +50,19 @@ Both use the MCP helper model (the same setting as Suggest configuration) and ar
 - **Repair with the assistant** (shown when problems were found and a helper model is ready) asks the model for fixes, applies them to a copy and shows each change as a before and after. **Apply the fix to the pasted text** puts the repaired description in the paste box. Nothing changes until you approve it, and nothing is saved until you submit the form. Changes to servers and security are never accepted, wherever they sit in the description.
 - **Suggest names** (tools page) proposes a name and a one-line description for each tool that is on, in a form that helps a model choose among tools. The suggestions fill the fields; you review them and Save.
 
+## Update from the address
+
+Updates are manual. Nothing polls the address, nothing refreshes by itself, and nothing touches a running gateway until you confirm.
+
+On the tools page, **Update** reads the description again from its address. It is on only for an upstream that was added with a Description URL. A pasted description has no address: the button is off, with "pasted definitions can't be updated" as its tooltip and as a line of text next to it.
+
+1. **Update** downloads the description again and, if the text is the same as last time, says "Unchanged" and stops.
+2. Otherwise the new description goes through an SI layer: the same checks and repair as **Check description**, using the helper model you configured. With no helper model the layer is skipped and the screen says so.
+3. A review screen shows the tools exposed now and after, the operations added, removed and changed, and what the SI layer fixed. Updates run through an SI layer before they are reused, so check the changes.
+4. **Confirm update** replaces the stored description. **Cancel** leaves everything as it was.
+
+Your tool selection (which tools are on, their names and descriptions) is kept for every operation that still exists. New operations stay off. The tools page shows when the description was last read ("Updated ...").
+
 ## How calls are made
 
 - Path values are percent-encoded; `.` and `..` are refused. Query arrays repeat the name (or join with commas when the description says so); `deepObject` is honored. Bodies are JSON, or form-encoded when the description allows only that.
@@ -59,4 +72,4 @@ Both use the MCP helper model (the same setting as Suggest configuration) and ar
 
 ## Limits
 
-No OAuth flows for the API, no cookie parameters, no file uploads, no streaming responses, no webhooks or callbacks. The description is read when you save it; skgate never refetches it by itself. **Export JSON** leaves OpenAPI upstreams out, since an MCP client configuration cannot describe them.
+No OAuth flows for the API, no cookie parameters, no file uploads, no streaming responses, no webhooks or callbacks. The description is read when you save it or press **Update**; skgate never refetches it by itself. **Export JSON** leaves OpenAPI upstreams out, since an MCP client configuration cannot describe them.
