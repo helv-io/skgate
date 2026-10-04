@@ -954,6 +954,38 @@ document.addEventListener("input", function (e) {
   });
 })();
 
+// JSON check: a textarea marked data-json-check is parsed as you type. The status line under it says "Valid JSON" (with
+// the number of servers it can tell) or what is wrong; unreadable JSON marks the field invalid (aria-invalid, red
+// border) and blocks the form's submit through the browser's own validation, like the expiration field. An empty
+// field blocks too, quietly.
+(function () {
+  function count(v) {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return 0;
+    var servers = v.mcpServers && typeof v.mcpServers === "object" ? v.mcpServers : v;
+    if (servers === v && (v.command || v.url)) return 1;
+    return Object.keys(servers).length;
+  }
+  function check(area) {
+    var status = area.closest(".field") ? area.closest(".field").querySelector("[data-json-status]") : null;
+    var text = area.value.trim(), msg = "", bad = false;
+    if (!text) msg = "Paste or type the JSON to import.";
+    else {
+      try {
+        var n = count(JSON.parse(text));
+        msg = "Valid JSON" + (n ? " \u00b7 " + n + (n === 1 ? " server" : " servers") : "");
+      } catch (err) { bad = true; msg = "Not valid JSON: " + err.message; }
+    }
+    area.setCustomValidity(bad || !text ? (bad ? "Fix the JSON first" : msg) : "");
+    if (bad) area.setAttribute("aria-invalid", "true"); else area.removeAttribute("aria-invalid");
+    if (status) { status.textContent = msg; status.classList.toggle("bad", bad); status.classList.toggle("muted", !bad); }
+  }
+  document.addEventListener("input", function (e) {
+    var el = e.target && e.target.matches ? e.target : null;
+    if (el && el.matches("[data-json-check]")) check(el);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-json-check]"), check);
+})();
+
 // Filter box: [data-filter="#table"] narrows the rows marked data-filter-row to those whose text contains what is
 // typed (case-insensitive), shows "n of N" beside the field and the row marked data-filter-empty when none match.
 (function () {

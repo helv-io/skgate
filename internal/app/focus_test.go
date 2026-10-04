@@ -47,3 +47,13 @@ func TestUpstreamTestScreenInBrowser(t *testing.T) {
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"fake"}, "url": {up.URL}, "auth_kind": {"auto"}, "enabled": {"1"}})
 	runBrowserScript(t, "testscreen.js", ts.URL, br)
 }
+
+// In a real browser: the import field checks its JSON while you type. Broken JSON says what is wrong, marks the
+// field aria-invalid and the Import button does nothing; fixed JSON counts the servers and lets the form go.
+func TestImportChecksJSONWhileTypingInBrowser(t *testing.T) {
+	a, ts, br, _ := signedIn(t, nil)
+	runBrowserScript(t, "importjson.js", ts.URL, br)
+	if l, _ := a.MCP.Upstreams.List(); len(l) != 1 || l[0].Alias != "fixed" {
+		t.Fatalf("only the fixed JSON was imported: %+v", l)
+	}
+}
