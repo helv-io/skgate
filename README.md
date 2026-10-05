@@ -65,11 +65,11 @@ Upgrade: back up `./data`, then `docker compose pull && docker compose up -d`.
 
 ## Proxy your SI providers
 
-skgate is also an OpenAI-compatible API in front of your SI providers. Point your apps at one skgate address and change the provider behind them in one place, with no app changes. It speaks to OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio and any OpenAI-compatible endpoint. Model aliases give a stable name to a model (`grok-latest`), so switching to a newer model, or to another provider, is one edit.
+skgate is also an OpenAI-compatible API in front of your SI providers. Point your apps at one address; switch the provider behind them without changing the apps. Model aliases (`grok-latest`) keep a stable model name.
 
-**Why Grok:** xAI allows using a Grok subscription in your own apps, and skgate does that without an API key. You sign in once with a device code and skgate keeps the sign-in fresh. Other providers need an API key from that provider.
+Grok can use subscription sign-in with no API key. Other providers use that provider's API key (OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, and any OpenAI-compatible endpoint).
 
-1. **status** > Grok > **Sign in**: open the shown address, enter the code, approve.
+1. **status** > Grok > **Sign in**: open the shown address, enter the code, approve. skgate keeps the sign-in fresh.
 2. **keys** > enter a name > **Create key**. Copy the `sk-...` key; it is shown once.
 3. Use it: base URL `https://skgate.example.com/v1`, API key `sk-...` (see Examples).
    - The base URL is forgiving: `/v1`, `/api`, `/api/v1` and the bare host all reach the same API, so use whichever form your client expects.
@@ -231,27 +231,6 @@ Served at `https://skgate.example.com/mcp/everything`. For Python servers use `"
 | MCP | Remote, stdio and git servers behind OAuth 2.1 ([docs](docs/mcp.md)) |
 | REST APIs as tools | Give an OpenAPI description, pick the operations (or let **Suggest names and selection** name them and pick a core set), and MCP clients get them as tools ([docs](docs/openapi.md)) |
 
-## Comparison
-
-| Provider | Own subscription sign-in in third-party tools | In skgate |
-| --- | --- | --- |
-| xAI Grok | ✅ announced for OpenCode, more planned [1] | ✅ (independent, not an xAI product) |
-| OpenAI | ✅ "Sign in with ChatGPT" since 2026-09-29; hosted apps need approval [2] | ❌ |
-| Anthropic Claude | ❌ not offered to third parties [3] | ❌ use the API |
-| Google Gemini | ❌ CLI login not for reuse [4] | ❌ use an API key |
-| GitHub Copilot | ⚠️ OpenCode partnership only [5] | ❌ |
-
-As of 2026-10-02; check each provider's terms.
-
-<details><summary>Sources</summary>
-
-1. xAI, [Use Grok in OpenCode](https://x.ai/news/grok-opencode)
-2. OpenAI, [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source)
-3. Anthropic, [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)
-4. Google, [Gemini CLI terms](https://github.com/google-gemini/gemini-cli/blob/main/docs/resources/tos-privacy.md)
-5. GitHub, [Copilot now supports OpenCode](https://github.blog/changelog/2026-01-16-github-copilot-now-supports-opencode/)
-
-</details>
 
 ## Configuration
 
