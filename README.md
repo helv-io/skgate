@@ -240,14 +240,14 @@ Clients tested by the author against a live skgate. Status is what happened, not
 | --- | --- | --- |
 | ChatGPT | OK | |
 | Claude | OK | |
-| Cline | Untested | |
-| Continue | Untested | |
-| Cursor | Untested | |
-| Gemini | Warning | Connects, but never calls tools. |
-| Goose | Untested | |
 | Grok | OK | |
 | Hermes | OK | |
 | Home Assistant | OK | Needs a manual OAuth client ID and secret. |
+| Gemini | Warning | Connects, but never calls tools. |
+| Cline | Untested | |
+| Continue | Untested | |
+| Cursor | Untested | |
+| Goose | Untested | |
 | LibreChat | Untested | |
 | Open WebUI | Untested | |
 | VS Code | Untested | |
