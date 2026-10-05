@@ -8,7 +8,7 @@
     "url": "https://github.com/helv-io/skgate",
     "source": "github"
   },
-  "version": "0.21.6",
+  "version": "0.21.7",
   "packages": [
     {
       "registryType": "oci",
