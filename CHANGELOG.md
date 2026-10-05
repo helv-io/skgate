@@ -6,6 +6,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-05
+
+### Changed
+
+- Serve / as aggregate MCP for clients; root PRM same as /mcp
+
 ## [0.20.0] - 2026-10-05
 
 ### Changed
@@ -515,7 +521,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/helv-io/skgate/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/helv-io/skgate/compare/v0.19.5...v0.20.0
 [0.19.5]: https://github.com/helv-io/skgate/compare/v0.19.4...v0.19.5
 [0.19.4]: https://github.com/helv-io/skgate/compare/v0.19.3...v0.19.4
