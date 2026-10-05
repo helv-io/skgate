@@ -15,10 +15,10 @@ import (
 // fetchClient follows at most five redirects and never steps down from https to http.
 var fetchClient = &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
 	if len(via) >= maxRedirects {
-		return errors.New("too many redirects")
+		return errors.New("the address keeps redirecting")
 	}
 	if via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
-		return errors.New("https redirects to http")
+		return errors.New("the address redirects from https to http")
 	}
 	return nil
 }}
@@ -45,19 +45,15 @@ func Fetch(ctx context.Context, raw string) ([]byte, error) {
 	req.Header.Set("User-Agent", "skgate-openapi")
 	resp, err := fetchClient.Do(req)
 	if err != nil {
-		var ue *url.Error
-		if errors.As(err, &ue) {
-			err = ue.Err
-		}
-		return nil, fmt.Errorf("cannot download: %v", err)
+		return nil, ErrUnreachable
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("the address answered HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("the address answered %d", resp.StatusCode)
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, MaxSpecBytes+1))
 	if err != nil {
-		return nil, fmt.Errorf("cannot download: %v", err)
+		return nil, ErrUnreachable
 	}
 	if len(b) > MaxSpecBytes {
 		return nil, fmt.Errorf("the description is over %d MB", MaxSpecBytes>>20)

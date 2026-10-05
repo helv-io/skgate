@@ -407,7 +407,7 @@ func (s *Server) TestOpenAPIDraft(ctx context.Context, up Upstream, cfg OpenAPIC
 }
 
 // QueryKeyWarning is shown when the key travels in the web address.
-const QueryKeyWarning = "the key travels in the web address and can show up in logs"
+const QueryKeyWarning = "the key is in the web address and may show in logs"
 
 func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState) (tr TestResult) {
 	tr.AuthMode = up.AuthKind

@@ -52,12 +52,14 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   ok(!g.disabled, "the button is back after a failure: " + JSON.stringify(g));
   ok(await pg.evaluate(() => !document.body.textContent.includes("WRONGKEY")), "the key is not echoed into the page");
 
-  // the line says what the check does, and Skip check starts off
-  const line = await pg.evaluate(() => {
-    const p = document.querySelector("[data-oa-probe]"), c = document.querySelector('input[name="oa_skip_check"]');
-    return { text: p.querySelector("p").textContent, shown: !p.hidden, skip: c.checked };
+  // Skip check is a button beside Add from the start, with one line that says what it does; no checkbox, no old hint
+  const sk = await pg.evaluate(() => {
+    const b = document.querySelector("button[data-oa-skip-btn]");
+    const r = b && b.getBoundingClientRect(), a = document.querySelector("[data-gate-submit] button").getBoundingClientRect();
+    return { shown: !!b && b.offsetParent !== null, text: b ? b.textContent : "", cls: b ? b.className : "", line: /Skip check adds it without calling the server\./.test(document.body.textContent),
+      old: /first GET/.test(document.body.textContent) || !!document.querySelector('input[type="checkbox"][name="oa_skip_check"]'), side: !!r && Math.abs(r.top - a.top) < 40 || (r && r.top >= a.top) };
   });
-  ok(line.shown && line.text === "The first GET without parameters checks the connection." && line.skip === false, "the check line and an unticked Skip check: " + JSON.stringify(line));
+  ok(sk.shown && sk.text === "Skip check" && sk.cls === "act" && sk.line && !sk.old, "Skip check button: " + JSON.stringify(sk));
 
   // no key at all: the server needs one, and the fields stay
   await pg.$eval('input[name="oa_auth_value"]', e => { e.value = ""; });
@@ -67,10 +69,10 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   const nokey = await fields();
   ok(nokey.path === "/admin/upstreams/new" && nokey.alias === "failcase" && nokey.spec === spec && nokey.as === "bearer" && nokey.key === "" && nokey.open === true,
     "a missing key keeps every field: " + JSON.stringify(nokey));
-  ok(await pg.evaluate(() => !document.querySelector('input[name="oa_skip_check"]').checked), "Skip check stays as it was");
+  ok(await pg.evaluate(() => document.querySelector('input[name="oa_skip_check"]').value === ""), "nothing is skipped by a plain Add");
 
   // fix the key and add again: the form saves and goes on to the tools
-  await pg.$eval('input[name="oa_auth_value"]', e => { e.value = "GOODKEY"; });
+  await pg.type('input[name="oa_auth_value"]', "GOODKEY");
   await Promise.all([pg.waitForNavigation({ timeout: 20000 }), pg.click("[data-gate-submit] button")]);
   ok(new URL(pg.url()).pathname === "/admin/upstreams/failcase/tools", "a good add goes on to the tools: " + pg.url());
   // Skip check saves a server that refuses: a second add, no key
@@ -78,9 +80,18 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await pg.select("[data-kind-select]", "openapi");
   await pg.type('input[name="alias"]', "skipcase");
   await pg.$eval('textarea[name="oa_spec_text"]', (e, v) => { e.value = v; e.dispatchEvent(new Event("input", { bubbles: true })); }, spec);
-  await pg.click('input[name="oa_skip_check"]');
-  await Promise.all([pg.waitForNavigation({ timeout: 20000 }), pg.click("[data-gate-submit] button")]);
-  ok(new URL(pg.url()).pathname === "/admin/upstreams/skipcase/tools", "Skip check saves without the key: " + pg.url());
+  // Skip check up front: the server is never called, the upstream is added
+  await Promise.all([pg.waitForNavigation({ timeout: 20000 }), pg.click("button[data-oa-skip-btn]")]);
+  ok(new URL(pg.url()).pathname === "/admin/upstreams/skipcase/tools", "Skip check adds without the key: " + pg.url());
+  // phone width: Skip check and its line fit the screen and are tappable
+  await pg.setViewport({ width: 360, height: 740, isMobile: true, hasTouch: true });
+  await pg.goto(url + "/admin/upstreams/new");
+  await pg.select("[data-kind-select]", "openapi");
+  const mob = await pg.evaluate(() => {
+    const b = document.querySelector("button[data-oa-skip-btn]"), r = b.getBoundingClientRect(), p = document.querySelector("p[data-oa-skip-btn]").getBoundingClientRect();
+    return { w: document.documentElement.scrollWidth, vw: window.innerWidth, right: Math.round(r.right), h: Math.round(r.height), pright: Math.round(p.right), shown: b.offsetParent !== null };
+  });
+  ok(mob.shown && mob.w <= mob.vw && mob.right <= mob.vw && mob.pright <= mob.vw && mob.h >= 32, "Skip check on a phone: " + JSON.stringify(mob));
   await b.close();
   if (bad.length) { console.log(bad.join("\n")); process.exit(1); }
   console.log("ALL OK");

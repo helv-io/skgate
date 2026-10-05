@@ -1347,8 +1347,8 @@ function frontierHint(form) {
   open();
 })();
 
-// OpenAPI form: "Check description" posts the address or the pasted text and shows what it holds and what is wrong
-// with it. With the assistant, "Repair" proposes fixes as a diff; "Apply" puts the repaired text into the paste box.
+// OpenAPI form: "Check" posts the address or the pasted text and shows what it holds and what is wrong
+// with it. With the assistant, "Repair" proposes fixes as a diff; "Apply" puts the repaired text into the paste box and checks it again.
 // Nothing is saved from here: the form's own Add or Save button does that.
 (function () {
   var btn = document.querySelector("[data-oa-check]");
@@ -1382,16 +1382,16 @@ function frontierHint(form) {
     post(btn.getAttribute("data-oa-check-url")).then(function (j) {
       btn.disabled = false;
       if (!j.ok) { show("bad", "unreadable"); summary.textContent = j.error || "cannot read the description"; return; }
-      summary.textContent = (j.title ? j.title + ": " : "") + j.operations + " operations, " + j.reads + " read, " + j.writes + " write";
-      var probe = form.querySelector("[data-oa-probe]"); // the check line only makes sense when a GET can run it
-      if (probe) probe.hidden = j.probe === false;
+      summary.textContent = (j.title ? j.title + ": " : "") + j.reads + " read, " + j.writes + " write";
+      // nothing to skip when no GET can run the check
+      Array.prototype.forEach.call(form.querySelectorAll("[data-oa-skip-btn]"), function (x) { x.hidden = j.probe === false; });
       var base = form.querySelector("#oa-servers");
       if (base && j.servers) j.servers.forEach(function (u) {
         var have = Array.prototype.some.call(base.options, function (o) { return o.value === u; });
         if (!have) { var o = el("option"); o.value = u; base.appendChild(o); }
       });
       var n = (j.issues || []).length;
-      show(n ? "warn" : "ok", n ? n + (n === 1 ? " problem" : " problems") : "valid");
+      show(n ? "warn" : "ok", n ? n + (n === 1 ? " problem" : " problems") : "OK");
       (j.issues || []).slice(0, 20).forEach(function (is) {
         list.appendChild(el("li", "", is.path + ": " + is.message));
       });
@@ -1400,7 +1400,7 @@ function frontierHint(form) {
         if (j.ai) repairRow.hidden = false;
         else list.appendChild(el("li", "", "No repair: " + (j.aiWhy || "unavailable")));
       }
-    }).catch(function () { btn.disabled = false; show("bad", "failed"); summary.textContent = "check failed"; });
+    }).catch(function () { btn.disabled = false; show("bad", "failed"); summary.textContent = ""; });
   });
   out.addEventListener("click", function (e) {
     var t = e.target && e.target.closest ? e.target : null;
@@ -1435,7 +1435,8 @@ function frontierHint(form) {
       form.elements.oa_spec_text.value = repaired;
       form.elements.oa_spec_text.dispatchEvent(new Event("input", { bubbles: true }));
       diff.hidden = true;
-      window.skgateToast("ok", "Repaired text pasted. Check it again.");
+      window.skgateToast("ok", "Repaired");
+      btn.click();
       return;
     }
     if (t.closest("[data-oa-discard]")) { diff.hidden = true; repaired = ""; }
@@ -1586,9 +1587,11 @@ function frontierHint(form) {
     return "";
   }
   var busy = false;
+  var skipBtn = form.querySelector("button[data-oa-skip-btn]"), skip = form.querySelector("[data-oa-skip]");
   function sync() {
     var r = busy ? "Testing" : reason();
     btn.disabled = !!r;
+    if (skipBtn) skipBtn.disabled = !!r;
     if (r && !busy) btn.setAttribute("title", r); else btn.removeAttribute("title");
     btn.setAttribute("aria-describedby", why.id);
     why.textContent = r;
@@ -1596,6 +1599,8 @@ function frontierHint(form) {
   }
   form.addEventListener("input", sync);
   form.addEventListener("change", sync);
+  // "Skip check" posts the same form with oa_skip_check=1: the server is not called.
+  if (skipBtn && skip) skipBtn.addEventListener("click", function () { if (!busy && !reason()) { skip.value = "1"; form.requestSubmit(); } });
   sync();
   form.addEventListener("submit", function (e) {
     if (e.defaultPrevented) return;
@@ -1611,6 +1616,7 @@ function frontierHint(form) {
         window.skgateToast(j.toast ? j.toast.k : "bad", j.toast ? j.toast.m : "The request failed.");
       })
       .catch(function () { window.skgateToast("bad", "The request failed."); })
-      .then(function () { busy = false; form.removeAttribute("aria-busy"); sync(); });
+      .then(function () { if (skip) skip.value = ""; busy = false; form.removeAttribute("aria-busy"); sync(); });
   });
 })();
+

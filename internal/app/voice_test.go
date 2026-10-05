@@ -21,7 +21,9 @@ func TestAdminTemplatesUseThePlainVoice(t *testing.T) {
 	hint := regexp.MustCompile(`(?s)<(?:p|ul|li) class="muted"[^>]*>(.*?)</(?:p|ul|li)>`)
 	label := regexp.MustCompile(`<(?:label|option|summary)[^>]*>([^<]*)`)
 	filler := []string{"leverage", "seamless", "powerful", "helpful", "Let's", "let's", "simply", "easily", "\u2014", "\u2013"}
-	jargon := []string{"DCR", "PKCE", "X-API-Key", "self-registered", "newest 500"}
+	// The hint about the first GET and "Check description" were cut from the OpenAPI form. "Skip check" is a button
+	// with one line saying what it does (never a checkbox or a hover-only tip).
+	jargon := []string{"DCR", "PKCE", "X-API-Key", "self-registered", "newest 500", "first GET", "Check description", "Add anyway"}
 	for _, f := range files {
 		b, err := os.ReadFile(f)
 		if err != nil {
@@ -46,6 +48,10 @@ func TestAdminTemplatesUseThePlainVoice(t *testing.T) {
 				t.Errorf("%s: a label with a parenthesis: %q", name, strings.TrimSpace(m[1]))
 			}
 		}
+	}
+	edit := readFile(t, "../admin/templates/upstream_edit.html")
+	if !strings.Contains(edit, ">Skip check</button>") || !strings.Contains(edit, "without calling the server.") {
+		t.Error("upstream_edit.html: Skip check is a button and says what it does")
 	}
 	scripts := []string{"../admin/static/app.js"}
 	more, _ := filepath.Glob("../admin/*.go")

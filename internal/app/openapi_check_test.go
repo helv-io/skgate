@@ -76,14 +76,14 @@ func TestOpenAPIAddChecksTheConnectionAndSkipCheckSavesAnyway(t *testing.T) {
 	if st, out = postInPlace(t, br, "/admin/upstreams/save", form("m1", "WRONG", nil)); func() bool { _, m := toastOf(out); return m != "the server refused the key" }() {
 		t.Fatalf("wrong key: %d %v", st, out)
 	}
-	// Skip check saves without asking
+	// Skip check posts oa_skip_check=1 and saves without calling the server
 	before := calls.Load()
 	st, out = postInPlace(t, br, "/admin/upstreams/save", form("m1", "", url.Values{"oa_skip_check": {"1"}}))
 	if k, _ := toastOf(out); st != 200 || k != "ok" || out["to"] != "/admin/upstreams/m1/tools" || calls.Load() != before {
 		t.Fatalf("skip: %d %v calls %d to %d", st, out, before, calls.Load())
 	}
 	if _, ok := a.MCP.Upstreams.Get("m1"); !ok {
-		t.Fatal("not stored with Skip check")
+		t.Fatal("not stored by Skip check")
 	}
 	// the right key passes
 	if st, out = postInPlace(t, br, "/admin/upstreams/save", form("m2", "GOOD", nil)); func() bool { k, _ := toastOf(out); return k != "ok" }() {
@@ -128,29 +128,34 @@ func TestOpenAPIEditChecksOnlyWhenWhatReachesTheServerChanged(t *testing.T) {
 	}
 }
 
-func TestOpenAPIFormSaysWhatTheCheckDoes(t *testing.T) {
+func TestOpenAPIFormHasASkipCheckButtonNotACheckbox(t *testing.T) {
 	a, _, br, csrf := signedIn(t, nil)
 	_, page := br.get("/admin/upstreams/new")
-	for _, want := range []string{"The first GET without parameters checks the connection.", `name="oa_skip_check"`, "Skip check"} {
+	for _, want := range []string{`<button type="button" class="act" data-oa-skip-btn>Skip check</button>`, "Skip check adds it without calling the server.", `name="oa_skip_check"`, `>Check</button>`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("add form lacks %q", want)
+		}
+	}
+	for _, gone := range []string{"first GET", "checks the connection", "A header name", "Check description", `type="checkbox" name="oa_skip_check"`, "Add anyway"} {
+		if strings.Contains(page, gone) {
+			t.Errorf("add form still says %q", gone)
 		}
 	}
 	_, _, spec := countedAPI(t)
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"has"}, "enabled": {"1"}, "oa_spec_text": {spec}, "oa_auth_value": {"GOOD"}})
 	_, edit := br.get("/admin/upstreams/has/edit")
-	if !strings.Contains(edit, "The first GET without parameters checks the connection.") || !strings.Contains(edit, `name="oa_skip_check"`) {
-		t.Error("the edit form has the same line and Skip check")
+	if !strings.Contains(edit, "Skip check saves it without calling the server.") || !strings.Contains(edit, "data-oa-skip-btn") {
+		t.Error("the edit form has Skip check and says what it does")
 	}
-	// a description with nothing to ask shows no line at all
+	// a description with no GET that can run the check has nothing to skip
 	a.Admin.NoSaveTest = true
 	none := `{"openapi":"3.0.0","info":{"title":"N","version":"1"},"servers":[{"url":"https://api.example.com"}],"paths":{"/x/{id}":{"get":{"operationId":"x","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}]}}}}`
 	br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"none"}, "enabled": {"1"}, "oa_spec_text": {none}})
 	_, edit = br.get("/admin/upstreams/none/edit")
-	if strings.Contains(edit, "oa_skip_check") || strings.Contains(edit, "checks the connection") {
-		t.Error("nothing to ask, nothing to say")
+	if strings.Contains(edit, "data-oa-skip-btn") || strings.Contains(edit, "Skip check") {
+		t.Error("nothing to check, nothing to skip")
 	}
-	// Check description tells the page whether the line applies
+	// Check tells the page whether the button applies
 	_, body := br.post("/admin/openapi/check", url.Values{"csrf": {csrf}, "oa_spec_text": {none}})
 	var m map[string]any
 	json.Unmarshal([]byte(body), &m)
