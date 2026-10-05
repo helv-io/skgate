@@ -153,11 +153,10 @@ func (s *Server) prmDoc(resource string) map[string]any {
 func (s *Server) prm(w http.ResponseWriter, r *http.Request) {
 	suffix := strings.TrimPrefix(r.URL.Path, "/.well-known/oauth-protected-resource")
 	if strings.Trim(suffix, "/") == "" {
-		// A document at the root would name the root as the resource, but the MCP endpoints are under
-		// /mcp. Clients that take the first document they get (Home Assistant) reject the mismatch,
-		// so there is none; the path-specific documents are the only ones.
-		reqlog.Reject(r, "no protected resource at the root: use /.well-known/oauth-protected-resource/mcp or /mcp/<alias>")
-		httputil.JSON(w, http.StatusNotFound, map[string]string{"error": "not_found", "error_description": "no protected resource at the root; use /.well-known/oauth-protected-resource/mcp or /mcp/<alias>"})
+		// Same document as /mcp so clients that probe the site-root PRM (ChatGPT) get the aggregate
+		// MCP resource. Browsers still get the landing page at /; /mcp and /mcp/<alias> are unchanged.
+		w.Header().Set("Cache-Control", "public, max-age=300")
+		httputil.JSON(w, http.StatusOK, s.prmDoc(s.resourceFor("/mcp")))
 		return
 	}
 	w.Header().Set("Cache-Control", "public, max-age=300")

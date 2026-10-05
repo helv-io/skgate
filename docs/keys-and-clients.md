@@ -38,7 +38,7 @@ A document with a client secret, `client_secret_basic` / `client_secret_post`, o
 
 The fetch is made by skgate on behalf of whoever opens `/authorize`, so it is restricted: only globally routable addresses (private, loopback, link-local and similar ranges are refused, checked on the address actually connected to), no redirects, no proxy, 5 seconds, 64 KB, JSON only. A copy is kept for the `Cache-Control` max-age (between 5 minutes and 24 hours, one hour by default) and, if the document becomes unreachable, the last good copy keeps working. A failed fetch is not repeated for a minute. The newest 500 such clients are kept. There is no setting for any of this; an instance that cannot reach the client's host simply does not accept that client ID.
 
-Discovery: `PUBLIC_URL/.well-known/oauth-authorization-server`. Protected-resource metadata is served per endpoint (`/.well-known/oauth-protected-resource/mcp` and `/mcp/<alias>`, `resource` equal to the URL); there is none at the root.
+Discovery: `PUBLIC_URL/.well-known/oauth-authorization-server`. Protected-resource metadata is served per endpoint (`/.well-known/oauth-protected-resource/mcp` and `/mcp/<alias>`, `resource` equal to the URL). The site-root document (`/.well-known/oauth-protected-resource`) is the same as for `/mcp`.
 
 PKCE: a `code_challenge` that is sent must be `S256` and is always verified. Without one, `/authorize` accepts only confidential clients (`client_secret_post`/`basic`, secret checked at `/token`) that have not used PKCE yet; after a client's first successful PKCE exchange it needs PKCE. Public and dynamically registered clients always need it.
 

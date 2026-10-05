@@ -54,7 +54,7 @@ services:
 1. `docker compose up -d`
 2. Open `https://skgate.example.com/admin` and sign in through your OIDC provider.
 3. **mcp upstreams** > **Add upstream**: a remote MCP server URL, or a GitHub repository, npm or PyPI package that skgate runs for you (see [Add an MCP server with Suggest configuration](#examples)).
-4. Point your MCP client at `https://skgate.example.com/mcp` (every included upstream) or `https://skgate.example.com/mcp/<alias>` (one upstream) and sign in when it asks.
+4. Point your MCP client at `https://skgate.example.com/mcp` or the site root (every included upstream) or `https://skgate.example.com/mcp/<alias>` (one upstream) and sign in when it asks.
 
 Image tags:
 
@@ -147,6 +147,7 @@ If the button is greyed out, hover it: use **Pick MCP helper model** beside it, 
 | --- | --- |
 | `https://skgate.example.com/mcp/<alias>` | One upstream; tool names unchanged |
 | `https://skgate.example.com/mcp` | Every upstream marked **In /mcp**; tools prefixed `<alias>-` |
+| `https://skgate.example.com/` (MCP clients) | Same aggregate as `/mcp` when Accept/Content-Type look like MCP; browsers still go to `/admin` |
 
 Hosted connectors use OAuth (leave client ID and secret empty). Scripts and CLIs send a key:
 

@@ -176,11 +176,12 @@ func TestWellKnownMetadata(t *testing.T) {
 			t.Errorf("%s: PRM %v want resource %s", p, m, want)
 		}
 	}
-	// The root has no protected resource: a document naming the root would not match any MCP URL.
+	// Root PRM is the same document as /mcp (aggregate resource) for clients that probe the site root.
 	for _, p := range []string{"/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/"} {
-		resp := e.do("GET", p, nil, "")
-		if m := readJSON(t, resp); resp.StatusCode != 404 || m["resource"] != nil {
-			t.Errorf("%s: %d %v", p, resp.StatusCode, m)
+		m := readJSON(t, e.do("GET", p, nil, ""))
+		want := e.ts.URL + "/mcp"
+		if m["resource"] != want || toJSON(m["authorization_servers"]) != `["`+e.ts.URL+`"]` {
+			t.Errorf("%s: PRM %v want resource %s", p, m, want)
 		}
 	}
 	resp := e.do("OPTIONS", "/token", map[string]string{"Origin": "https://x.example", "Access-Control-Request-Method": "POST"}, "")

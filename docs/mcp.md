@@ -193,6 +193,7 @@ In the full image each child gets the cache variables of its package managers (n
 | --- | --- |
 | `/mcp/<alias>` | Transparent, unprefixed proxy to one upstream. |
 | `/mcp` | One MCP server merging every enabled upstream that is **In /mcp**. |
+| `/` (MCP clients only) | Same aggregate as `/mcp` when the request looks like MCP (`Accept: application/json` or `text/event-stream`, or a JSON/MCP `Content-Type`). Browsers still get the landing page → `/admin`. |
 
 `/mcp` details:
 

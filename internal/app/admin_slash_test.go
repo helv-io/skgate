@@ -63,7 +63,7 @@ func TestSlashOutsideAdminUnchanged(t *testing.T) {
 	}{
 		{"/mcp", 401}, {"/mcp/", 401}, {"/mcp/notes", 401}, {"/mcp/notes/", 401},
 		{"/v1/models", 401}, {"/v1/models/", 401}, {"/v1/chat/completions", 401},
-		{"/.well-known/oauth-protected-resource", 404},
+		{"/.well-known/oauth-protected-resource", 200},
 		{"/.well-known/oauth-protected-resource/mcp", 200},
 		{"/.well-known/oauth-authorization-server", 200},
 		{"/healthz", 200}, {"/favicon.svg", 200}, {"/admin/static/app.css", 200},

@@ -16,6 +16,37 @@ const maxMCPBody = 16 << 20
 // forwardHeaders are the inbound headers passed to the upstream MCP server.
 var forwardHeaders = []string{"Accept", "Content-Type", "Mcp-Session-Id", "Mcp-Protocol-Version", "Last-Event-ID", "User-Agent"}
 
+// LooksLikeClient reports whether r is from an MCP client rather than a browser: Accept asks for
+// application/json or text/event-stream, Content-Type is JSON or an MCP type, or it is a CORS preflight
+// (OPTIONS with Access-Control-Request-Method). Browsers navigating to / send Accept: text/html and are not matched.
+func LooksLikeClient(r *http.Request) bool {
+	if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+		return true
+	}
+	accept := strings.ToLower(r.Header.Get("Accept"))
+	if strings.Contains(accept, "application/json") || strings.Contains(accept, "text/event-stream") {
+		return true
+	}
+	ct := strings.ToLower(r.Header.Get("Content-Type"))
+	if i := strings.IndexByte(ct, ';'); i >= 0 {
+		ct = strings.TrimSpace(ct[:i])
+	}
+	switch ct {
+	case "application/json", "application/json-rpc", "application/jsonrpc", "application/mcp+json":
+		return true
+	}
+	return false
+}
+
+// ServeRoot handles / for MCP clients: the same aggregate Streamable HTTP as /mcp. Browsers are routed elsewhere.
+func (s *Server) ServeRoot(w http.ResponseWriter, r *http.Request) {
+	r2 := r.Clone(r.Context())
+	u := *r.URL
+	u.Path = "/mcp"
+	r2.URL = &u
+	s.serveMCP(w, r2)
+}
+
 // splitAlias parses /mcp, /mcp/, /mcp/{alias}, /mcp/{alias}/ into an alias ("" for bare /mcp).
 func splitAlias(path string) (alias string, ok bool) {
 	rest := strings.Trim(strings.TrimPrefix(path, "/mcp"), "/")
