@@ -12,7 +12,7 @@
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/helv-io/skgate:0.21.6",
+      "identifier": "ghcr.io/helv-io/skgate:0.21.7",
       "transport": {
         "type": "streamable-http",
         "url": "http://localhost:8080/mcp"
@@ -30,7 +30,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/helv-io/skgate:0.21.6-slim",
+      "identifier": "ghcr.io/helv-io/skgate:0.21.7-slim",
       "transport": {
         "type": "streamable-http",
         "url": "http://localhost:8080/mcp"
