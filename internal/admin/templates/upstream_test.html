@@ -17,9 +17,9 @@
 </tbody></table></div>
 {{if .R.OK}}<h2>Tools ({{.R.ToolTotal}}{{if .R.ToolsCapped}}, list capped{{end}})</h2>
 {{if .R.Tools}}{{template "filter_box" (filterBox "tools-table" "Filter tools by name or description")}}{{end}}
-<div class="card flush tablewrap"><table class="table split" id="tools-table"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>
-{{range $i, $t := .R.Tools}}<tr data-filter-row><td class="primary" data-label="Name"><code>{{$t.Name}}</code> <button type="button" class="act" data-dialog-open="#try-{{$i}}">Test</button></td><td class="wrap" data-label="Description">{{if $t.Desc}}{{template "tooldesc" $t}}{{else}}<span class="muted">-</span>{{end}}</td></tr>
-{{else}}<tr><td colspan="2" class="empty">None</td></tr>{{end}}
-<tr data-filter-empty hidden><td colspan="2" class="empty">No tool matches</td></tr></tbody></table></div>
+<div class="card flush tablewrap"><table class="table split" id="tools-table"><thead><tr><th>Name</th><th>Description</th>{{template "th_actions"}}</tr></thead><tbody>
+{{range $i, $t := .R.Tools}}<tr data-filter-row><td class="primary" data-label="Name"><code>{{$t.Name}}</code></td><td class="wrap" data-label="Description">{{if $t.Desc}}{{template "tooldesc" $t}}{{else}}<span class="muted">-</span>{{end}}</td><td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#try-{{$i}}">Test</button></div></td></tr>
+{{else}}<tr><td colspan="3" class="empty">None</td></tr>{{end}}
+<tr data-filter-empty hidden><td colspan="3" class="empty">No tool matches</td></tr></tbody></table></div>
 {{range $i, $t := .R.Tools}}{{template "tool_try_dialog" (trydlg (printf "try-%d" $i) $t.Name $t.Name $.Data.U.Alias $.CSRF)}}{{end}}{{end}}
 {{end}}{{end}}

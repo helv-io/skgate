@@ -1,5 +1,6 @@
 // The Test page's tools table in a real browser: a description looks clickable (dotted underline, pointer) only while a
-// click shows more, the Name column is about 30% on wide screens, long names wrap, and phones keep the card layout.
+// click shows more, Name and Description stay about 30/70 of the space they share, Test is a thin column on the right
+// (a tall button under the description on a phone), long names wrap, and phones keep the card layout.
 // Usage: node descline.js <base url> <chrome> <puppeteer-core dir> <cookies json>
 const [url, chrome, pp, cookiesJSON] = process.argv.slice(2);
 const puppeteer = require(pp);
@@ -11,12 +12,20 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const pg = await b.newPage();
   await pg.setCookie(...JSON.parse(cookiesJSON));
   const rows = () => pg.evaluate(() => [...document.querySelectorAll("#tools-table tbody tr[data-filter-row]")].map(tr => {
-    const name = tr.querySelector("td.primary"), cell = tr.querySelector("td.wrap"), el = cell.querySelector("[data-desc-line], summary"), cs = getComputedStyle(el);
+    const name = tr.querySelector("td.primary"), cell = tr.querySelector("td.wrap"), act = tr.querySelector("td.actions-cell");
+    const el = cell.querySelector("[data-desc-line], summary"), cs = getComputedStyle(el);
+    const btn = act && act.querySelector("button");
     const r = tr.getBoundingClientRect(), n = name.getBoundingClientRect(), c = cell.getBoundingClientRect();
+    const a = act ? act.getBoundingClientRect() : null, b = btn ? btn.getBoundingClientRect() : null;
+    const pair = n.width + c.width;
     return {
       name: tr.querySelector("code").textContent, kind: el.tagName, underline: cs.textDecorationLine + " " + cs.textDecorationStyle, cursor: cs.cursor, expands: el.classList.contains("expands"),
       role: el.getAttribute("role"), tab: el.getAttribute("tabindex"), cut: el.scrollWidth > el.clientWidth + 1, h: Math.round(el.getBoundingClientRect().height),
-      nameShare: Math.round(100 * n.width / r.width), descShare: Math.round(100 * c.width / r.width), nameH: Math.round(n.height), scrollsSideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      nameShare: Math.round(100 * n.width / pair), descShare: Math.round(100 * c.width / pair), nameH: Math.round(n.height), scrollsSideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      testInName: !!name.querySelector("button"),
+      actLeft: a ? Math.round(a.left) : -1, btnLeft: b ? Math.round(b.left) : -1, btnH: b ? Math.round(b.height) : 0, btnW: b ? Math.round(b.width) : 0,
+      actShare: a ? Math.round(100 * a.width / r.width) : 0,
+      descBeforeTest: !!(a && c.right <= a.left + 1), testBelow: !!(b && c.bottom <= b.top + 2),
     };
   }));
   const by = (rs, n) => rs.find(r => r.name === n);
@@ -37,7 +46,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       ok(Math.abs(short.nameShare - 30) <= 3 && Math.abs(short.descShare - 70) <= 3, w + ": Name and Description are about 30/70: " + short.nameShare + "/" + short.descShare);
       const wrapName = by(rs, "a_tool_with_a_rather_long_name_that_has_to_wrap_somewhere_in_the_name_column");
       ok(wrapName.nameH > short.nameH && wrapName.nameShare <= 33, w + ": a long name wraps inside its column " + wrapName.nameH + " vs " + short.nameH);
+      const lefts = rs.map(r => r.btnLeft);
+      ok(rs.every(r => !r.testInName && r.descBeforeTest) && Math.max(...lefts) - Math.min(...lefts) <= 1 && short.actShare > 0 && short.actShare <= 16, w + ": Test is a thin column on the right " + JSON.stringify(rs.map(r => ({ n: r.name, btn: r.btnLeft, share: r.actShare, inName: r.testInName, before: r.descBeforeTest }))));
     }
+    if (w === 390) ok(rs.every(r => !r.testInName && r.testBelow && r.btnH >= 44 && r.btnW >= 120), w + ": Test is a tall button under the description " + JSON.stringify(rs.map(r => ({ n: r.name, h: r.btnH, w: r.btnW, below: r.testBelow, inName: r.testInName }))));
     // clicking opens the cut-off line to its whole text, and again closes it
     const before = long.h;
     await pg.evaluate(() => [...document.querySelectorAll("[data-desc-line]")].find(e => e.textContent.startsWith("A long single")).click());
