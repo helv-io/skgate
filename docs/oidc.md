@@ -2,7 +2,9 @@
 
 Part of the [skgate README](../README.md#oidc-setup).
 
-Create a confidential client with redirect URI `PUBLIC_URL/admin/oidc/callback`, then set `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`. skgate authenticates at the token endpoint with `client_secret_basic` or `client_secret_post`, whichever the provider's discovery lists (basic first), and retries once with post if basic is refused.
+Create a confidential client with redirect URI `PUBLIC_URL/admin/oidc/callback`, then set `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`.
+
+skgate authenticates at the token endpoint with `client_secret_basic` or `client_secret_post`, whichever the provider's discovery lists (basic first), and retries once with post if basic is refused.
 
 | Provider | Hint |
 | --- | --- |
