@@ -6,6 +6,10 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [Unreleased]
 
+### Added
+
+- README: Star History chart
+
 ## [0.21.5] - 2026-10-05
 
 ### Changed
