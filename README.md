@@ -3,7 +3,7 @@
 
 <p align="center">Serve your MCP servers and REST APIs from one OAuth-protected gateway. Also proxy your SI providers behind one address with model aliases, and use your Grok subscription as an OpenAI-compatible API, no API key needed.</p>
 
-<p align="center">Yes, all MCP servers: everyone's welcome. skgate can run them for you too, so no more stacks.</p>
+<p align="center">Any MCP server. skgate can run them for you, so you do not need one container per server.</p>
 
 [![skgate demo](https://img.youtube.com/vi/57oxqkjzb4w/maxresdefault.jpg)](https://youtu.be/57oxqkjzb4w)
 
@@ -26,7 +26,7 @@ Yes
 
 ## Quick start
 
-Before you start: an [OIDC provider](#oidc-setup) with a confidential client for skgate (admin login is OIDC only). Just trying it on one machine? [docs/quickstart.md](docs/quickstart.md) runs skgate with a bundled provider and no accounts.
+You need an [OIDC provider](#oidc-setup) with a confidential client for skgate. Admin login is OIDC only. Trying it on one machine? [docs/quickstart.md](docs/quickstart.md) runs skgate with a bundled provider and no accounts.
 
 ```yaml
 # docker-compose.yml
@@ -53,15 +53,15 @@ services:
 
 1. `docker compose up -d`
 2. Open `https://skgate.example.com/admin` and sign in through your OIDC provider.
-3. **mcp upstreams** > **Add upstream**: a remote MCP server URL, or a GitHub repository, npm or PyPI package that skgate runs for you (see [Add an MCP server with Suggest configuration](#examples)).
-4. Point your MCP client at `https://skgate.example.com/mcp` or the site root (every included upstream) or `https://skgate.example.com/mcp/<alias>` (one upstream) and sign in when it asks.
+3. **mcp upstreams** > **Add upstream**: a remote MCP server, or a GitHub repository, npm package, or PyPI package that skgate runs for you (see [Add an MCP server with Suggest configuration](#examples)).
+4. Point your MCP client at `https://skgate.example.com/mcp` or the site root for every included upstream, or at `https://skgate.example.com/mcp/<alias>` for one upstream. Sign in when it asks.
 
 Image tags:
 
 - `latest`: proxy + managed MCP servers (Node.js, Python, uv, .NET, Go, git)
 - `slim`: proxy only
 
-Upgrade: back up `./data`, then `docker compose pull && docker compose up -d`.
+To upgrade, back up `./data`, then `docker compose pull && docker compose up -d`.
 
 ## Proxy your SI providers
 
@@ -72,7 +72,7 @@ Grok can use subscription sign-in with no API key. Other providers use that prov
 1. **status** > Grok > **Sign in**: open the shown address, enter the code, approve. skgate keeps the sign-in fresh.
 2. **keys** > enter a name > **Create key**. Copy the `sk-...` key; it is shown once.
 3. Use it: base URL `https://skgate.example.com/v1`, API key `sk-...` (see Examples).
-   - The base URL is forgiving: `/v1`, `/api`, `/api/v1` and the bare host all reach the same API, so use whichever form your client expects.
+   - These base URLs all reach the same API: `/v1`, `/api`, `/api/v1`, and the bare host. Use whichever form your client expects.
 4. Other providers: **status** > **Add provider**, pick one and enter its API key. Type the provider's address in any form; skgate finds the one that works.
 
 ## Examples
@@ -134,10 +134,10 @@ Needs the `latest` image and an MCP helper model from any ready provider. The fi
    | `pypi:mcp-server-time` | PyPI package, `uvx` |
    | `https://github.com/example-org/notes-mcp` | git repo: clone, install, run (private: **Access token**) |
 
-2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`), the MCP helper model proposes command, args, install step and env names (marked secret or not, required or optional), and the **Manual configuration** fields are filled in with a confidence and any warnings. Nothing is saved yet. Point it at the repo and fill in the variables it needs.
+2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`). The MCP helper model proposes the command, args, install step, and env names (secret or not, required or optional). The **Manual configuration** fields fill in, with a confidence and any warnings. Nothing is saved yet. Set the variables the server needs.
 3. Set an alias, fill in the variables you need (empty ones are not passed to the server), **Save**. The server is at `https://skgate.example.com/mcp/<alias>`.
 
-If the button is greyed out, hover it: use **Pick MCP helper model** beside it, or add a provider on **status** first.
+If the button is greyed out, hover it. Use **Pick MCP helper model** beside it, or add a provider on **status** first.
 
 </details>
 
@@ -232,6 +232,28 @@ Served at `https://skgate.example.com/mcp/everything`. For Python servers use `"
 | MCP | Remote, stdio and git servers behind OAuth 2.1 ([docs](docs/mcp.md)) |
 | REST APIs as tools | Give an OpenAPI description, pick the operations (or let **Suggest names and selection** name them and pick a core set), and MCP clients get them as tools ([docs](docs/openapi.md)) |
 
+## Tested MCP clients
+
+Clients tested by the author against a live skgate. Status is what happened, not a promise.
+
+| Client | Status | Notes |
+| --- | --- | --- |
+| ChatGPT | OK | |
+| Claude | OK | |
+| Cline | Untested | |
+| Continue | Untested | |
+| Cursor | Untested | |
+| Gemini | Warning | Connects, but never calls tools. |
+| Goose | Untested | |
+| Grok | OK | |
+| Hermes | OK | |
+| Home Assistant | OK | Needs a manual OAuth client ID and secret. |
+| LibreChat | Untested | |
+| Open WebUI | Untested | |
+| VS Code | Untested | |
+| Windsurf | Untested | |
+| Zed | Untested | |
+
 ## Comparison
 
 How each provider signs in elsewhere, and how skgate connects to it:
@@ -262,7 +284,7 @@ As of 2026-10-05; check each provider's terms. GitHub Copilot is not a skgate pr
 
 ## Configuration
 
-Set under `environment:` (or `env_file`); placeholders in [`.env.example`](.env.example).
+Set these under `environment:` or in an `env_file`. Placeholders are in [`.env.example`](.env.example).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -291,7 +313,7 @@ Everything lives in `/data` (`skgate.db`, `secrets.key`): back up both.
 
 ## Reverse proxy
 
-Set `PUBLIC_URL` to the public https origin. No forward-auth on `/v1`, `/api`, `/mcp`, `/sse`, `/messages`, `/authorize`, `/token`, `/register`, `/.well-known`. Only Traefik is tested by the author; [open an issue](https://github.com/helv-io/skgate/issues) with feedback.
+Set `PUBLIC_URL` to the public https origin. Do not put forward-auth on `/v1`, `/api`, `/mcp`, `/sse`, `/messages`, `/authorize`, `/token`, `/register`, or `/.well-known`. Only Traefik is tested by the author. [Open an issue](https://github.com/helv-io/skgate/issues) with what you tried.
 
 <details><summary>Traefik</summary>
 
@@ -421,7 +443,7 @@ backend skgate
 | Scopes | `openid profile email groups` (if `groups` is rejected: `OIDC_SCOPES=openid profile email`) |
 | ID token | Asymmetric signature (RS, PS, ES, EdDSA); discovery `issuer` equal to `OIDC_ISSUER` |
 
-Without `OIDC_*` the admin answers 503. Every user your provider lets in is an admin: restrict the provider, or set `OIDC_ALLOWED_EMAILS` / `OIDC_ALLOWED_GROUPS`. Hints for Authelia, Authentik, Keycloak, Zitadel and Pocket ID: [docs/oidc.md](docs/oidc.md).
+Without `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`, skgate starts but the admin stays closed. Every user your provider lets in is an admin. Restrict the provider, or set `OIDC_ALLOWED_EMAILS` / `OIDC_ALLOWED_GROUPS`. Hints for Authelia, Authentik, Keycloak, Zitadel and Pocket ID: [docs/oidc.md](docs/oidc.md).
 
 ## Security notes
 

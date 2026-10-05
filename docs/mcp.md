@@ -1,6 +1,6 @@
 # MCP upstreams and aggregation
 
-Admin: mcp upstreams. Part of the [skgate README](../README.md).
+Admin: mcp upstreams. Part of the [skgate README](../README.md). Clients tried against a live skgate: [Tested MCP clients](../README.md#tested-mcp-clients).
 
 ## Upstreams
 
