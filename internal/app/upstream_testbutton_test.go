@@ -1,11 +1,15 @@
 package app
 
 import (
-	"github.com/helv-io/skgate/internal/mcp"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/helv-io/skgate/internal/mcp"
 )
 
 func TestUpstreamTestButton(t *testing.T) {
@@ -69,5 +73,64 @@ func TestUpstreamTestButton(t *testing.T) {
 	// an unknown alias goes back to the list with a message
 	if r, _ := br.get("/admin/upstreams/nope/test"); r.StatusCode != 303 || flashKind(r) != "bad" {
 		t.Errorf("unknown alias: %d %q", r.StatusCode, flashKind(r))
+	}
+}
+
+// The Auth row is the scheme that was used, once. A stored detection must not repeat it
+// ("bearer" next to "bearer, found bearer").
+func TestUpstreamTestAuthShownOnce(t *testing.T) {
+	a, _, br, _ := signedIn(t, nil)
+	open := fakeUpstream(t)
+	strict := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer tok-1234" && r.Header.Get("X-Api-Key") != "tok-1234" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		b, _ := io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.Contains(string(b), `"tools/list"`):
+			io.WriteString(w, `{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}`)
+		case strings.Contains(string(b), `"initialize"`):
+			io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","serverInfo":{"name":"fake","version":"1"}}}`)
+		default:
+			w.WriteHeader(http.StatusAccepted)
+		}
+	}))
+	t.Cleanup(strict.Close)
+	refused := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(refused.Close)
+
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(a.MCP.Upstreams.Create(mcp.Upstream{Alias: "set", URL: open.URL, AuthKind: mcp.AuthBearer, AuthValue: "tok-1234", Enabled: true}))
+	must(a.MCP.Upstreams.SetDetected("set", "bearer", "bearer: HTTP 200, valid initialize result"))
+	must(a.MCP.Upstreams.Create(mcp.Upstream{Alias: "auto", URL: strict.URL, AuthKind: mcp.AuthAuto, AuthValue: "tok-1234", Enabled: true}))
+	must(a.MCP.Upstreams.Create(mcp.Upstream{Alias: "hdr", URL: strict.URL, AuthKind: mcp.AuthHeader, AuthName: "X-Api-Key", AuthValue: "tok-1234", Enabled: true}))
+	must(a.MCP.Upstreams.Create(mcp.Upstream{Alias: "plain", URL: open.URL, AuthKind: mcp.AuthNone, Enabled: true}))
+	must(a.MCP.Upstreams.Create(mcp.Upstream{Alias: "miss", URL: refused.URL, AuthKind: mcp.AuthAuto, AuthValue: "tok-1234", Enabled: true}))
+
+	cell := regexp.MustCompile(`<th>Auth</th><td>(.*?)</td>`)
+	for _, c := range []struct{ alias, want string }{
+		{"set", "bearer"},
+		{"auto", "bearer"},
+		{"hdr", "header"},
+		{"plain", "none"},
+		{"miss", "none"},
+	} {
+		_, body := br.get("/admin/upstreams/" + c.alias + "/test")
+		m := cell.FindStringSubmatch(body)
+		if m == nil {
+			t.Fatalf("%s: no Auth row:\n%s", c.alias, body)
+		}
+		if m[1] != c.want || strings.Contains(m[1], "found") || strings.Contains(m[1], "chip") {
+			t.Errorf("%s: Auth cell %q, want %q", c.alias, m[1], c.want)
+		}
 	}
 }
