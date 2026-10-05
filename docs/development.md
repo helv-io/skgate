@@ -37,13 +37,21 @@ The `Changelog` workflow runs the program on every stable `vX.Y.Z` tag and pushe
 
 ## Underlines mean "opens"
 
-A dotted underline (with a pointer) tells the reader a click shows more, so it is only drawn where that is true. A `<details>` block is used only when it has content beyond its summary. A one-line description is plain text, and app.js gives it the underline (`.expands`, `role="button"`, keyboard Enter/Space) only while the line is cut off by the column and a click shows the whole text; widen the window and the underline goes. The `tooldesc` component in `components.html` does this for the Test page's tool list; use it for any other list of tools. Names and descriptions sit in a `.table.split` table (about 30/70; the name wraps, phones get cards). `TestToolDescriptionsAreClickableOnlyWhenTheyOpen` (with `testdata/descline.js`) checks it in a browser at three widths.
+A dotted underline (with a pointer) tells the reader a click shows more, so it is only drawn where that is true. A `<details>` block is used only when it has content beyond its summary.
+
+A one-line description is plain text, and app.js gives it the underline (`.expands`, `role="button"`, keyboard Enter/Space) only while the line is cut off by the column and a click shows the whole text; widen the window and the underline goes.
+
+The `tooldesc` component in `components.html` does this for the Test page's tool list; use it for any other list of tools. Names and descriptions sit in a `.table.split` table (about 30/70; the name wraps, phones get cards). `TestToolDescriptionsAreClickableOnlyWhenTheyOpen` (with `testdata/descline.js`) checks it in a browser at three widths.
 
 ## Code box
 
-The OpenAPI paste box (JSON, YAML or TOML) and the MCP import box (JSON) are code editors: syntax colours, the matching bracket, an underline on the first syntax error with its line in the status line, and auto-indent on Enter. They use **CodeMirror 6**, vendored as one committed file, `internal/admin/static/codemirror.js` (about 369 KB minified, `go:embed`ded with the rest of `static/`, loaded only by `upstream_form.html` and `upstream_import.html`). No CDN, no fetch at run time.
+The OpenAPI paste box (JSON, YAML or TOML) and the MCP import box (JSON) are code editors: syntax colours, the matching bracket, an underline on the first syntax error with its line in the status line, and auto-indent on Enter.
 
-Use it by marking a textarea `data-code="json"`, `"yaml"`, `"toml"` or `"auto"` (guessed from the text) and, for a status line, adding `<p class="muted" data-code-status aria-live="polite"></p>` in the same `.field`. A field that has `data-json-check` keeps that check's own line and its block on invalid JSON. The textarea stays the form field of record: it keeps its name and value (updated on every change, with an `input` event), it is what the form sends, and it is all the page shows without script or in a browser without constructed stylesheets. Script that sets its `.value` must send an `input` event afterwards (the editor then follows).
+They use **CodeMirror 6**, vendored as one committed file, `internal/admin/static/codemirror.js` (about 369 KB minified, `go:embed`ded with the rest of `static/`, loaded only by `upstream_form.html` and `upstream_import.html`). No CDN, no fetch at run time.
+
+Use it by marking a textarea `data-code="json"`, `"yaml"`, `"toml"` or `"auto"` (guessed from the text) and, for a status line, adding `<p class="muted" data-code-status aria-live="polite"></p>` in the same `.field`. A field that has `data-json-check` keeps that check's own line and its block on invalid JSON.
+
+The textarea stays the form field of record: it keeps its name and value (updated on every change, with an `input` event), it is what the form sends, and it is all the page shows without script or in a browser without constructed stylesheets. Script that sets its `.value` must send an `input` event afterwards (the editor then follows).
 
 **What is in the bundle** (exact versions in `tools/codemirror/package.json` and `package-lock.json`, licences in `THIRD_PARTY_NOTICES.md`): `@codemirror/state`, `view`, `commands`, `language`, `lint`, `lang-json`, `lang-yaml`, `legacy-modes` (TOML highlighting), `@lezer/highlight` (all MIT), and `smol-toml` (BSD-3-Clause, the TOML error check). Our own part is `tools/codemirror/entry.js` (about 150 lines: the languages, the three error checks, the YAML Enter rule, the theme and the textarea sync). Errors: JSON through `JSON.parse`, TOML through `smol-toml`, YAML through the syntax tree's error nodes. skgate's own parser still decides when the form is sent, and the paste box never blocks the form.
 

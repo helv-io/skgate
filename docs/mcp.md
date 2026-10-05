@@ -24,17 +24,35 @@ All types are served the same way: `/mcp/<alias>`, the aggregating `/mcp`, Test,
 | `header` | `<name>: <value>`. The header name field appears for `header` and `auto` only. |
 | `passthrough` | The client's `X-Upstream-Authorization` value as `Authorization`, otherwise nothing. |
 
-Auto detection runs on save, on **detect**, and lazily on first use. 401/403 count as failure. An upstream that only offers OAuth is reported as `oauth (unsupported)` and gets no credentials. Editing URL, credentials, header name or host override clears the result. Existing upstreams keep their mode.
+Auto detection runs on save, on **detect**, and lazily on first use. 401/403 count as failure.
+
+An upstream that only offers OAuth is reported as `oauth (unsupported)` and gets no credentials.
+
+Editing URL, credentials, header name or host override clears the result. Existing upstreams keep their mode.
 
 **Addresses.** An address on the internet needs `https`; plain `http` is accepted for a single-label name (a Docker service), an IP address, `localhost` and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`. The rule is the same for remote and OpenAPI upstreams, Test and import, and Suggest. Git clones are always https.
 
-**Add and Save test first.** The form posts in place and the upstream is tested before anything is stored: a remote upstream must answer `initialize`, an OpenAPI one must answer its first GET without parameters with a 2xx (see [the connection check](openapi.md#the-connection-check)). A failed test leaves the page as it is, every field and secret kept, with a short error. Managed upstreams are not started for it. The button is off, with the reason shown, until the type has what it needs. An OpenAPI upstream also has **Skip check**, which stores it without calling the server.
+**Add and Save test first.** The form posts in place and the upstream is tested before anything is stored: a remote upstream must answer `initialize`, an OpenAPI one must answer its first GET without parameters with a 2xx (see [the connection check](openapi.md#the-connection-check)).
+
+A failed test leaves the page as it is, every field and secret kept, with a short error. Managed upstreams are not started for it.
+
+The button is off, with the reason shown, until the type has what it needs. An OpenAPI upstream also has **Skip check**, which stores it without calling the server.
 
 **Host override** (`hostname[:port]`, under **Advanced** in the form; shown in the alias's hover text when set) replaces the outbound `Host` header, for servers that validate it. Probes and Test honor it.
 
-**Test** runs `initialize`, `notifications/initialized` and `tools/list` with the effective auth. The screen opens with one line (`OK · 3 tools · 435 ms`, or `failed · 435 ms`), then the buttons, then the details (status, auth, latency, server, protocol) and the tools (first 100). A filter box narrows the tools by name or description as you type, and each description is one line that opens to the rest of the text. Each tool has a **Test** button that opens the same form as on an OpenAPI tools page (schema fields, Edit as JSON, Run); Run calls the upstream for real through the gateway, as the admin. Passthrough upstreams are tested without credentials.
+**Test** runs `initialize`, `notifications/initialized` and `tools/list` with the effective auth.
 
-When the connection is refused or the name does not resolve, Test says so in words and adds a hint. For an upstream on a private network (a container name, a private address, `localhost`) it also looks for the usual MCP ports (3000, 8000, 8080 and similar) that are open on that host and asks each for an `initialize` on the configured path, so a wrong port is named with the port that answers. This runs only after a failure and never on public hosts. Saving a remote upstream that cannot be reached shows the same hint, without the host name, in the confirmation. Addresses appear only on the Test screen; MCP clients and the other admin screens get the failure in words (`connection refused`, `host name not found`, `timed out`).
+The screen opens with one line (`OK · 3 tools · 435 ms`, or `failed · 435 ms`), then the buttons, then the details (status, auth, latency, server, protocol) and the tools (first 100).
+
+A filter box narrows the tools by name or description as you type, and each description is one line that opens to the rest of the text. Each tool has a **Test** button that opens the same form as on an OpenAPI tools page (schema fields, Edit as JSON, Run); Run calls the upstream for real through the gateway, as the admin.
+
+Passthrough upstreams are tested without credentials.
+
+When the connection is refused or the name does not resolve, Test says so in words and adds a hint.
+
+For an upstream on a private network (a container name, a private address, `localhost`) it also looks for the usual MCP ports (3000, 8000, 8080 and similar) that are open on that host and asks each for an `initialize` on the configured path, so a wrong port is named with the port that answers. This runs only after a failure and never on public hosts.
+
+Saving a remote upstream that cannot be reached shows the same hint, without the host name, in the confirmation. Addresses appear only on the Test screen; MCP clients and the other admin screens get the failure in words (`connection refused`, `host name not found`, `timed out`).
 
 **Health.** The Status column of a remote upstream shows a pill: `ok`, `failing` (the last error is in its hover text) or `no calls yet` (nothing has called it since skgate started). It follows the real calls, from clients and from Test. Managed upstreams show their process state instead. OpenAPI upstreams show their tool count instead (green, amber or red, see [OpenAPI upstreams](openapi.md#many-tools-are-a-cost-the-counter)). The Type column reads `remote`, `managed · git`, `managed · npm`, `managed · pypi`, `managed · command` or `OpenAPI`.
 
@@ -58,7 +76,11 @@ Always available in the full image (`latest`); there is no switch. In the `slim`
 
 ### Source and suggestions
 
-The managed form has two main fields: **MCP source URL / package** and **Access token** (private repositories). **Suggest configuration** (disabled until a source is entered) fills the manual fields from them; the access token and ref show only for a git source, and the install command is hidden for a package; nothing is saved until you submit the form. For GitHub repositories, Suggest uses the upstream's access token, or `GITHUB_TOKEN` when the upstream has none. The manual fields (command, arguments, environment, install, timeouts) are always available, with or without an account.
+The managed form has two main fields: **MCP source URL / package** and **Access token** (private repositories). **Suggest configuration** (disabled until a source is entered) fills the manual fields from them; the access token and ref show only for a git source, and the install command is hidden for a package; nothing is saved until you submit the form.
+
+For GitHub repositories, Suggest uses the upstream's access token, or `GITHUB_TOKEN` when the upstream has none.
+
+The manual fields (command, arguments, environment, install, timeouts) are always available, with or without an account.
 
 | Source | Result |
 | --- | --- |
@@ -104,7 +126,9 @@ Env and header lists start with one row; **Add row** appends rows, **Delete** re
 
 ### JSON import and export
 
-Admin: mcp upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}}` object, a bare name-to-server map, or a single server object. Aliases come from the keys, lowercased and sanitized. The field checks the JSON while you type and the **Import** button waits until it is valid. Each entry is reported as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
+Admin: mcp upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}}` object, a bare name-to-server map, or a single server object. Aliases come from the keys, lowercased and sanitized.
+
+The field checks the JSON while you type and the **Import** button waits until it is valid. Each entry is reported as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
 
 ```json
 {
@@ -163,7 +187,11 @@ Admin: mcp upstreams, **import JSON** above the table. Paste a `{"mcpServers": {
 
 ### Bridging
 
-Many HTTP clients share one child. skgate remaps JSON-RPC ids per call (and progress tokens) and routes each response back to its client session (`Mcp-Session-Id`). Supported: `initialize`, tools, resources, prompts, notifications, progress, cancellation, batches and server-to-client requests (sampling, roots, elicitation) sent to a session that declared the capability. Replies are JSON, or an SSE stream when the client asks for progress or supports server requests and accepts `text/event-stream`. `GET /mcp/<alias>` opens the server-to-client notification stream.
+Many HTTP clients share one child. skgate remaps JSON-RPC ids per call (and progress tokens) and routes each response back to its client session (`Mcp-Session-Id`).
+
+Supported: `initialize`, tools, resources, prompts, notifications, progress, cancellation, batches and server-to-client requests (sampling, roots, elicitation) sent to a session that declared the capability.
+
+Replies are JSON, or an SSE stream when the client asks for progress or supports server requests and accepts `text/event-stream`. `GET /mcp/<alias>` opens the server-to-client notification stream.
 
 ### Safety
 
@@ -185,7 +213,9 @@ Many HTTP clients share one child. skgate remaps JSON-RPC ids per call (and prog
 /data/cache/managed/<alias>  package caches (npm, uv, pip, xdg, nuget, dotnet, go), one directory per upstream
 ```
 
-In the full image each child gets the cache variables of its package managers (npm, uv, pip, XDG, NuGet, .NET, Go) under its own cache directory (the image sets shared defaults for tools run by hand), so the rest of the filesystem can be read-only (mount `/data` writable). Deleting or disabling an upstream stops its process; its directory under `MANAGED_DIR` is left in place.
+In the full image each child gets the cache variables of its package managers (npm, uv, pip, XDG, NuGet, .NET, Go) under its own cache directory (the image sets shared defaults for tools run by hand), so the rest of the filesystem can be read-only (mount `/data` writable).
+
+Deleting or disabling an upstream stops its process; its directory under `MANAGED_DIR` is left in place.
 
 ## Aggregation: `/mcp` vs `/mcp/<alias>`
 

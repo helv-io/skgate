@@ -11,15 +11,27 @@ Image: `ghcr.io/helv-io/skgate`.
 | `latest` | Full: proxy + managed upstreams. Adds Node.js (npm/npx), Python 3 (pip), uv/uvx, the .NET SDK (`dotnet`), Go, git and tini as PID 1. |
 | `slim` | Proxy only: MCP and provider proxying. No runtimes; managed upstreams are unavailable. |
 
-Release tags add versioned names: `X.Y.Z` and `vX.Y.Z` (full), `X.Y.Z-slim` and `vX.Y.Z-slim` (slim). Each release also gets `<sha12>` and `<sha12>-slim` (the 12-character commit SHA). Both images use the same root start, `PUID`/`PGID` drop, `/data` volume and `/skgate healthcheck`.
+Release tags add versioned names: `X.Y.Z` and `vX.Y.Z` (full), `X.Y.Z-slim` and `vX.Y.Z-slim` (slim). Each release also gets `<sha12>` and `<sha12>-slim` (the 12-character commit SHA).
+
+Both images use the same root start, `PUID`/`PGID` drop, `/data` volume and `/skgate healthcheck`.
 
 ## MCP registry
 
-Each stable release tag is listed in the [official MCP registry](https://registry.modelcontextprotocol.io) as `io.github.helv-io/skgate`, from the Release workflow's `mcp-registry` job after the images are published. The entry is `server.json`; both images carry the `io.modelcontextprotocol.server.name` label the registry checks. The job logs in with GitHub OIDC (no secret), fails when `server.json` does not match the tag, and skips a version that is already listed.
+Each stable release tag is listed in the [official MCP registry](https://registry.modelcontextprotocol.io) as `io.github.helv-io/skgate`, from the Release workflow's `mcp-registry` job after the images are published.
+
+The entry is `server.json`; both images carry the `io.modelcontextprotocol.server.name` label the registry checks.
+
+The job logs in with GitHub OIDC (no secret), fails when `server.json` does not match the tag, and skips a version that is already listed.
 
 ## Unraid
 
-`unraid/skgate.xml` is a Community Apps template for the `ghcr.io/helv-io/skgate:latest` image: the web port (8080), the appdata folder (`/data`) and the OIDC settings for admin sign-in (`PUBLIC_URL`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`), with the optional ones under Advanced. To use it before it is listed, copy the file to `/boot/config/plugins/dockerMan/templates-user/skgate.xml` on the server and add the container from Docker, Add Container, and the `skgate` template. `ca_profile.xml` at the repository root is the maintainer profile (a `CommunityApplications` document with the profile text, icon, web page and forum thread; the Community Apps scanner looks for it there) and `unraid/skgate.png` the icon. skgate needs an OIDC provider and a public https address, as everywhere else. Questions and support: the [Unraid forum thread](https://forums.unraid.net/topic/200787-support-skgate-an-mcp-proxy-that-just-works/).
+`unraid/skgate.xml` is a Community Apps template for the `ghcr.io/helv-io/skgate:latest` image: the web port (8080), the appdata folder (`/data`) and the OIDC settings for admin sign-in (`PUBLIC_URL`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`), with the optional ones under Advanced.
+
+To use it before it is listed, copy the file to `/boot/config/plugins/dockerMan/templates-user/skgate.xml` on the server and add the container from Docker, Add Container, and the `skgate` template.
+
+`ca_profile.xml` at the repository root is the maintainer profile (a `CommunityApplications` document with the profile text, icon, web page and forum thread; the Community Apps scanner looks for it there) and `unraid/skgate.png` the icon.
+
+skgate needs an OIDC provider and a public https address, as everywhere else. Questions and support: the [Unraid forum thread](https://forums.unraid.net/topic/200787-support-skgate-an-mcp-proxy-that-just-works/).
 
 ## Upgrading
 
@@ -33,7 +45,11 @@ The SQLite schema migrates on start. Pin `X.Y.Z` instead of `latest` to control 
 
 ## Update hint
 
-The version number in the admin header links to the GitHub repository. It turns yellow, with the new version in its tooltip, when GitHub has a newer stable release. skgate asks the public latest-release API without credentials, from the server, at most every six hours (an hour after a failure), keeps the answer in memory and never makes a page wait. Offline, rate limited or an unreadable answer simply shows no hint. `UPDATE_CHECK=false` turns the check off.
+The version number in the admin header links to the GitHub repository. It turns yellow, with the new version in its tooltip, when GitHub has a newer stable release.
+
+skgate asks the public latest-release API without credentials, from the server, at most every six hours (an hour after a failure), keeps the answer in memory and never makes a page wait.
+
+Offline, rate limited or an unreadable answer simply shows no hint. `UPDATE_CHECK=false` turns the check off.
 
 ## Security notes
 
@@ -53,4 +69,6 @@ The version number in the admin header links to the GitHub repository. It turns 
 
 ### Logging
 
-Requests to `/authorize`, `/token`, `/register`, `/.well-known/*`, `/admin/oidc/*`, `/mcp`, `/sse` and `/messages` are logged as one line with `method`, `path`, `status`, `dur`, `client_id`, `redirect_host`, `ua`, `origin`, upstream fields and, on every 4xx/5xx, a `reason`. `LOG_LEVEL=debug` adds the redacted query, remote address, credential carriers present (never values), response size and notes.
+Requests to `/authorize`, `/token`, `/register`, `/.well-known/*`, `/admin/oidc/*`, `/mcp`, `/sse` and `/messages` are logged as one line with `method`, `path`, `status`, `dur`, `client_id`, `redirect_host`, `ua`, `origin`, upstream fields and, on every 4xx/5xx, a `reason`.
+
+`LOG_LEVEL=debug` adds the redacted query, remote address, credential carriers present (never values), response size and notes.

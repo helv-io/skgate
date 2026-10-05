@@ -2,7 +2,9 @@
 
 REST APIs as MCP tools. Part of the [skgate README](../README.md); the other upstream types are in [docs/mcp.md](mcp.md).
 
-An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API's OpenAPI description, you pick the operations to offer, and every operation you pick becomes a tool. skgate itself makes the HTTP calls: there is no process to run, so it works in the `slim` image too. The upstream is served like any other: `/mcp/<alias>`, the aggregating `/mcp`, Test, keys and OAuth.
+An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API's OpenAPI description, you pick the operations to offer, and every operation you pick becomes a tool.
+
+skgate itself makes the HTTP calls: there is no process to run, so it works in the `slim` image too. The upstream is served like any other: `/mcp/<alias>`, the aggregating `/mcp`, Test, keys and OAuth.
 
 ## Add one
 
@@ -18,13 +20,21 @@ An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API
 
 The base URL is the server named by the description (variables replaced by their defaults). When the description names none, or only a relative one, it is the address the description was read from: scheme, host and port. The Advanced field only overrides this.
 
-**Add** and **Save** are off, with the reason next to them, until the API is given. Pressing one tests the upstream first: the server must answer, and take the key. If the test fails the page stays as it is, with every field, the pasted description and the key, and a short error says why. Only a passing test stores anything.
+**Add** and **Save** are off, with the reason next to them, until the API is given.
 
-An address on the internet needs https. Plain http is accepted for names that cannot be on the internet: a single-label name such as `mealie` (a Docker service), an IP address, `localhost`, and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`. skgate decides what is on the internet with the public suffix list. The same rule applies to the address of a remote upstream, and Suggest follows it for the addresses it takes.
+Pressing one tests the upstream first: the server must answer, and take the key. If the test fails the page stays as it is, with every field, the pasted description and the key, and a short error says why. Only a passing test stores anything.
+
+An address on the internet needs https. Plain http is accepted for names that cannot be on the internet: a single-label name such as `mealie` (a Docker service), an IP address, `localhost`, and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`.
+
+skgate decides what is on the internet with the public suffix list. The same rule applies to the address of a remote upstream, and Suggest follows it for the addresses it takes.
 
 ## Finding the description
 
-Enter any address of the API and skgate tries, in this order and without telling you which one worked: the address as entered, any description it links, the usual places (`/openapi.json`, `/openapi.yaml`, `/openapi.yml`, `/openapi.toml`, `/swagger.json`, `/swagger.yaml`, `/swagger.yml`, `/api/openapi.json`, `/api/swagger.json`, `/v1/api-docs`, `/v2/api-docs`, `/v3/api-docs`, `/api-docs`, `/docs/openapi.json`, `/api/docs/openapi.json` and the `.yaml` and `.yml` variants), and the documentation pages (`/`, `/docs`, `/redoc`, `/swagger`, `/api/docs`) for a linked description: the `url` of Swagger UI, the `spec-url` of Redoc, or a `link` tag. The first answer whose content reads as an OpenAPI or Swagger description wins, whatever its name or content type. Only GET is sent, only to the host entered (a redirect to another host is not followed), with 6 seconds per request and 25 seconds in all. The address that worked is stored, so **Update** keeps working. If nothing is found the form says so in one sentence and you can paste the description instead.
+Enter any address of the API and skgate tries, in this order and without telling you which one worked: the address as entered, any description it links, the usual places (`/openapi.json`, `/openapi.yaml`, `/openapi.yml`, `/openapi.toml`, `/swagger.json`, `/swagger.yaml`, `/swagger.yml`, `/api/openapi.json`, `/api/swagger.json`, `/v1/api-docs`, `/v2/api-docs`, `/v3/api-docs`, `/api-docs`, `/docs/openapi.json`, `/api/docs/openapi.json` and the `.yaml` and `.yml` variants), and the documentation pages (`/`, `/docs`, `/redoc`, `/swagger`, `/api/docs`) for a linked description: the `url` of Swagger UI, the `spec-url` of Redoc, or a `link` tag.
+
+The first answer whose content reads as an OpenAPI or Swagger description wins, whatever its name or content type. Only GET is sent, only to the host entered (a redirect to another host is not followed), with 6 seconds per request and 25 seconds in all.
+
+The address that worked is stored, so **Update** keeps working. If nothing is found the form says so in one sentence and you can paste the description instead.
 
 The Suggest box on the managed form takes such an address too: it looks for the description, with no helper model, and turns the form into an OpenAPI upstream with the address and an alias filled in.
 
@@ -42,7 +52,9 @@ You paste one value. How it is sent comes from the description's security scheme
 
 Several alternatives are ranked bearer, header, basic, query. A key in the query string is only used when the description says so; it is never tried as a guess.
 
-When the description says nothing and the server answers 401 or 403, on **Test** and on the first call, skgate quietly tries `X-API-Key`, `Api-Key`, `Authorization: Token <key>` and, for a key that looks like `user:password`, basic. It asks with safe GETs of one operation, preferably one the description marks as requiring a credential, only to the configured server. The way that works is stored and not shown; a new key forgets it. If every way is refused, Test says "the server refused the key".
+When the description says nothing and the server answers 401 or 403, on **Test** and on the first call, skgate quietly tries `X-API-Key`, `Api-Key`, `Authorization: Token <key>` and, for a key that looks like `user:password`, basic.
+
+It asks with safe GETs of one operation, preferably one the description marks as requiring a credential, only to the configured server. The way that works is stored and not shown; a new key forgets it. If every way is refused, Test says "the server refused the key".
 
 ### The connection check
 
@@ -55,17 +67,27 @@ When the description says nothing and the server answers 401 or 403, on **Test**
 | 404 | Not saved: "not found, check the base URL". |
 | Another status, no answer or a timeout | Not saved, with a short error. |
 
-A failed check returns to the same form with every field kept. **Skip check** is for when the server is down, behind a firewall that skgate cannot reach, or should not be called yet: it stores the upstream and never calls the server. A description with no such GET has no check, so it shows no Skip check button. If the check fails, the error says why and **Skip check** is still there. An edit checks only when the key, the base URL, the description or the switch to enabled changed. **Test** uses the same call.
+A failed check returns to the same form with every field kept.
+
+**Skip check** is for when the server is down, behind a firewall that skgate cannot reach, or should not be called yet: it stores the upstream and never calls the server. A description with no such GET has no check, so it shows no Skip check button. If the check fails, the error says why and **Skip check** is still there.
+
+An edit checks only when the key, the base URL, the description or the switch to enabled changed. **Test** uses the same call.
 
 Upstreams saved before this kept their kind (bearer, header, query, basic) and behave exactly as before; their Advanced line shows it. The key is encrypted at rest, masked in the UI, and never sent to a model.
 
-OpenAPI 3.0 and 3.1 are read as they are. Swagger 2 is converted on import. The description is stored as normalized JSON; editing the upstream with an empty paste box keeps it, and a changed URL or new pasted text replaces it, and **Update** on the tools page reads the address again (see [Update from the address](#update-from-the-address)). Credentials are encrypted at rest like those of other upstreams and shown masked; they are never sent to a model.
+OpenAPI 3.0 and 3.1 are read as they are. Swagger 2 is converted on import.
+
+The description is stored as normalized JSON; editing the upstream with an empty paste box keeps it, and a changed URL or new pasted text replaces it, and **Update** on the tools page reads the address again (see [Update from the address](#update-from-the-address)).
+
+Credentials are encrypted at rest like those of other upstreams and shown masked; they are never sent to a model.
 
 A new upstream opens its **tools page** right away.
 
 ## Choose the tools
 
-Operations are grouped by HTTP verb (GET, POST, PUT, PATCH, DELETE, then the rest). Each group has a switch for all of its operations, each operation has its own, and a filter box narrows the list by name, path or text (the group switches then act on the rows shown). Every tool has a name and a description you can change; the defaults come from the `operationId` (or the verb and path) and the summary. When two operations share a name, the later one gets `_2`; switching one off never renames the other.
+Operations are grouped by HTTP verb (GET, POST, PUT, PATCH, DELETE, then the rest). Each group has a switch for all of its operations, each operation has its own, and a filter box narrows the list by name, path or text (the group switches then act on the rows shown).
+
+Every tool has a name and a description you can change; the defaults come from the `operationId` (or the verb and path) and the summary. When two operations share a name, the later one gets `_2`; switching one off never renames the other.
 
 - **Reading operations (GET, HEAD) start on; everything that changes data starts off.** If the API has more than 30 reading operations, none start on and you pick.
 - File uploads (multipart or binary bodies) are skipped and listed as such.
@@ -74,11 +96,19 @@ Operations are grouped by HTTP verb (GET, POST, PUT, PATCH, DELETE, then the res
 
 ### Many tools are a cost: the counter
 
-The tools page has a live counter that follows the switches; the upstream list shows each upstream's count and the Overview the total. The count is colored (green up to 15, amber to 30, red above); the color alone is the signal, with no judgmental words. Switching on a whole verb group raises a toast. **Nothing is ever blocked**: Save always works. The Overview page adds a row with the total of all enabled OpenAPI upstreams.
+The tools page has a live counter that follows the switches; the upstream list shows each upstream's count and the Overview the total. The count is colored (green up to 15, amber to 30, red above); the color alone is the signal, with no judgmental words.
+
+Switching on a whole verb group raises a toast. **Nothing is ever blocked**: Save always works. The Overview page adds a row with the total of all enabled OpenAPI upstreams.
 
 ## Test a tool
 
-On the tools page every tool that is on has a **Test** button (the same control appears on a remote or managed upstream's Test page). It opens a form made from the tool's input schema: a labelled field per argument (text, number, a checkbox for true or false, a list for fixed choices, a small JSON box for objects and lists), required ones marked "required", the description as one short line, and defaults filled in. **Edit as JSON** shows the raw arguments and back. **Run** calls the upstream for real, as the admin, through the same code a client's tool call uses (the same key, the same limits), and shows the answer as indented JSON or a plain error with the time it took. **Edit inputs** goes back with everything kept; **Close** leaves. Only tools that are on and saved can be tested, and nothing is stored by testing. It needs the admin session like every admin page.
+On the tools page every tool that is on has a **Test** button (the same control appears on a remote or managed upstream's Test page).
+
+It opens a form made from the tool's input schema: a labelled field per argument (text, number, a checkbox for true or false, a list for fixed choices, a small JSON box for objects and lists), required ones marked "required", the description as one short line, and defaults filled in. **Edit as JSON** shows the raw arguments and back.
+
+**Run** calls the upstream for real, as the admin, through the same code a client's tool call uses (the same key, the same limits), and shows the answer as indented JSON or a plain error with the time it took. **Edit inputs** goes back with everything kept; **Close** leaves.
+
+Only tools that are on and saved can be tested, and nothing is stored by testing. It needs the admin session like every admin page.
 
 ## Repair and names
 
@@ -110,4 +140,8 @@ Your tool selection (which tools are on, their names and descriptions) is kept f
 
 ## Limits
 
-No OAuth flows for the API, no cookie parameters, no file uploads, no streaming responses, no webhooks or callbacks. The description is read when you save it or press **Update**; skgate never refetches it by itself. **Export JSON** leaves OpenAPI upstreams out, since an MCP client configuration cannot describe them.
+No OAuth flows for the API, no cookie parameters, no file uploads, no streaming responses, no webhooks or callbacks.
+
+The description is read when you save it or press **Update**; skgate never refetches it by itself.
+
+**Export JSON** leaves OpenAPI upstreams out, since an MCP client configuration cannot describe them.

@@ -134,7 +134,12 @@ Needs the `latest` image and an MCP helper model from any ready provider. The fi
    | `pypi:mcp-server-time` | PyPI package, `uvx` |
    | `https://github.com/example-org/notes-mcp` | git repo: clone, install, run (private: **Access token**) |
 
-2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`). The MCP helper model proposes the command, args, install step, and env names (secret or not, required or optional). The **Manual configuration** fields fill in, with a confidence and any warnings. Nothing is saved yet. Set the variables the server needs.
+2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`).
+
+   The MCP helper model proposes the command, args, install step, and env names (secret or not, required or optional). The **Manual configuration** fields fill in, with a confidence and any warnings.
+
+   Nothing is saved yet. Set the variables the server needs.
+
 3. Set an alias, fill in the variables you need (empty ones are not passed to the server), **Save**. The server is at `https://skgate.example.com/mcp/<alias>`.
 
 If the button is greyed out, hover it. Use **Pick MCP helper model** beside it, or add a provider on **status** first.
@@ -160,7 +165,11 @@ Hosted connectors use OAuth (leave client ID and secret empty). Scripts and CLIs
 
 <details><summary>On-demand MCP servers: no RAM while idle</summary>
 
-On a RAM-constrained homelab, idle MCP servers should cost nothing. Managed servers (`npx`, `uvx`, git) are child processes of skgate. By default (**Lifecycle** `on-demand`) one starts on its first request and stops after 10 minutes without requests; the next request starts it again.
+On a RAM-constrained homelab, idle MCP servers should cost nothing.
+
+Managed servers (`npx`, `uvx`, git) are child processes of skgate.
+
+By default (**Lifecycle** `on-demand`) one starts on its first request and stops after 10 minutes without requests; the next request starts it again.
 
 ```text
 before   3 MCP servers = 3 containers, always running
@@ -315,7 +324,11 @@ Everything lives in `/data` (`skgate.db`, `secrets.key`): back up both.
 
 ## Reverse proxy
 
-Set `PUBLIC_URL` to the public https origin. Do not put forward-auth on `/v1`, `/api`, `/mcp`, `/sse`, `/messages`, `/authorize`, `/token`, `/register`, or `/.well-known`. Only Traefik is tested by the author. [Open an issue](https://github.com/helv-io/skgate/issues) with what you tried.
+Set `PUBLIC_URL` to the public https origin.
+
+Do not put forward-auth on `/v1`, `/api`, `/mcp`, `/sse`, `/messages`, `/authorize`, `/token`, `/register`, or `/.well-known`.
+
+Only Traefik is tested by the author. [Open an issue](https://github.com/helv-io/skgate/issues) with what you tried.
 
 <details><summary>Traefik</summary>
 
