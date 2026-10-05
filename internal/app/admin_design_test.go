@@ -83,7 +83,7 @@ func TestAdminSharedDesignAcrossPages(t *testing.T) {
 		}
 	}
 	// managed rows use the same pill, chip and action components as remote ones
-	for _, want := range []string{`class="pill off" title="`, `>stopped</span>`, `href="/admin/upstreams/mgd/logs"`, `href="/admin/upstreams/import"`, `href="/admin/upstreams/export"`} {
+	for _, want := range []string{`class="pill off" title="`, `>stopped</a>`, `href="/admin/upstreams/mgd/logs"`, `href="/admin/upstreams/import"`, `href="/admin/upstreams/export"`} {
 		if !strings.Contains(ups, want) {
 			t.Errorf("upstreams page lacks %q", want)
 		}

@@ -23,7 +23,7 @@
 {{range .List}}{{template "dialog_content" (dlg (printf "upstream-%s" .Alias) (printf "Upstream %s" .Alias))}}
 <div class="actions">{{if .Enabled}}<button type="button" class="act" data-copy-text="{{$.Public}}/mcp/{{.Alias}}" data-copied="URL copied" title="copy the client URL of this upstream">Copy URL</button>{{end}}
 <a class="act" href="/admin/upstreams/{{.Alias}}/test" title="connect and list the tools">Test</a>
-{{if .Managed}}<a class="act" href="/admin/upstreams/{{.Alias}}/logs">Process</a>{{else if .OA}}<a class="act" href="/admin/upstreams/{{.Alias}}/tools">Tools</a>{{else}}<form method="post" action="/admin/upstreams/{{.Alias}}/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Detect</button></form>{{end}}
+{{if .OA}}<a class="act" href="/admin/upstreams/{{.Alias}}/tools">Tools</a>{{else if not .Managed}}<form method="post" action="/admin/upstreams/{{.Alias}}/redetect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Detect</button></form>{{end}}
 <a class="act" href="/admin/upstreams/{{.Alias}}/edit">Edit</a>
 <form method="post" action="/admin/upstreams/{{.Alias}}/delete" data-confirm="Delete this upstream?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Delete</button></form></div>
 <h4>Details</h4>

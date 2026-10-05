@@ -271,7 +271,7 @@ func TestUpstreamListSplitsTypeAndStatus(t *testing.T) {
 	if st := row("rem"); !strings.Contains(st, ">no calls yet</span>") {
 		t.Error("a remote upstream nobody called yet says so in its status")
 	}
-	if st := row("prog"); !strings.Contains(st, ">stopped</span>") {
+	if st := row("prog"); !strings.Contains(st, ">stopped</a>") {
 		t.Error("a managed upstream shows its process state in the status")
 	}
 	_, edit := br.get("/admin/upstreams/nodepkg/edit")

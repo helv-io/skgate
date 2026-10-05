@@ -74,6 +74,9 @@ func (a *Admin) upstreamLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := logsData{U: a.view(u), Max: a.Cfg.ManagedLogLines}
+	if d.U.Proc != nil { // already on the process page: the pill is the status, not a link back to itself
+		d.U.Proc.Href = ""
+	}
 	if ring, ok := a.MCP.ProcessLog(alias); ok {
 		lines := ring.Last(0)
 		lastStart := -1
