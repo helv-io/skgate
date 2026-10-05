@@ -6,6 +6,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-10-05
+
+### Removed
+
+- Drop alias-tool naming fluff from UI and docs
+
 ## [0.21.0] - 2026-10-05
 
 ### Changed
@@ -521,7 +527,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/helv-io/skgate/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/helv-io/skgate/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/helv-io/skgate/compare/v0.19.5...v0.20.0
 [0.19.5]: https://github.com/helv-io/skgate/compare/v0.19.4...v0.19.5
