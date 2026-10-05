@@ -34,7 +34,6 @@ type Assist struct {
 // Limits of the assistant's input.
 const (
 	MaxRepairIssues = 30
-	MaxDescribeOps  = 40
 	issueContextMax = 1200
 )
 
@@ -132,14 +131,11 @@ func (a Assist) Repair(ctx context.Context, d *Doc, issues []Issue) ([]Patch, er
 	return keep, nil
 }
 
-// Describe asks the model for a name and a description for each operation (at most MaxDescribeOps). Answers for keys
-// that were not asked, invalid names and repeated names are dropped; the caller keeps what it has for those.
+// Describe asks the model for a name and a description for each operation. Answers for keys that were not asked,
+// invalid names and repeated names are dropped; the caller keeps what it has for those.
 func (a Assist) Describe(ctx context.Context, ops []Op) (map[string]Override, error) {
 	if len(ops) == 0 {
 		return nil, errors.New("switch on tools first")
-	}
-	if len(ops) > MaxDescribeOps {
-		ops = ops[:MaxDescribeOps]
 	}
 	asked := map[string]bool{}
 	var u strings.Builder

@@ -68,9 +68,7 @@ func TestHelperTimeoutSettingAndSuggestion(t *testing.T) {
 // The stored timeout is the silence limit of a suggestion: a silent model is given up on after exactly that long.
 func TestSuggestUsesTheStoredTimeout(t *testing.T) {
 	r := newSuggestRig(t, true, true)
-	r.mu.Lock()
-	r.hang = true
-	r.mu.Unlock()
+	r.setHang(true)
 	r.postJSON("/admin/providers/grok/model", url.Values{"model": {"helper-2"}, "timeout": {"1"}})
 	if got := r.a.Admin.Set.HelperTimeout("grok"); got != time.Second {
 		t.Fatalf("stored %s", got)

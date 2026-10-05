@@ -7,7 +7,8 @@
 <div class="toolcount {{.Level}}" data-toolcount role="status" aria-live="polite"><span class="toolcount-n" data-toolcount-n>{{.On}}</span><span data-toolcount-word>{{plural .On "tool" "tools"}} exposed</span><span class="toolcount-level" data-toolcount-level></span><button class="btn fill">Save</button></div>
 <div class="callout {{.Level}}" data-toolcallout><strong>Fewer tools work better.</strong> Up to {{.Good}} is good, up to {{.Warn}} is a lot. Operations that change data start off.</div>
 <div class="filter"><input type="search" aria-label="Filter tools" placeholder="Filter tools by name or path" autocomplete="off" spellcheck="false" data-toolfilter><span class="muted" data-toolfilter-count aria-live="polite"></span></div>
-<div class="row">{{if .AI}}<button type="button" class="act" data-tool-describe title="Names and descriptions for the tools that are on">Suggest names</button>{{else}}<span class="muted">Suggest names: {{.AIWhy}}</span>{{end}}</div>
+<div class="row">{{with .Suggest}}{{if .Enabled}}<button type="button" class="act" data-tool-describe data-dialog-open="#suggest-names">Suggest names</button>{{else}}<span class="gated"><button type="button" class="act" data-tool-describe disabled aria-describedby="suggest-names-why" title="{{.Why}}">Suggest names</button><span class="muted" id="suggest-names-why">{{.Why}}</span></span>{{end}}
+{{with .P}}{{if .HelperReady}}<button type="button" class="act" data-dialog-open="#helper-model">{{if .Model}}MCP helper model: {{.Model}}{{else}}Pick MCP helper model{{end}}</button>{{end}}{{template "helper_dialog" .}}{{end}}{{end}}</div>
 {{range .Groups}}<details class="verbgroup" data-verbgroup="{{.Verb}}"{{if or (not .Write) .Enabled}} open{{end}}><summary><label class="check"><input type="checkbox" data-verb-toggle aria-label="All {{.Verb}}"><span class="verb {{.Verb}}">{{.Verb}}</span></label><span class="muted" data-verb-count>{{.Enabled}} of {{len .Rows}} on</span>{{if .Write}} <span class="chip warn">changes data</span>{{end}}</summary>
 {{range .Rows}}<div class="tool{{if .Skip}} skipped{{end}}" data-tool data-key="{{.Key}}">
 <div class="tool-head"><label class="check"><input type="checkbox" name="on" value="{{.Key}}" data-tool-on{{if .Enabled}} checked{{end}}{{if .Skip}} disabled{{end}} aria-label="{{.Key}}"><code class="tool-path">{{.Path}}</code></label>{{if and .Enabled (not .Skip)}} <button type="button" class="act" data-dialog-open="#try-{{.Name}}">Test</button>{{end}}{{if .Deprecated}} <span class="chip">deprecated</span>{{end}}{{if .Skip}} <span class="chip">skipped: {{.Skip}}</span>{{end}}</div>
@@ -20,6 +21,11 @@
 <p class="muted" data-toolfilter-empty hidden>No tool matches</p>
 <div class="row"><button class="btn">Save</button> <a class="act" href="/admin/upstreams">Cancel</a></div>
 </form>
+{{if .Suggest.Enabled}}{{template "dialog_content" (dlg "suggest-names" "Suggest names")}}
+<p>Names and one-line descriptions. Review them, then Save.</p>
+<p class="muted" data-suggest-wait hidden>Suggesting</p>
+<div class="row"><button type="button" class="btn" data-suggest-selected disabled>Selected</button> <button type="button" class="act" data-suggest-all>All</button> <button type="button" class="act" data-suggest-cancel>Cancel</button></div>
+{{template "dialog_end"}}{{end}}
 {{range .Groups}}{{range .Rows}}{{if and .Enabled (not .Skip)}}{{template "dialog_content" (dlg (printf "try-%s" .Name) .Name)}}
 <div data-try data-name="{{.Name}}" data-info-url="/admin/upstreams/{{$.Data.U.Alias}}/tools/try/info" data-run-url="/admin/upstreams/{{$.Data.U.Alias}}/tools/try/run" data-csrf="{{$.CSRF}}">
 <div data-try-edit>

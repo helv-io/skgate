@@ -232,7 +232,7 @@ func TestOpenAPICheckAndRepairNeverSaveAndNeedApproval(t *testing.T) {
 	if st, m = post("/admin/openapi/check", url.Values{"oa_spec_text": {"[[["}}); m["ok"] != false || m["error"] == "" {
 		t.Errorf("unreadable: %v", m)
 	}
-	r.reply = `{"patches":[{"op":"set","path":"/paths/~1a/get/operationId","value":"getA","reason":"missing id"},{"op":"set","path":"/paths/~1b/get/operationId","value":"getB"}]}`
+	r.setReply(`{"patches":[{"op":"set","path":"/paths/~1a/get/operationId","value":"getA","reason":"missing id"},{"op":"set","path":"/paths/~1b/get/operationId","value":"getB"}]}`)
 	st, m = post("/admin/openapi/repair", url.Values{"oa_spec_text": {broken}})
 	if st != 200 || len(m["changes"].([]any)) != 2 || len(m["remaining"].([]any)) != 0 || !strings.Contains(m["spec"].(string), `"operationId": "getA"`) {
 		t.Fatalf("repair: %d %v", st, m)
@@ -249,7 +249,7 @@ func TestOpenAPICheckAndRepairNeverSaveAndNeedApproval(t *testing.T) {
 		t.Errorf("repair stored an upstream: %v", list)
 	}
 	// a repair that cannot apply is refused, not half-applied
-	r.reply = `{"patches":[{"op":"set","path":"/nope/deeper/x","value":1}]}`
+	r.setReply(`{"patches":[{"op":"set","path":"/nope/deeper/x","value":1}]}`)
 	if st, m = post("/admin/openapi/repair", url.Values{"oa_spec_text": {broken}}); st != 502 || m["error"] == nil {
 		t.Errorf("bad patch: %d %v", st, m)
 	}
@@ -263,7 +263,7 @@ func TestOpenAPISuggestNamesFillsAndSavesNothing(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	api := oaAPI(t)
 	r.br.post("/admin/upstreams/save", url.Values{"csrf": {r.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
-	r.reply = `{"tools":[{"key":"GET /notes","name":"list_my_notes","description":"Lists every note."},{"key":"POST /notes","name":"ignored","description":"x"}]}`
+	r.setReply(`{"tools":[{"key":"GET /notes","name":"list_my_notes","description":"Lists every note."},{"key":"POST /notes","name":"ignored","description":"x"}]}`)
 	resp, body := r.br.post("/admin/upstreams/notes/tools/suggest", url.Values{"csrf": {r.csrf}, "key": {"GET /notes"}})
 	var m map[string]map[string]map[string]string
 	json.Unmarshal([]byte(body), &m)
@@ -281,9 +281,60 @@ func TestOpenAPISuggestNamesFillsAndSavesNothing(t *testing.T) {
 	r2 := newSuggestRig(t, false, false)
 	r2.br.post("/admin/upstreams/save", url.Values{"csrf": {r2.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
 	_, page := r2.br.get("/admin/upstreams/notes/tools")
-	if strings.Contains(page, "data-tool-describe") || !strings.Contains(page, "Suggest names:") {
-		t.Error("without a model the page offers no suggestion button and says why")
+	if !strings.Contains(page, `data-tool-describe`) || !strings.Contains(page, `title="sign in on the status page"`) || !strings.Contains(page, `id="suggest-names-why"`) || strings.Contains(page, `data-dialog-open="#suggest-names"`) {
+		t.Error("without a model the Suggest names button is grayed with the same reason as Suggest configuration")
 	}
+	none := newSuggestRig(t, true, false)
+	none.a.Admin.NoSaveTest = true
+	none.br.post("/admin/upstreams/save", url.Values{"csrf": {none.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
+	_, page = none.br.get("/admin/upstreams/notes/tools")
+	for _, want := range []string{`title="pick an MCP helper model first"`, `id="suggest-names-why"`, `data-dialog-open="#helper-model"`, "Pick MCP helper model"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("no helper model: tools page lacks %q", want)
+		}
+	}
+}
+
+// Suggest names takes every key that was posted: there is no per-request tool cap.
+func TestOpenAPISuggestNamesTakesEveryTool(t *testing.T) {
+	r := newSuggestRig(t, true, true)
+	r.a.Admin.NoSaveTest = true
+	var paths []string
+	for i := 0; i < 45; i++ {
+		paths = append(paths, fmt.Sprintf(`"/t%d":{"get":{"operationId":"getT%d"}}`, i, i))
+	}
+	spec := `{"openapi":"3.0.0","info":{"title":"Many","version":"1"},"servers":[{"url":"https://many.example.com"}],"paths":{` + strings.Join(paths, ",") + `}}`
+	r.br.post("/admin/upstreams/save", url.Values{"csrf": {r.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"many"}, "enabled": {"1"}, "oa_spec_text": {spec}})
+	var tools []string
+	keys := url.Values{"csrf": {r.csrf}}
+	for i := 0; i < 45; i++ {
+		k := fmt.Sprintf("GET /t%d", i)
+		keys.Add("key", k)
+		tools = append(tools, fmt.Sprintf(`{"key":%q,"name":"get_t%d","description":"Gets t%d."}`, k, i, i))
+	}
+	r.setReply(`{"tools":[` + strings.Join(tools, ",") + `]}`)
+	resp, body := r.br.post("/admin/upstreams/many/tools/suggest", keys)
+	var m map[string]map[string]map[string]string
+	json.Unmarshal([]byte(body), &m)
+	if resp.StatusCode != 200 || len(m["tools"]) != 45 {
+		t.Fatalf("suggest all: %d got %d tools: %s", resp.StatusCode, len(m["tools"]), body[:min(len(body), 400)])
+	}
+}
+
+// Suggest names in a browser: the choice dialog, Selected disabled with none on, a run that fills, and 360 px.
+func TestOpenAPISuggestNamesInBrowser(t *testing.T) {
+	r := newSuggestRig(t, true, true)
+	api := oaAPI(t)
+	r.br.post("/admin/upstreams/save", url.Values{"csrf": {r.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
+	// start with every tool off so Selected begins disabled
+	st, _ := r.a.MCP.Upstreams.OpenAPI("notes")
+	cfg := st.Config
+	cfg.Selection.Enabled = map[string]bool{}
+	if err := r.a.MCP.Upstreams.SetOpenAPI("notes", cfg); err != nil {
+		t.Fatal(err)
+	}
+	r.setReply(`{"tools":[{"key":"GET /notes","name":"list_my_notes","description":"Lists every note."}]}`)
+	runBrowserScript(t, "suggestnames.js", r.br.ts.URL, r.br, "notes")
 }
 
 func TestOpenAPIManyToolsAreShownNotBlocked(t *testing.T) {
@@ -368,7 +419,7 @@ func TestOpenAPIToolPickerInBrowser(t *testing.T) {
 	if err := r.a.MCP.Upstreams.SetOpenAPI("items", cfg); err != nil {
 		t.Fatal(err)
 	}
-	r.reply = `{"patches":[{"op":"set","path":"/paths/~1a/get/operationId","value":"getA","reason":"missing id"}]}`
+	r.setReply(`{"patches":[{"op":"set","path":"/paths/~1a/get/operationId","value":"getA","reason":"missing id"}]}`)
 	runBrowserScript(t, "toolpick.js", r.br.ts.URL, r.br, "items")
 }
 

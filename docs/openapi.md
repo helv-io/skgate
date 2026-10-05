@@ -96,7 +96,7 @@ Both use the MCP helper model, the same setting as Suggest configuration, and ar
 
 - **Check** lists what is wrong: operations without an `operationId`, repeated ids, broken `$ref`s, invalid types, parameters without a name or location. A problem never stops an import.
 - **Repair** (with a helper model, when problems were found) proposes fixes as a before and after. **Apply** puts the repaired text in the paste box and checks it again. Nothing is saved until you submit the form. Changes to servers and security are never accepted.
-- **Suggest names** (tools page) fills a name and a one-line description for each tool that is on. You review them and Save.
+- **Suggest names** (tools page) opens a choice: **Selected** (the tools that are on; off when none are) or **All**. It fills a name and a one-line description for each. You review them and Save. The button is grayed with the same reason and MCP helper model control as Suggest configuration when the helper cannot run. While it runs, the trigger and the choice stay off.
 
 ## Update from the address
 

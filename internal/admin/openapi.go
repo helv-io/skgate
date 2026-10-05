@@ -379,9 +379,8 @@ type toolsData struct {
 	Level  string
 	Good   int
 	Warn   int
-	AI     bool
-	AIWhy  string
-	Title  string
+	Suggest suggestState // same helper state as Suggest configuration on the add form
+	Title   string
 	// SpecURL is where the description is read from ("" for a pasted one); Updated says when it was last read.
 	SpecURL  string
 	Updated  string
@@ -404,8 +403,7 @@ func (a *Admin) upstreamTools(w http.ResponseWriter, r *http.Request) {
 	if d.SpecURL == "" {
 		d.NoUpdate = oaNoUpdateReason
 	}
-	sug := a.suggestState(r)
-	d.AI, d.AIWhy = sug.Enabled, sug.Why
+	d.Suggest = a.suggestState(r)
 	byVerb := map[string]*verbGroup{}
 	for _, o := range st.Ops {
 		g := byVerb[o.Method]
@@ -655,10 +653,6 @@ func (a *Admin) upstreamToolsSuggest(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(ops) == 0 {
 		fail(http.StatusBadRequest, "switch on tools first")
-		return
-	}
-	if len(ops) > openapi.MaxDescribeOps {
-		fail(http.StatusBadRequest, fmt.Sprintf("at most %d tools at a time", openapi.MaxDescribeOps))
 		return
 	}
 	as, ctx, cancel, why := a.assistFor(r)

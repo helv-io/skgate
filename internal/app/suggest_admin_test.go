@@ -104,7 +104,20 @@ func (r redirectTo) RoundTrip(req *http.Request) (*http.Response, error) {
 	return http.DefaultTransport.RoundTrip(c)
 }
 
+func (r *suggestRig) setReply(s string) {
+	r.mu.Lock()
+	r.reply = s
+	r.mu.Unlock()
+}
+
+func (r *suggestRig) setHang(v bool) {
+	r.mu.Lock()
+	r.hang = v
+	r.mu.Unlock()
+}
+
 func (r *suggestRig) suggest(v url.Values) (int, map[string]any) {
+
 	v.Set("csrf", r.csrf)
 	resp, body := r.br.post("/admin/upstreams/suggest", v)
 	var m map[string]any
@@ -139,7 +152,7 @@ func TestSuggestEndpointFillsResultAndSavesNothing(t *testing.T) {
 func TestSuggestEndpointErrorsAreClearAndLeakNothing(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	// invalid model output is rejected
-	r.reply = `{"alias":"x","transport":"stdio","command":"rm","args":["-rf","/"],"env":[],"headers":[],"install":"","startup_secs":30,"notes":[],"warnings":[],"confidence":"high"}`
+	r.setReply(`{"alias":"x","transport":"stdio","command":"rm","args":["-rf","/"],"env":[],"headers":[],"install":"","startup_secs":30,"notes":[],"warnings":[],"confidence":"high"}`)
 	st, m := r.suggest(url.Values{"source": {"https://gitlab.com/grp/thing"}, "git_token": {tokenSecret}})
 	if st != 422 || !strings.Contains(m["error"].(string), "unusable") || strings.Contains(m["error"].(string), tokenSecret) {
 		t.Fatalf("%d %v", st, m)
