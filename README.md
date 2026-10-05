@@ -445,7 +445,13 @@ backend skgate
 | Scopes | `openid profile email groups` (if `groups` is rejected: `OIDC_SCOPES=openid profile email`) |
 | ID token | Asymmetric signature (RS, PS, ES, EdDSA); discovery `issuer` equal to `OIDC_ISSUER` |
 
-Without `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`, skgate starts but the admin stays closed. Every user your provider lets in is an admin. Restrict the provider, or set `OIDC_ALLOWED_EMAILS` / `OIDC_ALLOWED_GROUPS`. Hints for Authelia, Authentik, Keycloak, Zitadel and Pocket ID: [docs/oidc.md](docs/oidc.md).
+Without `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`, skgate starts but the admin stays closed.
+
+Every user your provider lets in is an admin.
+
+Restrict the provider, or set `OIDC_ALLOWED_EMAILS` / `OIDC_ALLOWED_GROUPS`.
+
+Hints for Authelia, Authentik, Keycloak, Zitadel and Pocket ID: [docs/oidc.md](docs/oidc.md).
 
 ## Security notes
 
