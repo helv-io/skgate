@@ -368,6 +368,8 @@ func (a *Admin) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/upstreams/{alias}/tools", a.guard(a.alias(a.getOnly(a.upstreamTools))))
 	mux.HandleFunc("/admin/upstreams/{alias}/tools/save", a.guard(a.alias(a.postOnly(a.upstreamToolsSave))))
 	mux.HandleFunc("/admin/upstreams/{alias}/tools/suggest", a.guard(a.alias(a.postOnly(a.upstreamToolsSuggest))))
+	mux.HandleFunc("/admin/upstreams/{alias}/tools/try/info", a.guard(a.alias(a.postOnly(a.toolTryInfo))))
+	mux.HandleFunc("/admin/upstreams/{alias}/tools/try/run", a.guard(a.alias(a.postOnly(a.toolTryRun))))
 	mux.HandleFunc("/admin/upstreams/{alias}/spec/update", a.guard(a.alias(a.postOnly(a.oaSpecUpdate))))
 	mux.HandleFunc("/admin/upstreams/{alias}/spec/apply", a.guard(a.alias(a.postOnly(a.oaSpecApply))))
 	mux.HandleFunc("/admin/upstreams/{alias}/spec/cancel", a.guard(a.alias(a.postOnly(a.oaSpecCancel))))

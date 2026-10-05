@@ -86,6 +86,10 @@ The tools page has a live counter that follows the switches; the upstream list s
 
 Crossing into a worse level raises a toast, and so does switching on a whole verb group. **Nothing is ever blocked**: the counter and the notices inform you, and Save always works. The Overview page adds a row with the total of all enabled OpenAPI upstreams.
 
+## Test a tool
+
+On the tools page every tool that is on has a **Test** button. It opens a form made from the tool's input schema: a labelled field per argument (text, number, a checkbox for true or false, a list for fixed choices, a small JSON box for objects and lists), required ones marked "required", the description as one short line, and defaults filled in. **Edit as JSON** shows the raw arguments and back. **Run** calls the upstream for real, as the admin, through the same code a client's tool call uses (the same key, the same limits), and shows the answer as indented JSON or a plain error with the time it took. **Edit inputs** goes back with everything kept; **Close** leaves. Only tools that are on and saved can be tested, and nothing is stored by testing. It needs the admin session like every admin page.
+
 ## Repair and names
 
 Both use the MCP helper model, the same setting as Suggest configuration, and are optional. Only titles, paths, parameter names and texts go to the model, never a credential.

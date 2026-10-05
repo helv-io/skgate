@@ -10,7 +10,7 @@
 <div class="row">{{if .AI}}<button type="button" class="act" data-tool-describe title="Names and descriptions for the tools that are on">Suggest names</button>{{else}}<span class="muted">Suggest names: {{.AIWhy}}</span>{{end}}</div>
 {{range .Groups}}<details class="verbgroup" data-verbgroup="{{.Verb}}"{{if or (not .Write) .Enabled}} open{{end}}><summary><label class="check"><input type="checkbox" data-verb-toggle aria-label="All {{.Verb}}"><span class="verb {{.Verb}}">{{.Verb}}</span></label><span class="muted" data-verb-count>{{.Enabled}} of {{len .Rows}} on</span>{{if .Write}} <span class="chip warn">changes data</span>{{end}}</summary>
 {{range .Rows}}<div class="tool{{if .Skip}} skipped{{end}}" data-tool data-key="{{.Key}}">
-<div class="tool-head"><label class="check"><input type="checkbox" name="on" value="{{.Key}}" data-tool-on{{if .Enabled}} checked{{end}}{{if .Skip}} disabled{{end}} aria-label="{{.Key}}"><code class="tool-path">{{.Path}}</code></label>{{if .Deprecated}} <span class="chip">deprecated</span>{{end}}{{if .Skip}} <span class="chip">skipped: {{.Skip}}</span>{{end}}</div>
+<div class="tool-head"><label class="check"><input type="checkbox" name="on" value="{{.Key}}" data-tool-on{{if .Enabled}} checked{{end}}{{if .Skip}} disabled{{end}} aria-label="{{.Key}}"><code class="tool-path">{{.Path}}</code></label>{{if and .Enabled (not .Skip)}} <button type="button" class="act" data-dialog-open="#try-{{.Name}}">Test</button>{{end}}{{if .Deprecated}} <span class="chip">deprecated</span>{{end}}{{if .Skip}} <span class="chip">skipped: {{.Skip}}</span>{{end}}</div>
 {{if not .Skip}}<input type="hidden" name="key" value="{{.Key}}">
 <div class="tool-fields"><label>Name<input type="text" name="name" value="{{.Name}}" maxlength="64" pattern="[A-Za-z0-9_\-]+" title="letters, digits, underscores and dashes" autocomplete="off" spellcheck="false" data-tool-name></label>
 <label>Description<input type="text" name="desc" value="{{.Desc}}" maxlength="1000" autocomplete="off" data-tool-desc></label></div>{{end}}
@@ -20,4 +20,22 @@
 <p class="muted" data-toolfilter-empty hidden>No tool matches</p>
 <div class="row"><button class="btn">Save</button> <a class="act" href="/admin/upstreams">Cancel</a></div>
 </form>
+{{range .Groups}}{{range .Rows}}{{if and .Enabled (not .Skip)}}{{template "dialog_content" (dlg (printf "try-%s" .Name) .Name)}}
+<div data-try data-name="{{.Name}}" data-info-url="/admin/upstreams/{{$.Data.U.Alias}}/tools/try/info" data-run-url="/admin/upstreams/{{$.Data.U.Alias}}/tools/try/run" data-csrf="{{$.CSRF}}">
+<div data-try-edit>
+<p class="muted" data-try-desc></p>
+<div class="form" data-try-form></div>
+<div class="field" data-try-rawbox hidden><label>Arguments as JSON<textarea class="mono" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" data-try-raw></textarea></label></div>
+<p class="bad" data-try-err role="alert" hidden></p>
+<details><summary class="muted">Input schema</summary><pre class="try-out" data-try-schema></pre></details>
+<p class="muted">Run calls the upstream for real.</p>
+<div class="row"><button type="button" class="btn" data-try-run disabled>Run</button> <button type="button" class="act" data-try-mode>Edit as JSON</button></div>
+</div>
+<div data-try-result hidden>
+<div class="row" data-try-pill>{{template "pill" (pill "off" "" "")}}</div>
+<pre class="try-out" data-try-out aria-live="polite"></pre>
+<div class="row"><button type="button" class="act" data-try-back>Edit inputs</button> <button type="button" class="btn" data-try-close>Close</button></div>
+</div>
+</div>
+{{template "dialog_end"}}{{end}}{{end}}{{end}}
 {{end}}{{end}}

@@ -268,6 +268,51 @@ func toolText(text string, isErr bool) map[string]any {
 	return map[string]any{"content": []any{map[string]any{"type": "text", "text": text}}, "isError": isErr}
 }
 
+// OpenAPITool is one switched-on tool of a stored OpenAPI upstream as a client sees it in tools/list: the key is
+// not in the schema.
+func (s *Server) OpenAPITool(alias, name string) (map[string]any, bool) {
+	up, ok := s.Upstreams.Get(alias)
+	if !ok || !up.IsOpenAPI() {
+		return nil, false
+	}
+	st, err := s.Upstreams.OpenAPI(alias)
+	if err != nil {
+		return nil, false
+	}
+	for _, t := range st.Tools {
+		if t.Name == name {
+			return oaToolJSON(t.WithoutCredential(up.caller(st.Scheme).Auth)), true
+		}
+	}
+	return nil, false
+}
+
+// CallOpenAPITool runs a switched-on tool of a stored OpenAPI upstream through the code a client's tools/call
+// uses (the aggregated /mcp and /mcp/{alias} both end in oaDispatch). It returns the text of the answer and
+// whether the tool reported an error; err is set when the call could not be made at all.
+func (s *Server) CallOpenAPITool(ctx context.Context, alias, name string, args map[string]any) (text string, isErr bool, err error) {
+	up, ok := s.Upstreams.Get(alias)
+	if !ok || !up.IsOpenAPI() {
+		return "", false, errors.New("unknown upstream")
+	}
+	if args == nil {
+		args = map[string]any{}
+	}
+	params, _ := json.Marshal(map[string]any{"name": name, "arguments": args})
+	res, rerr := s.oaDispatch(ctx, up, "tools/call", params)
+	if rerr != nil {
+		return "", false, errors.New(rerr.Message)
+	}
+	m, _ := res.(map[string]any)
+	isErr, _ = m["isError"].(bool)
+	if c, _ := m["content"].([]any); len(c) > 0 {
+		if first, _ := c[0].(map[string]any); first != nil {
+			text, _ = first["text"].(string)
+		}
+	}
+	return text, isErr, nil
+}
+
 // callOpenAPI is upClient.call for an OpenAPI upstream (used by the aggregated /mcp).
 func (c *upClient) callOpenAPI(s *Server, ctx context.Context, up Upstream, method string, params any) (json.RawMessage, *rpcError, error) {
 	raw, _ := json.Marshal(params)
