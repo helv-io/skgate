@@ -69,8 +69,8 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 /* primary: the name; a long one wraps instead of pushing the row's actions out of view */
 .table td.primary{white-space:normal;overflow-wrap:anywhere;min-width:12ch}
 .table td.primary code{white-space:normal;overflow-wrap:anywhere;overflow-x:visible}
-/* split: a list of names and descriptions, about 30% / 70% (names wrap, the description gets the rest); phones get cards instead */
-@media (min-width:721px){.table.split th:first-child,.table.split td.primary{width:30%}.table.split th:last-child,.table.split td.wrap{width:70%}}
+/* split: names and descriptions, about 30/70 (names wrap, the description gets the rest). A trailing actions column stays as wide as its buttons. Phones get cards. */
+@media (min-width:721px){.table.split th:first-child,.table.split td.primary{width:30%}.table.split td.wrap{width:70%}.table.split th.actions-th,.table.split td.actions-cell{width:1%}}
 /* trunc: the flexible column. max-width:0 lets the cell shrink to the space left (no horizontal
    scrollbar); long values end in an ellipsis and carry the full text in title. */
 .table td.trunc{width:32%;max-width:0;overflow:hidden;text-overflow:ellipsis}

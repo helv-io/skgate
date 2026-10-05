@@ -41,6 +41,16 @@ func TestUpstreamTestButton(t *testing.T) {
 				t.Errorf("test page lacks the tool tester %q", want)
 			}
 		}
+		// Test is its own column on the right. The name cell is the tool name only, so the buttons line up.
+		for _, want := range []string{
+			`<th class="actions-th">Actions</th>`,
+			`<td class="primary" data-label="Name"><code>list_things</code></td>`,
+			`<td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#try-0">Test</button></div></td>`,
+		} {
+			if !strings.Contains(body, want) {
+				t.Errorf("tools table: Test must sit in the actions column, not beside the name; missing %q", want)
+			}
+		}
 		// the summary, then the buttons, then the tools: the actions never wait below a long list
 		i, j, k := strings.Index(body, "OK \u00b7 1 tool"), strings.Index(body, `>Test again</a>`), strings.Index(body, "<h2>Tools")
 		if !(i > 0 && i < j && j < k) || !strings.Contains(body, `data-filter="#tools-table"`) {
