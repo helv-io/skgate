@@ -260,25 +260,27 @@ How each provider signs in elsewhere, and how skgate connects to it:
 
 | Provider | Subscription sign-in elsewhere | In skgate |
 | --- | --- | --- |
-| xAI Grok | OpenCode; more planned [1] | Subscription |
-| OpenAI | Sign in with ChatGPT [2] | API key |
-| Anthropic Claude | Not offered to third parties [3] | API key |
-| Google Gemini | CLI login not for reuse [4] | API key |
-| Mistral | — | API key |
+| xAI Grok \* | OpenCode; more planned [1] | Subscription |
+| Anthropic Claude | Not offered to third parties [2] | API key |
 | DeepSeek | — | API key |
-| Groq | — | API key |
-| OpenRouter | — | API key |
-| Ollama | — | No key (local) |
+| Google Gemini \* | CLI login not for reuse [3] | API key |
+| Groq \* | — | API key |
+| Mistral \* | — | API key |
+| OpenAI | Sign in with ChatGPT [4] | API key |
+| OpenRouter \* | — | API key |
 | LM Studio | — | No key (local) |
+| Ollama | — | No key (local) |
+
+\* Free tier available.
 
 As of 2026-10-05; check each provider's terms. GitHub Copilot is not a skgate provider.
 
 <details><summary>Sources</summary>
 
 1. xAI, [Use Grok in OpenCode](https://x.ai/news/grok-opencode)
-2. OpenAI, [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source)
-3. Anthropic, [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)
-4. Google, [Gemini CLI terms](https://github.com/google-gemini/gemini-cli/blob/main/docs/resources/tos-privacy.md)
+2. Anthropic, [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)
+3. Google, [Gemini CLI terms](https://github.com/google-gemini/gemini-cli/blob/main/docs/resources/tos-privacy.md)
+4. OpenAI, [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source)
 
 </details>
 
