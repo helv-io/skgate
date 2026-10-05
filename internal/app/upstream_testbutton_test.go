@@ -55,10 +55,15 @@ func TestUpstreamTestButton(t *testing.T) {
 				t.Errorf("tools table: Test must sit in the actions column, not beside the name; missing %q", want)
 			}
 		}
-		// the summary, then the buttons, then the tools: the actions never wait below a long list
-		i, j, k := strings.Index(body, "OK \u00b7 1 tool"), strings.Index(body, `>Test again</a>`), strings.Index(body, "<h2>Tools")
-		if !(i > 0 && i < j && j < k) || !strings.Contains(body, `data-filter="#tools-table"`) {
-			t.Errorf("order must be summary, actions, tools with a filter box: %d %d %d", i, j, k)
+		// the summary, then the tools: no Back or Test again on this page
+		i, k := strings.Index(body, "OK · 1 tool"), strings.Index(body, "<h2>Tools")
+		if !(i > 0 && i < k) || !strings.Contains(body, `data-filter="#tools-table"`) {
+			t.Errorf("order must be summary, then tools with a filter box: %d %d", i, k)
+		}
+		for _, gone := range []string{`>Test again</a>`, `>Back</a>`, `>Process</a>`} {
+			if strings.Contains(body, gone) {
+				t.Errorf("test page still has %s", gone)
+			}
 		}
 		if !regexp.MustCompile(`<th>Latency</th><td>\d+(\.\d)? m?s</td>`).MatchString(body) {
 			t.Errorf("latency is rounded for people (435 ms, 5.8 ms):\n%s", body)
