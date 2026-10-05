@@ -145,8 +145,8 @@ If the button is greyed out, hover it: use **Pick MCP helper model** beside it, 
 
 | URL | Serves |
 | --- | --- |
-| `https://skgate.example.com/mcp/<alias>` | One upstream; tool names unchanged |
-| `https://skgate.example.com/mcp` | Every upstream marked **In /mcp**; tools prefixed `<alias>-` |
+| `https://skgate.example.com/mcp/<alias>` | One upstream |
+| `https://skgate.example.com/mcp` | Every upstream marked **In /mcp** |
 | `https://skgate.example.com/` (MCP clients) | Same aggregate as `/mcp` when Accept/Content-Type look like MCP; browsers still go to `/admin` |
 
 Hosted connectors use OAuth (leave client ID and secret empty). Scripts and CLIs send a key:

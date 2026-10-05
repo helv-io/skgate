@@ -2,7 +2,7 @@
 
 REST APIs as MCP tools. Part of the [skgate README](../README.md); the other upstream types are in [docs/mcp.md](mcp.md).
 
-An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API's OpenAPI description, you pick the operations to offer, and every operation you pick becomes a tool. skgate itself makes the HTTP calls: there is no process to run, so it works in the `slim` image too. The upstream is served like any other: `/mcp/<alias>` (tool names as chosen), the aggregating `/mcp` (prefixed `<alias>-`), Test, keys and OAuth.
+An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API's OpenAPI description, you pick the operations to offer, and every operation you pick becomes a tool. skgate itself makes the HTTP calls: there is no process to run, so it works in the `slim` image too. The upstream is served like any other: `/mcp/<alias>`, the aggregating `/mcp`, Test, keys and OAuth.
 
 ## Add one
 
