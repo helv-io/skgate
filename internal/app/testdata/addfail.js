@@ -64,8 +64,18 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   // no key at all: the server needs one, and the fields stay
   await pg.$eval('input[name="oa_auth_value"]', e => { e.value = ""; });
   await pg.evaluate(() => document.querySelectorAll(".toast").forEach(t => t.remove()));
+  const hit = await pg.evaluate(() => {
+    const b = document.querySelector("[data-gate-submit] button"), r = b.getBoundingClientRect();
+    const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { disabled: b.disabled, onButton: t === b || b.contains(t), over: t ? t.tagName + "." + t.className : "none", rect: [r.left, r.top, r.width, r.height], vh: innerHeight };
+  });
   await pg.click("[data-gate-submit] button");
-  await pg.waitForFunction(() => /needs a key/.test(document.body.textContent), { timeout: 20000 });
+  try {
+    await pg.waitForFunction(() => /needs a key/.test(document.body.textContent), { timeout: 20000 });
+  } catch (e) {
+    console.log("no key wait failed: " + pg.url() + " " + JSON.stringify(hit) + " toasts: " + await pg.evaluate(() => Array.from(document.querySelectorAll(".toast")).map(t => t.textContent).join("|")));
+    throw e;
+  }
   const nokey = await fields();
   ok(nokey.path === "/admin/upstreams/new" && nokey.alias === "failcase" && nokey.spec === spec && nokey.as === "bearer" && nokey.key === "" && nokey.open === true,
     "a missing key keeps every field: " + JSON.stringify(nokey));
