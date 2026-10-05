@@ -30,7 +30,7 @@ One program writes it, `tools/changelog`, for the backfill and for new versions 
 The `Changelog` workflow runs the program on every stable `vX.Y.Z` tag and pushes one commit, "Changelog for vX.Y.Z", to `master` with the built-in `GITHUB_TOKEN` (`contents: write`). Why it is safe:
 
 - A push made with `GITHUB_TOKEN` starts no other workflow, so it cannot loop, and it runs no CI. The job is also skipped when the actor is `github-actions[bot]`.
-- It is separate from Release and carries no tag, so images and the registry entry are unaffected, and a failure there publishes nothing.
+- It is separate from Release and carries no tag, so images and the registry entry are unaffected, and a failure there publishes nothing. Pushing the tag also creates the GitHub Release page (notes auto-generated).
 - It lands after the tag. The tagged source therefore does not list its own version, and the version bump is still the last commit a person makes for a release. Pull before the next change.
 - Fix the wording of a generated section by editing `CHANGELOG.md` in an ordinary commit (CI ignores that file). The program never rewrites an existing section.
 - A manual run (Actions, Changelog, Run workflow) takes a tag if an entry is missing.

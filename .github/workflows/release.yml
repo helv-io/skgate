@@ -14,6 +14,8 @@
 # A manual run (workflow_dispatch) does the same but tags the result ci-test-<run id> (and ci-test-<run id>-slim)
 # only, never a version, latest or slim, so a change to this file can be proven without releasing.
 #
+#   github-release after test, on a stable vX.Y.Z tag: creates the GitHub Release page with generated notes.
+#                  An existing page is left alone, so a re-run succeeds. It does not wait for the images.
 #   mcp-registry   after merge, on stable tags only: lists server.json in the official MCP registry through GitHub OIDC.
 #
 # Uses the built-in GITHUB_TOKEN; no other secret is needed.
@@ -164,6 +166,41 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(for f in *; do printf '${{ env.IMAGE }}@sha256:%s ' "${f#*.}"; done)
       - run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ env.VERSION }}${{ matrix.sfx }}
+
+  # After the tests pass, create the GitHub Release for this tag. Stable vX.Y.Z only, never a manual run
+  # or a pre-release (same guard as mcp-registry). It does not wait for the images. action-gh-release appends
+  # generated notes when it updates, so a tag that already has a release is left as it is and the job succeeds.
+  github-release:
+    name: GitHub Release
+    needs: [test]
+    if: ${{ startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Stable vX.Y.Z only
+        id: stable
+        run: |
+          if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "Not a stable version tag: $GITHUB_REF_NAME"; fi
+      - name: Release already exists
+        id: existing
+        if: steps.stable.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "GitHub Release $GITHUB_REF_NAME already exists"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create the GitHub Release
+        if: steps.stable.outputs.ok == 'true' && steps.existing.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
 
   # After the images are tagged, list this version in the official MCP registry (server.json). GitHub OIDC proves the
   # repository owner, which grants io.github.helv-io/*; no secret and no user token. Stable tags only, never a manual run.
