@@ -301,9 +301,7 @@ func TestSuggestTimeoutIsVisible(t *testing.T) {
 	log.SetOutput(&buf)
 	defer log.SetOutput(os.Stderr)
 	r := newSuggestRig(t, true, true)
-	r.mu.Lock()
-	r.hang = true
-	r.mu.Unlock()
+	r.setHang(true)
 	r.a.Admin.SuggestIdle = 150 * time.Millisecond
 	form := url.Values{"source": {"https://gitlab.com/grp/thing"}, "git_token": {tokenSecret}, "csrf": {r.csrf}}
 

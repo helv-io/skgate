@@ -1446,8 +1446,9 @@ function frontierHint(form) {
 // Tool picker (the tools page of an OpenAPI upstream). The counter follows the ticked tools live and is colored by
 // level (good, a lot, too many); crossing into a worse level raises a toast, and so does switching on a whole verb.
 // Nothing is ever blocked. The verb switches act on the tools the filter shows. The filter narrows the rows by their
-// text and opens the groups that have a match. "Suggest names" asks the assistant for the ticked tools and fills the
-// name and description fields; the admin reviews them and saves.
+// text and opens the groups that have a match. "Suggest names" opens a choice (selected tools or all), asks the
+// helper for names and one-line descriptions, and fills the fields; the admin reviews them and saves. While it runs
+// the trigger and the choice stay off so it cannot be sent twice.
 (function () {
   var root = document.querySelector("[data-toolpick]");
   if (!root) return;
@@ -1521,18 +1522,47 @@ function frontierHint(form) {
   filter.addEventListener("input", applyFilter);
   filter.addEventListener("keydown", function (e) { if (e.key === "Enter") e.preventDefault(); });
   var describe = root.querySelector("[data-tool-describe]");
-  if (describe) describe.addEventListener("click", function () {
-    var body = new URLSearchParams(), n = 0, all = 0;
+  var busy = false;
+  function selectedKeys() {
+    var keys = [];
+    Array.prototype.forEach.call(boxes(), function (b) { if (b.checked) keys.push(b.value); });
+    return keys;
+  }
+  function allKeys() {
+    var keys = [];
+    Array.prototype.forEach.call(boxes(), function (b) { keys.push(b.value); });
+    return keys;
+  }
+  function modalRoot() {
+    var body = document.querySelector("[data-modal-body]");
+    return body && body.querySelector("[data-suggest-selected]") ? body : null;
+  }
+  function syncSuggest() {
+    var m = modalRoot(), n = selectedKeys().length, total = allKeys().length;
+    if (describe && describe.hasAttribute("data-dialog-open")) describe.disabled = busy;
+    if (!m) return;
+    var sel = m.querySelector("[data-suggest-selected]");
+    sel.textContent = n > 0 ? "Selected " + n : "Selected";
+    sel.disabled = busy || n === 0;
+    m.querySelector("[data-suggest-all]").disabled = busy || total === 0;
+    m.querySelector("[data-suggest-cancel]").disabled = busy;
+    var wait = m.querySelector("[data-suggest-wait]");
+    if (wait) wait.hidden = !busy;
+  }
+  function closeSuggest() {
+    var c = document.querySelector("[data-modal-close]");
+    if (c) c.click();
+  }
+  function runSuggest(keys) {
+    if (busy || !keys.length) return;
+    busy = true;
+    syncSuggest();
+    var body = new URLSearchParams();
     body.set("csrf", root.querySelector('input[name="csrf"]').value);
-    Array.prototype.forEach.call(boxes(), function (b) { if (b.checked) { all++; if (n < 40) { body.append("key", b.value); n++; } } });
-    if (!n) { window.skgateToast("bad", "Switch on tools first"); return; }
-    describe.disabled = true;
-    window.skgateToast("ok", all > n ? "Suggesting for " + n + " of " + all + " tools. Run again for the rest."
-      : "Suggesting for " + n + " " + (n === 1 ? "tool" : "tools"));
+    keys.forEach(function (k) { body.append("key", k); });
     fetch(root.getAttribute("data-suggest-url"), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: body })
       .then(function (r) { return r.json(); })
       .then(function (j) {
-        describe.disabled = false;
         if (j.error) { window.skgateToast("bad", j.error); return; }
         var done = 0;
         Array.prototype.forEach.call(root.querySelectorAll("[data-tool]"), function (row) {
@@ -1542,10 +1572,24 @@ function frontierHint(form) {
           if (s.description) row.querySelector("[data-tool-desc]").value = s.description;
           done++;
         });
+        closeSuggest();
         window.skgateToast("ok", "Names filled for " + done + " " + (done === 1 ? "tool" : "tools") + ". Review, then Save.");
       })
-      .catch(function () { describe.disabled = false; window.skgateToast("bad", "suggestion failed"); });
-  });
+      .catch(function () { window.skgateToast("bad", "suggestion failed"); })
+      .then(function () { busy = false; syncSuggest(); });
+  }
+  if (describe) {
+    describe.addEventListener("click", function () { if (!describe.disabled) setTimeout(syncSuggest, 0); });
+    document.addEventListener("click", function (e) {
+      var t = e.target && e.target.closest ? e.target.closest("[data-suggest-selected], [data-suggest-all], [data-suggest-cancel]") : null;
+      if (!t || !modalRoot()) return;
+      if (t.hasAttribute("data-suggest-selected")) runSuggest(selectedKeys());
+      else if (t.hasAttribute("data-suggest-all")) runSuggest(allKeys());
+      else if (t.hasAttribute("data-suggest-cancel") && !busy) closeSuggest();
+    });
+  }
+  var _render = render;
+  render = function () { _render(); syncSuggest(); };
   render();
 })();
 

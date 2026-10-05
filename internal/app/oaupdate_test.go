@@ -183,7 +183,7 @@ func TestOpenAPIUpdateRunsTheSILayer(t *testing.T) {
 		mu.Lock()
 		spec = updV2
 		mu.Unlock()
-		r.reply = `{"patches":[{"op":"set","path":"/paths/~1b/get/operationId","value":"getB","reason":"missing id"}]}`
+		r.setReply(`{"patches":[{"op":"set","path":"/paths/~1b/get/operationId","value":"getB","reason":"missing id"}]}`)
 		_, review := r.br.post("/admin/upstreams/t/spec/update", url.Values{"csrf": {r.csrf}})
 		if !strings.Contains(review, "Confirm update") || !strings.Contains(review, "GET /b") {
 			t.Fatalf("helper=%v: no review:\n%.800s", withHelper, review)
