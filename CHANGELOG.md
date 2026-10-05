@@ -10,6 +10,20 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - README: Star History chart
 
+## [0.21.7] - 2026-10-05
+
+### Changed
+
+- Show the test-page auth scheme once (#7)
+
+### Fixed
+
+- Test buttons on the tools list line up in their own column
+
+### Removed
+
+- Drop Sign in again from the signed-in Grok card (#8)
+
 ## [0.21.6] - 2026-10-05
 
 ### Changed
@@ -561,7 +575,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.21.6...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.21.7...HEAD
+[0.21.7]: https://github.com/helv-io/skgate/compare/v0.21.6...v0.21.7
 [0.21.6]: https://github.com/helv-io/skgate/compare/v0.21.5...v0.21.6
 [0.21.5]: https://github.com/helv-io/skgate/compare/v0.21.4...v0.21.5
 [0.21.4]: https://github.com/helv-io/skgate/compare/v0.21.3...v0.21.4
