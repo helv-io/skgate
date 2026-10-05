@@ -12,7 +12,7 @@ Managed in the admin UI. Each has an alias (`a-z`, `0-9`, `-`), a type, and two 
 | Managed | Runs an MCP server from a package or a git repository as a child process and bridges its stdin/stdout to HTTP. [Managed upstreams](#managed-upstreams). |
 | OpenAPI | Turns a REST API described by an OpenAPI document into MCP tools; skgate makes the HTTP calls itself. [OpenAPI upstreams](openapi.md). |
 
-All types are served the same way: `/mcp/<alias>` (unprefixed), the aggregating `/mcp` (prefixed `<alias>-`), Test, keys and OAuth.
+All types are served the same way: `/mcp/<alias>`, the aggregating `/mcp`, Test, keys and OAuth.
 
 ### Outbound auth modes
 
@@ -191,7 +191,7 @@ In the full image each child gets the cache variables of its package managers (n
 
 | Endpoint | Behavior |
 | --- | --- |
-| `/mcp/<alias>` | Transparent, unprefixed proxy to one upstream. |
+| `/mcp/<alias>` | Transparent proxy to one upstream. |
 | `/mcp` | One MCP server merging every enabled upstream that is **In /mcp**. |
 | `/` (MCP clients only) | Same aggregate as `/mcp` when the request looks like MCP (`Accept: application/json` or `text/event-stream`, or a JSON/MCP `Content-Type`). Browsers still get the landing page → `/admin`. |
 
