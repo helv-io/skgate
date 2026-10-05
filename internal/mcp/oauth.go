@@ -427,7 +427,8 @@ func (s *Server) issueCode(w http.ResponseWriter, r *http.Request, ap authParams
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
-// clientAuth authenticates the client at the token endpoint (client_secret_basic, client_secret_post, or none).
+// clientAuth authenticates the client at the token endpoint: client_secret_basic, client_secret_post,
+// none, or private_key_jwt (metadata-document clients with a jwks_uri).
 func (s *Server) clientAuth(w http.ResponseWriter, r *http.Request) (Client, bool) {
 	id, secret, viaBasic := "", "", false
 	if u, p, ok := r.BasicAuth(); ok {
@@ -444,18 +445,35 @@ func (s *Server) clientAuth(w http.ResponseWriter, r *http.Request) (Client, boo
 		return Client{}, false
 	}
 	c, lerr := s.lookupClient(r.Context(), id)
-	ok := lerr == nil
-	if !ok || (c.Confidential() && !c.CheckSecret(secret)) {
-		if !ok {
-			reqlog.Reject(r, "unknown client: %s", lerr)
-		} else {
-			reqlog.Reject(r, "invalid client: client secret is missing or wrong (client %s is confidential)", c.AuthMethod)
-		}
+	if lerr != nil {
+		reqlog.Reject(r, "unknown client: %s", lerr)
 		if viaBasic {
 			w.Header().Set("WWW-Authenticate", `Basic realm="skgate"`)
 		}
 		httputil.OAuthError(w, 401, "invalid_client", "client authentication failed")
 		return Client{}, false
+	}
+	switch c.AuthMethod {
+	case "private_key_jwt":
+		if viaBasic || secret != "" {
+			reqlog.Reject(r, "invalid client: private_key_jwt clients authenticate with client_assertion only")
+			httputil.OAuthError(w, 401, "invalid_client", "client authentication failed")
+			return Client{}, false
+		}
+		if err := s.verifyClientAssertion(r.Context(), r, c); err != nil {
+			reqlog.Reject(r, "invalid client: %s", err)
+			httputil.OAuthError(w, 401, "invalid_client", "client authentication failed")
+			return Client{}, false
+		}
+	default:
+		if c.Confidential() && !c.CheckSecret(secret) {
+			reqlog.Reject(r, "invalid client: client secret is missing or wrong (client %s is confidential)", c.AuthMethod)
+			if viaBasic {
+				w.Header().Set("WWW-Authenticate", `Basic realm="skgate"`)
+			}
+			httputil.OAuthError(w, 401, "invalid_client", "client authentication failed")
+			return Client{}, false
+		}
 	}
 	s.Clients.Touch(c.ID)
 	return c, true

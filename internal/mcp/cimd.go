@@ -356,6 +356,8 @@ func parseMetadata(id string, u *url.URL, body []byte) (Client, error) {
 		ClientName    string          `json:"client_name"`
 		RedirectURIs  []string        `json:"redirect_uris"`
 		AuthMethod    string          `json:"token_endpoint_auth_method"`
+		AuthAlg       string          `json:"token_endpoint_auth_signing_alg"`
+		JWKSURI       string          `json:"jwks_uri"`
 		GrantTypes    []string        `json:"grant_types"`
 		ResponseTypes []string        `json:"response_types"`
 		Secret        json.RawMessage `json:"client_secret"`
@@ -370,8 +372,27 @@ func parseMetadata(id string, u *url.URL, body []byte) (Client, error) {
 	if len(doc.Secret) > 0 || len(doc.SecretExpires) > 0 {
 		return Client{}, errors.New("the document carries a client secret, which is not allowed")
 	}
-	if doc.AuthMethod != "" && doc.AuthMethod != "none" {
-		return Client{}, errors.New("the document asks for token_endpoint_auth_method " + truncate(doc.AuthMethod, 40) + "; only none is supported for metadata document clients")
+	method := doc.AuthMethod
+	if method == "" {
+		method = "none"
+	}
+	jwksURI := ""
+	switch method {
+	case "none":
+		if strings.TrimSpace(doc.JWKSURI) != "" {
+			return Client{}, errors.New("jwks_uri is only used with token_endpoint_auth_method private_key_jwt")
+		}
+	case "private_key_jwt":
+		if _, why := parseJWKSURI(doc.JWKSURI); why != "" {
+			return Client{}, errors.New(why)
+		}
+		jwksURI = strings.TrimSpace(doc.JWKSURI)
+		alg := strings.TrimSpace(doc.AuthAlg)
+		if alg != "" && alg != "RS256" && alg != "ES256" {
+			return Client{}, errors.New("token_endpoint_auth_signing_alg " + truncate(alg, 40) + " is not supported (RS256 or ES256)")
+		}
+	default:
+		return Client{}, errors.New("the document asks for token_endpoint_auth_method " + truncate(method, 40) + "; metadata document clients support none and private_key_jwt")
 	}
 	if len(doc.GrantTypes) > 0 && len(supported(doc.GrantTypes, dcrGrants, nil)) == 0 {
 		return Client{}, errors.New("none of the document's grant_types is supported")
@@ -401,7 +422,7 @@ func parseMetadata(id string, u *url.URL, body []byte) (Client, error) {
 	if name == "" {
 		name = u.Hostname()
 	}
-	return Client{ID: id, Name: name, RedirectURIs: uris, AuthMethod: "none", Source: cimdSource}, nil
+	return Client{ID: id, Name: name, RedirectURIs: uris, AuthMethod: method, JWKSURI: jwksURI, Source: cimdSource}, nil
 }
 
 // cacheTTL reads max-age from Cache-Control, within the bounds. no-store and no-cache get the minimum.

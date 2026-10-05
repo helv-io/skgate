@@ -54,6 +54,7 @@ type Server struct {
 	up       *upClient  // per-upstream MCP sessions used by the /mcp aggregator
 	health   healthBook // how the latest calls to each remote upstream went
 	cimd     cimdBook   // freshness of client ID metadata documents
+	jwks     jwksBook   // JWKS cache for private_key_jwt metadata clients
 
 	// Managed runs the child processes of stdio and git upstreams (never spawns when disabled).
 	Managed *managed.Manager
@@ -112,7 +113,7 @@ func (s *Server) asMetadataDoc() map[string]any {
 		"response_types_supported":                       []string{"code"},
 		"grant_types_supported":                          []string{"authorization_code", "refresh_token"},
 		"code_challenge_methods_supported":               []string{"S256"},
-		"token_endpoint_auth_methods_supported":          []string{"none", "client_secret_post", "client_secret_basic"},
+		"token_endpoint_auth_methods_supported":          []string{"none", "client_secret_post", "client_secret_basic", "private_key_jwt"},
 		"scopes_supported":                               SupportedScopes,
 		"authorization_response_iss_parameter_supported": true,
 		"client_id_metadata_document_supported":          true,

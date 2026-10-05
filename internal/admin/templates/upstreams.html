@@ -2,7 +2,6 @@
 <h2>MCP upstreams</h2>
 <div class="card flush tablewrap"><table class="table kv"><tbody>
 <tr><th>All included</th><td>{{template "copybox" (copyurl "the address of every included upstream" $.Public "/mcp")}}<span class="muted">tools named <code>&lt;alias&gt;-&lt;tool&gt;</code></span></td></tr>
-<tr><th>One upstream</th><td>{{if .Aliases}}{{template "copybox" (copyurl "the address of one upstream" $.Public "/mcp/" (index .Aliases 0))}}{{else}}<code>{{wrapurl $.Public "/mcp/"}}&lt;alias&gt;</code>{{end}}<span class="muted">tools unprefixed</span></td></tr>
 <tr><th>Discovery</th><td>{{template "copybox" (copyurl "the discovery address" $.Public "/.well-known/oauth-authorization-server")}}</td></tr>
 </tbody></table></div>
 <div class="row spread"><a class="btn" href="/admin/upstreams/new">Add upstream</a><div class="actions"><a class="act" href="/admin/upstreams/import">Import JSON</a><a class="act" href="/admin/upstreams/export">Export JSON</a></div></div>
