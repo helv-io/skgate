@@ -1620,3 +1620,189 @@ function frontierHint(form) {
   });
 })();
 
+// Tool tester (the tools page of an OpenAPI upstream). A tool's Test button opens the shared dialog with a form made
+// from the tool's input schema; "Edit as JSON" shows the raw arguments. Run calls the upstream through the gateway
+// as the admin and the dialog then shows the answer, with a way back to the inputs. Nothing here is saved.
+(function () {
+  var body = document.querySelector("[data-modal-body]");
+  if (!body) return;
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function kind(sch) {
+    var t = sch && sch.type;
+    if (Array.isArray(t)) t = t.filter(function (x) { return x !== "null"; })[0];
+    if (sch && (sch.anyOf || sch.oneOf || sch.allOf)) return "json";
+    return t || "string";
+  }
+  function sentence(text) { // one short plain line for helper text
+    var t = String(text || "").replace(/\s+/g, " ").trim();
+    var cut = t.search(/[.!?](\s|$)/);
+    if (cut > 0) t = t.slice(0, cut + 1);
+    return t.length > 140 ? t.slice(0, 137).trim() + "..." : t;
+  }
+  function start(root) {
+    if (root._tryStarted) return;
+    root._tryStarted = true;
+    var q = function (n) { return root.querySelector("[data-try-" + n + "]"); };
+    var edit = q("edit"), result = q("result"), form = q("form"), rawBox = q("rawbox"), raw = q("raw"), err = q("err");
+    var run = q("run"), modeBtn = q("mode"), pill = q("pill").querySelector(".pill"), out = q("out");
+    var csrf = root.getAttribute("data-csrf"), name = root.getAttribute("data-name");
+    var fields = [], extra = {}, props = {}, asJSON = false;
+    function post(url, data) {
+      var b = new URLSearchParams();
+      b.set("csrf", csrf);
+      b.set("name", name);
+      Object.keys(data || {}).forEach(function (k) { b.set(k, data[k]); });
+      return fetch(url, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: b }).then(function (r) { return r.json(); });
+    }
+    function say(msg) { err.textContent = msg || ""; err.hidden = !msg; }
+    function example(p, req) {
+      if (p.default !== undefined) return p.default;
+      if (p.example !== undefined) return p.example;
+      if (Array.isArray(p.examples) && p.examples.length) return p.examples[0];
+      if (Array.isArray(p.enum) && req) return p.enum[0];
+      return undefined;
+    }
+    function build(schema, required) {
+      form.textContent = "";
+      fields = [];
+      props = (schema && schema.properties) || {};
+      var names = Object.keys(props);
+      if (!names.length) form.appendChild(el("p", "muted", "This tool takes no arguments."));
+      names.forEach(function (n) {
+        var p = props[n] || {}, req = required.indexOf(n) >= 0, k = kind(p), ex = example(p, req), input, wrap = el("div", "field"), lab;
+        if (Array.isArray(p.enum)) {
+          input = el("select");
+          if (!req) input.appendChild(el("option", "", ""));
+          p.enum.forEach(function (v) { var o = el("option", "", String(v)); o.value = JSON.stringify(v); input.appendChild(o); });
+          input.value = ex !== undefined ? JSON.stringify(ex) : (req ? JSON.stringify(p.enum[0]) : "");
+          k = "enum";
+        } else if (k === "boolean") {
+          input = el("input"); input.type = "checkbox"; input.checked = ex === true;
+        } else if (k === "integer" || k === "number") {
+          input = el("input"); input.type = "number"; input.step = k === "integer" ? "1" : "any"; input.inputMode = "decimal";
+          if (ex !== undefined) input.value = String(ex);
+        } else if (k === "object" || k === "array" || k === "json") {
+          input = el("textarea", "mono"); input.rows = 3; input.spellcheck = false;
+          input.value = ex !== undefined ? JSON.stringify(ex, null, 2) : (req ? (k === "array" ? "[]" : "{}") : "");
+        } else {
+          input = el("input"); input.type = "text"; input.autocomplete = "off"; input.spellcheck = false;
+          if (ex !== undefined) input.value = String(ex);
+        }
+        if (k === "boolean") {
+          lab = el("label", "check"); lab.appendChild(input); lab.appendChild(document.createTextNode(" " + n));
+          if (req) lab.appendChild(el("span", "muted", " required"));
+        } else {
+          lab = el("label"); lab.appendChild(document.createTextNode(n));
+          if (req) lab.appendChild(el("span", "muted", " required"));
+          lab.appendChild(input);
+        }
+        wrap.appendChild(lab);
+        var help = sentence(p.description);
+        if (help) wrap.appendChild(el("p", "muted", help));
+        form.appendChild(wrap);
+        fields.push({ name: n, kind: k, input: input, req: req, def: p.default });
+      });
+    }
+    // fromForm collects the arguments the form holds; a string with the reason when a field is not valid.
+    function fromForm() {
+      var o = {};
+      for (var i = 0; i < fields.length; i++) {
+        var f = fields[i], v = f.input.value;
+        if (f.kind === "boolean") {
+          if (f.input.checked || f.req || f.def !== undefined) o[f.name] = f.input.checked;
+          continue;
+        }
+        if (f.kind === "enum") { if (v !== "") o[f.name] = JSON.parse(v); continue; }
+        if (String(v).trim() === "") {
+          if (f.req) return f.name + " is required";
+          continue;
+        }
+        if (f.kind === "integer" || f.kind === "number") {
+          var n = Number(v);
+          if (!isFinite(n)) return f.name + " must be a number";
+          o[f.name] = n;
+        } else if (f.kind === "object" || f.kind === "array" || f.kind === "json") {
+          try { o[f.name] = JSON.parse(v); } catch (e) { return f.name + " is not valid JSON"; }
+        } else {
+          o[f.name] = v;
+        }
+      }
+      Object.keys(extra).forEach(function (k) { if (!(k in o)) o[k] = extra[k]; });
+      return o;
+    }
+    // toForm puts parsed arguments into the form; keys the schema does not list are kept aside.
+    function toForm(o) {
+      extra = {};
+      Object.keys(o).forEach(function (k) { if (!props[k]) extra[k] = o[k]; });
+      fields.forEach(function (f) {
+        var v = o[f.name];
+        if (f.kind === "boolean") f.input.checked = v === true;
+        else if (f.kind === "enum") f.input.value = v === undefined ? "" : JSON.stringify(v);
+        else if (f.kind === "object" || f.kind === "array" || f.kind === "json") f.input.value = v === undefined ? "" : JSON.stringify(v, null, 2);
+        else f.input.value = v === undefined ? "" : String(v);
+      });
+    }
+    function args() { // the arguments as an object, or a string with the reason
+      if (asJSON) {
+        var t = raw.value.trim();
+        if (!t) return {};
+        try { var v = JSON.parse(t); } catch (e) { return "The arguments are not valid JSON"; }
+        return v && typeof v === "object" && !Array.isArray(v) ? v : "The arguments must be a JSON object";
+      }
+      return fromForm();
+    }
+    modeBtn.addEventListener("click", function () {
+      say("");
+      if (!asJSON) {
+        var a = fromForm();
+        raw.value = typeof a === "string" ? JSON.stringify({}, null, 2) : JSON.stringify(a, null, 2);
+        asJSON = true;
+        form.hidden = true; rawBox.hidden = false; modeBtn.textContent = "Edit as form";
+      } else {
+        var o = args();
+        if (typeof o === "string") { say(o); return; }
+        toForm(o);
+        asJSON = false;
+        form.hidden = false; rawBox.hidden = true; modeBtn.textContent = "Edit as JSON";
+      }
+    });
+    run.addEventListener("click", function () {
+      var a = args();
+      if (typeof a === "string") { say(a); return; }
+      say("");
+      run.disabled = true;
+      run.textContent = "Running";
+      function show(cls, label, text) {
+        pill.className = "pill " + cls; pill.textContent = label; out.textContent = text;
+        edit.hidden = true; result.hidden = false;
+      }
+      post(root.getAttribute("data-run-url"), { args: JSON.stringify(a) }).then(function (j) {
+        if (!j.ok) { show("bad", "Failed", j.error || "The request failed"); return; }
+        show(j.isError ? "bad" : "ok", (j.isError ? "Error" : "OK") + " \u00b7 " + j.ms + " ms", j.text || "No answer text");
+      }).catch(function () { show("bad", "Failed", "The request failed"); })
+        .then(function () { run.disabled = false; run.textContent = "Run"; });
+    });
+    q("back").addEventListener("click", function () { result.hidden = true; edit.hidden = false; });
+    q("close").addEventListener("click", function () {
+      var c = document.querySelector("[data-modal-close]");
+      if (c) c.click();
+    });
+    post(root.getAttribute("data-info-url")).then(function (j) {
+      if (j.error) { q("desc").textContent = j.error; return; }
+      q("desc").textContent = sentence(j.description) || "";
+      q("schema").textContent = JSON.stringify(j.schema || {}, null, 2);
+      build(j.schema || {}, (j.schema && j.schema.required) || []);
+      run.disabled = false;
+    }).catch(function () { q("desc").textContent = "The request failed"; });
+  }
+  function scan() {
+    Array.prototype.forEach.call(body.querySelectorAll("[data-try]"), start);
+  }
+  new MutationObserver(scan).observe(body, { childList: true });
+  scan();
+})();

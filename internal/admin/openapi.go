@@ -676,6 +676,81 @@ func (a *Admin) upstreamToolsSuggest(w http.ResponseWriter, r *http.Request) {
 	httputil.JSON(w, http.StatusOK, map[string]any{"tools": res})
 }
 
+// maxTryArgs is the largest argument text the tool tester takes.
+const maxTryArgs = 256 << 10
+
+// toolTryInfo answers the tool tester with what a client sees of one switched-on tool: its name, description and
+// input schema.
+func (a *Admin) toolTryInfo(w http.ResponseWriter, r *http.Request) {
+	t, ok := a.MCP.OpenAPITool(r.PathValue("alias"), r.PostFormValue("name"))
+	if !ok {
+		httputil.JSON(w, http.StatusOK, map[string]any{"error": "that tool is off, save the tools first"})
+		return
+	}
+	httputil.JSON(w, http.StatusOK, map[string]any{"name": t["name"], "description": t["description"], "schema": t["inputSchema"]})
+}
+
+// toolTryRun calls one switched-on tool the way a client does and returns the answer or the error. It is the admin
+// pressing Run: the upstream is really called.
+func (a *Admin) toolTryRun(w http.ResponseWriter, r *http.Request) {
+	alias, name := r.PathValue("alias"), r.PostFormValue("name")
+	fail := func(msg string) { httputil.JSON(w, http.StatusOK, map[string]any{"ok": false, "error": msg}) }
+	u, ok := a.MCP.Upstreams.Get(alias)
+	switch {
+	case !ok || !u.IsOpenAPI():
+		fail("unknown upstream")
+		return
+	case !u.Enabled:
+		fail("switch the upstream on first")
+		return
+	}
+	if _, ok := a.MCP.OpenAPITool(alias, name); !ok {
+		fail("that tool is off, save the tools first")
+		return
+	}
+	args := map[string]any{}
+	if txt := strings.TrimSpace(r.PostFormValue("args")); txt != "" {
+		if len(txt) > maxTryArgs {
+			fail("the arguments are too long")
+			return
+		}
+		if err := json.Unmarshal([]byte(txt), &args); err != nil || args == nil {
+			fail("the arguments must be a JSON object")
+			return
+		}
+	}
+	t0 := time.Now()
+	text, isErr, err := a.MCP.CallOpenAPITool(r.Context(), alias, name, args)
+	ms := time.Since(t0).Round(time.Millisecond)
+	log.Printf("admin: tool run %s %s error=%t in %s", alias, name, err != nil || isErr, ms)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	text = indentAnswer(text)
+	httputil.JSON(w, http.StatusOK, map[string]any{"ok": true, "isError": isErr, "text": text, "ms": ms.Milliseconds()})
+}
+
+// indentAnswer shows the JSON in an answer indented. A call answers with the status line and headers, a blank line
+// and the body; only the body changes.
+func indentAnswer(text string) string {
+	head, body := "", text
+	if strings.HasPrefix(text, "HTTP ") {
+		if i := strings.Index(text, "\n\n"); i >= 0 {
+			head, body = text[:i+2], text[i+2:]
+		}
+	}
+	var v any
+	if json.Unmarshal([]byte(strings.TrimSpace(body)), &v) != nil {
+		return text
+	}
+	pretty, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return text
+	}
+	return head + string(pretty)
+}
+
 // oaViewOf summarizes an OpenAPI upstream for the list. A description that cannot be read shows no tools.
 func (a *Admin) oaViewOf(u mcp.Upstream) *oaView {
 	v := &oaView{}

@@ -434,3 +434,6 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .logtext{flex:1 1 100%}
 }
 @media (pointer:coarse){:root{--code-size:16px}}
+
+/* Tool tester: the answer of a Run, and the schema, scroll inside the dialog instead of stretching it. */
+.try-out{max-height:45vh;overflow:auto;word-break:break-word}
