@@ -10,7 +10,7 @@ import (
 )
 
 // Version is the release.
-const Version = "0.18.0"
+const Version = "0.19.0"
 
 // Edition is "full" (managed MCP upstreams available) or "slim" (proxy only). The slim image sets
 // it at link time: -ldflags "-X github.com/helv-io/skgate/internal/config.Edition=slim".
