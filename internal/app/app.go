@@ -77,7 +77,13 @@ func (a *App) Handler() http.Handler {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/admin", http.StatusFound) })
+	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
+		if mcp.LooksLikeClient(r) {
+			a.MCP.ServeRoot(w, r)
+			return
+		}
+		http.Redirect(w, r, "/admin", http.StatusFound)
+	})
 	// The provider API: /v1, /api/v1, /api and bare API paths. Only API roots are claimed.
 	for _, p := range provider.Patterns() {
 		mux.Handle(p, httputil.CORS(a.Proxy))
