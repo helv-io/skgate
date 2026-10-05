@@ -24,7 +24,7 @@ func menuApp(t *testing.T) (*App, *browser) {
 }
 
 // A row keeps Copy URL and Test in view and puts Details, Edit and Delete in one ⋯ menu; the details dialog offers
-// the same actions as the row, plus the process page or detection.
+// the same actions as the row, plus detection for a remote upstream. A managed row's process page is its status pill.
 func TestUpstreamRowActionsAndMenuMarkup(t *testing.T) {
 	_, br := menuApp(t)
 	_, page := br.get("/admin/upstreams")
@@ -66,19 +66,31 @@ func TestUpstreamRowActionsAndMenuMarkup(t *testing.T) {
 	if !strings.Contains(inMenu, `data-confirm="Delete this upstream?"`) {
 		t.Error("the delete in the menu has no confirmation")
 	}
-	// the details dialog: same actions as the row, plus the process page (managed) or detect (remote)
+	// the details dialog: same actions as the row, plus detection for a remote upstream.
+	// a managed upstream's process page is the status pill, not a Process button.
 	dlg := func(alias string) string {
 		i := strings.Index(page, `id="upstream-`+alias+`"`)
 		return page[i : i+strings.Index(page[i:], "</template>")]
 	}
-	for alias, extra := range map[string]string{"alpha": ">Detect</button>", "beta": `href="/admin/upstreams/beta/logs"`} {
-		d := dlg(alias)
-		acts := d[:strings.Index(d, "<h4>")]
-		for _, w := range []string{">Copy URL</button>", `href="/admin/upstreams/` + alias + `/test"`, `href="/admin/upstreams/` + alias + `/edit"`, `action="/admin/upstreams/` + alias + `/delete"`, extra} {
-			if !strings.Contains(acts, w) {
-				t.Errorf("the %s dialog lacks %q among its actions", alias, w)
-			}
+	d := dlg("alpha")
+	acts := d[:strings.Index(d, "<h4>")]
+	for _, w := range []string{">Copy URL</button>", `href="/admin/upstreams/alpha/test"`, `href="/admin/upstreams/alpha/edit"`, `action="/admin/upstreams/alpha/delete"`, ">Detect</button>"} {
+		if !strings.Contains(acts, w) {
+			t.Errorf("the alpha dialog lacks %q among its actions", w)
 		}
+	}
+	d = dlg("beta")
+	acts = d[:strings.Index(d, "<h4>")]
+	for _, w := range []string{">Copy URL</button>", `href="/admin/upstreams/beta/test"`, `href="/admin/upstreams/beta/edit"`, `action="/admin/upstreams/beta/delete"`} {
+		if !strings.Contains(acts, w) {
+			t.Errorf("the beta dialog lacks %q among its actions", w)
+		}
+	}
+	if strings.Contains(acts, ">Process</a>") || strings.Contains(acts, "/beta/logs") {
+		t.Error("the dialog must not offer a separate Process action")
+	}
+	if !strings.Contains(row("beta"), `href="/admin/upstreams/beta/logs"`) || !strings.Contains(row("beta"), ">stopped</a>") {
+		t.Error("the status pill must link to the process page")
 	}
 }
 

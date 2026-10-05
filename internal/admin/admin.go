@@ -98,9 +98,11 @@ var funcs = template.FuncMap{
 	"pairRow": func(l pairList, r pair, removable bool) pairRowData {
 		return pairRowData{NameKey: l.NameKey, ValueKey: l.ValueKey, SecretKey: l.SecretKey, NamePH: l.NamePH, ValuePH: l.ValuePH, Label: l.Label, Row: r, Removable: removable}
 	},
-	"pair":      func() pair { return pair{} },
-	"dlg":       func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
-	"trydlg":    func(id, title, name, alias, csrf string) tryDlg { return tryDlg{ID: id, Title: title, Name: name, Alias: alias, CSRF: csrf} },
+	"pair": func() pair { return pair{} },
+	"dlg":  func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
+	"trydlg": func(id, title, name, alias, csrf string) tryDlg {
+		return tryDlg{ID: id, Title: title, Name: name, Alias: alias, CSRF: csrf}
+	},
 	"infodlg":   func(id, title string) dialogHead { return dialogHead{ID: id, Title: title, Info: true} },
 	"filterBox": func(table, label string) filterBoxData { return filterBoxData{Table: table, Label: label} },
 	"plural":    plural,
@@ -687,6 +689,7 @@ type procView struct {
 	Class string // pill class
 	Text  string // pill label: the state word only
 	Tip   string // hover text: pid, uptime, restarts, last error
+	Href  string // process page, when the pill is the way there; empty on that page itself
 	Upd   updView
 }
 
@@ -1035,6 +1038,7 @@ func (a *Admin) view(u mcp.Upstream) upstreamView {
 			pv.Class, pv.Text = "off", "unavailable"
 		}
 		pv.Tip = procTip(pi)
+		pv.Href = "/admin/upstreams/" + u.Alias + "/logs"
 		pv.Upd = updViewOf(pi.Update)
 		v.Proc = pv
 	}

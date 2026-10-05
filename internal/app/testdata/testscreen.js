@@ -11,13 +11,14 @@ const ok = (c, m) => { if (!c) bad.push(m); };
     await pg.goto(url + "/admin/upstreams/fake/test");
     const info = await pg.evaluate(() => {
       const top = e => e.getBoundingClientRect().top;
-      const pill = document.querySelector(".pill.ok"), act = [...document.querySelectorAll("a.act,a.btn")].find(a => a.textContent.trim() === "Test again"), table = document.querySelector("#tools-table");
+      const pill = document.querySelector(".pill.ok"), table = document.querySelector("#tools-table");
       const rows = [...table.querySelectorAll("tr[data-filter-row]")];
       const sums = rows.map(r => r.querySelector("summary")).filter(Boolean);
-      return { pill: pill && pill.textContent, order: pill && top(pill) < top(act) && top(act) < top(table), rows: rows.length,
+      const extras = [...document.querySelectorAll("a")].map(a => a.textContent.trim()).filter(t => t === "Test again" || t === "Back" || t === "Process");
+      return { pill: pill && pill.textContent, order: !!(pill && table && top(pill) < top(table)), extras, rows: rows.length,
         oneLine: sums.every(s => s.getBoundingClientRect().height < 50 && getComputedStyle(s).whiteSpace === "nowrap"), overflowing: sums.some(s => s.scrollWidth > s.clientWidth) };
     });
-    ok(/^OK · 3 tools · \d+(\.\d)? m?s$/.test(info.pill) && info.order && info.rows === 3, w + ": summary, then actions, then tools " + JSON.stringify(info));
+    ok(/^OK · 3 tools · \d+(\.\d)? m?s$/.test(info.pill) && info.order && info.rows === 3 && info.extras.length === 0, w + ": summary, then tools, no Back or Test again " + JSON.stringify(info));
     ok(info.oneLine && (w > 400 || info.overflowing), w + ": descriptions are one line, the long one is clipped " + JSON.stringify(info));
     // opening a description shows all of it
     const h = await pg.evaluate(() => { const d = document.querySelector("details.desc.long") || [...document.querySelectorAll("details.desc")].find(x => x.textContent.includes("sentence")); const before = d.getBoundingClientRect().height; d.open = true; return { before, after: d.getBoundingClientRect().height, more: d.querySelector("p") && d.querySelector("p").getBoundingClientRect().height > 0 }; });

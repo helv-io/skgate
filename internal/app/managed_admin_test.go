@@ -197,8 +197,16 @@ func TestAdminManagedProcessActionsAndLogsPage(t *testing.T) {
 	}
 	waitState("stopped")
 	_, list := br.get("/admin/upstreams")
-	if !pillRE("off", "stopped").MatchString(list) {
-		t.Fatal("list must show the stopped pill")
+	if !regexp.MustCompile(`<a class="pill off" href="/admin/upstreams/tools/logs" title="[^"]*">stopped</a>`).MatchString(list) {
+		t.Fatal("list must show the stopped pill as a link to the process page")
+	}
+	if strings.Contains(list, ">Process</a>") {
+		t.Fatal("the list must not have a separate Process button")
+	}
+	// the pill is a GET of the process page: it must not start a stopped process
+	br.get("/admin/upstreams/tools/logs")
+	if st := a.MCP.Managed.Lookup("tools").Status(); st.State != "stopped" {
+		t.Fatalf("opening the process page started the process: %s", st.State)
 	}
 	if m := act("start"); !strings.Contains(*m, "start requested") {
 		t.Fatal(*m)
@@ -262,6 +270,14 @@ func TestAdminManagedTestButtonAndStderrOnLogsPage(t *testing.T) {
 	}
 	if strings.Contains(page, "Trailing slash") || strings.Contains(page, "HTTP status") {
 		t.Fatal("HTTP-only rows must not appear for managed upstreams")
+	}
+	for _, gone := range []string{">Back</a>", ">Test again</a>", ">Process</a>"} {
+		if strings.Contains(page, gone) {
+			t.Errorf("test page still has %s", gone)
+		}
+	}
+	if !regexp.MustCompile(`<a class="pill ok" href="/admin/upstreams/tools/logs" title="[^"]*">running</a>`).MatchString(page) {
+		t.Fatal("the running pill must link to the process page")
 	}
 	p := a.MCP.Managed.Lookup("tools")
 	p.Call(t.Context(), "tools/call", map[string]any{"name": "log"})
@@ -374,9 +390,12 @@ func TestProcessStatusIsAPillWithDetailsInTheTooltip(t *testing.T) {
 	pid := a.MCP.Managed.Lookup("tools").Status().PID
 	_, list := br.get("/admin/upstreams")
 	_, logs := br.get("/admin/upstreams/tools/logs")
-	tip := regexp.MustCompile(`<span class="pill ok" title="([^"]*)">running</span>`)
+	tips := map[string]*regexp.Regexp{
+		"list":    regexp.MustCompile(`<a class="pill ok" href="/admin/upstreams/tools/logs" title="([^"]*)">running</a>`),
+		"process": regexp.MustCompile(`<span class="pill ok" title="([^"]*)">running</span>`),
+	}
 	for name, page := range map[string]string{"list": list, "process": logs} {
-		m := tip.FindStringSubmatch(page)
+		m := tips[name].FindStringSubmatch(page)
 		if m == nil {
 			t.Fatalf("%s: no running pill", name)
 		}
@@ -400,7 +419,7 @@ func TestProcessStatusIsAPillWithDetailsInTheTooltip(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	_, list = br.get("/admin/upstreams")
-	m := regexp.MustCompile(`<span class="pill bad" title="([^"]*)">failed</span>`).FindStringSubmatch(list)
+	m := regexp.MustCompile(`<a class="pill bad" href="/admin/upstreams/broken/logs" title="([^"]*)">failed</a>`).FindStringSubmatch(list)
 	if m == nil || !strings.Contains(m[1], "last error") || !strings.Contains(m[1], "no such file") {
 		t.Fatalf("failed pill: %v", m)
 	}
