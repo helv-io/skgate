@@ -92,12 +92,14 @@
 {{/* modal: the one dialog of the page. Confirmation: any form with data-confirm="text" opens it on submit; the
    title and the confirm label are the submit button's label, and a button with class "danger" makes it
    destructive. Optional: data-confirm-title, data-confirm-ok. Content: a button with data-dialog-open="#id"
-   copies <template data-dialog-content id="id" data-title="..."> (see dialog_content) into it. Wired in app.js. */}}
+   copies <template data-dialog-content id="id" data-title="..."> (see dialog_content) into it. Wired in app.js.
+   Layout for every content dialog: Close is top-right and never saves; the primary action is bottom-left
+   (class "row", left-aligned). */}}
 {{define "modal"}}<dialog class="modal" data-modal aria-labelledby="modal-title" aria-describedby="modal-text">
 <div class="dialog-head"><h3 id="modal-title" data-modal-title></h3><button type="button" class="act small" data-modal-close hidden>Close</button></div>
 <p id="modal-text" data-modal-text></p>
 <div class="dialog-body" data-modal-body hidden></div>
-<div class="actions" data-modal-actions><button type="button" class="act" data-modal-cancel>Cancel</button><button type="button" class="act" data-modal-ok>Confirm</button></div>
+<div class="actions" data-modal-actions><button type="button" class="act" data-modal-ok>Confirm</button><button type="button" class="act" data-modal-cancel>Cancel</button></div>
 </dialog>{{end}}
 
 {{/* dialog_content: content shown in the shared modal. Takes a dialogHead (id, title); close it with dialog_end.
@@ -132,3 +134,23 @@
    it. Without, it is plain text; app.js gives it the dotted underline and the click only while the line is cut short
    (opening shows the whole line). An underline appears only where a click does something. Feeds on mcp.ToolInfo. */}}
 {{define "tooldesc"}}{{if .More}}<details class="desc"><summary>{{.Desc}}</summary><p>{{.More}}</p></details>{{else}}<span class="desc-line" data-desc-line{{if gt (len .Desc) 40}} title="{{.Desc}}"{{end}}>{{.Desc}}</span>{{end}}{{end}}
+
+{{/* tool_try_dialog: the shared tool tester (OpenAPI tools page and the MCP Test page). Takes a tryDlg. */}}
+{{define "tool_try_dialog"}}{{template "dialog_content" (dlg .ID .Title)}}
+<div data-try data-name="{{.Name}}" data-info-url="/admin/upstreams/{{.Alias}}/tools/try/info" data-run-url="/admin/upstreams/{{.Alias}}/tools/try/run" data-csrf="{{.CSRF}}">
+<div data-try-edit>
+<p class="muted" data-try-desc></p>
+<div class="form" data-try-form></div>
+<div class="field" data-try-rawbox hidden><label>Arguments as JSON<textarea class="mono" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" data-try-raw></textarea></label></div>
+<p class="bad" data-try-err role="alert" hidden></p>
+<details><summary class="muted">Input schema</summary><pre class="try-out" data-try-schema></pre></details>
+<p class="muted">Run calls the upstream for real.</p>
+<div class="row"><button type="button" class="btn" data-try-run disabled>Run</button> <button type="button" class="act" data-try-mode>Edit as JSON</button></div>
+</div>
+<div data-try-result hidden>
+<div class="row" data-try-pill>{{template "pill" (pill "off" "" "")}}</div>
+<pre class="try-out" data-try-out aria-live="polite"></pre>
+<div class="row"><button type="button" class="act" data-try-back>Edit inputs</button></div>
+</div>
+</div>
+{{template "dialog_end"}}{{end}}

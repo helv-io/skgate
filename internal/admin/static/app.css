@@ -230,7 +230,7 @@ textarea.code-src{display:none}
 .modal::backdrop{background:#000a}
 .modal h3{margin:0;font-size:14px;font-weight:600}
 .modal>p{margin:0 0 14px;color:var(--dim);overflow-wrap:anywhere}
-.modal .actions[data-modal-actions]{justify-content:flex-end}
+.modal .actions[data-modal-actions]{justify-content:flex-start}
 .act.confirm-danger{color:var(--bad);border-color:var(--bad-line);background:var(--bad-bg)}
 .act.confirm-danger:hover{color:#fff;border-color:var(--bad)}
 

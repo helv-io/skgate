@@ -65,7 +65,7 @@ const ok = (c, m) => { if (!c) bad.push(m); };
 
   // Close
   await pg.evaluate(() => { document.querySelector("dialog[open] [data-try-edit]").hidden = true; document.querySelector("dialog[open] [data-try-result]").hidden = false; });
-  await pg.click("dialog[open] [data-try-close]");
+  await pg.click("dialog[open] [data-modal-close]");
   ok(await pg.evaluate(() => !document.querySelector("dialog[open]")), "Close closes the dialog");
 
   // a phone: the form fits and Run is reachable

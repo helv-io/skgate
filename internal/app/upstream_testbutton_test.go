@@ -36,6 +36,11 @@ func TestUpstreamTestButton(t *testing.T) {
 			!strings.Contains(body, "200") || !strings.Contains(body, "OK \u00b7 1 tool \u00b7 ") || !strings.Contains(body, "Latency") || strings.Contains(body, "Trailing slash") {
 			t.Fatalf("test page: %d\n%s", r.StatusCode, body)
 		}
+		for _, want := range []string{`data-dialog-open="#try-0">Test</button>`, `id="try-0"`, "data-try-run", "Run calls the upstream for real.", "/admin/upstreams/fake/tools/try/run"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("test page lacks the tool tester %q", want)
+			}
+		}
 		// the summary, then the buttons, then the tools: the actions never wait below a long list
 		i, j, k := strings.Index(body, "OK \u00b7 1 tool"), strings.Index(body, `>Test again</a>`), strings.Index(body, "<h2>Tools")
 		if !(i > 0 && i < j && j < k) || !strings.Contains(body, `data-filter="#tools-table"`) {

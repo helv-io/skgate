@@ -14,31 +14,29 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const state = () => pg.evaluate(() => ({
     n: Number(document.querySelector("[data-toolcount-n]").textContent),
     cls: document.querySelector("[data-toolcount]").className,
-    callout: document.querySelector("[data-toolcallout]").className,
-    word: document.querySelector("[data-toolcount-level]").textContent,
     toasts: [...document.querySelectorAll(".toast")].map(t => t.className + "|" + t.textContent),
     groups: Object.fromEntries([...document.querySelectorAll("[data-verbgroup]")].map(g => [g.dataset.verbgroup, g.querySelector("[data-verb-count]").textContent])),
   }));
   let s = await state();
-  ok(s.n === 0 && s.cls === "toolcount ok" && s.callout === "callout ok", "starts at zero and green: " + JSON.stringify(s));
+  ok(s.n === 0 && s.cls === "toolcount ok", "starts at zero and green: " + JSON.stringify(s));
   ok(s.toasts.length === 0, "no toast on load: " + JSON.stringify(s.toasts));
 
-  // switch a whole read verb on: 20 tools is amber, with a toast for the group and one for the level
+  // switch a whole read verb on: 20 tools is amber; a toast names the verb, not the level
   await pg.click('[data-verbgroup="GET"] [data-verb-toggle]');
   s = await state();
-  ok(s.n === 20 && s.cls === "toolcount warn" && s.callout === "callout warn", "20 tools is amber: " + JSON.stringify(s));
+  ok(s.n === 20 && s.cls === "toolcount warn", "20 tools is amber: " + JSON.stringify(s));
   ok(s.groups.GET === "20 of 20 on", "group count follows: " + JSON.stringify(s.groups));
-  ok(s.toasts.some(t => /^toast warn\|20 tools is a lot/.test(t)), "amber toast on crossing: " + JSON.stringify(s.toasts));
+  ok(!s.toasts.some(t => /a lot|too many|good number/.test(t)), "no judgmental level toast: " + JSON.stringify(s.toasts));
   ok(s.toasts.some(t => /20 GET tools on/.test(t)), "toast for the whole verb: " + JSON.stringify(s.toasts));
   const nonblocking = await pg.evaluate(() => !document.querySelector("[data-toolpick] .toolcount button.btn").disabled);
   ok(nonblocking, "Save stays enabled at amber");
 
-  // a write verb on takes it past 30: red, and a red toast
+  // a write verb on takes it past 30: red; still no judgmental words
   await pg.click('[data-verbgroup="DELETE"] summary');
   await pg.click('[data-verbgroup="DELETE"] [data-verb-toggle]');
   s = await state();
-  ok(s.n === 40 && s.cls === "toolcount bad" && s.callout === "callout bad" && s.word === "too many", "40 tools is red: " + JSON.stringify(s));
-  ok(s.toasts.some(t => /^toast bad\|40 tools is too many/.test(t)), "red toast on crossing: " + JSON.stringify(s.toasts));
+  ok(s.n === 40 && s.cls === "toolcount bad", "40 tools is red: " + JSON.stringify(s));
+  ok(!s.toasts.some(t => /a lot|too many|good number/.test(t)), "no judgmental level toast at red: " + JSON.stringify(s.toasts));
   ok(s.toasts.some(t => /^toast warn\|20 DELETE tools on/.test(t)), "a write verb switched on warns: " + JSON.stringify(s.toasts));
   ok(await pg.evaluate(() => !document.querySelector("[data-toolpick] .toolcount button.btn").disabled), "Save stays enabled at red");
 

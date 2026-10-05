@@ -178,14 +178,20 @@ func TestRefusedAdminActionIsLogged(t *testing.T) {
 	}
 }
 
-// In the shared model picker the load time comes first and the Reload button follows, in every dialog that uses it.
-func TestModelPickerShowsTimeBeforeReload(t *testing.T) {
+// In the shared model picker Reload sits beside the model dropdown; the loaded-count line is below, before Save.
+func TestModelPickerReloadBesideModel(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	for _, path := range []string{"/admin", "/admin/upstreams/new"} {
 		_, page := r.br.get(path)
-		i, j := strings.Index(page, "2 models, loaded "), strings.Index(page, "Reload models")
-		if i < 0 || j < 0 || i > j {
-			t.Errorf("%s: time at %d, button at %d", path, i, j)
+		m := strings.Index(page, `<select name="model"`)
+		if m < 0 {
+			t.Errorf("%s: no model select", path)
+			continue
+		}
+		rest := page[m:]
+		reload, loaded, save := strings.Index(rest, "Reload models"), strings.Index(rest, "2 models, loaded "), strings.Index(rest, `class="row"><button class="btn">Save</button>`)
+		if reload < 0 || loaded < reload || save < loaded {
+			t.Errorf("%s: reload %d, loaded %d, save %d (from model select)", path, reload, loaded, save)
 		}
 	}
 }
@@ -238,15 +244,15 @@ func TestSuggestStreamsStages(t *testing.T) {
 	}
 }
 
-// Both model dialogs carry the Reasoning dropdown directly under the model dropdown (same form, so Save covers
-// both), defaulting to "auto" (the model decides). It is the only reasoning setting: there is none for chat.
+// Both model dialogs carry Reload beside the model dropdown and Reasoning under it (same form, so Save covers
+// model and reasoning), defaulting to "auto" (the model decides). It is the only reasoning setting: there is none for chat.
 func TestReasoningSelectorInModelDialogs(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	for _, path := range []string{"/admin", "/admin/upstreams/new"} {
 		_, page := r.br.get(path)
-		m, e, reload := strings.Index(page, `<select name="model"`), strings.Index(page, `<select name="effort"`), strings.Index(page, "Reload models")
-		if m < 0 || e < m || reload < e {
-			t.Errorf("%s: model select at %d, reasoning at %d, reload at %d", path, m, e, reload)
+		m, reload, e := strings.Index(page, `<select name="model"`), strings.Index(page, "Reload models"), strings.Index(page, `<select name="effort"`)
+		if m < 0 || reload < m || e < reload {
+			t.Errorf("%s: model select at %d, reload at %d, reasoning at %d", path, m, reload, e)
 		}
 		if !strings.Contains(page, `<option value="auto" selected>Reasoning: auto (model decides)</option>`) || !strings.Contains(page, "Reasoning: low") {
 			t.Errorf("%s: reasoning options missing or not defaulting to auto", path)

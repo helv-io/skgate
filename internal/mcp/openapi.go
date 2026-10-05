@@ -25,10 +25,10 @@ import (
 // IsOpenAPI reports whether this upstream is an OpenAPI description served by skgate.
 func (u Upstream) IsOpenAPI() bool { return u.Kind == KindOpenAPI }
 
-// Tool counts above which models do worse: the admin UI colors by these and never blocks anything.
+// Tool counts the admin UI colors by (green / amber / red). Nothing is ever blocked.
 const (
-	ToolsGood = 15 // up to here: fine
-	ToolsWarn = 30 // up to here: a lot; above: too many
+	ToolsGood = 15 // green up to here
+	ToolsWarn = 30 // amber up to here; red above
 )
 
 // ToolLevel names the level of a tool count: ok, warn or bad.
@@ -468,9 +468,6 @@ func (s *Server) testOpenAPIState(ctx context.Context, up Upstream, st *OAState)
 		tr.Tools = append(tr.Tools, ToolInfo{Name: clipText(t.Name, 100), Desc: firstLine(t.Description), More: restAfterFirstLine(t.Description)})
 	}
 	tr.Server = clipText(st.Doc.Title(), 80)
-	if n := len(st.Tools); n > ToolsWarn {
-		tr.Warnings = append(tr.Warnings, fmt.Sprintf("%d tools is too many", n))
-	}
 	if n := len(st.Tools); n == 0 {
 		tr.Warnings = append(tr.Warnings, "no tools on")
 	}
