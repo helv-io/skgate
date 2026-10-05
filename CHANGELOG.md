@@ -6,6 +6,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ## [Unreleased]
 
+## [0.21.5] - 2026-10-05
+
+### Changed
+
+- Split long README and docs notes into short paragraphs (#4)
+
 ## [0.21.4] - 2026-10-05
 
 ### Changed
@@ -545,7 +551,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.21.4...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.21.5...HEAD
+[0.21.5]: https://github.com/helv-io/skgate/compare/v0.21.4...v0.21.5
 [0.21.4]: https://github.com/helv-io/skgate/compare/v0.21.3...v0.21.4
 [0.21.3]: https://github.com/helv-io/skgate/compare/v0.21.2...v0.21.3
 [0.21.2]: https://github.com/helv-io/skgate/compare/v0.21.1...v0.21.2
