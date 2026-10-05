@@ -2,5 +2,6 @@
 {{if .Form.New}}<h2>Add upstream</h2>{{else}}<h2>Edit upstream <code>{{.U.Alias}}</code></h2>{{end}}<div class="card">
 <form method="post" action="{{if .Form.New}}/admin/upstreams/save{{else}}/admin/upstreams/{{.U.Alias}}/save{{end}}" class="form" data-upstream-form><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="mode" value="{{if .Form.New}}new{{else}}edit{{end}}">{{if not .Form.New}}<input type="hidden" name="alias" value="{{.U.Alias}}">{{end}}
 {{template "upstream_fields" .Form}}
-<div class="row">{{if .Form.New}}{{template "gated_submit" "Add"}}{{else}}{{template "gated_submit" "Save"}}{{end}} <a class="act" href="/admin/upstreams">Cancel</a></div></form></div>
+<div class="row">{{if .Form.New}}{{template "gated_submit" "Add"}}{{else}}{{template "gated_submit" "Save"}}{{end}} {{if or .Form.New (and .Form.OA .Form.OA.Check)}}<span data-kind="openapi"><button type="button" class="act" data-oa-skip-btn>Skip check</button></span>{{end}} <a class="act" href="/admin/upstreams">Cancel</a></div>
+{{if or .Form.New (and .Form.OA .Form.OA.Check)}}<div data-kind="openapi"><p class="muted" data-oa-skip-btn>{{if .Form.New}}Skip check adds it without calling the server.{{else}}Skip check saves it without calling the server.{{end}}</p></div>{{end}}</form></div>
 {{end}}{{end}}

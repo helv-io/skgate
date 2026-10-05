@@ -132,7 +132,7 @@ func newSearch(ctx context.Context, start *url.URL) *search {
 	s := &search{ctx: ctx, start: start, host: strings.ToLower(start.Hostname()), tried: map[string]bool{}}
 	s.client = &http.Client{Timeout: probeTimeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) >= maxRedirects {
-			return errors.New("too many redirects")
+			return errors.New("the address keeps redirecting")
 		}
 		if strings.ToLower(req.URL.Hostname()) != s.host || (via[0].URL.Scheme == "https" && req.URL.Scheme != "https") {
 			return http.ErrUseLastResponse // another host never gets asked

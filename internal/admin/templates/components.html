@@ -116,7 +116,7 @@
 {{/* brandmark: the product mark above a Solo page's card. */}}
 {{define "brandmark"}}<div class="brandmark"><img src="/favicon.svg" alt="" width="20" height="20">skgate</div>{{end}}
 
-{{/* oa_check_result: the output area of "Check description" on the OpenAPI form. app.js fills it: what the description holds, the problems found, and (with the assistant) a proposed repair as a diff that the admin approves before it replaces the pasted text. */}}
+{{/* oa_check_result: the output area of "Check" on the OpenAPI form. app.js fills it: what the description holds, the problems found, and (with the assistant) a proposed repair as a diff that the admin approves before it replaces the pasted text. */}}
 {{define "oa_check_result"}}<div class="oa-out" data-oa-out aria-live="polite" hidden>
 <div class="row"><span class="pill off" data-oa-pill></span></div>
 <p class="muted" data-oa-summary></p>

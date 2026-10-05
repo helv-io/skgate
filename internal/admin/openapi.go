@@ -44,7 +44,7 @@ type oaForm struct {
 	AI      bool   // the assistant can run
 	AIWhy   string
 	// Check is false when the stored description has no operation that can check the connection: the form then
-	// says nothing about the check. Before a description is known it is true.
+	// offers no way to skip it. Before a description is known it is true.
 	Check bool
 }
 
@@ -218,7 +218,8 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 		return
 	}
 	// Test first: the server must answer and take the key before anything is stored. A failure returns to the
-	// same form, which keeps what was entered. "Skip check" saves without it. An edit asks only when what it
+	// same form, which keeps what was entered. "Add without checking" / "Save without checking" posts oa_skip_check=1
+	// and saves without calling the server. An edit asks only when what it
 	// reaches the server with changed: the key, the base URL, the description or being switched on.
 	changed := !edit || fresh || u.URL != old.URL || r.PostFormValue("oa_auth_value") != "" ||
 		u.AuthKind != old.AuthKind || u.AuthName != old.AuthName || (!old.Enabled && u.Enabled)
@@ -257,9 +258,15 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 	_ = a.DB.SetSetting(settingLastInclude, map[bool]string{true: "1", false: "0"}[u.IncludeInMCP])
 	n := a.MCP.Upstreams.OpenAPIToolCount(u.Alias)
 	if !edit || fresh {
-		msg := fmt.Sprintf("%s saved: %d %s exposed. Choose the tools it offers", u.Alias, n, plural(n, "tool", "tools"))
+		msg := u.Alias + " saved"
+		if !edit {
+			msg = u.Alias + " added"
+		}
+		if n == 0 {
+			msg += ", pick its tools"
+		}
 		if issues := len(doc.Validate()); issues > 0 {
-			msg += fmt.Sprintf(". The description has %d %s; Edit checks it", issues, plural(issues, "problem", "problems"))
+			msg += fmt.Sprintf(". %d %s in the description, Edit shows them", issues, plural(issues, "problem", "problems"))
 		}
 		a.back(w, r, "/admin/upstreams/"+u.Alias+"/tools", msg+queryNote(tested), "")
 		return

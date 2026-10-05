@@ -55,9 +55,9 @@ func ParseStored(raw []byte) (*Doc, error) {
 	case strings.HasPrefix(str(m["swagger"]), "2"):
 		d.Raw, d.Source = convertSwagger(m), "swagger 2"
 	case v != "":
-		return nil, fmt.Errorf("OpenAPI %q is not supported, use 3.x or Swagger 2", v)
+		return nil, fmt.Errorf("version %s is not supported, use 3.x or Swagger 2", v)
 	default:
-		return nil, errors.New("not an OpenAPI description, no \"openapi\" or \"swagger\" field")
+		return nil, errors.New("not an OpenAPI description")
 	}
 	return d, nil
 }

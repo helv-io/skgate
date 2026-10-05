@@ -14,7 +14,7 @@ An OpenAPI upstream turns a REST API into an MCP server. You give skgate the API
 | Or paste the description | JSON, YAML or TOML. Pasted text wins over the address. A description of more than a few MB is easier to give as an address. |
 | Key | The only credential field. Paste it as it is; skgate adds `Bearer` or whatever the API wants (see [The key](#the-key)). Empty means an open API. |
 | Advanced | Closed by default. **Send the key as** forces a way: a header name such as `X-Custom-Key` or `Authorization`, `?name` for a query parameter, `bearer`, `basic` (the key is `user:password`) or `none`. **Base URL** overrides where the calls go. |
-| Skip check | Off. Saves without the connection check (see [The connection check](#the-connection-check)). |
+| Skip check | A button beside **Add** and **Save**, with a line saying what it does. It adds or saves without calling the server at all (see [The connection check](#the-connection-check)). |
 
 The base URL is the server named by the description (variables replaced by their defaults). When the description names none, or only a relative one, it is the address the description was read from: scheme, host and port. The Advanced field only overrides this.
 
@@ -55,7 +55,7 @@ When the description says nothing and the server answers 401 or 403, on **Test**
 | 404 | Not saved: "not found, check the base URL". |
 | Another status, no answer or a timeout | Not saved, with a short error. |
 
-A failed check returns to the same form with every field kept. **Skip check** saves without asking. A description with no such GET shows no check line and is saved without one. An edit checks only when the key, the base URL, the description or the switch to enabled changed. **Test** uses the same call.
+A failed check returns to the same form with every field kept. **Skip check** is for when the server is down, behind a firewall that skgate cannot reach, or should not be called yet: it stores the upstream and never calls the server. A description with no such GET has no check, so it shows no Skip check button. If the check fails, the error says why and **Skip check** is still there. An edit checks only when the key, the base URL, the description or the switch to enabled changed. **Test** uses the same call.
 
 Upstreams saved before this kept their kind (bearer, header, query, basic) and behave exactly as before; their Advanced line shows it. The key is encrypted at rest, masked in the UI, and never sent to a model.
 
@@ -90,8 +90,8 @@ Crossing into a worse level raises a toast, and so does switching on a whole ver
 
 Both use the MCP helper model, the same setting as Suggest configuration, and are optional. Only titles, paths, parameter names and texts go to the model, never a credential.
 
-- **Check description** lists what is wrong: operations without an `operationId`, repeated ids, broken `$ref`s, invalid types, parameters without a name or location. A problem never stops an import.
-- **Repair** (with a helper model, when problems were found) proposes fixes as a before and after. **Apply** puts the repaired text in the paste box. Nothing is saved until you submit the form. Changes to servers and security are never accepted.
+- **Check** lists what is wrong: operations without an `operationId`, repeated ids, broken `$ref`s, invalid types, parameters without a name or location. A problem never stops an import.
+- **Repair** (with a helper model, when problems were found) proposes fixes as a before and after. **Apply** puts the repaired text in the paste box and checks it again. Nothing is saved until you submit the form. Changes to servers and security are never accepted.
 - **Suggest names** (tools page) fills a name and a one-line description for each tool that is on. You review them and Save.
 
 ## Update from the address
@@ -101,7 +101,7 @@ Updates are manual. Nothing polls the address, nothing refreshes by itself, and 
 On the tools page, **Update** reads the description again from its address. It is on only for an upstream that was added with an address. A pasted description has no address: the button is off, with "no address to update from" as its tooltip and as a line of text next to it.
 
 1. **Update** downloads the description again and, if the text is the same as last time, says "No changes" and stops.
-2. Otherwise the new description gets the same checks and repair as **Check description**. With no helper model the repair is skipped and the screen says so.
+2. Otherwise the new description gets the same checks and repair as **Check**. With no helper model the repair is skipped and the screen says so.
 3. A review screen shows the tools exposed now and after, the operations added, removed and changed, and what the repair fixed.
 4. **Confirm update** replaces the stored description. **Cancel** leaves everything as it was.
 
