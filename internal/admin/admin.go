@@ -100,6 +100,7 @@ var funcs = template.FuncMap{
 	},
 	"pair":      func() pair { return pair{} },
 	"dlg":       func(id, title string) dialogHead { return dialogHead{ID: id, Title: title} },
+	"trydlg":    func(id, title, name, alias, csrf string) tryDlg { return tryDlg{ID: id, Title: title, Name: name, Alias: alias, CSRF: csrf} },
 	"infodlg":   func(id, title string) dialogHead { return dialogHead{ID: id, Title: title, Info: true} },
 	"filterBox": func(table, label string) filterBoxData { return filterBoxData{Table: table, Label: label} },
 	"plural":    plural,
@@ -826,6 +827,10 @@ func (p pair) Masked() bool { return p.Mark == "1" }
 // dialogHead feeds the shared "dialog_open" component.
 // Info marks a dialog that only shows information: it has no form, button or field to change, so a click on the
 // backdrop may close it. Every other dialog ignores the backdrop (Escape and its buttons close it).
+type tryDlg struct {
+	ID, Title, Name, Alias, CSRF string
+}
+
 type dialogHead struct {
 	ID, Title string
 	Info      bool

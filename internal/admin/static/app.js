@@ -1444,20 +1444,17 @@ function frontierHint(form) {
 })();
 
 // Tool picker (the tools page of an OpenAPI upstream). The counter follows the ticked tools live and is colored by
-// level (good, a lot, too many); crossing into a worse level raises a toast, and so does switching on a whole verb.
+// level; the color alone signals the level, with no judgmental words. Switching on a whole verb raises a toast.
 // Nothing is ever blocked. The verb switches act on the tools the filter shows. The filter narrows the rows by their
-// text and opens the groups that have a match. "Suggest names" opens a choice (selected tools or all), asks the
-// helper for names and one-line descriptions, and fills the fields; the admin reviews them and saves. While it runs
-// the trigger and the choice stay off so it cannot be sent twice.
+// text and opens the groups that have a match. "Suggest names and selection" asks the helper once for every tool:
+// it fills names and descriptions and ticks a small core set. While it runs the button stays off.
 (function () {
   var root = document.querySelector("[data-toolpick]");
   if (!root) return;
   var good = Number(root.getAttribute("data-good")), warn = Number(root.getAttribute("data-warn"));
-  var counter = root.querySelector("[data-toolcount]"), callout = root.querySelector("[data-toolcallout]");
-  var nEl = root.querySelector("[data-toolcount-n]"), word = root.querySelector("[data-toolcount-word]"), lvl = root.querySelector("[data-toolcount-level]");
+  var counter = root.querySelector("[data-toolcount]");
+  var nEl = root.querySelector("[data-toolcount-n]"), word = root.querySelector("[data-toolcount-word]");
   var filter = root.querySelector("[data-toolfilter]"), fcount = root.querySelector("[data-toolfilter-count]"), fempty = root.querySelector("[data-toolfilter-empty]");
-  var rank = { ok: 0, warn: 1, bad: 2 };
-  var words = { ok: "a good number", warn: "a lot", bad: "too many" };
   function level(n) { return n <= good ? "ok" : n <= warn ? "warn" : "bad"; }
   function boxes(scope) { return (scope || root).querySelectorAll("[data-tool-on]:not(:disabled)"); }
   function count() {
@@ -1465,14 +1462,11 @@ function frontierHint(form) {
     Array.prototype.forEach.call(boxes(), function (b) { if (b.checked) n++; });
     return n;
   }
-  var current = level(count());
   function render() {
     var n = count(), l = level(n);
     nEl.textContent = n;
     word.textContent = n === 1 ? "tool exposed" : "tools exposed";
-    lvl.textContent = words[l];
     counter.className = "toolcount " + l;
-    callout.className = "callout " + l;
     Array.prototype.forEach.call(root.querySelectorAll("[data-verbgroup]"), function (g) {
       var all = boxes(g), on = 0;
       Array.prototype.forEach.call(all, function (b) { if (b.checked) on++; });
@@ -1482,10 +1476,6 @@ function frontierHint(form) {
       t.indeterminate = on > 0 && on < all.length;
       t.disabled = all.length === 0;
     });
-    if (rank[l] > rank[current]) {
-      window.skgateToast(l === "bad" ? "bad" : "warn", n + " tools is " + words[l]);
-    }
-    current = l;
   }
   root.addEventListener("change", function (e) {
     var t = e.target;
@@ -1523,73 +1513,49 @@ function frontierHint(form) {
   filter.addEventListener("keydown", function (e) { if (e.key === "Enter") e.preventDefault(); });
   var describe = root.querySelector("[data-tool-describe]");
   var busy = false;
-  function selectedKeys() {
-    var keys = [];
-    Array.prototype.forEach.call(boxes(), function (b) { if (b.checked) keys.push(b.value); });
-    return keys;
-  }
   function allKeys() {
     var keys = [];
     Array.prototype.forEach.call(boxes(), function (b) { keys.push(b.value); });
     return keys;
   }
-  function modalRoot() {
-    var body = document.querySelector("[data-modal-body]");
-    return body && body.querySelector("[data-suggest-selected]") ? body : null;
+  function setBusy(on) {
+    busy = on;
+    if (describe && !describe.hasAttribute("title")) describe.disabled = on;
   }
-  function syncSuggest() {
-    var m = modalRoot(), n = selectedKeys().length, total = allKeys().length;
-    if (describe && describe.hasAttribute("data-dialog-open")) describe.disabled = busy;
-    if (!m) return;
-    var sel = m.querySelector("[data-suggest-selected]");
-    sel.textContent = n > 0 ? "Selected " + n : "Selected";
-    sel.disabled = busy || n === 0;
-    m.querySelector("[data-suggest-all]").disabled = busy || total === 0;
-    m.querySelector("[data-suggest-cancel]").disabled = busy;
-    var wait = m.querySelector("[data-suggest-wait]");
-    if (wait) wait.hidden = !busy;
-  }
-  function closeSuggest() {
-    var c = document.querySelector("[data-modal-close]");
-    if (c) c.click();
-  }
-  function runSuggest(keys) {
-    if (busy || !keys.length) return;
-    busy = true;
-    syncSuggest();
+  if (describe) describe.addEventListener("click", function () {
+    if (describe.disabled || busy) return;
+    var keys = allKeys();
+    if (!keys.length) { window.skgateToast("bad", "no tools to name"); return; }
+    setBusy(true);
+    window.skgateToast("ok", "Suggesting");
     var body = new URLSearchParams();
     body.set("csrf", root.querySelector('input[name="csrf"]').value);
-    keys.forEach(function (k) { body.append("key", k); });
     fetch(root.getAttribute("data-suggest-url"), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: body })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j.error) { window.skgateToast("bad", j.error); return; }
-        var done = 0;
+        var on = {};
+        Array.prototype.forEach.call(j.on || [], function (k) { on[k] = true; });
+        var named = 0, selected = 0;
         Array.prototype.forEach.call(root.querySelectorAll("[data-tool]"), function (row) {
-          var s = j.tools && j.tools[row.getAttribute("data-key")];
-          if (!s) return;
-          if (s.name) row.querySelector("[data-tool-name]").value = s.name;
-          if (s.description) row.querySelector("[data-tool-desc]").value = s.description;
-          done++;
+          var key = row.getAttribute("data-key"), box = row.querySelector("[data-tool-on]");
+          var s = j.tools && j.tools[key];
+          if (s) {
+            if (s.name) row.querySelector("[data-tool-name]").value = s.name;
+            if (s.description) row.querySelector("[data-tool-desc]").value = s.description;
+            named++;
+          }
+          if (box && !box.disabled) {
+            box.checked = !!on[key];
+            if (box.checked) selected++;
+          }
         });
-        closeSuggest();
-        window.skgateToast("ok", "Names filled for " + done + " " + (done === 1 ? "tool" : "tools") + ". Review, then Save.");
+        render();
+        window.skgateToast("ok", "Filled " + named + " " + (named === 1 ? "name" : "names") + ", " + selected + " on");
       })
       .catch(function () { window.skgateToast("bad", "suggestion failed"); })
-      .then(function () { busy = false; syncSuggest(); });
-  }
-  if (describe) {
-    describe.addEventListener("click", function () { if (!describe.disabled) setTimeout(syncSuggest, 0); });
-    document.addEventListener("click", function (e) {
-      var t = e.target && e.target.closest ? e.target.closest("[data-suggest-selected], [data-suggest-all], [data-suggest-cancel]") : null;
-      if (!t || !modalRoot()) return;
-      if (t.hasAttribute("data-suggest-selected")) runSuggest(selectedKeys());
-      else if (t.hasAttribute("data-suggest-all")) runSuggest(allKeys());
-      else if (t.hasAttribute("data-suggest-cancel") && !busy) closeSuggest();
-    });
-  }
-  var _render = render;
-  render = function () { _render(); syncSuggest(); };
+      .then(function () { setBusy(false); });
+  });
   render();
 })();
 
@@ -1664,7 +1630,7 @@ function frontierHint(form) {
   });
 })();
 
-// Tool tester (the tools page of an OpenAPI upstream). A tool's Test button opens the shared dialog with a form made
+// Tool tester (OpenAPI tools page and the MCP Test page). A tool's Test button opens the shared dialog with a form made
 // from the tool's input schema; "Edit as JSON" shows the raw arguments. Run calls the upstream through the gateway
 // as the admin and the dialog then shows the answer, with a way back to the inputs. Nothing here is saved.
 (function () {
@@ -1832,10 +1798,6 @@ function frontierHint(form) {
         .then(function () { run.disabled = false; run.textContent = "Run"; });
     });
     q("back").addEventListener("click", function () { result.hidden = true; edit.hidden = false; });
-    q("close").addEventListener("click", function () {
-      var c = document.querySelector("[data-modal-close]");
-      if (c) c.click();
-    });
     post(root.getAttribute("data-info-url")).then(function (j) {
       if (j.error) { q("desc").textContent = j.error; return; }
       q("desc").textContent = sentence(j.description) || "";

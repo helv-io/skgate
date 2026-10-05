@@ -74,21 +74,11 @@ Operations are grouped by HTTP verb (GET, POST, PUT, PATCH, DELETE, then the res
 
 ### Many tools are a cost: the counter
 
-Fewer tools work better. Models pick worse tools, and get slower and costlier, the more they are offered.
-
-The tools page has a live counter that follows the switches; the upstream list shows each upstream's count and the Overview the total:
-
-| Tools | Color | |
-| --- | --- | --- |
-| up to 15 | green | a good number |
-| 16 to 30 | amber | a lot |
-| more than 30 | red | too many |
-
-Crossing into a worse level raises a toast, and so does switching on a whole verb group. **Nothing is ever blocked**: the counter and the notices inform you, and Save always works. The Overview page adds a row with the total of all enabled OpenAPI upstreams.
+The tools page has a live counter that follows the switches; the upstream list shows each upstream's count and the Overview the total. The count is colored (green up to 15, amber to 30, red above); the color alone is the signal, with no judgmental words. Switching on a whole verb group raises a toast. **Nothing is ever blocked**: Save always works. The Overview page adds a row with the total of all enabled OpenAPI upstreams.
 
 ## Test a tool
 
-On the tools page every tool that is on has a **Test** button. It opens a form made from the tool's input schema: a labelled field per argument (text, number, a checkbox for true or false, a list for fixed choices, a small JSON box for objects and lists), required ones marked "required", the description as one short line, and defaults filled in. **Edit as JSON** shows the raw arguments and back. **Run** calls the upstream for real, as the admin, through the same code a client's tool call uses (the same key, the same limits), and shows the answer as indented JSON or a plain error with the time it took. **Edit inputs** goes back with everything kept; **Close** leaves. Only tools that are on and saved can be tested, and nothing is stored by testing. It needs the admin session like every admin page.
+On the tools page every tool that is on has a **Test** button (the same control appears on a remote or managed upstream's Test page). It opens a form made from the tool's input schema: a labelled field per argument (text, number, a checkbox for true or false, a list for fixed choices, a small JSON box for objects and lists), required ones marked "required", the description as one short line, and defaults filled in. **Edit as JSON** shows the raw arguments and back. **Run** calls the upstream for real, as the admin, through the same code a client's tool call uses (the same key, the same limits), and shows the answer as indented JSON or a plain error with the time it took. **Edit inputs** goes back with everything kept; **Close** leaves. Only tools that are on and saved can be tested, and nothing is stored by testing. It needs the admin session like every admin page.
 
 ## Repair and names
 
@@ -96,7 +86,7 @@ Both use the MCP helper model, the same setting as Suggest configuration, and ar
 
 - **Check** lists what is wrong: operations without an `operationId`, repeated ids, broken `$ref`s, invalid types, parameters without a name or location. A problem never stops an import.
 - **Repair** (with a helper model, when problems were found) proposes fixes as a before and after. **Apply** puts the repaired text in the paste box and checks it again. Nothing is saved until you submit the form. Changes to servers and security are never accepted.
-- **Suggest names** (tools page) opens a choice: **Selected** (the tools that are on; off when none are) or **All**. It fills a name and a one-line description for each. You review them and Save. The button is grayed with the same reason and MCP helper model control as Suggest configuration when the helper cannot run. While it runs, the trigger and the choice stay off.
+- **Suggest names and selection** (tools page) names every tool and ticks a small core set (about 15, at most 30). You can switch more on, then Save. The button is grayed with the same reason and MCP helper model control as Suggest configuration when the helper cannot run. While it runs the button stays off.
 
 ## Update from the address
 

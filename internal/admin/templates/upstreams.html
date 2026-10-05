@@ -30,7 +30,6 @@
 <h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>
 {{range .Facts}}<tr><th>{{.Name}}</th><td>{{if .Code}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}</td></tr>{{end}}
-{{if .OA}}{{if ne .OA.Level "ok"}}<tr><th>too many tools</th><td class="{{.OA.Level}}">Fewer tools work better.</td></tr>{{end}}{{end}}
 {{if not .Managed}}<tr><th>outbound auth</th><td><span class="chip">{{.Effective}}{{if .AuthName}} <span class="mono">{{.AuthName}}</span>{{end}}{{if .Masked}} <span class="mono">{{.Masked}}</span>{{end}}</span>{{if and (eq .AuthKind "auto") .DetectedNote}}<br><span class="muted">{{.DetectedNote}}</span>{{end}}</td></tr>{{end}}
 <tr><th>client URL</th><td>{{if .Enabled}}{{template "copybox" (copyurl "the client URL" $.Public "/mcp/" .Alias)}}{{else}}<span class="muted">disabled</span>{{end}}</td></tr>
 </tbody></table></div>

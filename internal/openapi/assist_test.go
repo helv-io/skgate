@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"context"
+	"fmt"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -54,7 +55,7 @@ func TestDescribeValidatesAnswers(t *testing.T) {
 	 {"key":"GET /pets","name":"list pets!","description":"Lists  the pets\nnewest first."},
 	 {"key":"POST /pets","name":"list_pets","description":"Adds one."},
 	 {"key":"GET /nope","name":"x","description":"y"}]}`}}
-	res, err := (Assist{LLM: llm, Model: "m", Effort: "low"}).Describe(context.Background(), ops)
+	res, _, err := (Assist{LLM: llm, Model: "m", Effort: "low"}).Describe(context.Background(), ops)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,14 +73,36 @@ func TestDescribeValidatesAnswers(t *testing.T) {
 func TestAskRetriesWithoutEffortAndJSONMode(t *testing.T) {
 	d := mustParse(t, petJSON)
 	llm := &fakeLLM{replies: []string{"400", "400", `{"tools":[{"key":"GET /pets","name":"list_pets","description":"d"}]}`}}
-	if _, err := (Assist{LLM: llm, Model: "m", Effort: "high"}).Describe(context.Background(), d.Operations()[:1]); err != nil {
+	if _, _, err := (Assist{LLM: llm, Model: "m", Effort: "high"}).Describe(context.Background(), d.Operations()[:1]); err != nil {
 		t.Fatal(err)
 	}
 	if len(llm.bodies) != 3 || strings.Contains(llm.bodies[1], "reasoning_effort") || !strings.Contains(llm.bodies[1], "response_format") ||
 		strings.Contains(llm.bodies[2], "response_format") {
 		t.Errorf("degrade steps wrong: %d calls", len(llm.bodies))
 	}
-	if _, err := (Assist{LLM: &fakeLLM{replies: []string{"not json"}}, Model: "m"}).Describe(context.Background(), d.Operations()[:1]); err == nil {
+	if _, _, err := (Assist{LLM: &fakeLLM{replies: []string{"not json"}}, Model: "m"}).Describe(context.Background(), d.Operations()[:1]); err == nil {
 		t.Error("garbage accepted")
+	}
+}
+
+func TestDescribeCapsOnList(t *testing.T) {
+	var parts []string
+	for i := 0; i < SelectHard+5; i++ {
+		parts = append(parts, fmt.Sprintf(`"/t%d":{"get":{"operationId":"g%d"}}`, i, i))
+	}
+	d := mustParse(t, `{"openapi":"3.0.0","info":{"title":"T","version":"1"},"paths":{`+strings.Join(parts, ",")+`}}`)
+	ops := d.Operations()
+	var tools, on []string
+	for i, o := range ops {
+		tools = append(tools, fmt.Sprintf(`{"key":%q,"name":"get_t%d","description":"d"}`, o.Key, i))
+		on = append(on, fmt.Sprintf("%q", o.Key))
+	}
+	llm := &fakeLLM{replies: []string{`{"tools":[` + strings.Join(tools, ",") + `],"on":[` + strings.Join(on, ",") + `]}`}}
+	_, got, err := (Assist{LLM: llm, Model: "m"}).Describe(context.Background(), ops)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != SelectHard {
+		t.Fatalf("on=%d want %d", len(got), SelectHard)
 	}
 }

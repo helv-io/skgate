@@ -509,14 +509,7 @@ func (a *Admin) upstreamToolsSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	n := a.MCP.Upstreams.OpenAPIToolCount(alias)
-	msg := fmt.Sprintf("%s: %d %s exposed", alias, n, plural(n, "tool", "tools"))
-	switch mcp.ToolLevel(n) {
-	case "warn":
-		msg += ". That is a lot"
-	case "bad":
-		msg += ". That is too many"
-	}
-	a.back(w, r, back, msg, "")
+	a.back(w, r, back, fmt.Sprintf("%s: %d %s exposed", alias, n, plural(n, "tool", "tools")), "")
 }
 
 func clipRunes(s string, n int) string {
@@ -633,7 +626,8 @@ func (a *Admin) openAPIRepair(w http.ResponseWriter, r *http.Request) {
 	httputil.JSON(w, http.StatusOK, map[string]any{"changes": changes, "before": len(issues), "remaining": issueViews(rest), "spec": string(pretty)})
 }
 
-// upstreamToolsSuggest proposes names and one-line descriptions for the ticked tools. It saves nothing.
+// upstreamToolsSuggest proposes names and one-line descriptions for every tool, and a core set to switch on. It
+// saves nothing: the page fills the fields and the ticks; the admin reviews and Saves.
 func (a *Admin) upstreamToolsSuggest(w http.ResponseWriter, r *http.Request) {
 	fail := func(status int, msg string) { httputil.JSON(w, status, map[string]any{"error": msg}) }
 	st, err := a.MCP.Upstreams.OpenAPI(r.PathValue("alias"))
@@ -641,18 +635,14 @@ func (a *Admin) upstreamToolsSuggest(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusNotFound, err.Error())
 		return
 	}
-	want := map[string]bool{}
-	for _, k := range r.PostForm["key"] {
-		want[k] = true
-	}
 	var ops []openapi.Op
 	for _, o := range st.Ops {
-		if want[o.Key] && o.Skip == "" {
+		if o.Skip == "" {
 			ops = append(ops, o)
 		}
 	}
 	if len(ops) == 0 {
-		fail(http.StatusBadRequest, "switch on tools first")
+		fail(http.StatusBadRequest, "no tools to name")
 		return
 	}
 	as, ctx, cancel, why := a.assistFor(r)
@@ -661,45 +651,45 @@ func (a *Admin) upstreamToolsSuggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer cancel()
-	res, err := as.Describe(ctx, ops)
+	res, on, err := as.Describe(ctx, ops)
 	if err != nil {
 		log.Printf("openapi: describe refused: %v", err)
 		fail(http.StatusBadGateway, err.Error())
 		return
 	}
-	httputil.JSON(w, http.StatusOK, map[string]any{"tools": res})
+	httputil.JSON(w, http.StatusOK, map[string]any{"tools": res, "on": on})
 }
 
 // maxTryArgs is the largest argument text the tool tester takes.
 const maxTryArgs = 256 << 10
 
-// toolTryInfo answers the tool tester with what a client sees of one switched-on tool: its name, description and
-// input schema.
+// toolTryInfo answers the tool tester with what a client sees of one tool: its name, description and input schema.
+// OpenAPI uses the switched-on tools; remote and managed ask the upstream.
 func (a *Admin) toolTryInfo(w http.ResponseWriter, r *http.Request) {
-	t, ok := a.MCP.OpenAPITool(r.PathValue("alias"), r.PostFormValue("name"))
-	if !ok {
-		httputil.JSON(w, http.StatusOK, map[string]any{"error": "that tool is off, save the tools first"})
+	t, err := a.MCP.LookupTool(r.Context(), r.PathValue("alias"), r.PostFormValue("name"))
+	if err != nil {
+		httputil.JSON(w, http.StatusOK, map[string]any{"error": err.Error()})
 		return
 	}
-	httputil.JSON(w, http.StatusOK, map[string]any{"name": t["name"], "description": t["description"], "schema": t["inputSchema"]})
+	schema := t["inputSchema"]
+	if schema == nil {
+		schema = t["schema"]
+	}
+	httputil.JSON(w, http.StatusOK, map[string]any{"name": t["name"], "description": t["description"], "schema": schema})
 }
 
-// toolTryRun calls one switched-on tool the way a client does and returns the answer or the error. It is the admin
-// pressing Run: the upstream is really called.
+// toolTryRun calls one tool the way a client does and returns the answer or the error. It is the admin pressing
+// Run: the upstream is really called. OpenAPI, remote and managed share this path.
 func (a *Admin) toolTryRun(w http.ResponseWriter, r *http.Request) {
 	alias, name := r.PathValue("alias"), r.PostFormValue("name")
 	fail := func(msg string) { httputil.JSON(w, http.StatusOK, map[string]any{"ok": false, "error": msg}) }
 	u, ok := a.MCP.Upstreams.Get(alias)
-	switch {
-	case !ok || !u.IsOpenAPI():
+	if !ok {
 		fail("unknown upstream")
 		return
-	case !u.Enabled:
-		fail("switch the upstream on first")
-		return
 	}
-	if _, ok := a.MCP.OpenAPITool(alias, name); !ok {
-		fail("that tool is off, save the tools first")
+	if !u.Enabled {
+		fail("switch the upstream on first")
 		return
 	}
 	args := map[string]any{}
@@ -714,7 +704,7 @@ func (a *Admin) toolTryRun(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	t0 := time.Now()
-	text, isErr, err := a.MCP.CallOpenAPITool(r.Context(), alias, name, args)
+	text, isErr, err := a.MCP.CallTool(r.Context(), alias, name, args)
 	ms := time.Since(t0).Round(time.Millisecond)
 	log.Printf("admin: tool run %s %s error=%t in %s", alias, name, err != nil || isErr, ms)
 	if err != nil {
@@ -762,16 +752,8 @@ func (a *Admin) oaViewOf(u mcp.Upstream) *oaView {
 	return v
 }
 
-// toolTip says how a model copes with that many tools.
-func toolTip(n int) string {
-	switch mcp.ToolLevel(n) {
-	case "warn":
-		return "a lot of tools, fewer work better"
-	case "bad":
-		return "too many tools, fewer work better"
-	}
-	return "a good number of tools"
-}
+// toolTip is empty: the pill's color already shows the level; no judgmental words.
+func toolTip(n int) string { return "" }
 
 // openAPITotal is the tool count of every enabled OpenAPI upstream together, as a pill (nil when none exists).
 func (a *Admin) openAPITotal() *pillView {

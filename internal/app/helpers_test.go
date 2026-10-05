@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/base64"
+	"fmt"
 	"encoding/json"
 	"github.com/helv-io/skgate/internal/config"
 	"github.com/helv-io/skgate/internal/oidctest"
@@ -17,16 +18,34 @@ func fakeUpstream(t *testing.T) *httptest.Server {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
 		var m struct {
-			Method string `json:"method"`
-			ID     int    `json:"id"`
+			Method string          `json:"method"`
+			ID     json.RawMessage `json:"id"`
+			Params map[string]any  `json:"params"`
 		}
 		_ = json.Unmarshal(b, &m)
-		w.Header().Set("Content-Type", "application/json")
+		id := m.ID
+		if len(id) == 0 {
+			id = json.RawMessage("1")
+		}
+		reply := func(result any) {
+			j, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "result": result})
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(j)
+		}
 		switch m.Method {
 		case "initialize":
-			io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","serverInfo":{"name":"fake","version":"0.1"}}}`)
+			reply(map[string]any{"protocolVersion": "2025-06-18", "serverInfo": map[string]any{"name": "fake", "version": "0.1"}, "capabilities": map[string]any{}})
+		case "notifications/initialized":
+			w.WriteHeader(202)
 		case "tools/list":
-			io.WriteString(w, `{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"list_things","description":"Lists things.\nMore text."}]}}`)
+			reply(map[string]any{"tools": []any{map[string]any{
+				"name": "list_things", "description": "Lists things.\nMore text.",
+				"inputSchema": map[string]any{"type": "object", "properties": map[string]any{"q": map[string]any{"type": "string", "description": "A filter."}}, "required": []any{"q"}},
+			}}})
+		case "tools/call":
+			name, _ := m.Params["name"].(string)
+			args, _ := m.Params["arguments"].(map[string]any)
+			reply(map[string]any{"content": []any{map[string]any{"type": "text", "text": "called " + name + " q=" + fmt.Sprint(args["q"])}}, "isError": false})
 		default:
 			w.WriteHeader(202)
 		}

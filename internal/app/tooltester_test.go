@@ -97,3 +97,43 @@ func TestToolTesterInBrowser(t *testing.T) {
 	}
 	runBrowserScript(t, "trytool.js", br.ts.URL, br)
 }
+
+// A remote MCP upstream's Test page offers the same per-tool tester: info from tools/list, Run through the
+// gateway call path. Admin only.
+func TestMCPToolTesterRunsAToolAsTheAdmin(t *testing.T) {
+	_, _, br, csrf := signedIn(t, nil)
+	up := fakeUpstream(t)
+	if r, _ := br.post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "alias": {"mcptry"}, "url": {up.URL}, "auth_kind": {"none"}, "enabled": {"1"}}); r.StatusCode != 303 {
+		t.Fatalf("add: %d", r.StatusCode)
+	}
+	_, page := br.get("/admin/upstreams/mcptry/test")
+	for _, want := range []string{`data-dialog-open="#try-0">Test</button>`, `data-name="list_things"`, "Run calls the upstream for real."} {
+		if !strings.Contains(page, want) {
+			t.Errorf("test page lacks %q", want)
+		}
+	}
+	info := func(name string) map[string]any {
+		_, out := postInPlace(t, br, "/admin/upstreams/mcptry/tools/try/info", url.Values{"csrf": {csrf}, "name": {name}})
+		return out
+	}
+	out := info("list_things")
+	if out["name"] != "list_things" || out["schema"] == nil || out["error"] != nil {
+		t.Fatalf("info: %v", out)
+	}
+	sch, _ := out["schema"].(map[string]any)
+	props, _ := sch["properties"].(map[string]any)
+	if props["q"] == nil {
+		t.Fatalf("schema missing q: %v", sch)
+	}
+	if out := info("nope"); out["error"] == nil {
+		t.Fatalf("unknown tool: %v", out)
+	}
+	_, run := postInPlace(t, br, "/admin/upstreams/mcptry/tools/try/run", url.Values{"csrf": {csrf}, "name": {"list_things"}, "args": {`{"q":"hi"}`}})
+	if run["ok"] != true || run["isError"] != false || !strings.Contains(fmt.Sprint(run["text"]), "called list_things q=hi") {
+		t.Fatalf("run: %v", run)
+	}
+	_, bad := postInPlace(t, br, "/admin/upstreams/mcptry/tools/try/run", url.Values{"csrf": {csrf}, "name": {"list_things"}, "args": {"[1]"}})
+	if bad["ok"] != false || bad["error"] == nil {
+		t.Fatalf("bad args: %v", bad)
+	}
+}

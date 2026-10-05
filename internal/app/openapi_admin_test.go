@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/helv-io/skgate/internal/mcp"
+	"github.com/helv-io/skgate/internal/openapi"
 )
 
 const oaAdminSpec = `{"openapi":"3.0.0","info":{"title":"Notes API","version":"1"},"servers":[{"url":"%s/v1"}],
@@ -51,8 +52,8 @@ func TestOpenAPIAddByURLAndPickTools(t *testing.T) {
 		t.Fatalf("default tools = %d", n)
 	}
 	_, page := br.get("/admin/upstreams/notes/tools")
-	for _, want := range []string{`data-toolpick`, `data-toolcount`, `class="toolcount ok"`, `Fewer tools work better`, `data-verbgroup="GET"`, `data-verbgroup="POST"`, `data-verbgroup="DELETE"`,
-		`data-verb-toggle`, `data-toolfilter`, `skipped: file upload or binary body`, `Up to 15 is good, up to 30 is a lot`} {
+	for _, want := range []string{`data-toolpick`, `data-toolcount`, `class="toolcount ok"`, `data-verbgroup="GET"`, `data-verbgroup="POST"`, `data-verbgroup="DELETE"`,
+		`data-verb-toggle`, `data-toolfilter`, `skipped: file upload or binary body`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("tools page lacks %q", want)
 		}
@@ -263,26 +264,30 @@ func TestOpenAPISuggestNamesFillsAndSavesNothing(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	api := oaAPI(t)
 	r.br.post("/admin/upstreams/save", url.Values{"csrf": {r.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
-	r.setReply(`{"tools":[{"key":"GET /notes","name":"list_my_notes","description":"Lists every note."},{"key":"POST /notes","name":"ignored","description":"x"}]}`)
-	resp, body := r.br.post("/admin/upstreams/notes/tools/suggest", url.Values{"csrf": {r.csrf}, "key": {"GET /notes"}})
-	var m map[string]map[string]map[string]string
+	r.setReply(`{"tools":[{"key":"GET /notes","name":"list_my_notes","description":"Lists every note."},{"key":"POST /notes","name":"create_a_note","description":"Creates a note."},{"key":"DELETE /notes/{id}","name":"delete_a_note","description":"Deletes a note."}],"on":["GET /notes"]}`)
+	resp, body := r.br.post("/admin/upstreams/notes/tools/suggest", url.Values{"csrf": {r.csrf}})
+	var m struct {
+		Tools map[string]map[string]string `json:"tools"`
+		On    []string                     `json:"on"`
+	}
 	json.Unmarshal([]byte(body), &m)
-	if resp.StatusCode != 200 || m["tools"]["GET /notes"]["name"] != "list_my_notes" || m["tools"]["POST /notes"] != nil {
+	if resp.StatusCode != 200 || m.Tools["GET /notes"]["name"] != "list_my_notes" || m.Tools["POST /notes"]["name"] != "create_a_note" || len(m.On) != 1 || m.On[0] != "GET /notes" {
 		t.Fatalf("suggest: %d %s", resp.StatusCode, body)
 	}
 	st, _ := r.a.MCP.Upstreams.OpenAPI("notes")
 	if st.Tools[0].Name != "listNotes" {
 		t.Errorf("suggesting saved a name: %q", st.Tools[0].Name)
 	}
-	if resp, _ = r.br.post("/admin/upstreams/notes/tools/suggest", url.Values{"csrf": {r.csrf}}); resp.StatusCode != 400 {
-		t.Errorf("no tools ticked: %d", resp.StatusCode)
+	_, page := r.br.get("/admin/upstreams/notes/tools")
+	if !strings.Contains(page, "Suggest names and selection") || strings.Contains(page, `data-dialog-open="#suggest-names"`) {
+		t.Error("the tools page has a one-click Suggest names and selection button, no choice dialog")
 	}
 	// the assistant is optional: without a ready model the page says why
 	r2 := newSuggestRig(t, false, false)
 	r2.br.post("/admin/upstreams/save", url.Values{"csrf": {r2.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
-	_, page := r2.br.get("/admin/upstreams/notes/tools")
-	if !strings.Contains(page, `data-tool-describe`) || !strings.Contains(page, `title="sign in on the status page"`) || !strings.Contains(page, `id="suggest-names-why"`) || strings.Contains(page, `data-dialog-open="#suggest-names"`) {
-		t.Error("without a model the Suggest names button is grayed with the same reason as Suggest configuration")
+	_, page = r2.br.get("/admin/upstreams/notes/tools")
+	if !strings.Contains(page, `data-tool-describe`) || !strings.Contains(page, `title="sign in on the status page"`) || !strings.Contains(page, `id="suggest-names-why"`) {
+		t.Error("without a model the Suggest names and selection button is grayed with the same reason as Suggest configuration")
 	}
 	none := newSuggestRig(t, true, false)
 	none.a.Admin.NoSaveTest = true
@@ -295,8 +300,8 @@ func TestOpenAPISuggestNamesFillsAndSavesNothing(t *testing.T) {
 	}
 }
 
-// Suggest names takes every key that was posted: there is no per-request tool cap.
-func TestOpenAPISuggestNamesTakesEveryTool(t *testing.T) {
+// Suggest names and selection names every tool and caps the SI "on" list at SelectHard.
+func TestOpenAPISuggestNamesTakesEveryToolAndCapsSelection(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	r.a.Admin.NoSaveTest = true
 	var paths []string
@@ -305,35 +310,39 @@ func TestOpenAPISuggestNamesTakesEveryTool(t *testing.T) {
 	}
 	spec := `{"openapi":"3.0.0","info":{"title":"Many","version":"1"},"servers":[{"url":"https://many.example.com"}],"paths":{` + strings.Join(paths, ",") + `}}`
 	r.br.post("/admin/upstreams/save", url.Values{"csrf": {r.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"many"}, "enabled": {"1"}, "oa_spec_text": {spec}})
-	var tools []string
-	keys := url.Values{"csrf": {r.csrf}}
+	var tools, on []string
 	for i := 0; i < 45; i++ {
 		k := fmt.Sprintf("GET /t%d", i)
-		keys.Add("key", k)
 		tools = append(tools, fmt.Sprintf(`{"key":%q,"name":"get_t%d","description":"Gets t%d."}`, k, i, i))
+		on = append(on, fmt.Sprintf("%q", k))
 	}
-	r.setReply(`{"tools":[` + strings.Join(tools, ",") + `]}`)
-	resp, body := r.br.post("/admin/upstreams/many/tools/suggest", keys)
-	var m map[string]map[string]map[string]string
+	r.setReply(`{"tools":[` + strings.Join(tools, ",") + `],"on":[` + strings.Join(on, ",") + `]}`)
+	resp, body := r.br.post("/admin/upstreams/many/tools/suggest", url.Values{"csrf": {r.csrf}})
+	var m struct {
+		Tools map[string]map[string]string `json:"tools"`
+		On    []string                     `json:"on"`
+	}
 	json.Unmarshal([]byte(body), &m)
-	if resp.StatusCode != 200 || len(m["tools"]) != 45 {
-		t.Fatalf("suggest all: %d got %d tools: %s", resp.StatusCode, len(m["tools"]), body[:min(len(body), 400)])
+	if resp.StatusCode != 200 || len(m.Tools) != 45 {
+		t.Fatalf("suggest all: %d got %d tools: %s", resp.StatusCode, len(m.Tools), body[:min(len(body), 400)])
+	}
+	if len(m.On) != openapi.SelectHard {
+		t.Fatalf("on capped at %d, got %d", openapi.SelectHard, len(m.On))
 	}
 }
 
-// Suggest names in a browser: the choice dialog, Selected disabled with none on, a run that fills, and 360 px.
+// Suggest names and selection in a browser: one click fills names and ticks the core set.
 func TestOpenAPISuggestNamesInBrowser(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	api := oaAPI(t)
 	r.br.post("/admin/upstreams/save", url.Values{"csrf": {r.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"notes"}, "enabled": {"1"}, "oa_spec_url": {api.URL + "/spec.json"}})
-	// start with every tool off so Selected begins disabled
 	st, _ := r.a.MCP.Upstreams.OpenAPI("notes")
 	cfg := st.Config
 	cfg.Selection.Enabled = map[string]bool{}
 	if err := r.a.MCP.Upstreams.SetOpenAPI("notes", cfg); err != nil {
 		t.Fatal(err)
 	}
-	r.setReply(`{"tools":[{"key":"GET /notes","name":"list_my_notes","description":"Lists every note."}]}`)
+	r.setReply(`{"tools":[{"key":"GET /notes","name":"list_my_notes","description":"Lists every note."},{"key":"POST /notes","name":"create_a_note","description":"Creates a note."},{"key":"DELETE /notes/{id}","name":"delete_a_note","description":"Deletes a note."}],"on":["GET /notes"]}`)
 	runBrowserScript(t, "suggestnames.js", r.br.ts.URL, r.br, "notes")
 }
 
@@ -359,11 +368,11 @@ func TestOpenAPIManyToolsAreShownNotBlocked(t *testing.T) {
 		t.Fatalf("a red count must still save: %d %q", r.StatusCode, flashKind(r))
 	}
 	_, msg := flashOf(r)
-	if !strings.Contains(msg, "40 tools exposed") || !strings.Contains(msg, "too many") {
-		t.Errorf("toast: %q", msg)
+	if !strings.Contains(msg, "40 tools exposed") || strings.Contains(msg, "too many") || strings.Contains(msg, "a lot") {
+		t.Errorf("toast must state the count only: %q", msg)
 	}
 	_, page := br.get("/admin/upstreams/big/tools")
-	if !strings.Contains(page, `class="toolcount bad"`) || !strings.Contains(page, `class="callout bad"`) {
+	if !strings.Contains(page, `class="toolcount bad"`) {
 		t.Error("tools page must show the red level")
 	}
 	_, list := br.get("/admin/upstreams")
