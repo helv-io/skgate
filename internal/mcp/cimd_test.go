@@ -114,6 +114,10 @@ func TestParseMetadataDocument(t *testing.T) {
 	if c, err := parseMetadata(id, u, []byte(`{"client_id":"`+id+`","redirect_uris":["https://app.example/cb"]}`)); err != nil || c.Name != "app.example" {
 		t.Errorf("a missing name falls back to the host: %+v %v", c, err)
 	}
+	chatgpt := `{"client_id":"` + id + `","client_name":"ChatGPT","redirect_uris":["https://chatgpt.com/connector_platform_oauth_redirect"],"token_endpoint_auth_method":"private_key_jwt","token_endpoint_auth_methods_supported":["none","private_key_jwt"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_signing_alg":"RS256","jwks_uri":"https://chatgpt.com/oauth/jwks.json"}`
+	if c, err := parseMetadata(id, u, []byte(chatgpt)); err != nil || c.AuthMethod != "private_key_jwt" || c.JWKSURI != "https://chatgpt.com/oauth/jwks.json" || c.Confidential() {
+		t.Fatalf("ChatGPT-shaped document: %+v %v", c, err)
+	}
 	for name, doc := range map[string]string{
 		"not json":       `nope`,
 		"array":          `[]`,
@@ -122,7 +126,8 @@ func TestParseMetadataDocument(t *testing.T) {
 		"secret":         `{"client_id":"` + id + `","redirect_uris":["https://app.example/cb"],"client_secret":"s"}`,
 		"secret expiry":  `{"client_id":"` + id + `","redirect_uris":["https://app.example/cb"],"client_secret_expires_at":0}`,
 		"basic auth":     `{"client_id":"` + id + `","redirect_uris":["https://app.example/cb"],"token_endpoint_auth_method":"client_secret_basic"}`,
-		"private_key":    `{"client_id":"` + id + `","redirect_uris":["https://app.example/cb"],"token_endpoint_auth_method":"private_key_jwt"}`,
+		"private_key no jwks": `{"client_id":"` + id + `","redirect_uris":["https://app.example/cb"],"token_endpoint_auth_method":"private_key_jwt"}`,
+		"bad alg": `{"client_id":"` + id + `","redirect_uris":["https://app.example/cb"],"token_endpoint_auth_method":"private_key_jwt","jwks_uri":"https://app.example/jwks.json","token_endpoint_auth_signing_alg":"HS256"}`,
 		"no redirects":   `{"client_id":"` + id + `"}`,
 		"only unusable":  `{"client_id":"` + id + `","redirect_uris":["cursor://x/cb","http://lan.example/cb"]}`,
 		"too many":       `{"client_id":"` + id + `","redirect_uris":["https://a.example/1","https://a.example/2","https://a.example/3","https://a.example/4","https://a.example/5","https://a.example/6","https://a.example/7","https://a.example/8","https://a.example/9","https://a.example/10","https://a.example/11"]}`,

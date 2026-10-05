@@ -16,8 +16,9 @@ type Client struct {
 	SecretHash   string
 	Name         string
 	RedirectURIs []string
-	AuthMethod   string // none | client_secret_post | client_secret_basic
-	Source       string // dcr | admin
+	AuthMethod   string // none | client_secret_post | client_secret_basic | private_key_jwt
+	JWKSURI      string // set for private_key_jwt metadata-document clients
+	Source       string // dcr | admin | cimd
 	CreatedAt    time.Time
 	LastUsed     time.Time // zero = never used at /authorize or /token
 	// PKCESeen is set after the client's first successful PKCE exchange (internal, not shown). From then
@@ -71,9 +72,12 @@ func (s *Clients) Create(c Client, secret string) (Client, error) {
 // clients are kept. A stored client of another source with the same ID is left alone.
 func (s *Clients) PutMetadataClient(c Client) error {
 	uris, _ := json.Marshal(c.RedirectURIs)
-	_, err := s.db.Exec(`INSERT INTO oauth_clients(client_id,secret_hash,name,redirect_uris,auth_method,source,created_at) VALUES(?,?,?,?,?,?,?)
-		ON CONFLICT(client_id) DO UPDATE SET name=excluded.name, redirect_uris=excluded.redirect_uris WHERE source=excluded.source`,
-		c.ID, "", c.Name, string(uris), "none", cimdSource, time.Now().Unix())
+	if c.AuthMethod == "" {
+		c.AuthMethod = "none"
+	}
+	_, err := s.db.Exec(`INSERT INTO oauth_clients(client_id,secret_hash,name,redirect_uris,auth_method,jwks_uri,source,created_at) VALUES(?,?,?,?,?,?,?,?)
+		ON CONFLICT(client_id) DO UPDATE SET name=excluded.name, redirect_uris=excluded.redirect_uris, auth_method=excluded.auth_method, jwks_uri=excluded.jwks_uri WHERE source=excluded.source`,
+		c.ID, "", c.Name, string(uris), c.AuthMethod, c.JWKSURI, cimdSource, time.Now().Unix())
 	if err == nil {
 		_, _ = s.db.Exec(`DELETE FROM oauth_clients WHERE source=? AND client_id NOT IN (SELECT client_id FROM oauth_clients WHERE source=? ORDER BY created_at DESC, rowid DESC LIMIT ?)`, cimdSource, cimdSource, cimdKeep)
 	}
@@ -84,7 +88,7 @@ func scanClient(sc interface{ Scan(...any) error }) (Client, error) {
 	var c Client
 	var uris string
 	var ts, used, seen int64
-	if err := sc.Scan(&c.ID, &c.SecretHash, &c.Name, &uris, &c.AuthMethod, &c.Source, &ts, &used, &seen); err != nil {
+	if err := sc.Scan(&c.ID, &c.SecretHash, &c.Name, &uris, &c.AuthMethod, &c.JWKSURI, &c.Source, &ts, &used, &seen); err != nil {
 		return c, err
 	}
 	c.PKCESeen = seen != 0
@@ -108,13 +112,13 @@ func (s *Clients) MarkPKCE(id string) {
 
 // Get returns a client by id.
 func (s *Clients) Get(id string) (Client, bool) {
-	c, err := scanClient(s.db.QueryRow(`SELECT client_id,secret_hash,name,redirect_uris,auth_method,source,created_at,last_used_at,pkce_seen FROM oauth_clients WHERE client_id=?`, id))
+	c, err := scanClient(s.db.QueryRow(`SELECT client_id,secret_hash,name,redirect_uris,auth_method,jwks_uri,source,created_at,last_used_at,pkce_seen FROM oauth_clients WHERE client_id=?`, id))
 	return c, err == nil
 }
 
 // List returns clients, newest first.
 func (s *Clients) List() ([]Client, error) {
-	rows, err := s.db.Query(`SELECT client_id,secret_hash,name,redirect_uris,auth_method,source,created_at,last_used_at,pkce_seen FROM oauth_clients ORDER BY created_at DESC, rowid DESC`)
+	rows, err := s.db.Query(`SELECT client_id,secret_hash,name,redirect_uris,auth_method,jwks_uri,source,created_at,last_used_at,pkce_seen FROM oauth_clients ORDER BY created_at DESC, rowid DESC`)
 	if err != nil {
 		return nil, err
 	}

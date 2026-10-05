@@ -787,8 +787,7 @@ func procTip(pi mcp.ProcInfo) string {
 
 // upstreamsData is the upstreams page.
 type upstreamsData struct {
-	List    []upstreamView
-	Aliases []string
+	List []upstreamView
 }
 
 // formData feeds the shared upstream form (add and edit).
@@ -1186,7 +1185,6 @@ func (a *Admin) upstreams(w http.ResponseWriter, r *http.Request) {
 	var d upstreamsData
 	for _, u := range list {
 		d.List = append(d.List, a.view(u))
-		d.Aliases = append(d.Aliases, u.Alias)
 	}
 	a.render(w, r, "upstreams", page{Title: "MCP upstreams", Nav: "upstreams", Data: d})
 }

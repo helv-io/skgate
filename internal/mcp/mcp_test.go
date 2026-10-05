@@ -163,7 +163,7 @@ func TestWellKnownMetadata(t *testing.T) {
 			t.Errorf("%s: bad capabilities %v", p, m)
 		}
 		am := toJSON(m["token_endpoint_auth_methods_supported"])
-		for _, want := range []string{"none", "client_secret_post", "client_secret_basic"} {
+		for _, want := range []string{"none", "client_secret_post", "client_secret_basic", "private_key_jwt"} {
 			if !strings.Contains(am, want) {
 				t.Errorf("auth methods missing %s: %s", want, am)
 			}
