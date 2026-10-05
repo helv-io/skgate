@@ -447,9 +447,7 @@ backend skgate
 
 Without `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`, skgate starts but the admin stays closed.
 
-Every user your provider lets in is an admin.
-
-Restrict the provider, or set `OIDC_ALLOWED_EMAILS` / `OIDC_ALLOWED_GROUPS`.
+Every user your provider lets in is an admin. Restrict the provider, or set `OIDC_ALLOWED_EMAILS` / `OIDC_ALLOWED_GROUPS`.
 
 Hints for Authelia, Authentik, Keycloak, Zitadel and Pocket ID: [docs/oidc.md](docs/oidc.md).
 
@@ -464,7 +462,9 @@ More: [operations](docs/operations.md).
 
 ## Built with SI assistance
 
-skgate is built with SI assistance: coding agents write much of the code, tests and docs. The author reviews the changes and runs skgate.
+skgate is built with SI assistance: coding agents write much of the code, tests and docs.
+
+The author reviews the changes and runs skgate.
 
 ## Development
 
