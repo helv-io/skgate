@@ -231,6 +231,33 @@ Served at `https://skgate.example.com/mcp/everything`. For Python servers use `"
 | MCP | Remote, stdio and git servers behind OAuth 2.1 ([docs](docs/mcp.md)) |
 | REST APIs as tools | Give an OpenAPI description, pick the operations (or let **Suggest names and selection** name them and pick a core set), and MCP clients get them as tools ([docs](docs/openapi.md)) |
 
+## Comparison
+
+How each provider signs in elsewhere, and how skgate connects to it:
+
+| Provider | Subscription sign-in elsewhere | In skgate |
+| --- | --- | --- |
+| xAI Grok | OpenCode; more planned [1] | Subscription |
+| OpenAI | Sign in with ChatGPT [2] | API key |
+| Anthropic Claude | Not offered to third parties [3] | API key |
+| Google Gemini | CLI login not for reuse [4] | API key |
+| Mistral | — | API key |
+| DeepSeek | — | API key |
+| Groq | — | API key |
+| OpenRouter | — | API key |
+| Ollama | — | No key (local) |
+| LM Studio | — | No key (local) |
+
+As of 2026-10-05; check each provider's terms. GitHub Copilot is not a skgate provider.
+
+<details><summary>Sources</summary>
+
+1. xAI, [Use Grok in OpenCode](https://x.ai/news/grok-opencode)
+2. OpenAI, [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source)
+3. Anthropic, [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)
+4. Google, [Gemini CLI terms](https://github.com/google-gemini/gemini-cli/blob/main/docs/resources/tos-privacy.md)
+
+</details>
 
 ## Configuration
 
