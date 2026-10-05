@@ -56,10 +56,13 @@ func TestStatusPageAtAGlance(t *testing.T) {
 	if strings.Contains(main, "(ok)") || strings.Contains(main, "refresh-secret") || strings.Contains(main, "5678") || strings.Contains(main, "Refresh token") {
 		t.Fatalf("main screen shows technical detail:\n%s", main)
 	}
-	for _, want := range []string{`<span class="pill ok"`, "<h3>Grok</h3>", `data-dialog-open="#provider-grok"`, "Sign in", "Sign out"} {
+	for _, want := range []string{`<span class="pill ok"`, "<h3>Grok</h3>", `data-dialog-open="#provider-grok"`, ">Details</button>", "Sign out"} {
 		if !strings.Contains(main, want) {
 			t.Errorf("main screen lacks %q", want)
 		}
+	}
+	if strings.Contains(main, "Sign in again") || strings.Contains(main, ">Sign in</button>") {
+		t.Error("a signed-in card does not offer Sign in again")
 	}
 	for _, gone := range []string{"UPSTREAM_BASE", "Upstream base", "PKCE", "Scopes", "Client ID", "skgate 0"} {
 		if strings.Contains(main, gone) {
@@ -223,19 +226,25 @@ func TestProxyPathsAndOtherRoutes(t *testing.T) {
 	}
 }
 
-// The status pill is a plain status. Signing out is an explicit button with its confirmation, and Sign in again is
-// secondary while signed in and healthy, primary once the provider is signed out.
+// The status pill is a plain status. Signing out is an explicit button with its confirmation.
+// Signed in, the card is Details then Sign out. Sign in (the device flow) is primary only when signed out.
 func TestSignOutIsAButtonAndThePillIsPlain(t *testing.T) {
 	up, _ := modelsUpstream(t, "real-a")
 	_, _, br, csrf, _ := signedInProvider(t, up)
 	_, page := br.get("/admin")
-	card := page[strings.Index(page, `id="grok"`):]
-	card = card[:strings.Index(card, `data-dialog-open="#provider-grok"`)]
+	card := grokCard(page)
+	actions := cardActions(card)
 	for _, want := range []string{`<span class="pill ok"`, `action="/admin/providers/grok/signout"`, `data-confirm="`, `data-confirm-ok="Sign out"`, `<button class="act danger">Sign out</button>`,
-		`<button class="act">Sign in again</button>`} {
+		`data-dialog-open="#provider-grok">Details</button>`} {
 		if !strings.Contains(card, want) {
 			t.Errorf("card lacks %q", want)
 		}
+	}
+	if strings.Contains(actions, "Sign in") || strings.Contains(actions, "device/start") {
+		t.Errorf("signed in card still offers a sign-in button:\n%s", actions)
+	}
+	if d, s := strings.Index(actions, ">Details</button>"), strings.Index(actions, ">Sign out</button>"); d < 0 || s < 0 || d > s {
+		t.Errorf("signed in order is Details then Sign out:\n%s", actions)
 	}
 	if strings.Contains(card, "swap") || strings.Contains(card, `<button class="pill`) || strings.Contains(card, `class="btn"`) {
 		t.Errorf("the pill is not a button and nothing is primary while healthy:\n%s", card)
@@ -246,9 +255,22 @@ func TestSignOutIsAButtonAndThePillIsPlain(t *testing.T) {
 	}
 	br.post("/admin/providers/grok/signout", url.Values{"csrf": {csrf}})
 	_, page = br.get("/admin")
-	card = page[strings.Index(page, `id="grok"`):]
-	card = card[:strings.Index(card, `data-dialog-open="#provider-grok"`)]
-	if !strings.Contains(card, `<span class="pill bad"`) || !strings.Contains(card, `<button class="btn">Sign in</button>`) || strings.Contains(card, "signout") {
-		t.Errorf("signed out: a plain pill, Sign in is primary, no Sign out:\n%s", card)
+	card = grokCard(page)
+	actions = cardActions(card)
+	if !strings.Contains(card, `<span class="pill bad"`) || !strings.Contains(actions, `<button class="btn">Sign in</button>`) || strings.Contains(actions, "signout") || strings.Contains(actions, "Sign in again") {
+		t.Errorf("signed out: a plain pill, Sign in is primary, no Sign out:\n%s", actions)
 	}
+	if si, d := strings.Index(actions, ">Sign in</button>"), strings.Index(actions, ">Details</button>"); si < 0 || d < 0 || si > d {
+		t.Errorf("signed out order is Sign in then Details:\n%s", actions)
+	}
+}
+
+func grokCard(page string) string {
+	card := page[strings.Index(page, `id="grok"`):]
+	return card[:strings.Index(card, "<h2>Other providers</h2>")]
+}
+
+func cardActions(card string) string {
+	actions := card[strings.Index(card, `class="actions"`):]
+	return actions[:strings.Index(actions, "</div>")]
 }

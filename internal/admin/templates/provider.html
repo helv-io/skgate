@@ -15,10 +15,10 @@
 <div class="actions"><form method="post" action="/admin/providers/{{.ID}}/device/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Cancel</button></form></div>
 {{else}}
 <div class="actions">
-{{/* Signing in again is the main action only when it is needed (signed out, or the token is failing); while signed in and healthy it is secondary. */}}
-<form method="post" action="/admin/providers/{{.ID}}/device/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="{{if and .S.SignedIn (eq .State.Class "ok")}}act{{else}}btn{{end}}">{{if .S.SignedIn}}Sign in again{{else}}Sign in{{end}}</button></form>
-{{if .S.SignedIn}}<form method="post" action="/admin/providers/{{.ID}}/signout" data-confirm="Requests through the API proxy fail until you sign in again." data-confirm-title="Sign out of {{.Name}}" data-confirm-ok="Sign out"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Sign out</button></form>{{end}}
+{{/* Signed out, Sign in starts the device flow. Signed in, the card is Details then Sign out: refresh and browser sign-in are in Details, and a new device flow is Sign in after Sign out. */}}
+{{if not .S.SignedIn}}<form method="post" action="/admin/providers/{{.ID}}/device/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn">Sign in</button></form>{{end}}
 <button type="button" class="act" data-dialog-open="#provider-{{.ID}}">Details</button>
+{{if .S.SignedIn}}<form method="post" action="/admin/providers/{{.ID}}/signout" data-confirm="Requests through the API proxy fail until you sign in again." data-confirm-title="Sign out of {{.Name}}" data-confirm-ok="Sign out"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Sign out</button></form>{{end}}
 </div>
 {{end}}
 </div>{{end}}
