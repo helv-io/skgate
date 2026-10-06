@@ -32,11 +32,11 @@ type providerView struct {
 	Preset      keyed.Preset
 	BaseHost    string
 	ModelCount  int
-	HelperReady bool        // the helper model can run: some provider is ready (Grok signed in, or a key-based one)
-	Default     bool        // the provider whose settings hold the helper model (Grok)
-	HelperID    string      // where the helper model, reasoning and timeout are stored: the default provider
-	Inline      bool        // the MCP helper model form posts in place (no page reload)
-	Foreign     modelChoice // the current helper when it is not one of this provider's models; shown first
+	HelperReady bool         // the helper model can run: some provider is ready (Grok signed in, or a key-based one)
+	Default     bool         // the provider whose settings hold the helper model (Grok)
+	HelperID    string       // where the helper model, reasoning and timeout are stored: the default provider
+	Inline      bool         // the MCP helper model form posts in place (no page reload)
+	Foreign     *modelChoice // the current helper when it is not one of this provider's models; shown first
 	S           provider.Status
 	Dev         provider.DeviceFlow
 	DevURL      string   // verification address shown as link text, without the user code
@@ -330,6 +330,7 @@ func keyedState(s provider.Status, k *keyed.Provider) pillView {
 
 // fillHelperChoices lists this provider's models only, under its prefix when it has one.
 // When the current helper belongs to another provider, it stays selectable at the top as that model id.
+// With no such helper there is no entry above "none".
 func (a *Admin) fillHelperChoices(v *providerView) {
 	chosen := v.Model
 	if chosen != "" && !contains(v.Models, chosen) {
@@ -346,8 +347,8 @@ func (a *Admin) fillHelperChoices(v *providerView) {
 		if id == "" {
 			label = chosen + " (unlisted)"
 		}
-		v.Foreign = modelChoice{Value: chosen, Label: label, Frontier: frontier, Selected: true}
-		v.ModelHeavy = v.Foreign.Frontier
+		v.Foreign = &modelChoice{Value: chosen, Label: label, Frontier: frontier, Selected: true}
+		v.ModelHeavy = frontier
 		chosen = ""
 	}
 	v.Choices = modelChoices(v.Models, nil, chosen)
