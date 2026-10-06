@@ -347,7 +347,7 @@
     if (stack) { // the form lives in the content: submit it first, then take the dialog away
       stack = null;
       submitPending(p);
-      close(true);
+      close(!p.form.hasAttribute("data-post")); // a post in place stays on the page: closing goes back, as by hand
       return;
     }
     close(true); // the form submit navigates away: replace the fragment, do not go back
@@ -669,9 +669,10 @@ function bodyBusy(dlg, self) {
   });
 
   // In-place actions: a form with data-post (a toggle, a delete, revoke, remove, a process action) posts by fetch
-  // and the page stays where it is: no reload, no scroll jump. The answer is a toast, and the parts of the page that
-  // show the state (data-live, the dialog templates) are read again; a row that is gone goes. A switch flips at
-  // once and flips back on an error, with the reason as a toast and as its tooltip, like the update pill.
+  // and the page stays where it is: no reload, no scroll jump. A good answer shows no toast: the parts of the page
+  // that show the state (data-live, the dialog templates, the open dialog) are read again, and that change is the
+  // answer; a row that is gone goes. Only an error is a toast. A switch flips at once and flips back on an error,
+  // with the reason as a toast and as its tooltip, like the update pill. A control keeps its size while it posts.
   // data-post="close" also closes the open dialog after a good answer (a Save or an Add inside a dialog).
   // A confirmation (data-confirm) asks first; the post follows once it is confirmed.
   function flip(btn) {
@@ -700,6 +701,20 @@ function bodyBusy(dlg, self) {
     var b = hit && hit.querySelector("button:not([type=button])");
     if (b && b.focus) b.focus({ preventScroll: true });
   }
+  // reopen shows the dialog the action was taken in (Detect) again from its fresh template, so it shows the new
+  // state; the dialog of something that is gone closes. A dialog with sections is merged by refresh instead.
+  function hashId() { var h = location.hash.slice(1); try { return decodeURIComponent(h); } catch (err) { return h; } }
+  function reopen(id, x) {
+    var dlg = document.querySelector("[data-modal][open]"), body = dlg && dlg.querySelector("[data-modal-body]");
+    if (!id || !body || body.hidden || hashId() !== id) return;
+    var tpl = document.getElementById(id);
+    if (!tpl || !tpl.content) { if (x) x.click(); return; }
+    if (body.querySelector("[data-section]")) return;
+    var top = dlg.scrollTop;
+    body.textContent = "";
+    body.appendChild(tpl.content.cloneNode(true));
+    dlg.scrollTop = top;
+  }
   window.skgateRefresh = refresh;
   document.addEventListener("submit", function (e) {
     var form = e.target;
@@ -710,6 +725,7 @@ function bodyBusy(dlg, self) {
     var btn = e.submitter || form.querySelector("button:not([type=button])");
     var undo = flip(btn);
     var key = btn && document.activeElement === btn ? sig(form) : "";
+    var dlgId = form.closest("[data-modal-body]") ? hashId() : "";
     if (btn && !undo) btn.disabled = true;
     form.setAttribute("data-saving", "");
     function done() {
@@ -732,14 +748,15 @@ function bodyBusy(dlg, self) {
         if (!good) {
           if (undo) { fail(t.m || "That did not work."); return; }
           window.skgateToast("bad", t.m || "That did not work.");
-        } else if (t.m && !form.hasAttribute("data-quiet")) window.skgateToast("ok", t.m);
+        }
+        var x = document.querySelector("[data-modal] [data-modal-close]");
         if (good && form.getAttribute("data-post") === "close") {
           settle(form);
-          var x = document.querySelector("[data-modal] [data-modal-close]");
           if (x && document.querySelector("[data-modal][open]")) x.click();
+          dlgId = "";
         }
-        return refresh().then(function () { refocus(key); }, function () {
-          window.skgateToast(good ? "ok" : "bad", "Reload the page to see the change.");
+        return refresh().then(function () { reopen(dlgId, x); refocus(key); }, function () {
+          window.skgateToast(good ? "warn" : "bad", "Reload the page to see the change.");
         });
       })
       .catch(function (err) { fail(err && err.say ? err.say : "Couldn't reach skgate. Check your connection and try again."); })

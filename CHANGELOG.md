@@ -13,7 +13,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
-- One-click actions save in place on every admin page: the upstream switches and Delete, the process actions, a key's Save and Revoke, client deletes, and adding or removing a provider. The page does not reload or lose its scroll
+- One-click actions save in place on every admin page: the upstream switches, Delete and Detect, the process actions, a key's Save and Revoke, client deletes, and adding or removing a provider. The page does not reload, lose its scroll or move a control, and only an error shows a toast
 - An SI helper's status shows on its own line under its buttons, with its room kept, so no button moves when it appears or changes
 - Phones do not zoom. Pinch and double-tap zoom are off, and fields are 16px so iOS does not zoom in on focus
 - A provider other than Grok has a prefix, and its models are named prefix_model
