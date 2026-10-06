@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .codehost .gated .helper-opener .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .desc-line .split .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .codehost .gated .helper-opener .si-status .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .desc-line .split .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -143,6 +143,9 @@ button.running::after{content:"";position:absolute;left:0;right:0;bottom:0;heigh
 @keyframes si-bar{0%{transform:scaleX(.15);transform-origin:left}50%{transform:scaleX(1);transform-origin:left}51%{transform:scaleX(1);transform-origin:right}100%{transform:scaleX(.15);transform-origin:right}}
 @media (prefers-reduced-motion:reduce){button.running::after{animation:none;opacity:.85}}
 td.status form{display:inline-flex;margin:0;vertical-align:middle}
+/* the SI helper status line (si_status): its own line under the helper's buttons, with that line's room kept while
+   empty, so a stage, a result or an error never moves a button. Long text is cut; the whole text is the tooltip. */
+.si-status{display:block;height:20px;line-height:20px;margin:-4px 0 8px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .si-status.bad{color:var(--bad)}
 [data-prefix-hint].bad{color:var(--bad)}
 .act.accent,button.accent{color:var(--acc);border-color:var(--acc)}

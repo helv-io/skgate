@@ -1012,17 +1012,19 @@ document.addEventListener("input", function (e) {
 
 
 // Helper calls share one progress treatment: the button keeps its label, a thin bar runs along its bottom edge,
-// and a muted line beside it shows the stage. The line turns red in that same spot on an error. Every exit
-// re-enables the button. The fetch is aborted on leave and after data-si-wait seconds (at least the helper timeout).
+// and the muted status line under its row (the si_status component) shows the stage. The line turns red in that
+// same spot on an error. The line always keeps its room, so nothing moves. Every exit re-enables the button. The
+// fetch is aborted on leave and after data-si-wait seconds (at least the helper timeout).
 function siLine(btn) {
-  var row = btn.closest ? (btn.closest(".row") || btn.parentNode) : btn.parentNode;
-  return row ? row.querySelector("[data-si-status]") : null;
+  var row = btn.closest ? btn.closest(".row") : null;
+  var line = row && row.nextElementSibling;
+  return line && line.hasAttribute("data-si-status") ? line : null;
 }
 function siSay(btn, text, bad) {
   var line = siLine(btn);
   if (!line) return;
   line.textContent = text || "";
-  line.hidden = !text;
+  if (text) line.title = text; else line.removeAttribute("title");
   line.classList.toggle("bad", !!bad);
   line.classList.toggle("muted", !bad);
 }
@@ -1290,7 +1292,7 @@ document.addEventListener("submit", function (e) {
       show(form, "", "", lines, slow);
       return;
     }
-    if (x.error) { // said once, on the line beside the button: no pill, no toast
+    if (x.error) { // said once, on the status line under the button: no pill, no toast
       siSay(b, x.error, true);
       var out = form.querySelector("[data-suggest-out]");
       if (out) out.hidden = true;
