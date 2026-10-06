@@ -1482,6 +1482,13 @@ function frontierHint(form) {
           var fresh = tpl.content.firstElementChild;
           var old = document.querySelector("[data-suggest-controls]");
           if (fresh && old) old.replaceWith(fresh);
+          else {
+            // A page with its own Suggest controls (the tools page) takes only the helper model opener and its
+            // dialog template. The dialog is reloaded from that template below; a stale one would show the old
+            // values, and the next autosave would post them back.
+            var opener = tpl.content.querySelector("[data-helper-opener]");
+            if (opener) Array.prototype.forEach.call(document.querySelectorAll("[data-helper-opener]"), function (o) { o.replaceWith(document.importNode(opener, true)); });
+          }
           if (window.skgateSuggestSync) window.skgateSuggestSync();
         }
         if (!good) return false;

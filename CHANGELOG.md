@@ -13,6 +13,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
+- Phones do not zoom. Pinch and double-tap zoom are off, and fields are 16px so iOS does not zoom in on focus
 - A provider other than Grok has a prefix, and its models are named prefix_model
 - The update pill updates the upstream in place, and the row refreshes where it is
 - A helper request keeps its button and shows the stage beside it. An error turns that line red
@@ -36,6 +37,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Fixed
 
+- On the tools page, a change to the MCP helper model, reasoning or timeout stays and is saved
 - The update pill updates the upstream when tapped or clicked. A failed update shows as a toast
 
 ### Removed

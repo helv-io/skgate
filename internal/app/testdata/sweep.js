@@ -13,6 +13,17 @@ const measure = () => {
   const out = [];
   if (document.documentElement.scrollWidth > vw) out.push("document scrollWidth " + document.documentElement.scrollWidth + " > " + vw);
   if (document.body.scrollWidth > vw) out.push("body scrollWidth " + document.body.scrollWidth + " > " + vw);
+  // phones do not zoom: one viewport meta everywhere, no double-tap zoom, and no field under 16px on a phone (iOS
+  // zooms in on focus); on a desktop window the fields keep the page's own sizes
+  const vp = document.querySelector('meta[name="viewport"]');
+  if (document.querySelector("meta[charset]") && (!vp || vp.content !== "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no")) out.push("viewport meta is " + (vp ? JSON.stringify(vp.content) : "missing")); // (a redirect body is no page)
+  if (document.querySelector('link[rel="stylesheet"]') && getComputedStyle(document.documentElement).touchAction !== "manipulation") out.push("html touch-action is " + getComputedStyle(document.documentElement).touchAction + ", not manipulation");
+  document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]), select, textarea').forEach(e => {
+    if (e.offsetParent === null || !document.querySelector('link[rel="stylesheet"]')) return;
+    const fs = parseFloat(getComputedStyle(e).fontSize), what = e.tagName.toLowerCase() + (e.name ? "[" + e.name + "]" : "");
+    if (vw <= 720 && fs < 16) out.push("field " + what + " is " + fs + "px on a phone: iOS zooms in on focus under 16px");
+    if (vw >= 1024 && fs === 16) out.push("field " + what + " is 16px on a desktop window: the phone size leaked");
+  });
   const dlg = document.querySelector("dialog[open]");
   if (dlg) {
     if (dlg.scrollWidth > dlg.clientWidth) out.push("dialog scrollWidth " + dlg.scrollWidth + " > " + dlg.clientWidth);
