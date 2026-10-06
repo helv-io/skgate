@@ -124,6 +124,9 @@ var funcs = template.FuncMap{
 	"frontier": provider.LooksFrontier,
 	// pill feeds the "pill" component: class, label and hover text.
 	"pill": func(class, text, tip string) pillView { return pillView{Class: class, Text: text, Tip: tip} },
+	// pillOpen is a pill that opens a dialog. qrsvg is the device-flow QR.
+	"pillOpen": func(open string, p pillView) pillOpen { return pillOpen{Open: open, Pill: p} },
+	"qrsvg":    qrSVG,
 	// tip feeds the "tip" component: visible text with a hover tooltip. usage builds the Usage cell of a key.
 	"tip":          func(text, tip string) tipView { return tipView{Text: text, Tip: tip} },
 	"expiry":       expiryOf,
@@ -843,6 +846,12 @@ type menuHead struct{ ID, Label string }
 
 // pillView is a status pill: Class ok|bad|warn|off, Text the label, Tip the hover text (may be empty).
 type pillView struct{ Class, Text, Tip string }
+
+// pillOpen is a pill that opens a dialog. Open is the fragment, including the hash.
+type pillOpen struct {
+	Open string
+	Pill pillView
+}
 
 // tipView is a value with a hover tooltip (the "tip" component); Tip may be empty.
 type tipView struct{ Text, Tip string }

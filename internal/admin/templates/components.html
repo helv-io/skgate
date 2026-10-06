@@ -33,6 +33,9 @@
    Takes a pillView (build one with the "pill" function) or a *procView. */}}
 {{define "pill"}}<span class="pill {{.Class}}"{{if .Tip}} title="{{.Tip}}"{{end}}>{{.Text}}</span>{{end}}
 
+{{/* pill_open: a pill that opens a dialog. Takes a pillOpen (pillOpen: fragment, pillView). */}}
+{{define "pill_open"}}<button type="button" class="pill {{.Pill.Class}}" data-dialog-open="{{.Open}}"{{if .Pill.Tip}} title="{{.Pill.Tip}}"{{end}}>{{.Pill.Text}}</button>{{end}}
+
 {{/* tip: a value with details in a hover tooltip. Takes a tipView (build one with the "tip" function). */}}
 {{/* expiry_field: the expiration of a virtual key, typed as plain text (30d, 2w, tomorrow, 2026-12-31, dec 31, never).
    Takes an expiryData. app.js shows what the text means under the field as you type (data-expiry), the quick

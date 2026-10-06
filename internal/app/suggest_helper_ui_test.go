@@ -404,18 +404,18 @@ func TestStatusShowsReasoningPill(t *testing.T) {
 		t.Errorf("no model, no reasoning:\n%s", r)
 	}
 	br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"plain"}})
-	if r := row(); !strings.Contains(r, ">plain \u00b7 reasoning auto</span>") {
+	if r := row(); !strings.Contains(r, ">plain \u00b7 reasoning auto</button>") {
 		t.Errorf("unset reasoning shows auto:\n%s", r)
 	}
 	for _, v := range []string{"low", "medium", "high"} {
 		br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"plain"}, "effort": {v}})
-		if r := row(); !strings.Contains(r, ">plain \u00b7 reasoning "+v+"</span>") || strings.Contains(r, "auto") {
+		if r := row(); !strings.Contains(r, ">plain \u00b7 reasoning "+v+"</button>") || strings.Contains(r, "auto") {
 			t.Errorf("%s: %s", v, r)
 		}
 	}
 	// a value stored under the earlier name reads as auto
 	a.DB.SetSetting("provider.grok.effort", "default")
-	if r := row(); !strings.Contains(r, ">plain \u00b7 reasoning auto</span>") {
+	if r := row(); !strings.Contains(r, ">plain \u00b7 reasoning auto</button>") {
 		t.Errorf("stored default must read as auto:\n%s", r)
 	}
 }
