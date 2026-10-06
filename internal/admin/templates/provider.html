@@ -9,14 +9,14 @@
 </tbody></table></div>
 {{if eq .Dev.State "error"}}<p class="bad">Sign-in failed: {{.Dev.Err}}</p>{{end}}
 {{if eq .Dev.State "pending"}}
-<div class="device" id="device-poll" data-poll="/admin/providers/{{.ID}}/device/state" data-device-url="{{.DevURL}}">
+<div class="device" id="device-poll" data-poll="/admin/providers/{{.ID}}/device/state" data-device-url="{{.DevOpen}}">
 <div class="device-copy">
 <p>Open the window and enter this code.</p>
-{{if .DevURL}}<p class="muted">If the window didn't open, <a href="{{.DevURL}}" target="_blank" rel="noopener noreferrer">{{.DevURL}}</a> and enter this code.</p>{{end}}
+{{if .DevURL}}<p class="muted">If the window didn't open, <a href="{{.DevOpen}}" target="_blank" rel="noopener noreferrer">{{.DevURL}}</a> and enter this code.</p>{{end}}
 {{template "copybox" (copycode "the sign-in code" .Dev.UserCode)}}
 <div class="row"><form method="post" action="/admin/providers/{{.ID}}/device/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Cancel</button></form></div>
 </div>
-<div class="device-qr">{{qrsvg .DevURL}}</div>
+<div class="device-qr">{{qrsvg .DevOpen}}</div>
 </div>
 {{else}}
 <div class="actions">
