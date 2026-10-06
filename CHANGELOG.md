@@ -49,6 +49,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.23.6] - 2026-10-06
+
+### Fixed
+
+- The MCP helper model list no longer starts with a blank entry
+
 ## [0.23.5] - 2026-10-06
 
 ### Changed
@@ -674,7 +680,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.5...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.6...HEAD
+[0.23.6]: https://github.com/helv-io/skgate/compare/v0.23.5...v0.23.6
 [0.23.5]: https://github.com/helv-io/skgate/compare/v0.23.4...v0.23.5
 [0.23.4]: https://github.com/helv-io/skgate/compare/v0.23.3...v0.23.4
 [0.23.3]: https://github.com/helv-io/skgate/compare/v0.23.2...v0.23.3
