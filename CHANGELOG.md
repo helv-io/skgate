@@ -13,6 +13,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
+- Device sign-in opens the verification address with the user code in the window, the link and the QR
 - Sign out of a provider removes its aliases and leaves the others
 - Device sign-in shows the code, the verification address, and a QR
 - The helper-model and alias counts open their own dialogs

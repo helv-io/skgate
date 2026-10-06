@@ -37,7 +37,8 @@ type providerView struct {
 	Inline      bool // the MCP helper model form posts in place (no page reload)
 	S           provider.Status
 	Dev         provider.DeviceFlow
-	DevURL      string   // verification address without the user code; the device panel, its link and its QR all use this
+	DevURL      string   // verification address shown as link text, without the user code
+	DevOpen     string   // popup, link href and QR: the address with the user code when one is known
 	State       pillView // sign-in pill; the hover text carries the detail
 	Expiry      string   // when the access token ends, the same timestamp as the rest of the admin, or ""
 	Info        []provider.InfoRow
@@ -126,7 +127,7 @@ func expiryText(s provider.Status) string {
 func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView {
 	id := p.ID()
 	dev := p.Device()
-	v := providerView{ID: id, Name: p.Name(), S: p.Status(), Dev: dev, DevURL: deviceLink(dev), Info: p.Info(),
+	v := providerView{ID: id, Name: p.Name(), S: p.Status(), Dev: dev, DevURL: deviceLink(dev), DevOpen: deviceOpen(dev), Info: p.Info(),
 		Base: a.Set.Base(p), Fallback: a.Set.Fallback(p), DefaultBase: p.DefaultBase(), CanModels: a.proxyFor(id) != nil}
 	v.State, v.Expiry = stateOf(v.S), expiryText(v.S)
 	v.Default = id == a.Providers.Default().ID()

@@ -38,7 +38,9 @@ func TestCheckRemoteShowsAheadAndTagsArePinned(t *testing.T) {
 	f.commit("version.txt", "v1\n", "one")
 	run(t, f.wc, "git", "tag", "v1.0.0")
 	run(t, f.wc, "git", "push", "-q", "origin", "v1.0.0")
-	m, _ := testMgr(t, nil)
+	// Periodic checks are off. This test calls CheckRemote itself, and the janitor
+	// would otherwise start the first check at once and race that call.
+	m, _ := testMgr(t, func(o *Options) { o.CheckEvery = -1 })
 	p, _ := m.Proc(gitSpec("g", f, "main"))
 	initSession(t, serve(t, p).URL, nil)
 	if u := upFor(t, p); len(u.Rev) != 12 || u.Available || u.Ref != "main" {

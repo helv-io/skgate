@@ -11,14 +11,45 @@ import (
 	"github.com/helv-io/skgate/internal/provider"
 )
 
-// deviceLink is the verification address without the user code. The device panel opens it,
-// the fallback link shows it in full, and the QR encodes it. verification_uri is used as
-// returned. The complete URI is only a fallback, and its user_code is stripped.
+// deviceLink is the verification address shown as link text, without the user code.
+// verification_uri is used as returned. The complete URI is only a fallback, and its user_code is stripped.
 func deviceLink(d provider.DeviceFlow) string {
 	if u := strings.TrimSpace(d.VerificationURI); u != "" {
 		return u
 	}
 	return stripUserCode(d.VerificationURIComplete)
+}
+
+// deviceOpen is the address the popup, the link and the QR open. verification_uri_complete
+// is used as the provider returned it. Otherwise the user code is appended the usual way
+// for a device-authorization provider (a user_code query parameter). With no code to add,
+// the plain verification address is used.
+func deviceOpen(d provider.DeviceFlow) string {
+	if u := strings.TrimSpace(d.VerificationURIComplete); u != "" {
+		return u
+	}
+	base := strings.TrimSpace(d.VerificationURI)
+	code := strings.TrimSpace(d.UserCode)
+	if base == "" || code == "" {
+		return base
+	}
+	if u, ok := appendUserCode(base, code); ok {
+		return u
+	}
+	return base
+}
+
+// appendUserCode adds user_code to a verification address. The provider's address is kept;
+// an address that is not an absolute URL is left alone.
+func appendUserCode(raw, code string) (string, bool) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "", false
+	}
+	q := u.Query()
+	q.Set("user_code", code)
+	u.RawQuery = q.Encode()
+	return u.String(), true
 }
 
 func stripUserCode(raw string) string {
