@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -127,6 +128,42 @@ func TestAdminUpdateTrackingAutoUpdateAndCheck(t *testing.T) {
 	if !strings.Contains(string(mcp.ExportJSON(ups)), `"autoUpdateSeconds": 3600`) {
 		t.Fatalf("export: %s", mcp.ExportJSON(ups))
 	}
+}
+
+// The update pill on a phone: a tap reaches the process route (a control named "action" once shadowed
+// form.action, so the post went to /admin/[object HTMLInputElement]), the row refreshes in place, and a failed
+// update is shown, not only in a hover title.
+func TestUpdatePillTapInBrowser(t *testing.T) {
+	a, br, csrf := managedApp(t)
+	bare, wc := gitOrigin(t)
+	form := stdioForm(csrf, "repo", url.Values{"kind": {"git"}, "git_url": {"file://" + bare}, "git_ref": {"main"}, "lifecycle": {"always"}})
+	if r, _ := br.post("/admin/upstreams/save", form); flashKind(r) != "ok" {
+		t.Fatal("create")
+	}
+	end := time.Now().Add(15 * time.Second)
+	for a.MCP.Managed.Lookup("repo").Rev() == "" && time.Now().Before(end) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	push := func(v string) {
+		os.WriteFile(filepath.Join(wc, "v"), []byte(v), 0o644)
+		gitRun(t, wc, "commit", "-q", "-am", v)
+		gitRun(t, wc, "push", "-q", "origin", "main")
+		if res, _ := br.post("/admin/upstreams/repo/process", url.Values{"csrf": {csrf}, "action": {"check"}}); !strings.Contains(fmt.Sprint(flashOf(res)), "update available") {
+			t.Fatalf("check after %s: %v", v, fmt.Sprint(flashOf(res)))
+		}
+	}
+	push("2")
+	rev := a.MCP.Managed.Lookup("repo").Rev()
+	runBrowserScript(t, "update_tap.js", br.ts.URL, br, "ok")
+	if a.MCP.Managed.Lookup("repo").Rev() == rev {
+		t.Fatal("the tap did not update the upstream")
+	}
+	// the next update fails: the origin is gone after the check saw a new commit
+	push("3")
+	if err := os.RemoveAll(bare); err != nil {
+		t.Fatal(err)
+	}
+	runBrowserScript(t, "update_tap.js", br.ts.URL, br, "fail")
 }
 
 // The Home Assistant preset is plain markup (no per-page script): its option carries the values the
