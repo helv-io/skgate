@@ -9,6 +9,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 ### Added
 
 - README: Star History chart
+- README: model aliases are opened from the provider card
 
 ### Changed
 
