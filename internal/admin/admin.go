@@ -700,6 +700,7 @@ type procView struct {
 type updView struct {
 	Rev, Ref, RefKind, Remote string
 	Available, Pinned         bool
+	Updating                  bool
 	PinNote                   string
 	Checked, CheckErr         string
 	Package                   string
@@ -734,7 +735,7 @@ func everyText(d time.Duration) string {
 
 func updViewOf(u managed.UpdateInfo) updView {
 	v := updView{Rev: u.Rev, Ref: u.Ref, RefKind: u.RefKind, Remote: shortSHA(u.RemoteRev), Available: u.Available, Pinned: u.Pinned,
-		PinNote: u.PinNote, Checked: stamp(u.Checked), CheckErr: u.CheckErr, Err: u.Err, Auto: everyText(u.AutoEvery), Next: stamp(u.AutoNext)}
+		Updating: u.Updating, PinNote: u.PinNote, Checked: stamp(u.Checked), CheckErr: u.CheckErr, Err: u.Err, Auto: everyText(u.AutoEvery), Next: stamp(u.AutoNext)}
 	if u.Git && u.Ref == "" && u.Rev != "" {
 		v.Ref = "default branch"
 	}
@@ -819,6 +820,7 @@ type formData struct {
 type suggestState struct {
 	Enabled bool
 	Why     string
+	Wait    int           // seconds the browser waits for a helper call: at least the helper timeout
 	P       *providerView // the default provider with its models; nil without one
 }
 

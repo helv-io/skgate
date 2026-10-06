@@ -371,14 +371,14 @@ type verbGroup struct {
 }
 
 type toolsData struct {
-	U      upstreamView
-	Groups []verbGroup
-	Total  int // operations that can be tools
-	On     int
-	Skip   int
-	Level  string
-	Good   int
-	Warn   int
+	U       upstreamView
+	Groups  []verbGroup
+	Total   int // operations that can be tools
+	On      int
+	Skip    int
+	Level   string
+	Good    int
+	Warn    int
 	Suggest suggestState // same helper state as Suggest configuration on the add form
 	Title   string
 	// SpecURL is where the description is read from ("" for a pasted one); Updated says when it was last read.
@@ -607,23 +607,43 @@ func (a *Admin) openAPIRepair(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer cancel()
+	stream := strings.Contains(r.Header.Get("Accept"), ndjson)
+	var send func(any)
+	if stream {
+		send = ndjsonSend(w)
+		as.Progress = func(label string) { send(map[string]string{"stage": "model", "label": label}) }
+	}
 	t0 := time.Now()
 	patches, err := as.Repair(ctx, d, issues)
 	if err != nil {
 		log.Printf("openapi: repair refused after %s: %v", time.Since(t0).Round(time.Millisecond), err)
+		if stream {
+			send(map[string]string{"error": err.Error()})
+			return
+		}
 		fail(http.StatusBadGateway, err.Error())
 		return
 	}
 	fixed, changes, err := d.Apply(patches)
 	if err != nil {
 		log.Printf("openapi: repair patches refused: %v", err)
-		fail(http.StatusBadGateway, "the repair does not apply: "+err.Error())
+		msg := "the repair does not apply: " + err.Error()
+		if stream {
+			send(map[string]string{"error": msg})
+			return
+		}
+		fail(http.StatusBadGateway, msg)
 		return
 	}
 	rest := fixed.Validate()
 	log.Printf("openapi: repair proposed %d changes, %d problems before, %d after, in %s", len(changes), len(issues), len(rest), time.Since(t0).Round(time.Millisecond))
 	pretty, _ := json.MarshalIndent(fixed.Raw, "", "  ")
-	httputil.JSON(w, http.StatusOK, map[string]any{"changes": changes, "before": len(issues), "remaining": issueViews(rest), "spec": string(pretty)})
+	out := map[string]any{"changes": changes, "before": len(issues), "remaining": issueViews(rest), "spec": string(pretty)}
+	if stream {
+		send(map[string]any{"result": out})
+		return
+	}
+	httputil.JSON(w, http.StatusOK, out)
 }
 
 // upstreamToolsSuggest proposes names and one-line descriptions for every tool, and a core set to switch on. It
@@ -651,13 +671,28 @@ func (a *Admin) upstreamToolsSuggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer cancel()
+	stream := strings.Contains(r.Header.Get("Accept"), ndjson)
+	var send func(any)
+	if stream {
+		send = ndjsonSend(w)
+		as.Progress = func(label string) { send(map[string]string{"stage": "model", "label": label}) }
+	}
 	res, on, err := as.Describe(ctx, ops)
 	if err != nil {
 		log.Printf("openapi: describe refused: %v", err)
+		if stream {
+			send(map[string]string{"error": err.Error()})
+			return
+		}
 		fail(http.StatusBadGateway, err.Error())
 		return
 	}
-	httputil.JSON(w, http.StatusOK, map[string]any{"tools": res, "on": on})
+	out := map[string]any{"tools": res, "on": on}
+	if stream {
+		send(map[string]any{"result": out})
+		return
+	}
+	httputil.JSON(w, http.StatusOK, out)
 }
 
 // maxTryArgs is the largest argument text the tool tester takes.

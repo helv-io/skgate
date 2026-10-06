@@ -26,9 +26,16 @@ type Completer interface {
 
 // Assist runs the assistant's prompts on a Completer.
 type Assist struct {
-	LLM    Completer
-	Model  string
-	Effort string // reasoning effort; "" sends nothing, a provider that rejects it is asked again without
+	LLM      Completer
+	Model    string
+	Effort   string // reasoning effort; "" sends nothing, a provider that rejects it is asked again without
+	Progress func(label string)
+}
+
+func (a Assist) progress(label string) {
+	if a.Progress != nil {
+		a.Progress(label)
+	}
 }
 
 // Limits of the assistant's input.
@@ -116,6 +123,8 @@ func (a Assist) Repair(ctx context.Context, d *Doc, issues []Issue) ([]Patch, er
 	if n == 0 {
 		return nil, errors.New("there is nothing to repair")
 	}
+	a.progress("Reading problems")
+	a.progress("Asking SI")
 	var out struct {
 		Patches []Patch `json:"patches"`
 	}
@@ -143,6 +152,7 @@ func (a Assist) Describe(ctx context.Context, ops []Op) (map[string]Override, []
 	if len(ops) == 0 {
 		return nil, nil, errors.New("no tools to name")
 	}
+	a.progress("Reading tools")
 	asked := map[string]bool{}
 	var u strings.Builder
 	u.WriteString("Operations:\n")
@@ -162,6 +172,7 @@ func (a Assist) Describe(ctx context.Context, ops []Op) (map[string]Override, []
 		fmt.Fprintf(&u, "\nkey: %s\n  current name: %s\n  summary: %s\n  description: %s\n  inputs: %s\n", o.Key, o.ID, clip(o.Summary, 200), clip(o.Description, 400), strings.Join(ps, ", "))
 	}
 	fmt.Fprintf(&u, "\nPick about %d tools for \"on\", at most %d.\n", SelectSoft, SelectHard)
+	a.progress("Asking SI")
 	var out struct {
 		Tools []struct {
 			Key         string `json:"key"`
@@ -173,6 +184,7 @@ func (a Assist) Describe(ctx context.Context, ops []Op) (map[string]Override, []
 	if err := a.ask(ctx, describePrompt, u.String(), &out); err != nil {
 		return nil, nil, err
 	}
+	a.progress("Picking core tools")
 	res := map[string]Override{}
 	used := map[string]bool{}
 	for _, t := range out.Tools {

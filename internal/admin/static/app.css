@@ -134,6 +134,13 @@ button.pill.warn:hover{color:var(--warn);border-color:var(--warn);background:tra
 button.pill.bad{color:var(--bad);border-color:var(--bad-line)}
 button.pill.bad:hover{color:var(--bad);border-color:var(--bad);background:transparent}
 button.pill.off:hover{color:var(--dim);border-color:var(--fg)}
+/* a running helper or update keeps its size: the bar is drawn inside the button, along the bottom edge */
+button.running{position:relative;overflow:hidden}
+button.running::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:currentColor;animation:si-bar 1s linear infinite;pointer-events:none}
+@keyframes si-bar{0%{transform:scaleX(.15);transform-origin:left}50%{transform:scaleX(1);transform-origin:left}51%{transform:scaleX(1);transform-origin:right}100%{transform:scaleX(.15);transform-origin:right}}
+@media (prefers-reduced-motion:reduce){button.running::after{animation:none;opacity:.85}}
+td.status form{display:inline-flex;margin:0;vertical-align:middle}
+.si-status.bad{color:var(--bad)}
 .act.accent,button.accent{color:var(--acc);border-color:var(--acc)}
 /* danger: red at rest (touch screens have no hover), brighter border and a red wash on hover */
 .act.danger,button.danger{color:var(--bad);border-color:var(--bad-line)}

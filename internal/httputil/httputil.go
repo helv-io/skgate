@@ -82,7 +82,7 @@ func SetCORS(w http.ResponseWriter) {
 	hd := w.Header()
 	hd.Set("Access-Control-Allow-Origin", "*")
 	hd.Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-	hd.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, X-API-Key, X-Upstream-Authorization, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID")
+	hd.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, X-API-Key, X-Upstream-Authorization, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Method, Mcp-Name, Last-Event-ID")
 	hd.Set("Access-Control-Expose-Headers", "WWW-Authenticate, Mcp-Session-Id, Mcp-Protocol-Version")
 	hd.Set("Access-Control-Max-Age", "600")
 }

@@ -36,6 +36,10 @@ func TestMigrateAddsIdentityColumns(t *testing.T) {
 		if err := db.QueryRow(`SELECT sub FROM oauth_tokens WHERE hash='h'`).Scan(&sub); err != nil || sub.Valid {
 			t.Fatalf("old rows must have NULL sub: %v %v", err, sub)
 		}
+		var rotated int64
+		if err := db.QueryRow(`SELECT rotated_at FROM oauth_tokens WHERE hash='h'`).Scan(&rotated); err != nil || rotated != 0 {
+			t.Fatalf("old rows must have rotated_at 0: %v %d", err, rotated)
+		}
 		if _, err := db.Exec(`INSERT INTO oauth_codes(hash,client_id,redirect_uri,challenge,expires_at,sub,email) VALUES('c` + fmt.Sprint(i) + `','c','r','ch',1,'s','e')`); err != nil {
 			t.Fatal(err)
 		}

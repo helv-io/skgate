@@ -1,6 +1,7 @@
 package app
 
 import (
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -74,7 +75,7 @@ func TestAdminUpdateTrackingAutoUpdateAndCheck(t *testing.T) {
 		t.Fatalf("installed rev %q", rev)
 	}
 	_, list := br.get("/admin/upstreams")
-	if !strings.Contains(list, "\ninstalled: "+rev+" main") || strings.Contains(list, "update available") || strings.Contains(list, ">update</span>") {
+	if !strings.Contains(list, "\ninstalled: "+rev+" main") || strings.Contains(list, "update available") || strings.Contains(list, ">update</") {
 		t.Fatalf("list must show the installed commit and ref:\n%s", list)
 	}
 	_, page := br.get("/admin/upstreams/repo/logs")
@@ -91,14 +92,20 @@ func TestAdminUpdateTrackingAutoUpdateAndCheck(t *testing.T) {
 	}
 	_, list = br.get("/admin/upstreams")
 	_, page = br.get("/admin/upstreams/repo/logs")
-	if !strings.Contains(list, "\nupdate available") || !strings.Contains(list, `class="pill warn" title="a newer version is available">update</span>`) || !regexp.MustCompile(`class="act accent">Update</button>`).MatchString(page) {
+	if !strings.Contains(list, "\nupdate available") || !strings.Contains(list, `data-update`) || !strings.Contains(list, `class="pill warn" title="a newer version is available">update</button>`) || !regexp.MustCompile(`class="act accent">Update</button>`).MatchString(page) {
 		t.Fatal("update available must show on the list and emphasize the button")
 	}
 	if r, _ := br.get("/admin/upstreams/repo/process?action=check"); r.StatusCode != 405 {
 		t.Fatalf("GET check: %d", r.StatusCode)
 	}
-	// update applies it
-	br.post("/admin/upstreams/repo/process", url.Values{"csrf": {csrf}, "action": {"update"}, "to": {"logs"}})
+	// one click starts the update in place: JSON, no redirect
+	req, _ := http.NewRequest("POST", br.ts.URL+"/admin/upstreams/repo/process", strings.NewReader(url.Values{"csrf": {csrf}, "action": {"update"}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+	res, body := br.do(req)
+	if res.StatusCode != 200 || res.Header.Get("Location") != "" || !strings.Contains(body, `"k":"ok"`) {
+		t.Fatalf("in-place update: %d %q %s", res.StatusCode, res.Header.Get("Location"), body)
+	}
 	end = time.Now().Add(20 * time.Second)
 	for a.MCP.Managed.Lookup("repo").Rev() == rev && time.Now().Before(end) {
 		time.Sleep(50 * time.Millisecond)

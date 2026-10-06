@@ -22,15 +22,15 @@ async function run(lines, hang, reject){
   d.querySelector("[data-suggest]:not([disabled])").click();
   await wait(60);
   const out=d.querySelector("[data-suggest-out]");
-  return {d,out,pill:out.querySelector("[data-suggest-pill]"),toasts};
+  return {d,out,pill:out.querySelector("[data-suggest-pill]"),status:d.querySelector("[data-si-status]"),btn:d.querySelector("[data-suggest]"),toasts};
 }
 (async()=>{
   let r=await run([
     JSON.stringify({stage:"model",label:"Asking the model"}),
     JSON.stringify({stage:"model",label:"Asking the model",chars:1500}),
     JSON.stringify({error:"timed out while asking the model: no data for 45s; lower the reasoning",timeout:{kind:"idle",stage:"model",where:"asking the model",secs:45,effort:"low"}})]);
-  ok(/^Timed out while asking the model \u00b7 \d+s$/.test(r.pill.textContent),"pill: "+r.pill.textContent);
-  ok(r.pill.classList.contains("bad"),"pill is in the bad state");
+  ok(r.status&&r.status.classList.contains("bad")&&/Timed out while asking the model/.test(r.status.textContent),"status: "+(r.status&&r.status.textContent));
+  ok(r.btn.textContent==="Suggest configuration"&&!r.btn.disabled&&!r.btn.classList.contains("running"),"the button keeps its label and works again");
   const act=r.out.querySelector("[data-suggest-action]");
   ok(act&&act.textContent==="Lower reasoning"&&act.getAttribute("data-dialog-open")==="#helper-model","Lower reasoning button opens the helper dialog");
   ok(/No data for 45s/.test(r.out.textContent)&&/reasoning \(now: low\)/.test(r.out.textContent),"explanation names the reasoning");
@@ -39,25 +39,27 @@ async function run(lines, hang, reject){
   r=await run([
     JSON.stringify({stage:"fetch",label:"Fetching repo"}),
     JSON.stringify({error:"timed out while fetching the repo after 300s",timeout:{kind:"cap",stage:"fetch",where:"fetching the repo",secs:300}})]);
-  ok(/^Timed out while fetching the repo/.test(r.pill.textContent),"fetch timeout pill: "+r.pill.textContent);
+  ok(r.status&&/^Timed out while fetching the repo/.test(r.status.textContent)&&r.status.classList.contains("bad"),"fetch timeout: "+(r.status&&r.status.textContent));
   ok(!r.out.querySelector("[data-suggest-action]"),"no reasoning button when the model was not the slow part");
 
   r=await run([
     JSON.stringify({stage:"model",label:"Asking the model"}),
     JSON.stringify({stage:"model",label:"Asking the model",chars:2500})], true);
-  ok(/^Asking the model \u00b7 2\.5k chars \u00b7 \d+s$/.test(r.pill.textContent),"activity shown while streaming: "+r.pill.textContent);
+  ok(r.status&&/Asking the model/.test(r.status.textContent)&&/2\.5k chars/.test(r.status.textContent)&&!r.status.classList.contains("bad"),"stage line while streaming: "+(r.status&&r.status.textContent));
+  ok(r.btn.disabled&&r.btn.classList.contains("running")&&r.btn.textContent==="Suggest configuration","the button keeps its label, stays disabled, and shows the bar");
   ok(!r.out.querySelector("[data-suggest-action]"),"no button while running");
 
   // one error, said once: in the panel, with no pill and no toast
   r=await run([JSON.stringify({error:"the repository could not be cloned"})]);
-  ok(r.pill.hidden,"no pill beside an error");
-  ok(r.toasts.length===0,"no toast for an error already in the panel");
-  ok(!r.out.hidden&&r.out.textContent.split("could not be cloned").length===2,"the message appears once: "+r.out.textContent);
-  ok(!r.d.querySelector("[data-suggest]").disabled,"the button works again after a failure");
-  ok(r.out.getAttribute("aria-live")==="polite","the result area is announced");
+  ok(r.status&&r.status.classList.contains("bad")&&r.status.textContent==="the repository could not be cloned","the error is the status line: "+(r.status&&r.status.textContent));
+  ok(r.out.hidden,"the result panel stays closed");
+  ok(r.toasts.length===0,"no toast for an error already on the line");
+  ok(!r.btn.disabled,"the button works again after a failure");
+  ok(r.status.parentElement===r.btn.parentElement,"the status line sits beside the button");
 
   r=await run([],false,true);
-  ok(r.out.textContent.includes("Couldn't reach skgate. Check your connection and try again."),"network failure message: "+r.out.textContent);
+  ok(r.status&&r.status.textContent.includes("Couldn't reach skgate. Check your connection and try again.")&&r.status.classList.contains("bad"),"network failure: "+(r.status&&r.status.textContent));
+  ok(!r.btn.disabled,"the button works again after a network failure");
   ok(r.toasts.length===0,"no toast for a network failure");
 
   // Suggest needs a source and nothing else

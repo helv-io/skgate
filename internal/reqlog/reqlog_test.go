@@ -12,7 +12,7 @@ import (
 
 func TestLoggedPaths(t *testing.T) {
 	for p, want := range map[string]bool{
-		"/authorize": true, "/token": true, "/register": true, "/.well-known/oauth-authorization-server": true,
+		"/authorize": true, "/token": true, "/register": true, "/revoke": true, "/.well-known/oauth-authorization-server": true,
 		"/.well-known/oauth-protected-resource/mcp/x": true, "/admin/oidc/login": true, "/admin/oidc/callback": true,
 		"/mcp": true, "/mcp/alias": true, "/sse": true, "/messages": true,
 		"/admin": false, "/admin/keys": false, "/healthz": false, "/v1/models": false, "/": false,
