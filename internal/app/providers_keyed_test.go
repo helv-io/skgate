@@ -68,7 +68,7 @@ func TestAddProviderSavesSealedKeyAndTests(t *testing.T) {
 		t.Fatalf("key not sealed: %q", raw)
 	}
 	_, page := br.get("/admin")
-	for _, want := range []string{"<h3>OpenAI</h3>", "************1234", `data-dialog-open="#provider-openai"`, "Test connection", "Remove provider", `value="` + oa.URL + `/v1"`} {
+	for _, want := range []string{"<h3>OpenAI</h3>", "************1234", `data-dialog-open="#provider-openai"`, "Remove provider", "MCP helper model", "Model aliases"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page lacks %q", want)
 		}
@@ -168,8 +168,15 @@ func TestHelperModelOfAnotherProvider(t *testing.T) {
 	}
 	addProvider(br, csrf, "openai", oa.URL+"/v1", "sk-live-abcd1234")
 	_, page = br.get("/admin")
-	if !strings.Contains(page, `<optgroup label="OpenAI models">`) || !strings.Contains(page, `<option value="gpt-x"`) {
-		t.Fatalf("picker lacks the OpenAI models")
+	oaDlg := page[strings.Index(page, `id="provider-openai"`):]
+	oaDlg = oaDlg[:strings.Index(oaDlg, "</template>")]
+	if !strings.Contains(oaDlg, `<option value="gpt-x"`) || strings.Contains(oaDlg, "OpenAI models") {
+		t.Fatalf("OpenAI details should list its own models only:\n%s", oaDlg)
+	}
+	grokPick := page[strings.Index(page, `<select name="model"`):]
+	grokPick = grokPick[:strings.Index(grokPick, "</select>")]
+	if strings.Contains(grokPick, `value="gpt-x"`) {
+		t.Fatal("Grok's helper list includes another provider's models")
 	}
 	resp, _ := br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"gpt-x"}})
 	if k, m := flashOf(resp); k != "ok" {
@@ -314,14 +321,14 @@ func TestAddProviderFindsTheWorkingAddressForm(t *testing.T) {
 		t.Run("typed"+typed, func(t *testing.T) {
 			grokUp, _ := modelsUpstream(t, "grok-4.7")
 			up := onlyV1Upstream(t)
-			_, _, br, csrf, _ := signedInProvider(t, grokUp)
+			a, _, br, csrf, _ := signedInProvider(t, grokUp)
 			resp, _ := addProvider(br, csrf, "custom", up.URL+typed, "sk-good")
 			k, m := flashOf(resp)
 			if k != "ok" || !strings.Contains(m, "connected, 3 models") || strings.Contains(m, "/v1") {
 				t.Fatalf("flash %q %q", k, m)
 			}
-			_, page := br.get("/admin")
-			if !strings.Contains(page, `value="`+up.URL+`/v1"`) {
+			p, _ := a.Providers.Get("custom")
+			if p == nil || a.Admin.Set.Base(p) != up.URL+"/v1" {
 				t.Errorf("the working form was not saved")
 			}
 		})
@@ -332,7 +339,7 @@ func TestAddProviderFindsTheWorkingAddressForm(t *testing.T) {
 func TestAddProviderPlainErrors(t *testing.T) {
 	grokUp, _ := modelsUpstream(t, "grok-4.7")
 	up := onlyV1Upstream(t)
-	_, _, br, csrf, _ := signedInProvider(t, grokUp)
+	a, _, br, csrf, _ := signedInProvider(t, grokUp)
 	resp, _ := addProvider(br, csrf, "custom", up.URL, "sk-wrong")
 	if k, m := flashOf(resp); k != "bad" || !strings.Contains(m, "did not accept the API key") || strings.Contains(m, "/v1") {
 		t.Errorf("wrong key: %q %q", k, m)
@@ -344,8 +351,8 @@ func TestAddProviderPlainErrors(t *testing.T) {
 	if k, m := flashOf(resp); k != "bad" || !strings.Contains(m, "no model list was found at that address") {
 		t.Errorf("nothing found: %q %q", k, m)
 	}
-	_, page := br.get("/admin")
-	if !strings.Contains(page, `value="`+nothing.URL+`/x"`) {
+	p, _ := a.Providers.Get("custom")
+	if p == nil || a.Admin.Set.Base(p) != nothing.URL+"/x" {
 		t.Errorf("the address was not kept as typed")
 	}
 }

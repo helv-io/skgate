@@ -11,7 +11,7 @@
 {{/* The order follows the work: Type, then Source with Suggest and its results (they fill the rest), then the alias. */}}
 <div class="group" data-kind="stdio git">
 <div class="field"><label>MCP source URL / package<input type="text" name="source" value="{{.Source}}" placeholder="https://host/org/repo, npm or PyPI package" autocomplete="off" spellcheck="false" data-suggest-source></label></div>
-{{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Access token{{if .TokenMasked}} <code>{{.TokenMasked}}</code>{{end}}<input type="password" name="git_token" placeholder="{{if .TokenMasked}}Empty keeps it{{else}}Private repositories{{end}}" autocomplete="off" data-suggest-token></label></div>
+{{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Access token<input type="password" name="git_token" placeholder="{{if .TokenMasked}}{{.TokenMasked}}{{else}}Private repositories{{end}}" autocomplete="off" data-suggest-token></label></div>
 {{if .TokenMasked}}<div class="row" data-show-for="git"><label class="check"><input type="checkbox" name="clear_token" value="1"> remove the stored token</label></div>{{end}}{{end}}
 {{template "suggest_controls" .Suggest}}
 {{template "suggest_result"}}
@@ -27,7 +27,7 @@
 <option value="header" {{if eq .U.AuthKind "header"}}selected{{end}}>header</option>
 <option value="passthrough" {{if eq .U.AuthKind "passthrough"}}selected{{end}}>passthrough</option></select></label></div>
 <div class="field" data-when="header auto"><label>Header name<input type="text" name="auth_name" placeholder="X-Api-Key" value="{{.U.AuthName}}"></label></div>
-<div class="field"><label>Token or header value{{if .U.Masked}} <code>{{.U.Masked}}</code>{{end}}<input type="password" name="auth_value" placeholder="{{if .U.Masked}}Empty keeps it{{end}}" autocomplete="off"></label></div>
+<div class="field"><label>Token or header value<input type="password" name="auth_value" placeholder="{{if .U.Masked}}{{.U.Masked}}{{end}}" autocomplete="off"></label></div>
 {{template "pairs" .Hdr}}
 <details {{if .U.HostOverride}}open{{end}}><summary class="muted">Advanced</summary>
 <div class="field"><label>Host override<input type="text" name="host_override" placeholder="localhost:8000" value="{{.U.HostOverride}}"></label></div>
@@ -42,7 +42,7 @@
 {{if .HasSpec}}<div class="row"><a class="act" href="/admin/upstreams/{{$.U.Alias}}/tools">Choose tools</a><span class="muted">{{.Tools}} of {{.Ops}} on</span></div>{{end}}
 <div class="row"><button type="button" class="act" data-oa-check data-oa-check-url="/admin/openapi/check" data-oa-repair-url="/admin/openapi/repair" data-csrf="{{$.CSRF}}">Check</button></div>
 {{template "oa_check_result"}}
-<div class="field"><label>Key{{if $.U.Masked}} <code>{{$.U.Masked}}</code>{{end}}<input type="password" name="oa_auth_value" autocomplete="new-password" placeholder="{{if $.U.Masked}}Empty keeps it{{else}}Optional{{end}}"></label></div>
+<div class="field"><label>Key<input type="password" name="oa_auth_value" autocomplete="new-password" placeholder="{{if $.U.Masked}}{{$.U.Masked}}{{else}}Optional{{end}}"></label></div>
 <input type="hidden" name="oa_skip_check" value="" data-oa-skip>
 <details {{if or .As $.U.URL}}open{{end}}><summary class="muted">Advanced</summary>
 <div class="field"><label>Send the key as<input type="text" name="oa_auth_as" value="{{.As}}" list="oa-ways" placeholder="Automatic" autocomplete="off" spellcheck="false"></label>

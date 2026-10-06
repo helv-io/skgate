@@ -8,6 +8,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/helv-io/skgate/internal/provider/grok"
 )
 
 // The admin UI never uses the browser's alert, confirm or prompt: confirmations go through the one
@@ -75,7 +78,8 @@ func TestModalBehaviorInJSDOM(t *testing.T) {
 	if err := probe.Run(); err != nil {
 		t.Skip("jsdom is not available (set SKGATE_JSDOM to a directory with node_modules/jsdom)")
 	}
-	_, br, csrf := managedApp(t)
+	a, br, csrf := managedApp(t)
+	a.Providers.Default().(*grok.Client).SetTokens("acc-secret-1234", "refresh-secret-5678", time.Now().Add(time.Hour))
 	br.post("/admin/upstreams/save", stdioForm(csrf, "m", url.Values{"lifecycle": {"always"}}))
 	br.get("/admin/upstreams/m/test") // starts it, so the process page offers Stop
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"k"}})

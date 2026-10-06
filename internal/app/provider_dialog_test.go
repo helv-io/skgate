@@ -62,8 +62,7 @@ func TestProviderActionsAnswerInPlace(t *testing.T) {
 	}
 }
 
-// The helper model picker offers Your aliases, Models and Vendor aliases as option groups, and a new alias points at
-// the helper model by default.
+// The helper model picker offers this provider's models, then its vendor aliases. A new alias points at the helper model.
 func TestProviderDialogGroupsModelsAndDefaultsTheAliasTarget(t *testing.T) {
 	up, _ := modelsUpstream(t, "grok-4", "grok-4-latest", "grok-mini", "grok-code-latest-fast")
 	a, _, br, csrf, _ := signedInProvider(t, up)
@@ -71,16 +70,21 @@ func TestProviderDialogGroupsModelsAndDefaultsTheAliasTarget(t *testing.T) {
 	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"quick"}, "target": {"grok-mini"}})
 	br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"grok-mini"}})
 	_, page := br.get("/admin")
+	picker := page[strings.Index(page, `<select name="model"`):]
+	picker = picker[:strings.Index(picker, "</select>")]
 	last := -1
-	for _, w := range []string{`<optgroup label="Your aliases">`, `value="quick"`, `<optgroup label="Models">`, `value="grok-4"`, `value="grok-mini"`,
+	for _, w := range []string{`<optgroup label="Models">`, `value="grok-4"`, `value="grok-mini"`,
 		`<optgroup label="Vendor aliases">`, `value="grok-4-latest"`, `value="grok-code-latest-fast"`} {
-		i := strings.Index(page, w)
+		i := strings.Index(picker, w)
 		if i < 0 || i < last {
 			t.Fatalf("%q missing or out of order (%d after %d)", w, i, last)
 		}
 		last = i
 	}
-	if strings.Index(page, `<optgroup label="Models">`) > strings.Index(page, `value="grok-4-latest"`) {
+	if strings.Contains(picker, "Your aliases") || strings.Contains(picker, `value="quick"`) {
+		t.Error("the helper picker lists aliases or another provider's models")
+	}
+	if strings.Index(picker, `<optgroup label="Models">`) > strings.Index(picker, `value="grok-4-latest"`) {
 		t.Error("a vendor alias sits among the models")
 	}
 	if !strings.Contains(page, `<option value="grok-mini" selected>grok-mini</option>`) {
@@ -100,12 +104,12 @@ func TestProviderDialogGroupsModelsAndDefaultsTheAliasTarget(t *testing.T) {
 	_ = a
 }
 
-// Grok details are sign-in and the folded diagnostics. The helper model and the aliases are their own dialogs.
-// Refresh now and Browser sign-in share one row. There is no upstream-address editor.
+// Details of every provider is the helper model, the aliases, and Remove. Sign-in and technical details are gone.
 func TestProviderDialogSections(t *testing.T) {
 	up, _ := modelsUpstream(t, "grok-4")
 	_, _, br, csrf, _ := signedInProvider(t, up)
 	postJSON(br, "/admin/providers/grok/models/reload", url.Values{"csrf": {csrf}})
+	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"fast"}, "target": {"grok-4"}})
 	_, page := br.get("/admin")
 	tpl := func(id string) string {
 		i := strings.Index(page, `id="`+id+`"`)
@@ -116,44 +120,49 @@ func TestProviderDialogSections(t *testing.T) {
 		return s[:strings.Index(s, "</template>")]
 	}
 	dlg := tpl("provider-grok")
-	if strings.Index(dlg, `data-section="signin"`) < 0 || strings.Index(dlg, `data-section="signin"`) > strings.Index(dlg, `data-section="technical"`) {
-		t.Fatal("sign-in comes before technical details")
+	modelAt, aliasAt := strings.Index(dlg, `data-section="model"`), strings.Index(dlg, `data-section="aliases"`)
+	if modelAt < 0 || aliasAt < 0 || modelAt > aliasAt {
+		t.Fatal("helper model comes before aliases")
 	}
-	for _, gone := range []string{`data-section="model"`, `data-section="upstream"`, `data-section="aliases"`, "Upstream URLs", "Base URL", "Fallback"} {
+	for _, gone := range []string{"Technical details", "Refresh now", "Browser sign-in", "Finish sign-in", "Sign in again",
+		"Refresh token", "Danger zone", `data-section="signin"`, `data-section="technical"`, `data-section="upstream"`, "Upstream URLs", "Base URL", "Fallback"} {
 		if strings.Contains(dlg, gone) {
 			t.Errorf("Grok details still has %q", gone)
 		}
 	}
-	tech := dlg[strings.Index(dlg, `data-section="technical"`):]
-	for _, w := range []string{"<summary>Technical details</summary>", "<h4>Tokens</h4>", "<h4>Sign-in details</h4>"} {
-		if !strings.Contains(tech, w) {
-			t.Errorf("Technical details lacks %q", w)
-		}
+	if !strings.Contains(dlg, `data-confirm-title="Remove Grok?"`) || !strings.Contains(dlg, `data-confirm="Its aliases go too."`) || !strings.Contains(dlg, `data-confirm-ok="Remove"`) || !strings.Contains(dlg, `class="act danger">Remove provider</button>`) {
+		t.Error("Remove provider is not the plain danger button with its confirmation")
 	}
-	if strings.Contains(dlg[:strings.Index(dlg, `data-section="technical"`)], "Refresh token") {
-		t.Error("the diagnostics are outside Technical details")
+	if strings.Contains(dlg, "danger-zone") {
+		t.Error("Remove sits in a danger zone")
 	}
-	sign := dlg[strings.Index(dlg, `data-section="signin"`):strings.Index(dlg, `data-section="technical"`)]
-	row := sign[strings.Index(sign, `<div class="actions">`):]
-	row = row[:strings.Index(row, `</div>`)]
-	if !strings.Contains(row, "Refresh now") || !strings.Contains(row, "Browser sign-in") {
-		t.Errorf("Refresh now and Browser sign-in are not in one row:\n%s", row)
-	}
-	// every form of the dialog except the one that leaves for the provider's sign-in page saves in place
+	// the remove form confirms, then posts. Every other form saves in place.
 	for _, f := range strings.Split(dlg, "<form")[1:] {
 		f = f[:strings.Index(f, ">")]
-		if !strings.Contains(f, "data-save") && !strings.Contains(f, `target="_blank"`) {
+		if strings.Contains(f, "/remove") {
+			if !strings.Contains(f, "data-confirm") {
+				t.Error("Remove does not confirm")
+			}
+			continue
+		}
+		if !strings.Contains(f, "data-save") {
 			t.Errorf("a form of the dialog does not save in place: <form%s>", f)
 		}
 	}
 	helper, aliases := tpl("helper-model"), tpl("aliases-grok")
-	if !strings.Contains(helper, `data-section="model"`) || !strings.Contains(helper, "Reload models") || !strings.Contains(helper, `class="btn">Save</button>`) {
-		t.Error("the helper dialog is the model picker, with Reload beside the list and Save bottom-left")
+	if !strings.Contains(helper, `data-section="model"`) || !strings.Contains(helper, "data-autosave") || !strings.Contains(helper, `action="/admin/providers/grok/models/reload"`) || !strings.Contains(helper, "data-quiet") {
+		t.Error("the helper dialog saves on change and reloads the model list when it opens")
 	}
-	for _, w := range []string{`data-section="aliases"`, ">Add alias</button>", `action="/admin/providers/grok/aliases/put"`} {
+	if strings.Contains(helper, "Reload models") || strings.Contains(helper, `>Save</button>`) || strings.Contains(helper, "unsaved") {
+		t.Error("the helper dialog still has Reload, Save or the unsaved mark")
+	}
+	for _, w := range []string{`data-section="aliases"`, ">Add alias</button>", `action="/admin/providers/grok/aliases/put"`, "data-autosave"} {
 		if !strings.Contains(aliases, w) {
 			t.Errorf("the alias dialog lacks %q", w)
 		}
+	}
+	if strings.Contains(aliases, `>Save</button>`) {
+		t.Error("an alias row still has its own Save")
 	}
 }
 
@@ -196,8 +205,9 @@ func TestProviderDialogDirtyStateInJSDOM(t *testing.T) {
 	}
 }
 
-// In a real browser (optional, like the layout sweep): an edit in one section survives a save in another with no
-// reload, and closing the dialog with unsaved edits asks first, by Close and by Escape.
+// In a real browser (optional, like the layout sweep): adding an alias updates the card and the alias table
+// without a reload or a scroll jump, the helper model saves when a field changes, and the alias table opens
+// and deletes an alias.
 func TestProviderDialogSectionsInBrowser(t *testing.T) {
 	chrome, pp := os.Getenv("SKGATE_CHROME"), os.Getenv("SKGATE_PUPPETEER")
 	node, err := exec.LookPath("node")

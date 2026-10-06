@@ -17,7 +17,7 @@ Send as `Authorization: Bearer sk-...` or `X-API-Key` to `/v1` and MCP endpoints
 
 **OAuth clients** (admin: oauth clients). DCR clients (`/register`) and manual clients (fixed ID and secret, for clients without DCR) are listed with the host of their redirect, when they were created and their last use at `/authorize` or `/token`, most recently used first (clients never used come last).
 
-A chip says where a client came from: **self-registered** (DCR), **created here** (the form below) or **metadata document**. The newest 500 DCR clients are kept.
+A chip says where a client came from: **self-registered** (DCR), **created here** (the create form) or **metadata document**. The newest 500 DCR clients are kept.
 
 **Delete unused for 30 days** removes, after a confirmation that says how many, every client last used (or, if never used, created) more than 30 days ago, with its tokens; the button is disabled when there are none.
 

@@ -76,6 +76,7 @@
 (function () {
   function dirtyControl(el) {
     if (!el.name || el.name === "csrf" || el.disabled) return false;
+    if (el.hasAttribute && el.hasAttribute("data-autosave")) return false; // saves on change, so it is never an unsaved edit
     var t = (el.type || "").toLowerCase();
     if (t === "hidden" || t === "submit" || t === "button") return false;
     if (t === "checkbox" || t === "radio") return el.checked !== el.defaultChecked;
@@ -219,7 +220,37 @@
     shownId = id;
     if (dlg.showModal) { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute("open", "");
     if (window.skgateRaiseToasts) window.skgateRaiseToasts();
+    bodyEl.removeAttribute("data-show-alias");
+    var alias = from && from.getAttribute ? from.getAttribute("data-alias") : "";
+    if (alias) bodyEl.setAttribute("data-show-alias", alias);
+    showAlias(bodyEl, true);
+    // A dialog that picks a helper model reloads that provider's list when it opens. Deferred so the save
+    // listener is already registered when a fragment opens the dialog during the first load. file: snapshots
+    // have no server, so they skip the reload.
+    setTimeout(function () {
+      if (location.protocol === "file:") return;
+      var f = bodyEl.querySelector('form[action$="/models/reload"]');
+      if (f) submitForm(f);
+    }, 0);
   }
+  // showAlias marks the alias row named on the dialog body, and focuses it when the dialog has just opened.
+  function showAlias(body, focus) {
+    if (!body) return;
+    var name = body.getAttribute("data-show-alias") || "";
+    Array.prototype.forEach.call(body.querySelectorAll("tr[data-current]"), function (tr) { tr.removeAttribute("data-current"); });
+    if (!name) return;
+    var tr = null;
+    Array.prototype.forEach.call(body.querySelectorAll("tr[data-alias]"), function (row) {
+      if (!tr && row.getAttribute("data-alias") === name) tr = row;
+    });
+    if (!tr) return;
+    tr.setAttribute("data-current", "");
+    if (!focus) return;
+    var el = tr.querySelector("select, button");
+    if (el && el.focus) { try { el.focus(); } catch (err) { /* jsdom has no focus layout */ } }
+    try { tr.scrollIntoView({ block: "nearest" }); } catch (err) { /* no layout */ }
+  }
+  window.skgateShowAlias = showAlias;
   // The address changed (Back, Forward, a typed fragment): show the dialog it names, or close the one in view.
   function follow() {
     var id = fragmentId();
@@ -336,12 +367,88 @@
   });
 })();
 
+// A field with data-autosave posts its form on change. The saved value is the server's until the page is read again,
+// so a newer edit can be copied onto the fresh markup (autosaveChanged). A failed save puts the field back.
+function autosaveChanged(el) {
+  if (!el || !el.hasAttribute || !el.hasAttribute("data-autosave") || el.disabled) return false;
+  if (el.tagName === "SELECT") {
+    var def = 0;
+    Array.prototype.forEach.call(el.options, function (o, i) { if (o.defaultSelected) def = i; });
+    return el.options.length > 0 && el.selectedIndex !== def;
+  }
+  return el.value !== el.defaultValue;
+}
+function revertAutosave(form) {
+  Array.prototype.forEach.call(form.querySelectorAll("[data-autosave]"), function (el) {
+    if (el.tagName === "SELECT") {
+      var def = 0;
+      Array.prototype.forEach.call(el.options, function (o, i) { if (o.defaultSelected) def = i; });
+      if (el.options.length) el.selectedIndex = def;
+    } else el.value = el.defaultValue;
+  });
+  if (form.querySelector("[data-frontier-hint]")) frontierHint(form);
+}
+function submitForm(form) {
+  if (form.requestSubmit) form.requestSubmit();
+  else form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+}
+function beginSave(form) {
+  if (form._saving) { form._again = true; return false; }
+  form._saving = true;
+  form._again = false;
+  form._inBody = !!(form.closest && form.closest("[data-modal-body]"));
+  form.setAttribute("data-saving", "");
+  return true;
+}
+// formTwin is the form after a refresh replaced it: same action, same alias name, same place.
+function formTwin(form) {
+  if (form.isConnected) return form;
+  var action = form.getAttribute("action");
+  var nameIn = form.querySelector('input[name="name"]');
+  var wantName = nameIn ? nameIn.value : null;
+  var wantAuto = !!form.querySelector("[data-autosave]");
+  var hit = null;
+  Array.prototype.forEach.call(document.querySelectorAll("form"), function (f) {
+    if (hit || f.getAttribute("action") !== action) return;
+    if (!!f.closest("[data-modal-body]") !== !!form._inBody) return;
+    if (!!f.querySelector("[data-autosave]") !== wantAuto) return;
+    if (wantName !== null) {
+      var n = f.querySelector('input[name="name"]');
+      if (!n || n.value !== wantName) return;
+    }
+    hit = f;
+  });
+  return hit;
+}
+function endSave(form, ok) {
+  form._saving = false;
+  form.removeAttribute("data-saving");
+  var again = form._again;
+  form._again = false;
+  var live = formTwin(form);
+  if (!live) return;
+  if (again) { submitForm(live); return; }
+  if (!ok) revertAutosave(live);
+}
+// Another form in the open dialog is mid-edit, so recloning the body would throw that edit away.
+function bodyBusy(dlg, self) {
+  var body = dlg && dlg.querySelector("[data-modal-body]");
+  if (!body) return false;
+  var busy = false;
+  Array.prototype.forEach.call(body.querySelectorAll("form"), function (f) {
+    if (busy || f === self) return;
+    if (f._saving || f._again) { busy = true; return; }
+    Array.prototype.forEach.call(f.querySelectorAll("[data-autosave]"), function (el) { if (autosaveChanged(el)) busy = true; });
+  });
+  return busy;
+}
+
 // In-place saves: a form with data-save posts by fetch (Accept: application/json) and the page stays where it is, so
 // saving one section of a dialog never reloads the others. The answer is a toast. After a save the page is read again
 // and what the server renders replaces the parts that show its state: elements with data-live and an id (the cards
-// behind the dialog), the dialog templates (so reopening shows the new state), and the sections of the open dialog.
-// A section keeps what the user typed that differs from the server's value (carry), so an edit in one section
-// survives a save in another.
+// behind the dialog, the alias table), the dialog templates (so reopening shows the new state), and the sections of
+// the open dialog. A section keeps what the user typed that differs from the server's value (carry), including a
+// newer autosave edit, so an edit in one section survives a save in another. Scroll stays where it was.
 (function () {
   function same(root, el) { // the control in root that is el's counterpart: same name, same position among them
     var q = '[name="' + el.name + '"]';
@@ -351,7 +458,7 @@
   }
   function carry(old, fresh) {
     Array.prototype.forEach.call(old.querySelectorAll("input,select,textarea"), function (el) {
-      if (!window.skgateDirtyControl(el)) return;
+      if (!window.skgateDirtyControl(el) && !autosaveChanged(el)) return;
       var to = same(fresh, el);
       if (!to) return;
       if (el.type === "checkbox" || el.type === "radio") to.checked = el.checked;
@@ -383,7 +490,10 @@
     if (el && el.focus) el.focus();
   }
   function refresh() {
-    return fetch(location.pathname + location.search, { credentials: "same-origin", headers: { Accept: "text/html" } })
+    var y = window.scrollY || window.pageYOffset || 0;
+    var dlg = document.querySelector("[data-modal]");
+    var top = dlg ? dlg.scrollTop : 0;
+    return fetch(location.pathname + location.search, { credentials: "same-origin", cache: "no-store", headers: { Accept: "text/html" } })
       .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.text(); })
       .then(function (html) {
         var doc = new DOMParser().parseFromString(html, "text/html");
@@ -396,12 +506,20 @@
           if (o) o.replaceWith(document.importNode(f, true));
         });
         var body = document.querySelector("[data-modal-body]"), id = (function (h) { try { return decodeURIComponent(h); } catch (err) { return h; } })(location.hash.slice(1)), tpl = id && document.getElementById(id);
-        if (body && !body.hidden && tpl && tpl.content) merge(body, tpl);
+        if (body && !body.hidden && tpl && tpl.content) {
+          merge(body, tpl);
+          if (window.skgateShowAlias) window.skgateShowAlias(body, false);
+        }
+        window.scrollTo(0, y);
+        var dlg2 = document.querySelector("[data-modal]");
+        if (dlg2) dlg2.scrollTop = top;
       });
   }
   // settle makes what was just saved the form's own value, so it no longer counts as unsaved.
+  // Autosave fields keep the server's default until the fresh markup arrives, so a newer edit is still carried.
   function settle(form) {
     Array.prototype.forEach.call(form.querySelectorAll("input,select,textarea"), function (el) {
+      if (el.hasAttribute("data-autosave")) return;
       if (el.type === "checkbox" || el.type === "radio") el.defaultChecked = el.checked;
       else if (el.tagName === "SELECT") Array.prototype.forEach.call(el.options, function (o) { o.defaultSelected = o.selected; });
       else el.defaultValue = el.value;
@@ -413,6 +531,7 @@
     var form = e.target;
     if (!form || !form.hasAttribute || !form.hasAttribute("data-save") || e.defaultPrevented) return;
     e.preventDefault();
+    if (!beginSave(form)) return;
     var btns = form.querySelectorAll("button:not([type=button])");
     Array.prototype.forEach.call(btns, function (b) { b.disabled = true; });
     fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
@@ -421,13 +540,17 @@
         return r.json().catch(function () { throw { say: "skgate answered with something unexpected. Reload the page and check what was saved." }; });
       })
       .then(function (j) {
-        window.skgateToast(j.toast.k, j.toast.m);
-        if (j.toast.k !== "ok") return;
+        var good = j.toast.k === "ok";
+        if (!(form.hasAttribute("data-quiet") && good)) window.skgateToast(j.toast.k, j.toast.m);
+        if (!good) return false;
         if (form.isConnected) settle(form);
-        return refresh().catch(function () { /* the saved state shows on the next load */ });
+        return refresh().catch(function () { /* the saved state shows on the next load */ }).then(function () { return true; });
       })
-      .catch(function (err) { window.skgateToast("bad", err && err.say ? err.say : "Couldn't reach skgate. Check your connection and try again."); })
-      .then(function () { Array.prototype.forEach.call(btns, function (b) { if (b.isConnected) b.disabled = false; }); });
+      .catch(function (err) { window.skgateToast("bad", err && err.say ? err.say : "Couldn't reach skgate. Check your connection and try again."); return false; })
+      .then(function (good) {
+        Array.prototype.forEach.call(btns, function (b) { if (b.isConnected) b.disabled = false; });
+        endSave(form, good === true);
+      });
   });
 })();
 
@@ -1102,32 +1225,53 @@ function frontierHint(form) {
     var form = e.target;
     if (!form || !form.hasAttribute || !form.hasAttribute("data-inline") || e.defaultPrevented) return;
     e.preventDefault();
+    if (!beginSave(form)) return;
     var again = form.getAttribute("data-inline");
     var btn = form.querySelector("button");
     if (btn) btn.disabled = true;
     fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
       .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.json(); })
       .then(function (j) {
-        var tpl = document.createElement("template");
-        tpl.innerHTML = j.html;
-        var fresh = tpl.content.firstElementChild;
-        var old = document.querySelector("[data-suggest-controls]");
-        if (fresh && old) old.replaceWith(fresh);
-        if (window.skgateSuggestSync) window.skgateSuggestSync();
+        var good = j.toast.k === "ok";
+        if (!(form.hasAttribute("data-quiet") && good)) window.skgateToast(j.toast.k, j.toast.m);
+        if (j.html) {
+          var tpl = document.createElement("template");
+          tpl.innerHTML = j.html;
+          var fresh = tpl.content.firstElementChild;
+          var old = document.querySelector("[data-suggest-controls]");
+          if (fresh && old) old.replaceWith(fresh);
+          if (window.skgateSuggestSync) window.skgateSuggestSync();
+        }
+        if (!good) return false;
+        if (form._again) return true;
         var dlg = document.querySelector("[data-modal]");
-        if (j.toast.k === "ok" && !again) {
+        var top = dlg ? dlg.scrollTop : 0;
+        if (again && bodyBusy(dlg, form)) return true;
+        if (!again) {
           var close = dlg && dlg.querySelector("[data-modal-close]");
           if (close) close.click();
-        } else if (again) {
+        } else {
           var src = document.querySelector(again), body = dlg && dlg.querySelector("[data-modal-body]");
           if (src && body) { body.textContent = ""; body.appendChild(src.content.cloneNode(true)); }
+          if (dlg) dlg.scrollTop = top;
         }
-        window.skgateToast(j.toast.k, j.toast.m);
+        return true;
       })
-      .catch(function () { window.skgateToast("bad", "request failed"); })
-      .then(function () { if (btn) btn.disabled = false; });
+      .catch(function () { window.skgateToast("bad", "request failed"); return false; })
+      .then(function (good) {
+        if (btn && btn.isConnected) btn.disabled = false;
+        endSave(form, good === true);
+      });
   });
 })();
+
+// data-autosave posts the field's form as soon as the value changes. A number field does this when the edit is
+// committed, not on each keystroke.
+document.addEventListener("change", function (e) {
+  var el = e.target;
+  if (!el || !el.hasAttribute || !el.hasAttribute("data-autosave") || !el.form) return;
+  submitForm(el.form);
+});
 
 // Process output: [data-log] holds the filter bar and the [data-log-view] with one .logline per line. The page
 // follows the live stream (server-sent events, resumed from the last line id) while it is open, keeps the view

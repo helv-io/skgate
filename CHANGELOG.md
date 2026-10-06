@@ -13,6 +13,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
+- An alias target and a helper-model field save when they change, and the status page updates without a reload
+- Provider details is the helper model, the aliases, and remove. The token refreshes in the background
+- The helper model waits 300 seconds by default. A timeout already saved is kept
+- A saved secret shows in its field as the placeholder. Leaving the field empty keeps it
+- On OAuth clients, Create client sits above the list, and Delete unused stays directly above the list
+- The alias name in the Model aliases table opens that provider's dialog, and Delete removes the alias
 - Device sign-in opens the verification address with the user code in the window, the link and the QR
 - Sign out of a provider removes its aliases and leaves the others
 - Device sign-in shows the code, the verification address, and a QR
@@ -21,6 +27,9 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Removed
 
+- The per-row Save on an alias, and Save, Reload models and the unsaved mark on the helper model
+- Technical details, manual refresh and sign-in controls from provider details
+- Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
 ## [0.22.1] - 2026-10-05
