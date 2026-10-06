@@ -5,6 +5,8 @@
 
 <p align="center">Any MCP server. skgate can run them for you, so you do not need one container per server.</p>
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/helv-io-skgate-k7i5y4?v=456cef453de5d028ec10d660261eb5a3)](https://m8ven.ai/mcp/helv-io-skgate-k7i5y4?s=readme)
+
 [![skgate demo](https://img.youtube.com/vi/57oxqkjzb4w/maxresdefault.jpg)](https://youtu.be/57oxqkjzb4w)
 
 ## Name Origin
