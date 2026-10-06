@@ -32,6 +32,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.22.2] - 2026-10-05
+
+### Changed
+
+- Alias and helper fields save on change, provider details is the helper model and aliases, and a saved secret is the field placeholder
+
 ## [0.22.1] - 2026-10-05
 
 ### Changed
@@ -609,7 +615,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.22.1...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.22.2...HEAD
+[0.22.2]: https://github.com/helv-io/skgate/compare/v0.22.1...v0.22.2
 [0.22.1]: https://github.com/helv-io/skgate/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/helv-io/skgate/compare/v0.21.7...v0.22.0
 [0.21.7]: https://github.com/helv-io/skgate/compare/v0.21.6...v0.21.7
