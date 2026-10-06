@@ -55,7 +55,7 @@ async function run(lines, hang, reject){
   ok(r.out.hidden,"the result panel stays closed");
   ok(r.toasts.length===0,"no toast for an error already on the line");
   ok(!r.btn.disabled,"the button works again after a failure");
-  ok(r.status.parentElement===r.btn.parentElement,"the status line sits beside the button");
+  ok(r.btn.closest(".row").nextElementSibling===r.status&&!r.status.hidden,"the status line is its own line right after the button's row");
 
   r=await run([],false,true);
   ok(r.status&&r.status.textContent.includes("Couldn't reach skgate. Check your connection and try again.")&&r.status.classList.contains("bad"),"network failure: "+(r.status&&r.status.textContent));

@@ -111,6 +111,11 @@
 {{define "dialog_content"}}<template data-dialog-content id="{{.ID}}" data-title="{{.Title}}"{{if .Info}} data-informational{{end}}>{{end}}
 {{define "dialog_end"}}</template>{{end}}
 
+{{/* si_status: the status line of an SI helper button (stage, result or error). It comes right after the .row that
+   holds the button, on its own line, and is always in the page with one line of room: showing, changing or clearing
+   it never moves a button. app.js (siSay) writes it; the whole text is also its tooltip when it is cut. */}}
+{{define "si_status"}}<p class="si-status muted" data-si-status aria-live="polite"></p>{{end}}
+
 {{/* suggest_result: the output area of the "Suggest configuration" helper. app.js fills it: warnings first, each with an icon, then the review line, and the notes folded in a details block;
    the form fields are filled for review and nothing is saved. */}}
 {{define "suggest_result"}}<div class="suggest-out" data-suggest-out aria-live="polite" hidden>
@@ -127,7 +132,7 @@
 <div class="row"><span class="pill off" data-oa-pill></span></div>
 <p class="muted" data-oa-summary></p>
 <ul class="muted" data-oa-issues></ul>
-<div class="row" data-oa-repair-row hidden><button type="button" class="act" data-oa-repair>Repair</button><span class="muted si-status" data-si-status hidden></span></div>
+<div data-oa-repair-row hidden><div class="row"><button type="button" class="act" data-oa-repair>Repair</button></div>{{template "si_status"}}</div>
 <div class="diff" data-oa-diff hidden>
 <p class="muted" data-oa-diff-title></p>
 <ul data-oa-diff-list></ul>
