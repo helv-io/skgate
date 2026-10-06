@@ -13,8 +13,9 @@ func TestUpstreamToggleButtons(t *testing.T) {
 	up := fakeUpstream(t)
 	a.MCP.Upstreams.Create(mcp.Upstream{Alias: "t1", URL: up.URL, AuthKind: mcp.AuthBearer, AuthName: "", AuthValue: "keepme-1234", HostOverride: "h.example:81", Enabled: true, IncludeInMCP: false})
 	_, page := br.get("/admin/upstreams")
-	if !strings.Contains(page, `<button class="act toggle on" role="switch" aria-checked="true" title="toggle enabled">Enabled</button>`) ||
-		!strings.Contains(page, `<button class="act toggle off" role="switch" aria-checked="false" title="toggle in /mcp">Not in /mcp</button>`) {
+	if !strings.Contains(page, `<button class="act toggle on" role="switch" data-on="Enabled" data-off="Disabled" aria-checked="true" title="toggle enabled">Enabled</button>`) ||
+		!strings.Contains(page, `<button class="act toggle off" role="switch" data-on="In /mcp" data-off="Not in /mcp" aria-checked="false" title="toggle in /mcp">Not in /mcp</button>`) ||
+		strings.Count(page, `action="/admin/upstreams/t1/toggle" data-post>`) != 2 {
 		t.Fatalf("toggle buttons missing:\n%s", page)
 	}
 	// POST + CSRF only
@@ -36,7 +37,7 @@ func TestUpstreamToggleButtons(t *testing.T) {
 		t.Fatalf("toggle must change only the flag: %+v", u)
 	}
 	_, page = br.get("/admin/upstreams")
-	if !strings.Contains(page, `class="act toggle on" role="switch" aria-checked="true" title="toggle in /mcp">In /mcp<`) {
+	if !strings.Contains(page, `class="act toggle on" role="switch" data-on="In /mcp" data-off="Not in /mcp" aria-checked="true" title="toggle in /mcp">In /mcp<`) {
 		t.Error("included must render as an 'on' switch")
 	}
 	r, _ = br.post("/admin/upstreams/t1/toggle", url.Values{"csrf": {csrf}, "flag": {"enabled"}})
@@ -48,7 +49,7 @@ func TestUpstreamToggleButtons(t *testing.T) {
 		t.Fatalf("%+v", u)
 	}
 	_, page = br.get("/admin/upstreams")
-	if !strings.Contains(page, `class="act toggle off" role="switch" aria-checked="false" title="toggle enabled">Disabled<`) {
+	if !strings.Contains(page, `class="act toggle off" role="switch" data-on="Enabled" data-off="Disabled" aria-checked="false" title="toggle enabled">Disabled<`) {
 		t.Error("disabled must render as an 'off' switch")
 	}
 	for _, v := range []url.Values{{"alias": {"nope"}, "flag": {"enabled"}}, {"alias": {"t1"}, "flag": {"x"}}} {

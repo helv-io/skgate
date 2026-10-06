@@ -8,13 +8,13 @@
 {{template "expiry_field" neverExpires}}
 </details>
 <div class="row"><button class="btn">Create key</button></div></form></div>
-<div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Name</th><th>Key</th><th>Usage</th><th>Expires</th><th>Last used</th>{{template "th_actions"}}</tr></thead><tbody>
+<div class="card flush tablewrap"><table class="table"><thead><tr><th>Status</th><th>Name</th><th>Key</th><th>Usage</th><th>Expires</th><th>Last used</th>{{template "th_actions"}}</tr></thead><tbody id="key-rows" data-live>
 {{range .Keys}}<tr{{if .URLKey}} class="geturl" title="?key= is allowed for this key"{{end}}><td class="status" data-label="Status">{{template "pill" (keyStatus .)}}</td><td class="primary" data-label="Name">{{if .Label}}{{.Label}}{{else}}<span class="muted">-</span>{{end}}</td><td data-label="Key"><code>{{.Masked}}</code></td><td class="nw" data-label="Usage">{{template "tip" (keyUsage .)}}</td>
 {{with keyEnds .}}<td class="nw {{.Class}}" data-label="Expires"{{if .Tip}} title="{{.Tip}}"{{end}}>{{.Text}}</td>{{end}}{{with keyLastUsed .}}<td class="nw {{.Class}}" data-label="Last used">{{.Text}}</td>{{end}}
 <td class="actions-cell"><div class="actions"><button type="button" class="act" data-dialog-open="#key-{{.ID}}">{{if .Revoked}}Details{{else}}Edit{{end}}</button></div></td></tr>
 {{else}}<tr><td colspan="7" class="empty">None</td></tr>{{end}}</tbody></table></div>
 {{range .Keys}}{{template "dialog_content" (dlg (printf "key-%d" .ID) "Virtual key")}}
-{{if not .Revoked}}<form method="post" action="/admin/keys/update" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
+{{if not .Revoked}}<form method="post" action="/admin/keys/update" class="form" data-post="close"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
 <div class="field"><label>Name<input type="text" name="label" maxlength="80" value="{{.Label}}"></label></div>
 <div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></label></div>
 {{template "expiry_field" (expiry .ExpiresAt)}}
@@ -24,7 +24,7 @@
 {{template "danger_start" .ID}}
 <div class="actions">
 <form method="post" action="/admin/keys/regenerate" data-confirm="Regenerate? The current token stops working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act">Regenerate</button></form>
-<form method="post" action="/admin/keys/revoke" data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">Revoke</button></form></div>
+<form method="post" action="/admin/keys/revoke" data-post data-confirm="Revoke this key? Clients using it stop working."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="act danger">Revoke</button></form></div>
 {{template "danger_end"}}{{end}}
 <h4>Details</h4>
 <div class="tablewrap"><table class="table kv"><tbody>

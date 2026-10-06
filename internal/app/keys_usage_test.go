@@ -26,7 +26,7 @@ func TestKeysPageUsageColumn(t *testing.T) {
 	if !strings.Contains(page, "<th>Status</th><th>Name</th><th>Key</th><th>Usage</th><th>Expires</th><th>Last used</th><th class=\"actions-th\">Actions</th>") {
 		t.Fatal("Status is the first column and the buttons column is headed Actions")
 	}
-	i := strings.Index(page, "<tbody>")
+	i := strings.Index(page, `<tbody id="key-rows"`)
 	rows := strings.Split(page[i:], "</tr>")
 	row := func(label string) string {
 		for _, r := range rows {
@@ -297,7 +297,7 @@ func TestKeysListShowsExpiryAndLastUse(t *testing.T) {
 	_ = used
 	_, page := br.get("/admin/keys")
 	cell := func(label, col string) string {
-		for _, r := range strings.Split(page[strings.Index(page, "<tbody>"):], "</tr>") {
+		for _, r := range strings.Split(page[strings.Index(page, `<tbody id="key-rows"`):], "</tr>") {
 			if strings.Contains(r, `data-label="Name">`+label+"</td>") {
 				i := strings.Index(r, `data-label="`+col+`"`)
 				if i < 0 {

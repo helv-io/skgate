@@ -1,5 +1,6 @@
 {{define "body"}}{{with .Data}}{{with .U}}
 <h2>Process <code>{{.Alias}}</code></h2>
+<div id="proc-panel" data-live>
 <div class="card flush tablewrap"><table class="table kv"><tbody>
 <tr><th>State</th><td>{{template "proc_pill" .Proc}}</td></tr>
 <tr><th>Command</th><td><code>{{.Target}}</code></td></tr>
@@ -27,6 +28,7 @@
 <a class="act" href="/admin/upstreams/{{.Alias}}/test">Test</a><a class="act" href="/admin/upstreams">Back</a></div></div>
 <div class="action-group danger-group"><div class="group-label">Danger</div><div class="actions" role="group" aria-label="Danger">
 {{template "proc_action" (procAction $.CSRF .Alias "clear-logs" "Clear logs" "danger" "Clear the captured output?")}}</div></div>
+</div>
 </div>
 {{end}}
 <h2>Output</h2>
