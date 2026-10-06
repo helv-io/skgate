@@ -292,7 +292,7 @@ func (a *Admin) exposeModel(m string) string {
 		return m
 	}
 	for _, p := range a.Providers.List() {
-		if _, ok := provider.Bare(a.Set.Prefix(p.ID()), m); ok {
+		if _, ok := provider.Bare(a.Set.Prefix(p.ID()), m); ok || isAlias(a.Set.Aliases(p.ID()), m) {
 			return m
 		}
 	}

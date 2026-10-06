@@ -62,7 +62,7 @@ func TestProviderActionsAnswerInPlace(t *testing.T) {
 	}
 }
 
-// The helper model picker offers this provider's models, then its vendor aliases. A new alias points at the helper model.
+// The helper model picker offers this provider's aliases, its models, then its vendor aliases. A new alias points at the helper model.
 func TestProviderDialogGroupsModelsAndDefaultsTheAliasTarget(t *testing.T) {
 	up, _ := modelsUpstream(t, "grok-4", "grok-4-latest", "grok-mini", "grok-code-latest-fast")
 	a, _, br, csrf, _ := signedInProvider(t, up)
@@ -73,7 +73,7 @@ func TestProviderDialogGroupsModelsAndDefaultsTheAliasTarget(t *testing.T) {
 	picker := page[strings.Index(page, `<select name="model"`):]
 	picker = picker[:strings.Index(picker, "</select>")]
 	last := -1
-	for _, w := range []string{`<optgroup label="Models">`, `value="grok-4"`, `value="grok-mini"`,
+	for _, w := range []string{`<optgroup label="Aliases">`, `<option value="quick">quick</option>`, `<optgroup label="Models">`, `value="grok-4"`, `value="grok-mini"`,
 		`<optgroup label="Vendor aliases">`, `value="grok-4-latest"`, `value="grok-code-latest-fast"`} {
 		i := strings.Index(picker, w)
 		if i < 0 || i < last {
@@ -81,8 +81,8 @@ func TestProviderDialogGroupsModelsAndDefaultsTheAliasTarget(t *testing.T) {
 		}
 		last = i
 	}
-	if strings.Contains(picker, "Your aliases") || strings.Contains(picker, `value="quick"`) {
-		t.Error("the helper picker lists aliases or another provider's models")
+	if strings.Contains(picker, "Your aliases") || strings.Contains(picker, "(alias of") {
+		t.Error("an alias in the helper picker carries an extra label")
 	}
 	if strings.Index(picker, `<optgroup label="Models">`) > strings.Index(picker, `value="grok-4-latest"`) {
 		t.Error("a vendor alias sits among the models")

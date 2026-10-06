@@ -58,8 +58,9 @@ func TestHelperPickerListsSkgateAliases(t *testing.T) {
 	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"grok-latest"}, "target": {"grok-4.7-reasoning"}})
 	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"fast"}, "target": {"grok-mini"}})
 	_, page := br.get("/admin")
-	// the helper picker is this provider's models. Aliases stay in the alias list, not in the picker.
-	want := []string{`<optgroup label="Models">`,
+	// the helper picker is this provider's aliases by name, then its models
+	want := []string{`<optgroup label="Aliases">`, `<option value="grok-latest" data-frontier>grok-latest</option>`, `<option value="fast">fast</option>`,
+		`<optgroup label="Models">`,
 		`<option value="grok-4.7-reasoning" data-frontier>grok-4.7-reasoning</option>`,
 		`<option value="grok-mini">grok-mini</option>`, `<option value="plain">plain</option>`, "3 models, loaded"}
 	last := -1
@@ -115,7 +116,7 @@ func TestHelperPickerListsSkgateAliases(t *testing.T) {
 
 	// deleting the alias takes it out of the picker again
 	br.post("/admin/providers/grok/aliases/delete", url.Values{"csrf": {csrf}, "name": {"fast"}})
-	if _, page = br.get("/admin"); strings.Contains(page, "fast (alias of") {
+	if _, page = br.get("/admin"); strings.Contains(page, `<option value="fast">`) {
 		t.Error("a deleted alias is still offered")
 	}
 }
