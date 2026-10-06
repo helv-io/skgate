@@ -68,11 +68,12 @@
 {{template "dialog_end"}}{{end}}
 
 {{/* suggest_controls: the "Suggest configuration" button and, when signed in, the control that opens the MCP helper
-   model dialog. Takes a suggestState. Re-rendered by the server after the model changed, and swapped in by app.js. */}}
-{{define "suggest_controls"}}<div class="row" data-suggest-controls>
-<button type="button" class="act" data-suggest="/admin/upstreams/suggest" {{if not .Enabled}}disabled title="{{.Why}}" data-suggest-off{{end}} data-si-wait="{{.Wait}}">Suggest configuration</button><span class="muted si-status" data-si-status hidden></span>
+   model dialog, with the helper's status line under them. Takes a suggestState. Re-rendered by the server after the
+   model changed, and swapped in by app.js. */}}
+{{define "suggest_controls"}}<div data-suggest-controls><div class="row">
+<button type="button" class="act" data-suggest="/admin/upstreams/suggest" {{if not .Enabled}}disabled title="{{.Why}}" data-suggest-off{{end}} data-si-wait="{{.Wait}}">Suggest configuration</button>
 {{with .P}}{{template "helper_opener" .}}{{end}}
-</div>{{end}}
+</div>{{template "si_status"}}</div>{{end}}
 
 {{/* helper_opener: the button that opens the MCP helper model dialog, and that dialog. Takes a providerView. Every
    page that offers the helper model uses it, so an in-place save can swap in the fresh one wherever it sits: the

@@ -79,7 +79,7 @@ func TestHelperModelPickedInPlace(t *testing.T) {
 	if resp.StatusCode != 200 || tt["k"] != "ok" || tt["m"] != "MCP helper model: helper-2" {
 		t.Fatalf("pick: %d %v", resp.StatusCode, ok)
 	}
-	if !strings.HasPrefix(html, `<div class="row" data-suggest-controls>`) || strings.Contains(html, `data-suggest="/admin/upstreams/suggest" disabled`) ||
+	if !strings.HasPrefix(html, `<div data-suggest-controls><div class="row">`) || strings.Contains(html, `data-suggest="/admin/upstreams/suggest" disabled`) ||
 		!strings.Contains(html, "MCP helper model: helper-2") || !strings.Contains(html, `<option value="helper-2" selected>`) {
 		t.Fatalf("controls not re-rendered:\n%s", html)
 	}
@@ -449,4 +449,29 @@ func TestHelperModelDialogKeepsChangesInBrowser(t *testing.T) {
 	if m, e, to := set.Model("grok"), set.Effort("grok"), set.HelperTimeout("grok"); m != "helper-2" || e != "high" || to != 402*time.Second {
 		t.Fatalf("saved: model %q, reasoning %q, timeout %v", m, e, to)
 	}
+}
+
+// The status line of every SI helper button is its own line under the button's row, with its room kept: when it
+// appears, changes stage, shows an error and clears, no button or field moves, at phone and desktop widths.
+func TestSIStatusLineMovesNoButtonInBrowser(t *testing.T) {
+	r := newSuggestRig(t, true, true)
+	r.a.Admin.NoSaveTest = true
+	spec := `{"openapi":"3.0.0","info":{"title":"Items","version":"1"},"servers":[{"url":"https://items.example.com"}],"paths":{"/a":{"get":{"operationId":"getA"}}}}`
+	if res, _ := r.br.post("/admin/upstreams/save", url.Values{"csrf": {r.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"items"}, "enabled": {"1"}, "oa_spec_text": {spec}}); flashKind(res) != "ok" {
+		t.Fatal("create the OpenAPI upstream")
+	}
+	if res, _ := r.br.post("/admin/upstreams/save", stdioForm(r.csrf, "local", nil)); flashKind(res) != "ok" {
+		t.Fatal("create the local upstream")
+	}
+	for _, path := range []string{"/admin/upstreams/items/tools", "/admin/upstreams/new", "/admin/upstreams/local/edit", "/admin/upstreams/items/edit"} {
+		_, page := r.br.get(path)
+		if strings.Contains(page, `si-status" data-si-status hidden`) || regexp.MustCompile(`<div class="row"[^>]*>(?:[^<]|<[^/])*data-si-status`).MatchString(page) {
+			t.Errorf("%s: the status line must follow the row, not sit in it", path)
+		}
+		if !strings.Contains(page, `<p class="si-status muted" data-si-status aria-live="polite"></p>`) {
+			t.Errorf("%s: no si_status line", path)
+		}
+	}
+	runBrowserScript(t, "sistatus.js", r.br.ts.URL, r.br,
+		"describe|/admin/upstreams/items/tools", "suggest|/admin/upstreams/new", "suggest|/admin/upstreams/local/edit", "repair|/admin/upstreams/items/edit")
 }

@@ -13,6 +13,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
+- An SI helper's status shows on its own line under its buttons, with its room kept, so no button moves when it appears or changes
 - Phones do not zoom. Pinch and double-tap zoom are off, and fields are 16px so iOS does not zoom in on focus
 - A provider other than Grok has a prefix, and its models are named prefix_model
 - The update pill updates the upstream in place, and the row refreshes where it is
