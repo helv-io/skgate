@@ -48,6 +48,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.23.3] - 2026-10-06
+
+### Changed
+
+- An SI helper's status shows on its own line under its buttons, with its room kept, so no button moves when it appears or changes
+
 ## [0.23.2] - 2026-10-06
 
 ### Changed
@@ -655,7 +661,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.2...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.3...HEAD
+[0.23.3]: https://github.com/helv-io/skgate/compare/v0.23.2...v0.23.3
 [0.23.2]: https://github.com/helv-io/skgate/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/helv-io/skgate/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/helv-io/skgate/compare/v0.22.3...v0.23.0
