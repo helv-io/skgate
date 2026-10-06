@@ -8,11 +8,11 @@
     "url": "https://github.com/helv-io/skgate",
     "source": "github"
   },
-  "version": "0.23.0",
+  "version": "0.23.1",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/helv-io/skgate:0.23.0",
+      "identifier": "ghcr.io/helv-io/skgate:0.23.1",
       "transport": {
         "type": "streamable-http",
         "url": "http://localhost:8080/mcp"
@@ -30,7 +30,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/helv-io/skgate:0.23.0-slim",
+      "identifier": "ghcr.io/helv-io/skgate:0.23.1-slim",
       "transport": {
         "type": "streamable-http",
         "url": "http://localhost:8080/mcp"

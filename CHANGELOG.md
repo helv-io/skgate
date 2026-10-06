@@ -34,6 +34,10 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - The helper-model and alias counts open their own dialogs
 - A provider card shows when the token expires, as a date and time
 
+### Fixed
+
+- The update pill updates the upstream when tapped or clicked. A failed update shows as a toast
+
 ### Removed
 
 - The per-row Save on an alias, and Save, Reload models and the unsaved mark on the helper model
