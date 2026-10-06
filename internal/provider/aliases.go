@@ -96,6 +96,11 @@ func (s Settings) DeleteAlias(id, name string) error {
 	return s.saveAliases(id, keep)
 }
 
+// ClearAliases removes every alias of one provider. Other providers are left as they are.
+func (s Settings) ClearAliases(id string) error {
+	return s.Delete(id, "aliases")
+}
+
 // AliasIssue explains why an alias is not usable, or "" when it is. known is false when the model
 // list has not been loaded; nothing can be judged then.
 func AliasIssue(a Alias, real []string, known bool) string {

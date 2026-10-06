@@ -125,6 +125,13 @@ func (a *Admin) providerRefresh(w http.ResponseWriter, r *http.Request) {
 
 func (a *Admin) providerSignOut(w http.ResponseWriter, r *http.Request) {
 	p := providerOf(r)
+	// Aliases name models of this account. Drop them before the tokens go, so a failed
+	// write leaves the sign-in in place and the person can try again.
+	if err := a.Set.ClearAliases(p.ID()); err != nil {
+		a.MCP.Log.Printf("admin: save failed: %v", err)
+		a.back(w, r, "/admin", "", "could not remove aliases")
+		return
+	}
 	p.SignOut()
 	a.back(w, r, "/admin", p.Name()+" signed out", "")
 }
@@ -214,8 +221,13 @@ func wantsJSON(r *http.Request) bool {
 // Accept: application/json and gets the toast plus the re-rendered Suggest controls; a plain form
 // post is redirected back to the provider dialog with the toast as a flash.
 func (a *Admin) helperDone(w http.ResponseWriter, r *http.Request, id, ok, errMsg string) {
+	a.helperDoneTo(w, r, dialogHash(id), ok, errMsg)
+}
+
+// helperDoneTo is helperDone with the address a plain form post returns to.
+func (a *Admin) helperDoneTo(w http.ResponseWriter, r *http.Request, to, ok, errMsg string) {
 	if !wantsJSON(r) {
-		a.back(w, r, dialogHash(id), ok, errMsg)
+		a.back(w, r, to, ok, errMsg)
 		return
 	}
 	t := toast{toastOK, ok}
@@ -241,10 +253,10 @@ func (a *Admin) modelsReload(w http.ResponseWriter, r *http.Request) {
 	}
 	ids, err := px.FetchModelsOf(r.Context(), p.ID())
 	if err != nil {
-		a.helperDone(w, r, p.ID(), "", err.Error())
+		a.helperDoneTo(w, r, a.modelHash(p), "", err.Error())
 		return
 	}
-	a.helperDone(w, r, p.ID(), fmt.Sprintf("%d models loaded", len(ids)), "")
+	a.helperDoneTo(w, r, a.modelHash(p), fmt.Sprintf("%d models loaded", len(ids)), "")
 }
 
 func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
@@ -253,20 +265,20 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 	if m != "" {
 		ids, _, known := a.models(r.Context(), p)
 		if !(known && contains(ids, m)) && !a.knownModel(m) {
-			a.helperDone(w, r, p.ID(), "", "not one of the provider's models")
+			a.helperDoneTo(w, r, a.modelHash(p), "", "not one of the provider's models")
 			return
 		}
 	}
 	effort := r.PostFormValue("effort")
 	if effort != "" && !provider.ValidEffort(effort) {
-		a.helperDone(w, r, p.ID(), "", "not a valid reasoning choice")
+		a.helperDoneTo(w, r, a.modelHash(p), "", "not a valid reasoning choice")
 		return
 	}
 	timeout := 0
 	if t := r.PostFormValue("timeout"); t != "" {
 		n, err := provider.ParseTimeout(t)
 		if err != nil {
-			a.helperDone(w, r, p.ID(), "", err.Error())
+			a.helperDoneTo(w, r, a.modelHash(p), "", err.Error())
 			return
 		}
 		timeout = n
@@ -290,10 +302,19 @@ func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 	}
 	if werr != nil {
 		a.MCP.Log.Printf("admin: save failed: %v", werr)
-		a.helperDone(w, r, p.ID(), "", "could not save: the database refused the change; try again")
+		a.helperDoneTo(w, r, a.modelHash(p), "", "could not save: the database refused the change; try again")
 		return
 	}
-	a.helperDone(w, r, p.ID(), msg, "")
+	a.helperDoneTo(w, r, a.modelHash(p), msg, "")
+}
+
+// modelHash is where a saved helper model returns: the helper dialog for the default provider,
+// the provider dialog otherwise.
+func (a *Admin) modelHash(p provider.Provider) string {
+	if d := a.Providers.Default(); d != nil && p.ID() == d.ID() {
+		return "/admin#helper-model"
+	}
+	return dialogHash(p.ID())
 }
 
 func contains(l []string, s string) bool {
@@ -310,7 +331,7 @@ func (a *Admin) aliasPut(w http.ResponseWriter, r *http.Request) {
 	ids, _, _ := a.models(r.Context(), p)
 	name := strings.TrimSpace(r.PostFormValue("name"))
 	if err := a.Set.PutAlias(p.ID(), name, r.PostFormValue("target"), ids); err != nil {
-		a.back(w, r, dialogHash(p.ID()), "", err.Error())
+		a.back(w, r, aliasHash(p.ID()), "", err.Error())
 		return
 	}
 	// An alias name means one model: putting it here moves it away from the provider that had it.
@@ -321,11 +342,13 @@ func (a *Admin) aliasPut(w http.ResponseWriter, r *http.Request) {
 			msg = "alias saved; it moved here from " + o.Name()
 		}
 	}
-	a.back(w, r, dialogHash(p.ID()), msg, "")
+	a.back(w, r, aliasHash(p.ID()), msg, "")
 }
 
 func (a *Admin) aliasDelete(w http.ResponseWriter, r *http.Request) {
 	p := providerOf(r)
 	_ = a.Set.DeleteAlias(p.ID(), r.PostFormValue("name"))
-	a.back(w, r, dialogHash(p.ID()), "alias removed", "")
+	a.back(w, r, aliasHash(p.ID()), "alias removed", "")
 }
+
+func aliasHash(id string) string { return "/admin#aliases-" + id }

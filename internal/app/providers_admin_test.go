@@ -6,12 +6,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/helv-io/skgate/internal/mcp"
 	"github.com/helv-io/skgate/internal/provider/grok"
+	"github.com/helv-io/skgate/internal/timefmt"
 )
 
 // modelsUpstream serves /v1/models and echoes the model of chat requests.
@@ -69,11 +72,28 @@ func TestStatusPageAtAGlance(t *testing.T) {
 			t.Errorf("main screen still has %q", gone)
 		}
 	}
-	// the dialog holds the technical facts, masked
-	for _, want := range []string{"Refresh token", "************5678", "************1234", "PKCE", "S256", "Token endpoint", "Base URL", "Fallback", "MCP helper model", "Model aliases"} {
+	// the dialogs hold the technical facts, masked. Upstream addresses are not edited here.
+	for _, want := range []string{"Refresh token", "************5678", "************1234", "PKCE", "S256", "Token endpoint", "MCP helper model", "Model aliases"} {
 		if !strings.Contains(dlg, want) {
 			t.Errorf("dialog lacks %q", want)
 		}
+	}
+	card := grokCard(page)
+	if !regexp.MustCompile(`<th>Expires</th><td>\d{4}-\d{2}-\d{2} \d{2}:\d{2}</td>`).MatchString(card) {
+		t.Fatalf("signed-in card must show Expires as a timestamp:\n%s", card)
+	}
+	if strings.Contains(strings.ToLower(card), "token in") || strings.Contains(card, "<th>Token</th>") {
+		t.Fatalf("the card must not say Token in:\n%s", card)
+	}
+	prov := page[strings.Index(page, `id="provider-grok"`):]
+	prov = prov[:strings.Index(prov, "</template>")]
+	for _, gone := range []string{"Upstream URLs", "Fallback", `name="base"`, `name="fallback"`, "New alias", `data-section="upstream"`} {
+		if strings.Contains(prov, gone) {
+			t.Errorf("Grok details still has %q", gone)
+		}
+	}
+	if !strings.Contains(page, ">Base URL<") {
+		t.Error("adding a provider still asks for a base URL")
 	}
 	if strings.Contains(page, "refresh-secret-5678") || strings.Contains(page, "acc-secret-1234") {
 		t.Fatal("a token is on the page in clear")
@@ -156,7 +176,7 @@ func TestProviderAliasesEndToEnd(t *testing.T) {
 	if !regexp.MustCompile(`<span class="pill warn" title="target grok-mini is no longer in the provider&#39;s model list">stale</span>`).MatchString(page) {
 		t.Fatalf("stale alias not flagged:\n%s", page[strings.Index(page, "Model aliases"):])
 	}
-	if !regexp.MustCompile(`<span class="pill warn" title="[^"]*">1 of 1 alias stale</span>`).MatchString(page) {
+	if !regexp.MustCompile(`<button type="button" class="pill warn" data-dialog-open="#aliases-grok" title="[^"]*">1 of 1 alias stale</button>`).MatchString(page) {
 		t.Fatal("summary on the main screen must warn too")
 	}
 	// delete
@@ -186,13 +206,16 @@ func TestHelperModelSelection(t *testing.T) {
 		t.Fatalf("stored %q", v)
 	}
 	_, page := br.get("/admin")
-	if !strings.Contains(page, `<span class="pill ok" title="used as the MCP helper model">m2 · reasoning auto</span>`) {
+	if !strings.Contains(page, `<button type="button" class="pill ok" data-dialog-open="#helper-model" title="used as the MCP helper model">m2 · reasoning auto</button>`) {
 		t.Fatal("model summary missing on the main screen")
+	}
+	if resp, _ := br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"m2"}}); resp.Header.Get("Location") != "/admin#helper-model" {
+		t.Fatalf("a saved helper model returns to its dialog: %q", resp.Header.Get("Location"))
 	}
 	post(url.Values{"model": {""}})
 	_, page = br.get("/admin")
-	if !strings.Contains(page, `class="pill off"`) || !strings.Contains(page, "no model") {
-		t.Fatal("cleared model must show the off pill")
+	if !strings.Contains(page, `data-dialog-open="#helper-model"`) || !strings.Contains(page, ">no model</button>") {
+		t.Fatal("cleared model must show the off pill, and it still opens the picker")
 	}
 }
 
@@ -246,12 +269,24 @@ func TestSignOutIsAButtonAndThePillIsPlain(t *testing.T) {
 	if d, s := strings.Index(actions, ">Details</button>"), strings.Index(actions, ">Sign out</button>"); d < 0 || s < 0 || d > s {
 		t.Errorf("signed in order is Details then Sign out:\n%s", actions)
 	}
-	if strings.Contains(card, "swap") || strings.Contains(card, `<button class="pill`) || strings.Contains(card, `class="btn"`) {
-		t.Errorf("the pill is not a button and nothing is primary while healthy:\n%s", card)
+	if !strings.Contains(card, `<span class="pill ok"`) {
+		t.Error("the status pill is a plain span")
+	}
+	if !strings.Contains(card, `data-dialog-open="#helper-model"`) || !strings.Contains(card, `data-dialog-open="#aliases-grok"`) {
+		t.Error("the helper and alias pills open their dialogs")
+	}
+	if strings.Contains(card, "swap") || strings.Contains(card, `class="btn"`) {
+		t.Errorf("nothing is primary while healthy:\n%s", card)
+	}
+	if !strings.Contains(card, `data-confirm="Aliases for this provider are removed and requests fail until you sign in again."`) {
+		t.Error("sign-out says that this provider's aliases are removed")
 	}
 	css := appCSS(t)
-	if strings.Contains(css, ".pill.swap") || strings.Contains(css, "button.pill") {
+	if strings.Contains(css, ".pill.swap") {
 		t.Error("the swap pill is gone from the stylesheet")
+	}
+	if !strings.Contains(css, "button.pill") {
+		t.Error("a pill that opens a dialog is styled as a pill")
 	}
 	br.post("/admin/providers/grok/signout", url.Values{"csrf": {csrf}})
 	_, page = br.get("/admin")
@@ -262,6 +297,152 @@ func TestSignOutIsAButtonAndThePillIsPlain(t *testing.T) {
 	}
 	if si, d := strings.Index(actions, ">Sign in</button>"), strings.Index(actions, ">Details</button>"); si < 0 || d < 0 || si > d {
 		t.Errorf("signed out order is Sign in then Details:\n%s", actions)
+	}
+}
+
+// Sign-out drops the aliases of that provider and leaves the rest: another provider's alias, an upstream,
+// and the helper model.
+func TestSignOutClearsOnlyThatProvidersAliases(t *testing.T) {
+	up, _ := modelsUpstream(t, "grok-4.7", "grok-mini")
+	oa, _ := openAIUpstream(t, "gpt-x")
+	remote := fakeUpstream(t)
+	a, _, br, csrf, _ := signedInProvider(t, up)
+	if err := a.MCP.Upstreams.Create(mcp.Upstream{Alias: "keep", URL: remote.URL, AuthKind: mcp.AuthNone, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	post := func(path string, v url.Values) *http.Response {
+		v.Set("csrf", csrf)
+		r, _ := br.post(path, v)
+		return r
+	}
+	if k, m := flashOf(post("/admin/providers/grok/models/reload", url.Values{})); k != "ok" {
+		t.Fatalf("reload: %s %s", k, m)
+	}
+	if k, m := flashOf(post("/admin/providers/grok/aliases/put", url.Values{"name": {"fast"}, "target": {"grok-mini"}})); k != "ok" {
+		t.Fatalf("grok alias: %s %s", k, m)
+	}
+	if k, m := flashOf(post("/admin/providers/grok/model", url.Values{"model": {"grok-mini"}})); k != "ok" {
+		t.Fatalf("helper: %s %s", k, m)
+	}
+	if resp, _ := addProvider(br, csrf, "openai", oa.URL+"/v1", "sk-live-abcd1234"); flashKind(resp) != "ok" {
+		k, m := flashOf(resp)
+		t.Fatalf("openai: %s %s", k, m)
+	}
+	if k, m := flashOf(post("/admin/providers/openai/aliases/put", url.Values{"name": {"smart"}, "target": {"gpt-x"}})); k != "ok" {
+		t.Fatalf("openai alias: %s %s", k, m)
+	}
+	if k, m := flashOf(post("/admin/providers/grok/signout", url.Values{})); k != "ok" {
+		t.Fatalf("sign out: %s %s", k, m)
+	}
+	if n := len(a.Admin.Set.Aliases("grok")); n != 0 {
+		t.Fatalf("grok aliases left: %d", n)
+	}
+	if als := a.Admin.Set.Aliases("openai"); len(als) != 1 || als[0].Name != "smart" || als[0].Target != "gpt-x" {
+		t.Fatalf("openai aliases: %+v", als)
+	}
+	if _, ok := a.MCP.Upstreams.Get("keep"); !ok {
+		t.Fatal("sign-out removed an upstream")
+	}
+	if a.Admin.Set.Model("grok") != "grok-mini" {
+		t.Fatal("sign-out cleared the helper model")
+	}
+	_, page := br.get("/admin")
+	card := grokCard(page)
+	if !strings.Contains(card, ">no aliases</button>") {
+		t.Fatalf("grok card should show no aliases:\n%s", card)
+	}
+	if !strings.Contains(page, `data-dialog-open="#aliases-openai"`) || !strings.Contains(page, ">1 alias</button>") {
+		t.Fatal("the other provider's alias is still on its card")
+	}
+	if strings.Contains(card, "<th>Expires</th>") || strings.Contains(strings.ToLower(card), "token in") {
+		t.Fatalf("a signed-out card has no expiry row:\n%s", card)
+	}
+}
+
+// The signed-in card says when the token expires, as a date and time, and never "Token in".
+func TestProviderCardShowsExpiryAsATimestamp(t *testing.T) {
+	up, _ := modelsUpstream(t, "m")
+	a, _, br, _, _ := signedInProvider(t, up)
+	when := time.Now().Add(6 * time.Hour)
+	a.Providers.Default().(*grok.Client).SetTokens("acc-secret-1234", "refresh-secret-5678", when)
+	_, page := br.get("/admin")
+	card := grokCard(page)
+	want := timefmt.DateTime(time.Unix(when.Unix(), 0))
+	if !strings.Contains(card, "<th>Expires</th><td>"+want+"</td>") {
+		t.Fatalf("expiry row want %q:\n%s", want, card)
+	}
+	if strings.Contains(strings.ToLower(page), "token in") || strings.Contains(card, "<th>Token</th>") {
+		t.Fatal("the page still says Token in")
+	}
+}
+
+// Device sign-in shows the code, the verification address without the code, and a QR of that address.
+// The page script opens the address in a window.
+func TestDevicePanelShowsTheCodeTheAddressAndAQR(t *testing.T) {
+	const (
+		verify = "https://accounts.x.ai/oauth2/device"
+		code   = "ABCD-1234"
+	)
+	var srv *httptest.Server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]string{
+			"authorization_endpoint": srv.URL + "/oauth2/authorize", "device_authorization_endpoint": srv.URL + "/oauth2/device/code",
+			"token_endpoint": srv.URL + "/oauth2/token", "userinfo_endpoint": srv.URL + "/oauth2/userinfo"})
+	})
+	mux.HandleFunc("/oauth2/device/code", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		if r.PostFormValue("client_id") == "" {
+			w.WriteHeader(400)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"device_code": "DEV", "user_code": code, "verification_uri": verify,
+			"verification_uri_complete": verify + "?user_code=" + code, "expires_in": 600, "interval": 3600,
+		})
+	})
+	mux.HandleFunc("/oauth2/token", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]string{"error": "authorization_pending"})
+	})
+	srv = httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	up, _ := modelsUpstream(t, "m")
+	a, _, br, csrf, _ := signedInProvider(t, up)
+	g := a.Providers.Default().(*grok.Client)
+	t.Cleanup(g.CancelDevice)
+	g.SignOut()
+	g.Issuer = srv.URL
+	resp, _ := br.post("/admin/providers/grok/device/start", url.Values{"csrf": {csrf}})
+	if k, m := flashOf(resp); resp.StatusCode != http.StatusSeeOther || k == "bad" {
+		t.Fatalf("start: %d %s %s", resp.StatusCode, k, m)
+	}
+	_, page := br.get("/admin")
+	card := grokCard(page)
+	link := `<a href="` + verify + `" target="_blank" rel="noopener noreferrer">` + verify + `</a>`
+	for _, want := range []string{
+		`data-device-url="` + verify + `"`,
+		"Open the window and enter this code.",
+		"If the window didn't open, " + link,
+		code,
+		"Tap to copy",
+		`<svg class="qr"`,
+		`aria-label="Sign-in QR"`,
+		">Cancel</button>",
+	} {
+		if !strings.Contains(card, want) {
+			t.Errorf("device panel lacks %q", want)
+		}
+	}
+	if strings.Contains(card, "user_code=") || strings.Contains(card, verify+"?user_code") {
+		t.Fatal("the address on the page includes the user code")
+	}
+	js, err := os.ReadFile("../admin/static/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(js), `window.open(open, "skgate-device", "width=520,height=720,noopener,noreferrer")`) {
+		t.Fatal("the panel does not open the verification address in a window")
 	}
 }
 

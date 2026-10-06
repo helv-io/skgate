@@ -10,7 +10,7 @@
 <div class="row spread"><h2>Other providers</h2><button type="button" class="act" data-dialog-open="#add-provider">Add provider</button></div>
 {{range .Others}}{{template "keyed_card" .}}{{else}}<p class="muted">None</p>{{end}}
 {{if .Aliases}}<h2>Model aliases</h2>{{template "alias_overview" .}}{{end}}
-{{range .Providers}}{{template "provider_dialog" .}}{{end}}
-{{range .Others}}{{template "keyed_dialog" .}}{{end}}
+{{range .Providers}}{{template "provider_dialog" .}}{{if .Default}}{{template "helper_dialog" .}}{{end}}{{template "aliases_dialog" .}}{{end}}
+{{range .Others}}{{template "aliases_dialog" .}}{{template "keyed_dialog" .}}{{end}}
 {{template "add_provider_dialog" .}}
 {{end}}{{end}}

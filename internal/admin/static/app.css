@@ -122,6 +122,16 @@ a.pill.ok:hover{background:#21563a;border-color:var(--ok);color:#d7f5dc;text-dec
 .act,button,input[type=submit]{font:inherit;font-size:14px;color:var(--fg);background:var(--btn);border:1px solid var(--line);padding:3px 10px;line-height:20px;cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap}
 .act:disabled,button:disabled,.btn:disabled{opacity:.45;cursor:not-allowed}
 .act:hover,button:hover{border-color:var(--acc);color:var(--acc);text-decoration:none;background:var(--hover)}
+/* a pill that opens a dialog: same chip, button chrome reset so the general button rule does not win */
+button.pill{display:inline-flex;font-size:12px;line-height:20px;padding:1px 9px;background:transparent;color:var(--dim);cursor:pointer}
+button.pill:hover{border-color:var(--fg);color:var(--dim);background:transparent}
+button.pill.ok{color:var(--ok);background:#1a3d2c;border-color:var(--ok)}
+button.pill.ok:hover{background:#21563a;border-color:var(--ok);color:#d7f5dc}
+button.pill.warn{color:var(--warn);border-color:var(--warn-line)}
+button.pill.warn:hover{color:var(--warn);border-color:var(--warn);background:transparent}
+button.pill.bad{color:var(--bad);border-color:var(--bad-line)}
+button.pill.bad:hover{color:var(--bad);border-color:var(--bad);background:transparent}
+button.pill.off:hover{color:var(--dim);border-color:var(--fg)}
 .act.accent,button.accent{color:var(--acc);border-color:var(--acc)}
 /* danger: red at rest (touch screens have no hover), brighter border and a red wash on hover */
 .act.danger,button.danger{color:var(--bad);border-color:var(--bad-line)}
@@ -200,6 +210,14 @@ input[type=checkbox]{width:auto;accent-color:var(--acc);margin:0}
 .pick{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center;margin:8px 0}
 .pick>select:not(:first-child){grid-column:1}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
+/* device sign-in: the code and the address on the left, the QR on the right, centered with that block */
+.device{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:8px 18px;align-items:center;margin-top:8px}
+.device-copy{min-width:0}
+.device-copy p{margin:0 0 8px}
+.device-copy a{overflow-wrap:anywhere}
+.device-qr{justify-self:end}
+.qr{display:block;width:148px;height:148px;background:#fff}
+@media (max-width:720px){.device{grid-template-columns:minmax(0,1fr)}.device-qr{justify-self:center}}
 /* controls inside a row share its width instead of each taking all of it */
 .row>input:not([type=checkbox]),.row>select{width:auto;flex:1 1 140px;min-width:0}
 textarea{resize:vertical;min-height:64px}
