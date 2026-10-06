@@ -71,8 +71,13 @@
    model dialog. Takes a suggestState. Re-rendered by the server after the model changed, and swapped in by app.js. */}}
 {{define "suggest_controls"}}<div class="row" data-suggest-controls>
 <button type="button" class="act" data-suggest="/admin/upstreams/suggest" {{if not .Enabled}}disabled title="{{.Why}}" data-suggest-off{{end}} data-si-wait="{{.Wait}}">Suggest configuration</button><span class="muted si-status" data-si-status hidden></span>
-{{with .P}}{{if .HelperReady}}<button type="button" class="act" data-dialog-open="#helper-model">{{if .Model}}MCP helper model: {{.Model}}{{else}}Pick MCP helper model{{end}}</button>{{end}}{{template "helper_dialog" .}}{{end}}
+{{with .P}}{{template "helper_opener" .}}{{end}}
 </div>{{end}}
+
+{{/* helper_opener: the button that opens the MCP helper model dialog, and that dialog. Takes a providerView. Every
+   page that offers the helper model uses it, so an in-place save can swap in the fresh one wherever it sits: the
+   dialog is reloaded from this template after each save, and a stale one would put the old values back. */}}
+{{define "helper_opener"}}<span class="helper-opener" data-helper-opener>{{if .HelperReady}}<button type="button" class="act" data-dialog-open="#helper-model">{{if .Model}}MCP helper model: {{.Model}}{{else}}Pick MCP helper model{{end}}</button>{{end}}{{template "helper_dialog" .}}</span>{{end}}
 
 {{/* alias_section: the Model aliases of a provider (alias = this provider + a model of it). Takes a providerView.
    An alias name means one model across all providers: adding a name that exists elsewhere moves it here. */}}

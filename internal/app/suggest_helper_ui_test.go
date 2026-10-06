@@ -424,3 +424,29 @@ func TestStatusShowsReasoningPill(t *testing.T) {
 		t.Errorf("stored default must read as auto:\n%s", r)
 	}
 }
+
+// The MCP helper model dialog opened from an OpenAPI upstream's tools page, from an upstream's edit page and from
+// the add page: each change of the model, the reasoning and the timeout stays in the dialog and is saved. The tools
+// page once kept a stale dialog template after an in-place save (only the upstream form's Suggest controls were
+// swapped), so the dialog came back with the old values and the next autosave posted them.
+func TestHelperModelDialogKeepsChangesInBrowser(t *testing.T) {
+	r := newSuggestRig(t, true, true)
+	r.a.Admin.NoSaveTest = true
+	spec := `{"openapi":"3.0.0","info":{"title":"Items","version":"1"},"servers":[{"url":"https://items.example.com"}],"paths":{"/a":{"get":{"operationId":"getA"}}}}`
+	if res, _ := r.br.post("/admin/upstreams/save", url.Values{"csrf": {r.csrf}, "mode": {"new"}, "kind": {"openapi"}, "alias": {"items"}, "enabled": {"1"}, "oa_spec_text": {spec}}); flashKind(res) != "ok" {
+		t.Fatal("create the OpenAPI upstream")
+	}
+	if res, _ := r.br.post("/admin/upstreams/save", stdioForm(r.csrf, "local", nil)); flashKind(res) != "ok" {
+		t.Fatal("create the local upstream")
+	}
+	_, tools := r.br.get("/admin/upstreams/items/tools")
+	if strings.Count(tools, "data-helper-opener") != 1 || !strings.Contains(tools, `<template data-dialog-content id="helper-model"`) {
+		t.Fatal("the tools page offers the helper model through the shared opener")
+	}
+	runBrowserScript(t, "helperedit.js", r.br.ts.URL, r.br, "/admin/upstreams/items/tools", "/admin/upstreams/local/edit", "/admin/upstreams/new")
+	// the last page left helper-2, high, 402 s
+	set := r.a.Admin.Set
+	if m, e, to := set.Model("grok"), set.Effort("grok"), set.HelperTimeout("grok"); m != "helper-2" || e != "high" || to != 402*time.Second {
+		t.Fatalf("saved: model %q, reasoning %q, timeout %v", m, e, to)
+	}
+}
