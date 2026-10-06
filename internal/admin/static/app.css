@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .codehost .gated .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .desc-line .split .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .codehost .gated .helper-opener .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .desc-line .split .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -98,6 +98,9 @@ code,.code{background:var(--well);border:1px solid var(--line);padding:1px 6px;w
 pre{background:var(--well);border:1px solid var(--line);padding:8px 10px;overflow:auto;white-space:pre-wrap;margin:6px 0}
 .trunc code,.trunc .code,.trunc .mono{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .big{font-size:20px;letter-spacing:.2em;padding:6px 12px}
+
+/* the MCP helper model opener and its dialog template: no box of its own, the button sits in the row like its neighbors */
+.helper-opener{display:contents}
 
 /* pills and chips */
 .tip[title]{cursor:help}
