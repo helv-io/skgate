@@ -62,23 +62,28 @@ func TestStatusPageAtAGlance(t *testing.T) {
 	if strings.Contains(main, "(ok)") || strings.Contains(main, "refresh-secret") || strings.Contains(main, "5678") || strings.Contains(main, "Refresh token") {
 		t.Fatalf("main screen shows technical detail:\n%s", main)
 	}
-	for _, want := range []string{`<span class="pill ok"`, "<h3>Grok</h3>", `data-dialog-open="#provider-grok"`, ">Details</button>", "Sign out"} {
+	for _, want := range []string{`<span class="pill ok"`, "<h3>Grok</h3>", `data-dialog-open="#provider-grok"`, ">Details</button>"} {
 		if !strings.Contains(main, want) {
 			t.Errorf("main screen lacks %q", want)
 		}
 	}
-	if strings.Contains(main, "Sign in again") || strings.Contains(main, ">Sign in</button>") {
-		t.Error("a signed-in card does not offer Sign in again")
+	if strings.Contains(main, "Sign in again") || strings.Contains(main, ">Sign in</button>") || strings.Contains(main, "Sign out") {
+		t.Error("a signed-in card does not offer sign-in or sign-out")
 	}
 	for _, gone := range []string{"UPSTREAM_BASE", "Upstream base", "PKCE", "Scopes", "Client ID", "skgate 0"} {
 		if strings.Contains(main, gone) {
 			t.Errorf("main screen still has %q", gone)
 		}
 	}
-	// the dialogs hold the technical facts, masked. Upstream addresses are not edited here.
-	for _, want := range []string{"Refresh token", "************5678", "************1234", "PKCE", "S256", "Token endpoint", "MCP helper model", "Model aliases"} {
+	// Details is the helper model, the aliases and Remove. Tokens are not shown.
+	for _, want := range []string{"MCP helper model", "Model aliases", "Remove provider", `data-confirm="Its aliases go too."`} {
 		if !strings.Contains(dlg, want) {
 			t.Errorf("dialog lacks %q", want)
+		}
+	}
+	for _, gone := range []string{"Refresh token", "************5678", "************1234", "PKCE", "Token endpoint", "Technical details", "Refresh now"} {
+		if strings.Contains(dlg, gone) {
+			t.Errorf("dialog still has %q", gone)
 		}
 	}
 	card := grokCard(page)
@@ -90,10 +95,13 @@ func TestStatusPageAtAGlance(t *testing.T) {
 	}
 	prov := page[strings.Index(page, `id="provider-grok"`):]
 	prov = prov[:strings.Index(prov, "</template>")]
-	for _, gone := range []string{"Upstream URLs", "Fallback", `name="base"`, `name="fallback"`, "New alias", `data-section="upstream"`} {
+	for _, gone := range []string{"Upstream URLs", "Fallback", `name="base"`, `name="fallback"`, `data-section="upstream"`, "Technical details"} {
 		if strings.Contains(prov, gone) {
 			t.Errorf("Grok details still has %q", gone)
 		}
+	}
+	if !strings.Contains(prov, "New alias") || !strings.Contains(prov, "Remove provider") {
+		t.Error("Grok details lacks the alias list or Remove")
 	}
 	if !strings.Contains(page, ">Base URL<") {
 		t.Error("adding a provider still asks for a base URL")
@@ -252,25 +260,26 @@ func TestProxyPathsAndOtherRoutes(t *testing.T) {
 	}
 }
 
-// The status pill is a plain status. Signing out is an explicit button with its confirmation.
-// Signed in, the card is Details then Sign out. Sign in (the device flow) is primary only when signed out.
+// The status pill is a plain status. Signed in, the card is Details. Remove, with its confirmation, is in Details.
+// Sign in is primary only when the session is dead.
 func TestSignOutIsAButtonAndThePillIsPlain(t *testing.T) {
 	up, _ := modelsUpstream(t, "real-a")
 	_, _, br, csrf, _ := signedInProvider(t, up)
 	_, page := br.get("/admin")
 	card := grokCard(page)
 	actions := cardActions(card)
-	for _, want := range []string{`<span class="pill ok"`, `action="/admin/providers/grok/signout"`, `data-confirm="`, `data-confirm-ok="Sign out"`, `<button class="act danger">Sign out</button>`,
-		`data-dialog-open="#provider-grok">Details</button>`} {
+	for _, want := range []string{`<span class="pill ok"`, `data-dialog-open="#provider-grok">Details</button>`} {
 		if !strings.Contains(card, want) {
 			t.Errorf("card lacks %q", want)
 		}
 	}
-	if strings.Contains(actions, "Sign in") || strings.Contains(actions, "device/start") {
-		t.Errorf("signed in card still offers a sign-in button:\n%s", actions)
+	if strings.Contains(actions, "Sign in") || strings.Contains(actions, "device/start") || strings.Contains(actions, "Sign out") || strings.Contains(actions, "Remove") {
+		t.Errorf("signed in card offers more than Details:\n%s", actions)
 	}
-	if d, s := strings.Index(actions, ">Details</button>"), strings.Index(actions, ">Sign out</button>"); d < 0 || s < 0 || d > s {
-		t.Errorf("signed in order is Details then Sign out:\n%s", actions)
+	dlg := page[strings.Index(page, `id="provider-grok"`):]
+	dlg = dlg[:strings.Index(dlg, "</template>")]
+	if !strings.Contains(dlg, `action="/admin/providers/grok/remove"`) || !strings.Contains(dlg, `data-confirm="Its aliases go too."`) || !strings.Contains(dlg, `data-confirm-ok="Remove"`) || !strings.Contains(dlg, `class="act danger">Remove provider</button>`) {
+		t.Error("Details does not offer Remove with its confirmation")
 	}
 	if !strings.Contains(card, `<span class="pill ok"`) {
 		t.Error("the status pill is a plain span")
@@ -280,9 +289,6 @@ func TestSignOutIsAButtonAndThePillIsPlain(t *testing.T) {
 	}
 	if strings.Contains(card, "swap") || strings.Contains(card, `class="btn"`) {
 		t.Errorf("nothing is primary while healthy:\n%s", card)
-	}
-	if !strings.Contains(card, `data-confirm="Aliases for this provider are removed and requests fail until you sign in again."`) {
-		t.Error("sign-out says that this provider's aliases are removed")
 	}
 	css := appCSS(t)
 	if strings.Contains(css, ".pill.swap") {
@@ -295,11 +301,8 @@ func TestSignOutIsAButtonAndThePillIsPlain(t *testing.T) {
 	_, page = br.get("/admin")
 	card = grokCard(page)
 	actions = cardActions(card)
-	if !strings.Contains(card, `<span class="pill bad"`) || !strings.Contains(actions, `<button class="btn">Sign in</button>`) || strings.Contains(actions, "signout") || strings.Contains(actions, "Sign in again") {
-		t.Errorf("signed out: a plain pill, Sign in is primary, no Sign out:\n%s", actions)
-	}
-	if si, d := strings.Index(actions, ">Sign in</button>"), strings.Index(actions, ">Details</button>"); si < 0 || d < 0 || si > d {
-		t.Errorf("signed out order is Sign in then Details:\n%s", actions)
+	if !strings.Contains(card, `<span class="pill bad"`) || !strings.Contains(actions, `<button class="btn">Sign in</button>`) || strings.Contains(actions, "signout") || strings.Contains(actions, "Sign in again") || strings.Contains(actions, "Details") {
+		t.Errorf("signed out: a plain pill and Sign in, in place of the signed-in state:\n%s", actions)
 	}
 }
 
@@ -351,8 +354,8 @@ func TestSignOutClearsOnlyThatProvidersAliases(t *testing.T) {
 	}
 	_, page := br.get("/admin")
 	card := grokCard(page)
-	if !strings.Contains(card, ">no aliases</button>") {
-		t.Fatalf("grok card should show no aliases:\n%s", card)
+	if !strings.Contains(card, `>Sign in</button>`) || strings.Contains(card, ">no aliases</button>") || strings.Contains(card, "fast") {
+		t.Fatalf("a signed-out card is Sign in, not the alias list:\n%s", card)
 	}
 	if !strings.Contains(page, `data-dialog-open="#aliases-openai"`) || !strings.Contains(page, ">1 alias</button>") {
 		t.Fatal("the other provider's alias is still on its card")

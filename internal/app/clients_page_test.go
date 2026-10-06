@@ -52,6 +52,17 @@ func TestClientsListColumnsOrderAndChips(t *testing.T) {
 	if !strings.Contains(page, "title=\"the client registered itself") {
 		t.Error("a chip explains itself on hover")
 	}
+	// Copy boxes, then Create client, then Delete unused directly above the list.
+	copyAt := strings.Index(page, "Authorize address")
+	createAt := strings.Index(page, "<h2>Create client</h2>")
+	delAt := strings.Index(page, `action="/admin/clients/delete-unused"`)
+	listAt := strings.Index(page, "<th>Name</th>")
+	if copyAt < 0 || createAt < copyAt || delAt < createAt || listAt < delAt {
+		t.Fatalf("clients page order: copy %d, create %d, delete %d, list %d", copyAt, createAt, delAt, listAt)
+	}
+	if strings.Count(page, `action="/admin/clients/create"`) != 1 {
+		t.Error("the create form appears more than once")
+	}
 }
 
 // Delete unused: clients last used (or, never used, created) more than 30 days ago go with their tokens, after a

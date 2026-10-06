@@ -32,9 +32,11 @@ type providerView struct {
 	Preset      keyed.Preset
 	BaseHost    string
 	ModelCount  int
-	HelperReady bool // the helper model can run: some provider is ready (Grok signed in, or a key-based one)
-	Default     bool // the provider whose settings hold the helper model (Grok): its dialog has the helper picker
-	Inline      bool // the MCP helper model form posts in place (no page reload)
+	HelperReady bool        // the helper model can run: some provider is ready (Grok signed in, or a key-based one)
+	Default     bool        // the provider whose settings hold the helper model (Grok)
+	HelperID    string      // where the helper model, reasoning and timeout are stored: the default provider
+	Inline      bool        // the MCP helper model form posts in place (no page reload)
+	Foreign     modelChoice // the current helper when it is not one of this provider's models; shown first
 	S           provider.Status
 	Dev         provider.DeviceFlow
 	DevURL      string   // verification address shown as link text, without the user code
@@ -96,7 +98,7 @@ func stateOf(s provider.Status) pillView {
 	case s.State == "tier_blocked":
 		return pillView{"bad", "blocked", tipJoin("the account is not entitled to this API", s.LastError)}
 	case s.State == "reauth" && !s.SignedIn:
-		return pillView{"bad", "sign in again", tipJoin("the sign-in expired or was revoked", s.LastError)}
+		return pillView{"bad", "not signed in", tipJoin("the sign-in expired or was revoked", s.LastError)}
 	case !s.SignedIn:
 		return pillView{"bad", "not signed in", tipJoin("", s.LastError)}
 	case s.ExpiresIn <= 0:
@@ -144,23 +146,25 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 		}
 	}
 	v.ModelCount = len(v.Models)
-	v.Model = a.Set.Model(id)
-	if v.Default { // the helper picks among Grok's models, every alias, and the models of the other ready providers
-		a.helperChoices(&v)
-	} else {
-		v.Choices = modelChoices(v.Models, a.Set.Aliases(id), v.Model)
-		v.Groups = groupChoices(v.Choices)
+	v.HelperID = id
+	if d := a.Providers.Default(); d != nil {
+		v.HelperID = d.ID()
 	}
-	v.AliasTarget = v.Model
-	for _, al := range a.Set.Aliases(id) {
-		if al.Name == v.Model {
-			v.AliasTarget = al.Target
+	v.Model = a.Set.Model(v.HelperID)
+	a.fillHelperChoices(&v)
+	// A new alias points at the helper when that helper is one of this provider's models or aliases.
+	if contains(v.Models, v.Model) || isAlias(a.Set.Aliases(id), v.Model) {
+		v.AliasTarget = v.Model
+		for _, al := range a.Set.Aliases(id) {
+			if al.Name == v.Model {
+				v.AliasTarget = al.Target
+			}
 		}
 	}
 	for _, c := range v.Choices {
 		v.ModelHeavy = v.ModelHeavy || c.Selected && c.Frontier
 	}
-	v.Effort = effortOf("effort", a.Set.Effort(id))
+	v.Effort = effortOf("effort", a.Set.Effort(v.HelperID))
 	effortTip := "Reasoning of the helper model"
 	if v.Effort.Value == "auto" {
 		effortTip = "Reasoning of the helper model: the model decides"
@@ -169,7 +173,7 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	if v.Effort.Value != "auto" {
 		v.EffortPill.Class, v.EffortPill.Text = "ok", v.Effort.Value
 	}
-	v.Timeout, v.Frontier = int(a.Set.HelperTimeout(id)/time.Second), provider.FrontierTimeoutSecs
+	v.Timeout, v.Frontier = int(a.Set.HelperTimeout(v.HelperID)/time.Second), provider.FrontierTimeoutSecs
 	switch {
 	case v.Model == "":
 		v.ModelPill = pillView{"off", "no model", "pick a model to enable Suggest configuration"}
@@ -319,50 +323,50 @@ func keyedState(s provider.Status, k *keyed.Provider) pillView {
 	return pillView{"ok", "ready", ""}
 }
 
-// helperChoices builds the helper model picker of the default provider (Grok): its models, then every alias of
-// every provider, then the models the other ready providers list, one group each. The helper model is a plain model
-// name that skgate routes like any request.
-func (a *Admin) helperChoices(v *providerView) {
-	owner := map[string]string{} // model -> name of the provider that lists it, for models Grok does not list
-	var names []string
-	all := append([]string(nil), v.Models...)
-	for _, p := range a.readyProviders() {
-		ids, _, ok := a.Proxy.Models.Get(p.ID())
-		if p.ID() == v.ID || !ok {
-			continue
-		}
-		names = append(names, p.Name())
-		for _, id := range ids {
-			if _, dup := owner[id]; !dup && !contains(v.Models, id) {
-				owner[id] = p.Name()
-				all = append(all, id)
-			}
-		}
-	}
-	v.Choices = modelChoices(all, a.allAliases(), v.Model)
-	groups := groupChoices(v.Choices)
-	perProvider := map[string][]modelChoice{}
-	var out []choiceGroup
-	for _, g := range groups {
-		if g.Label == "Models" {
-			var keep []modelChoice
-			for _, c := range g.Choices {
-				if n, ok := owner[c.Value]; ok {
-					perProvider[n] = append(perProvider[n], c)
-				} else {
-					keep = append(keep, c)
+// fillHelperChoices lists this provider's models only. When the current helper belongs to another provider,
+// it stays selectable at the top, labeled with that provider. Prefixes are not in use yet, so the label
+// names the provider ("gpt-x · OpenAI").
+func (a *Admin) fillHelperChoices(v *providerView) {
+	chosen := v.Model
+	if chosen != "" && !contains(v.Models, chosen) {
+		id, name := a.helperOwner(chosen)
+		label := chosen
+		frontier := provider.LooksFrontier(chosen)
+		for _, p := range a.Providers.List() {
+			for _, al := range a.Set.Aliases(p.ID()) {
+				if al.Name == chosen && provider.LooksFrontier(al.Target) {
+					frontier = true
 				}
 			}
-			g.Choices = keep
 		}
-		if len(g.Choices) > 0 {
-			out = append(out, g)
+		switch {
+		case id != "" && id != v.ID:
+			label = chosen + " · " + name
+		case id == "":
+			label = chosen + " (unlisted)"
+		}
+		v.Foreign = modelChoice{Value: chosen, Label: label, Frontier: frontier, Selected: true}
+		v.ModelHeavy = v.Foreign.Frontier
+		chosen = ""
+	}
+	v.Choices = modelChoices(v.Models, nil, chosen)
+	v.Groups = groupChoices(v.Choices)
+}
+
+// helperOwner is the provider that owns model: an alias of it, or the first provider whose model list has it.
+func (a *Admin) helperOwner(model string) (id, name string) {
+	for _, p := range a.Providers.List() {
+		if isAlias(a.Set.Aliases(p.ID()), model) {
+			return p.ID(), p.Name()
 		}
 	}
-	for _, n := range names {
-		if cs := perProvider[n]; len(cs) > 0 {
-			out = append(out, choiceGroup{Label: n + " models", Choices: cs})
+	if a.Proxy == nil {
+		return "", ""
+	}
+	for _, p := range a.Providers.List() {
+		if ids, _, ok := a.Proxy.Models.Get(p.ID()); ok && contains(ids, model) {
+			return p.ID(), p.Name()
 		}
 	}
-	v.Groups = out
+	return "", ""
 }

@@ -58,10 +58,8 @@ func TestHelperPickerListsSkgateAliases(t *testing.T) {
 	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"grok-latest"}, "target": {"grok-4.7-reasoning"}})
 	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"fast"}, "target": {"grok-mini"}})
 	_, page := br.get("/admin")
-	// the skgate aliases first (Your aliases), then the models; the frontier hint follows the target model
-	want := []string{`<optgroup label="Your aliases">`,
-		`<option value="grok-latest" data-frontier>grok-latest (alias of grok-4.7-reasoning)</option>`,
-		`<option value="fast">fast (alias of grok-mini)</option>`, `<optgroup label="Models">`,
+	// the helper picker is this provider's models. Aliases stay in the alias list, not in the picker.
+	want := []string{`<optgroup label="Models">`,
 		`<option value="grok-4.7-reasoning" data-frontier>grok-4.7-reasoning</option>`,
 		`<option value="grok-mini">grok-mini</option>`, `<option value="plain">plain</option>`, "3 models, loaded"}
 	last := -1
@@ -86,8 +84,8 @@ func TestHelperPickerListsSkgateAliases(t *testing.T) {
 		t.Fatalf("stored %q, want the alias as chosen", m)
 	}
 	_, page = br.get("/admin")
-	if !strings.Contains(page, `<option value="grok-latest" data-frontier selected>`) || strings.Contains(page, "(unlisted)") {
-		t.Error("the chosen alias must be shown selected and not as unlisted")
+	if !strings.Contains(page, `<option value="grok-latest" data-frontier selected>grok-latest</option>`) || strings.Contains(page, "(unlisted)") {
+		t.Error("the chosen alias must stay selected, labeled as itself")
 	}
 	if strings.Contains(page, "no longer in the provider's model list") {
 		t.Error("a defined alias must not be flagged as gone")
@@ -119,6 +117,45 @@ func TestHelperPickerListsSkgateAliases(t *testing.T) {
 	br.post("/admin/providers/grok/aliases/delete", url.Values{"csrf": {csrf}, "name": {"fast"}})
 	if _, page = br.get("/admin"); strings.Contains(page, "fast (alias of") {
 		t.Error("a deleted alias is still offered")
+	}
+}
+
+// The status page lists every alias. The name opens that provider's dialog, and Delete posts at once.
+func TestAliasOverviewOpensAndDeletes(t *testing.T) {
+	up, _ := aliasUpstream(t)
+	_, _, br, csrf, _ := signedInProvider(t, up)
+	br.post("/admin/providers/grok/models/reload", url.Values{"csrf": {csrf}})
+	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"fast"}, "target": {"grok-mini"}})
+	_, page := br.get("/admin")
+	i := strings.Index(page, `id="alias-overview"`)
+	if i < 0 {
+		t.Fatal("the status page has no alias overview")
+	}
+	j := strings.Index(page[i:], "<template")
+	if j < 0 {
+		t.Fatal("the overview is not followed by a dialog template")
+	}
+	ov := page[i : i+j]
+	for _, want := range []string{
+		`data-dialog-open="#aliases-grok"`,
+		`data-alias="fast"`,
+		`class="name"`,
+		`action="/admin/providers/grok/aliases/delete"`,
+		`class="act danger">Delete`,
+		`class="actions-th">Actions`,
+	} {
+		if !strings.Contains(ov, want) {
+			t.Errorf("overview lacks %q", want)
+		}
+	}
+	if strings.Contains(ov, "data-confirm") {
+		t.Error("overview Delete asks first")
+	}
+	k := strings.Index(page, `id="aliases-grok"`)
+	end := strings.Index(page[k:], "</template>")
+	al := page[k : k+end]
+	if !strings.Contains(al, "data-autosave") || strings.Contains(al, `>Save</button>`) {
+		t.Error("the alias dialog should save the target on change, with no per-row Save")
 	}
 }
 

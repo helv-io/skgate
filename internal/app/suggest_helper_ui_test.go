@@ -46,7 +46,7 @@ func TestUpstreamPageOffersHelperModelPicker(t *testing.T) {
 	none := newSuggestRig(t, true, false)
 	_, page = none.br.get("/admin/upstreams/new")
 	for _, want := range []string{`disabled title="pick an MCP helper model first"`, opener, "Pick MCP helper model",
-		`<template data-dialog-content id="helper-model" data-title="MCP helper model">`, `action="/admin/providers/grok/model"`, `data-inline=""`, `<option value="helper-2"`} {
+		`<template data-dialog-content id="helper-model" data-title="MCP helper model">`, `action="/admin/providers/grok/model"`, `data-inline="#helper-model"`, `<option value="helper-2"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("no model: page lacks %q", want)
 		}
@@ -178,8 +178,9 @@ func TestRefusedAdminActionIsLogged(t *testing.T) {
 	}
 }
 
-// In the shared model picker Reload sits beside the model dropdown; the loaded-count line is below, before Save.
-func TestModelPickerReloadBesideModel(t *testing.T) {
+// In the shared model picker the model, the reasoning and the timeout save on change. The loaded-count line follows
+// them. There is no Reload and no Save in the picker.
+func TestModelPickerSavesOnChange(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	for _, path := range []string{"/admin", "/admin/upstreams/new"} {
 		_, page := r.br.get(path)
@@ -189,9 +190,17 @@ func TestModelPickerReloadBesideModel(t *testing.T) {
 			continue
 		}
 		rest := page[m:]
-		reload, loaded, save := strings.Index(rest, "Reload models"), strings.Index(rest, "2 models, loaded "), strings.Index(rest, `class="row"><button class="btn">Save</button>`)
-		if reload < 0 || loaded < reload || save < loaded {
-			t.Errorf("%s: reload %d, loaded %d, save %d (from model select)", path, reload, loaded, save)
+		loaded := strings.Index(rest, "2 models, loaded ")
+		if loaded < 0 {
+			t.Errorf("%s: loaded count missing", path)
+			continue
+		}
+		head := rest[:loaded]
+		if strings.Contains(head, "Reload models") || strings.Contains(head, ">Save</button>") {
+			t.Errorf("%s: the picker still has Reload or Save", path)
+		}
+		if !strings.Contains(rest[:strings.Index(rest, ">")], "data-autosave") || strings.Index(head, `<select name="effort"`) < 0 {
+			t.Errorf("%s: model and reasoning should save on change, with reasoning under the model", path)
 		}
 	}
 }
@@ -244,15 +253,15 @@ func TestSuggestStreamsStages(t *testing.T) {
 	}
 }
 
-// Both model dialogs carry Reload beside the model dropdown and Reasoning under it (same form, so Save covers
-// model and reasoning), defaulting to "auto" (the model decides). It is the only reasoning setting: there is none for chat.
+// Both model dialogs carry Reasoning under the model (same form, so a change of either saves both), defaulting to
+// "auto" (the model decides). It is the only reasoning setting: there is none for chat.
 func TestReasoningSelectorInModelDialogs(t *testing.T) {
 	r := newSuggestRig(t, true, true)
 	for _, path := range []string{"/admin", "/admin/upstreams/new"} {
 		_, page := r.br.get(path)
-		m, reload, e := strings.Index(page, `<select name="model"`), strings.Index(page, "Reload models"), strings.Index(page, `<select name="effort"`)
-		if m < 0 || reload < m || e < reload {
-			t.Errorf("%s: model select at %d, reload at %d, reasoning at %d", path, m, reload, e)
+		m, e := strings.Index(page, `<select name="model"`), strings.Index(page, `<select name="effort"`)
+		if m < 0 || e < m {
+			t.Errorf("%s: model select at %d, reasoning at %d", path, m, e)
 		}
 		if !strings.Contains(page, `<option value="auto" selected>Reasoning: auto (model decides)</option>`) || !strings.Contains(page, "Reasoning: low") {
 			t.Errorf("%s: reasoning options missing or not defaulting to auto", path)
@@ -260,10 +269,6 @@ func TestReasoningSelectorInModelDialogs(t *testing.T) {
 		if strings.Contains(page, "Effort") || strings.Contains(page, "effort</") || strings.Contains(page, "chat-effort") {
 			t.Errorf("%s: the old effort wording or the chat setting is still there", path)
 		}
-	}
-	_, css := r.br.get("/admin/static/app.css")
-	if !strings.Contains(css, ".pick{display:grid") {
-		t.Error("shared pick style missing")
 	}
 
 	ask := func() string {

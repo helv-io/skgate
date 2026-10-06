@@ -1,12 +1,7 @@
-{{/* provider_card: a provider on the status page. Status at a glance; everything technical is in its dialog. */}}
+{{/* provider_card: a provider on the status page. Signed in, the card is the account and Details.
+   The access token refreshes in the background. When the session is dead, Sign in replaces that state. */}}
 {{define "provider_card"}}<div class="card" id="{{.ID}}" data-live>
 <div class="row spread"><h3>{{.Name}}</h3>{{template "pill" .State}}</div>
-<div class="tablewrap"><table class="table kv"><tbody>
-{{if .S.Account}}<tr><th>Account</th><td>{{.S.Account}}</td></tr>{{end}}
-{{if .Expiry}}<tr><th>Expires</th><td>{{.Expiry}}</td></tr>{{end}}
-{{if .CanModels}}<tr><th>MCP helper model</th><td>{{template "pill_open" (pillOpen "#helper-model" .ModelPill)}}</td></tr>{{end}}
-<tr><th>Aliases</th><td>{{template "pill_open" (pillOpen (printf "#aliases-%s" .ID) .AliasPill)}}</td></tr>
-</tbody></table></div>
 {{if eq .Dev.State "error"}}<p class="bad">Sign-in failed: {{.Dev.Err}}</p>{{end}}
 {{if eq .Dev.State "pending"}}
 <div class="device" id="device-poll" data-poll="/admin/providers/{{.ID}}/device/state" data-device-url="{{.DevOpen}}">
@@ -18,65 +13,58 @@
 </div>
 <div class="device-qr">{{qrsvg .DevOpen}}</div>
 </div>
+{{else if .S.SignedIn}}
+<div class="tablewrap"><table class="table kv"><tbody>
+{{if .S.Account}}<tr><th>Account</th><td>{{.S.Account}}</td></tr>{{end}}
+{{if .Expiry}}<tr><th>Expires</th><td>{{.Expiry}}</td></tr>{{end}}
+{{if .CanModels}}<tr><th>MCP helper model</th><td>{{template "pill_open" (pillOpen "#helper-model" .ModelPill)}}</td></tr>{{end}}
+<tr><th>Aliases</th><td>{{template "pill_open" (pillOpen (printf "#aliases-%s" .ID) .AliasPill)}}</td></tr>
+</tbody></table></div>
+<div class="actions"><button type="button" class="act" data-dialog-open="#provider-{{.ID}}">Details</button></div>
 {{else}}
-<div class="actions">
-{{/* Signed out, Sign in starts the device flow. Signed in, the card is Details then Sign out: refresh and browser sign-in are in Details, and a new device flow is Sign in after Sign out. */}}
-{{if not .S.SignedIn}}<form method="post" action="/admin/providers/{{.ID}}/device/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn">Sign in</button></form>{{end}}
-<button type="button" class="act" data-dialog-open="#provider-{{.ID}}">Details</button>
-{{if .S.SignedIn}}<form method="post" action="/admin/providers/{{.ID}}/signout" data-confirm="Aliases for this provider are removed and requests fail until you sign in again." data-confirm-title="Sign out of {{.Name}}" data-confirm-ok="Sign out"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Sign out</button></form>{{end}}
-</div>
+<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/device/start"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn">Sign in</button></form></div>
 {{end}}
 </div>{{end}}
 
-{{/* provider_dialog: technical details and settings of a provider, shown in the shared modal. Every part that can be
-   changed is a section (data-section) with its own form(s); a form with data-save posts in place (see app.js), so saving
-   one section never reloads the others and never loses what is typed in them. Read-only information is last, folded. */}}
+{{/* provider_dialog: Details of a sign-in provider. The body is provider_body, the same sections a key-based
+   provider uses. The token refreshes in the background; this dialog does not offer sign-in or token controls. */}}
 {{define "provider_dialog"}}{{template "dialog_content" (dlg (printf "provider-%s" .ID) .Name)}}
-<div class="dsec" data-section="signin">{{template "section_head" "Sign-in"}}
-<p class="muted">If device sign-in fails, use browser sign-in and paste the failing page's address.</p>
-<div class="actions">{{if .S.SignedIn}}<form method="post" action="/admin/providers/{{.ID}}/refresh" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Refresh now</button></form>{{end}}
-<form method="post" action="/admin/providers/{{.ID}}/browser/start" target="_blank"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Browser sign-in</button></form></div>
-<form method="post" action="/admin/providers/{{.ID}}/browser/paste" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="field"><label>Callback URL or code<input type="text" name="callback" autocomplete="off"></label></div><div class="row"><button class="btn">Finish sign-in</button></div></form>
-</div>
-
-<details class="dsec" data-section="technical"><summary>Technical details</summary>
-<h4>Tokens</h4>
-<div class="tablewrap"><table class="table kv"><tbody>
-<tr><th>Access token</th><td>{{if .S.SignedIn}}<code>{{.S.AccessMasked}}</code>{{else}}-{{end}}</td></tr>
-<tr><th>Refresh token</th><td>{{if .S.SignedIn}}<code>{{.S.RefreshMasked}}</code>{{else}}-{{end}}</td></tr>
-<tr><th>Expires</th><td>{{if .S.SignedIn}}{{ts .S.Expires}}{{else}}-{{end}}</td></tr>
-{{if .S.State}}<tr><th>State</th><td>{{.S.State}}</td></tr>{{end}}
-{{if .S.LastError}}<tr><th>Last error</th><td class="bad">{{.S.LastError}}</td></tr>{{end}}
-</tbody></table></div>
-<h4>Sign-in details</h4>
-<div class="tablewrap"><table class="table kv"><tbody>
-{{range .Info}}<tr><th>{{.Name}}</th><td class="wrap">{{.Value}}</td></tr>{{end}}
-</tbody></table></div>
-</details>
+{{template "provider_body" .}}
 {{template "dialog_end"}}{{end}}
 
-{{/* effort_select: the reasoning dropdown. Takes an effortView. */}}
-{{define "effort_select"}}<select name="{{.Name}}" aria-label="Reasoning" title="Reasoning">{{range .Options}}<option value="{{.Value}}" {{if eq .Value $.Value}}selected{{end}}>{{.Label}}</option>{{end}}</select>{{end}}
+{{/* provider_body: Details for every provider. The helper model and the aliases are the same components the card
+   pills open. Remove sits at the bottom, with no frame around it. */}}
+{{define "provider_body"}}
+{{template "helper_section" .}}
+{{template "alias_section" .}}
+<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/remove" data-confirm="Its aliases go too." data-confirm-title="Remove {{.Name}}?" data-confirm-ok="Remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Remove provider</button></form></div>
+{{end}}
 
-{{/* model_picker: choose the MCP helper model of a provider and reload its model list. Takes a providerView.
-   Reload sits beside the model dropdown; Save is bottom-left. Close (top-right of the shared modal) does not save.
-   Inline forms post in place (see app.js, data-inline) and the page re-renders the Suggest controls. */}}
-{{define "model_picker"}}{{$p := .}}<form method="post" action="/admin/providers/{{.ID}}/model" class="form"{{if .Inline}} data-inline=""{{else}} data-save{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><div class="pick">
-<select name="model" aria-label="Model"><option value="">none</option>{{range .Groups}}<optgroup label="{{.Label}}">{{range .Choices}}<option value="{{.Value}}"{{if .Frontier}} data-frontier{{end}}{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</optgroup>{{end}}</select>
-<button type="submit" class="act" form="reload-models-{{.ID}}">Reload models</button>
-{{template "effort_select" .Effort}}</div>
-<div class="field"><label>Timeout, seconds without an answer<input type="number" name="timeout" value="{{.Timeout}}" min="1" max="86400" step="1" inputmode="numeric"></label></div>
+{{/* effort_select: the reasoning dropdown. Takes an effortView. */}}
+{{define "effort_select"}}<select name="{{.Name}}" aria-label="Reasoning" title="Reasoning" data-autosave>{{range .Options}}<option value="{{.Value}}" {{if eq .Value $.Value}}selected{{end}}>{{.Label}}</option>{{end}}</select>{{end}}
+
+{{/* model_picker: choose the MCP helper model of a provider. Takes a providerView.
+   Changing the model, the reasoning or the timeout saves at once (data-autosave). Close is the modal's own button
+   and does not save. The model list reloads when the dialog opens (the hidden form). A failed save puts the field
+   back. Inline forms post in place (see app.js, data-inline) and the page re-renders the Suggest controls. */}}
+{{define "model_picker"}}{{$p := .}}<form method="post" action="/admin/providers/{{.HelperID}}/model" class="form"{{if .Inline}} data-inline="#helper-model"{{else}} data-save{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}">
+<div class="field"><select name="model" aria-label="Model" data-autosave>{{with .Foreign}}<option value="{{.Value}}"{{if .Frontier}} data-frontier{{end}} selected>{{.Label}}</option>{{end}}<option value="">none</option>{{range .Groups}}<optgroup label="{{.Label}}">{{range .Choices}}<option value="{{.Value}}"{{if .Frontier}} data-frontier{{end}}{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</optgroup>{{end}}</select></div>
+<div class="field">{{template "effort_select" .Effort}}</div>
+<div class="field"><label>Timeout, seconds without an answer<input type="number" name="timeout" data-autosave value="{{.Timeout}}" min="1" max="86400" step="1" inputmode="numeric"></label></div>
 <p class="muted" data-frontier-hint="{{.Frontier}}" {{if not (and .ModelHeavy (lt .Timeout .Frontier))}}hidden{{end}}>Heavy reasoning models need about {{.Frontier}} seconds.</p>
-<p class="muted">{{if .ModelsKnown}}{{len .Models}} models, loaded {{.ModelsAt}}{{else}}not loaded{{if not .S.SignedIn}}: sign in first{{end}}{{end}}</p>
-<div class="row"><button class="btn">Save</button></div></form>
-<form id="reload-models-{{.ID}}" method="post" action="/admin/providers/{{.ID}}/models/reload" class="offscreen"{{if .Inline}} data-inline="#helper-model"{{else}} data-save{{end}} aria-hidden="true"><input type="hidden" name="csrf" value="{{.CSRF}}"></form>{{end}}
+<p class="muted">{{if .ModelsKnown}}{{len .Models}} models, loaded {{.ModelsAt}}{{else}}not loaded{{end}}</p>
+</form>
+<form id="reload-models-{{.ID}}" method="post" action="/admin/providers/{{.ID}}/models/reload" class="offscreen" data-quiet{{if .Inline}} data-inline="#helper-model"{{else}} data-save{{end}} aria-hidden="true"><input type="hidden" name="csrf" value="{{.CSRF}}"></form>{{end}}
 
 {{/* helper_dialog: the model_picker in the shared modal, for pages that need a helper model without going to the
    status page. Takes a providerView. */}}
-{{define "helper_dialog"}}{{template "dialog_content" (dlg "helper-model" "MCP helper model")}}
-<div class="dsec" data-section="model">{{template "section_head" "MCP helper model"}}
+{{/* helper_section: the MCP helper model, shared by Details and the card's helper dialog. */}}
+{{define "helper_section"}}<div class="dsec" data-section="model"><h4>MCP helper model</h4>
 {{template "model_picker" .}}
-</div>
+</div>{{end}}
+
+{{define "helper_dialog"}}{{template "dialog_content" (dlg "helper-model" "MCP helper model")}}
+{{template "helper_section" .}}
 {{template "dialog_end"}}{{end}}
 
 {{/* suggest_controls: the "Suggest configuration" button and, when signed in, the control that opens the MCP helper
@@ -90,8 +78,8 @@
    An alias name means one model across all providers: adding a name that exists elsewhere moves it here. */}}
 {{define "alias_section"}}{{$p := .}}<div class="dsec" data-section="aliases">{{template "section_head" "Model aliases"}}
 <div class="tablewrap"><table class="table"><thead><tr><th>Status</th><th>Alias</th><th>Target</th>{{template "th_actions"}}</tr></thead><tbody>
-{{range .Aliases}}{{$a := .}}<tr><td class="status" data-label="Status">{{template "pill" .Pill}}</td><td class="primary" data-label="Alias"><code>{{.Name}}</code></td>
-<td data-label="Target">{{if $p.ModelsKnown}}<form method="post" action="/admin/providers/{{$p.ID}}/aliases/put" class="form" data-save><input type="hidden" name="csrf" value="{{$p.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><select name="target" aria-label="Target">{{range $p.Models}}<option value="{{.}}"{{if eq . $a.Target}} selected{{end}}>{{.}}</option>{{end}}{{if not (inList $p.Models $a.Target)}}<option value="{{$a.Target}}" selected>{{$a.Target}}</option>{{end}}</select><div class="row"><button class="act">Save</button></div></form>{{else}}<code>{{.Target}}</code>{{end}}</td>
+{{range .Aliases}}{{$a := .}}<tr data-alias="{{.Name}}"><td class="status" data-label="Status">{{template "pill" .Pill}}</td><td class="primary" data-label="Alias"><code>{{.Name}}</code></td>
+<td data-label="Target">{{if $p.ModelsKnown}}<form method="post" action="/admin/providers/{{$p.ID}}/aliases/put" class="form" data-save><input type="hidden" name="csrf" value="{{$p.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><select name="target" aria-label="Target" data-autosave>{{range $p.Models}}<option value="{{.}}"{{if eq . $a.Target}} selected{{end}}>{{.}}</option>{{end}}{{if not (inList $p.Models $a.Target)}}<option value="{{$a.Target}}" selected>{{$a.Target}}</option>{{end}}</select></form>{{else}}<code>{{.Target}}</code>{{end}}</td>
 <td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{$p.ID}}/aliases/delete" data-save><input type="hidden" name="csrf" value="{{$p.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
 {{else}}<tr><td colspan="4" class="empty">None</td></tr>{{end}}</tbody></table></div>
 <form method="post" action="/admin/providers/{{.ID}}/aliases/put" class="form" data-save><input type="hidden" name="csrf" value="{{$p.CSRF}}">
@@ -117,29 +105,10 @@
 <div class="actions"><button type="button" class="act" data-dialog-open="#provider-{{.ID}}">Details</button></div>
 </div>{{end}}
 
-{{/* keyed_dialog: settings of a key-based provider in the shared modal: connection (base URL, API key, test) and
-   removal. Aliases are the card's own dialog. Every section posts in place (data-save); removal reloads the page.
-   Takes a providerView. */}}
-{{define "keyed_dialog"}}{{$p := .}}{{template "dialog_content" (dlg (printf "provider-%s" .ID) .Name)}}
-<div class="dsec" data-section="connection">{{template "section_head" "Connection"}}
-{{if or .Preset.Hint .Preset.Docs}}<p class="muted">{{.Preset.Hint}}{{if .Preset.Docs}} <a href="{{.Preset.Docs}}" target="_blank" rel="noopener noreferrer">{{if .Preset.NeedsKey}}Get a key{{else}}Website{{end}}</a>{{end}}</p>{{end}}
-<form method="post" action="/admin/providers/{{.ID}}/key" class="form" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<div class="field"><label>Base URL<input type="url" name="base" value="{{.Base}}" placeholder="{{.DefaultBase}}" autocomplete="off" spellcheck="false"></label></div>
-{{if or .Preset.NeedsKey .Preset.Optional}}<div class="field"><label>API key<input type="password" name="key" autocomplete="new-password" spellcheck="false" placeholder="{{if .S.AccessMasked}}{{.S.AccessMasked}}{{end}}"></label></div>{{end}}
-<div class="row"><button class="btn">Save</button></div></form>
-<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/test" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Test connection</button></form>
-<form method="post" action="/admin/providers/{{.ID}}/models/reload" data-save><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Reload models</button></form>
-<span class="muted">{{if .ModelsKnown}}{{.ModelCount}} models, loaded {{.ModelsAt}}{{else}}models not loaded{{end}}</span></div>
-</div>
-{{template "danger_start" .ID}}
-<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/remove" data-confirm="Remove {{.Name}}? Its API key and aliases are deleted." data-confirm-title="Remove {{.Name}}" data-confirm-ok="Remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Remove provider</button></form></div>
-{{template "danger_end"}}
-<details class="dsec" data-section="technical"><summary>Technical details</summary>
-<div class="tablewrap"><table class="table kv"><tbody>
-{{range .Info}}<tr><th>{{.Name}}</th><td class="wrap">{{.Value}}</td></tr>{{end}}
-{{if .S.LastError}}<tr><th>Last error</th><td class="bad">{{.S.LastError}}</td></tr>{{end}}
-</tbody></table></div>
-</details>
+{{/* keyed_dialog: Details of a key-based provider. Same sections as every other provider. The key and the server
+   stay on the card. Takes a providerView. */}}
+{{define "keyed_dialog"}}{{template "dialog_content" (dlg (printf "provider-%s" .ID) .Name)}}
+{{template "provider_body" .}}
 {{template "dialog_end"}}{{end}}
 
 {{/* add_provider_dialog: choose a provider, give its API key, connect. Choosing a preset fills the base URL and the
@@ -155,7 +124,8 @@
 {{end}}
 {{template "dialog_end"}}{{end}}
 
-{{/* alias_overview: where every alias points, across providers. Takes a statusData. */}}
-{{define "alias_overview"}}<div class="card flush tablewrap"><table class="table"><thead><tr><th>Alias</th><th>Provider</th><th>Model</th></tr></thead><tbody>
-{{range .Aliases}}<tr><td class="primary" data-label="Alias"><code>{{.Name}}</code></td><td data-label="Provider">{{.Provider}}</td><td data-label="Model"><code>{{.Target}}</code></td></tr>
-{{else}}<tr><td colspan="3" class="empty">None</td></tr>{{end}}</tbody></table></div>{{end}}
+{{/* alias_overview: where every alias points, across providers. Takes a statusData.
+   The name opens that provider's alias dialog. Delete posts at once, with no confirmation. */}}
+{{define "alias_overview"}}{{$d := .}}<div class="card flush tablewrap"><table class="table"><thead><tr><th>Alias</th><th>Provider</th><th>Model</th>{{template "th_actions"}}</tr></thead><tbody>
+{{range .Aliases}}<tr><td class="primary" data-label="Alias"><a class="name" href="#aliases-{{.ProviderID}}" data-dialog-open="#aliases-{{.ProviderID}}" data-alias="{{.Name}}" title="open the aliases of {{.Provider}}"><code>{{.Name}}</code></a></td><td data-label="Provider">{{.Provider}}</td><td data-label="Model"><code>{{.Target}}</code></td><td class="actions-cell"><div class="actions"><form method="post" action="/admin/providers/{{.ProviderID}}/aliases/delete" data-save><input type="hidden" name="csrf" value="{{$d.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="act danger">Delete</button></form></div></td></tr>
+{{else}}<tr><td colspan="4" class="empty">None</td></tr>{{end}}</tbody></table></div>{{end}}

@@ -36,7 +36,7 @@ func (a *Admin) providerRoutes(mux *http.ServeMux) {
 		"aliases/delete": a.aliasDelete,
 		"key":            a.keyedSave,
 		"test":           a.keyedTest,
-		"remove":         a.keyedRemove,
+		"remove":         a.providerRemove,
 	}
 	for name, h := range act {
 		h := h

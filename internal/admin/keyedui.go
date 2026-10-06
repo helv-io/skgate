@@ -198,6 +198,15 @@ func (a *Admin) keyedTest(w http.ResponseWriter, r *http.Request) {
 	a.back(w, r, dialogHash(k.ID()), okMsg, bad)
 }
 
+// providerRemove drops a provider. A key-based one is deleted. A sign-in provider signs out, which clears its aliases.
+func (a *Admin) providerRemove(w http.ResponseWriter, r *http.Request) {
+	if _, ok := keyed.Keyed(providerOf(r)); ok {
+		a.keyedRemove(w, r)
+		return
+	}
+	a.providerSignOut(w, r)
+}
+
 // keyedRemove forgets a provider with its key, base URL and aliases. A helper model that pointed into it is cleared.
 func (a *Admin) keyedRemove(w http.ResponseWriter, r *http.Request) {
 	k, ok := keyedOf(w, r)
@@ -242,23 +251,16 @@ func (a *Admin) knownModel(name string) bool {
 	return false
 }
 
-// allAliases lists the aliases of every provider.
-func (a *Admin) allAliases() []provider.Alias {
-	var out []provider.Alias
-	for _, p := range a.Providers.List() {
-		out = append(out, a.Set.Aliases(p.ID())...)
-	}
-	return out
-}
-
 // aliasRow is one line of the overview of where each alias points.
-type aliasRow struct{ Name, Target, Provider string }
+type aliasRow struct {
+	Name, Target, Provider, ProviderID string
+}
 
 func (a *Admin) aliasRows() []aliasRow {
 	var out []aliasRow
 	for _, p := range a.Providers.List() {
 		for _, al := range a.Set.Aliases(p.ID()) {
-			out = append(out, aliasRow{al.Name, al.Target, p.Name()})
+			out = append(out, aliasRow{Name: al.Name, Target: al.Target, Provider: p.Name(), ProviderID: p.ID()})
 		}
 	}
 	return out

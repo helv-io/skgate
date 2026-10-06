@@ -1,5 +1,5 @@
 /* skgate admin: one stylesheet, shared components only (no page-specific rules).
-   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .codehost .gated .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .pick .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .desc-line .split .menu .inline .nav-btn .nav-panel .here
+   Components: .quick .login .brandmark .choices .card .table .tablewrap .primary .status .actions-cell .actions-th .copybox .copyhint .codehost .gated .tip .pill .chip .code .actions .act .toggle .btn .fill .form .field .pairs .pair .group .toast .modal .muted .row .dialog-head .dialog-body .reveal .dsec .danger-zone .action-groups .filter .logbar .logview .logline .logdivider .logjump .desc .desc-line .split .menu .inline .nav-btn .nav-panel .here
    Dark, thin lines, square corners. Sans-serif text; monospace only for aliases, URLs, tokens and code. */
 :root{--bg:#0e0f11;--panel:#121417;--hover:#171a1e;--fg:#d6d8db;--dim:#8b9097;--line:#2c3036;--line2:#22262b;
 --acc:#7fb8ff;--bad:#ff8a80;--ok:#8fd694;--warn:#e6c07b;--tint-url:rgba(230,192,123,.075);--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -60,8 +60,10 @@ header form:last-child{margin-right:clamp(12px,2.5vw,32px)}
 .table th,.table td{padding:8px 12px;text-align:left;vertical-align:middle;border:0;border-bottom:1px solid var(--line2);height:44px}
 .table tr:last-child td,.table tr:last-child th{border-bottom:0}
 .table thead th{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);white-space:nowrap;background:var(--bg);border-bottom:1px solid var(--line);height:34px}
-.table thead th.actions-th{width:1%}
-.table tbody tr:hover td{background:var(--hover)}
+.table thead th.actions-th{width:1%;text-align:right}
+.table td.actions-cell{text-align:right}
+.table td.actions-cell .actions{justify-content:flex-end}
+.table tbody tr:hover td,.table tbody tr[data-current] td{background:var(--hover)}
 /* a row marked geturl (a key that may be sent as ?key=): the shared warm tint, text colors untouched */
 .table tbody tr.geturl,.table tbody tr.geturl:hover td{background-color:var(--tint-url)}
 .table td{white-space:nowrap}
@@ -206,9 +208,6 @@ input[aria-invalid=true]:focus-visible,textarea[aria-invalid=true]:focus-visible
 .menu-list :focus-visible,.nav-panel :focus-visible{outline-offset:-2px}
 input[aria-invalid=true],input[aria-invalid=true]:focus,textarea[aria-invalid=true],textarea[aria-invalid=true]:focus{border-color:var(--bad)}
 input[type=checkbox]{width:auto;accent-color:var(--acc);margin:0}
-/* pick: a control and its Save button on one line, further controls beneath it in the same column */
-.pick{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center;margin:8px 0}
-.pick>select:not(:first-child){grid-column:1}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
 /* device sign-in: the code and the address on the left, the QR on the right, centered with that block */
 .device{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:8px 18px;align-items:center;margin-top:8px}
@@ -390,6 +389,7 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .table:not(.kv),.table:not(.kv) tbody{display:block;width:100%}
   .table:not(.kv) tr{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 10px;padding:14px;border:1px solid var(--line);background:var(--panel)}
   .table:not(.kv) tbody tr:hover td{background:none}
+  .table:not(.kv) tbody tr[data-current],.table:not(.kv) tbody tr[data-current] td{background:var(--hover)}
   .table:not(.kv) tbody tr.geturl{background:linear-gradient(var(--tint-url),var(--tint-url)),var(--panel)}
   .table:not(.kv) td{display:flex;align-items:center;gap:10px;flex:1 1 100%;min-width:0;height:auto;padding:0;border:0;white-space:normal;overflow-wrap:anywhere;overflow:visible;text-overflow:clip;width:auto;max-width:100%}
   .table:not(.kv) td[data-label]::before{content:attr(data-label);flex:0 0 30%;max-width:30%;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
