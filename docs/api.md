@@ -6,7 +6,7 @@ The status page opens with the two client addresses, `/v1` (this API) and `/mcp`
 
 The helper model reads as one phrase (`grok-4.7 · reasoning low`) and the aliases as a count (`1 alias`). Each is a button that opens its dialog. Changing the helper model, its reasoning or its timeout saves at once, and the model list reloads when the dialog opens. A failed save puts the field back. A signed-in card shows when the token expires, as a date and time (`2026-10-06 01:40`). skgate refreshes the token before expiry.
 
-**Details** is the MCP helper model, the aliases of this provider, and **Remove provider**. The helper list is this provider's models. When the current helper belongs to another provider, that model stays at the top of the list as its model id. Remove asks first ("Remove Grok?" / "Its aliases go too.") and sits at the bottom with no frame. The access token refreshes in the background. A signed-in card shows **Details**. When the session is dead, the card shows **Sign in** instead. Details does not edit upstream addresses.
+**Details** is the MCP helper model, the aliases of this provider, and **Remove provider**. The helper list is this provider's aliases, by name, then its models. When the current helper belongs to another provider, that model or alias stays at the top of the list as its id. Remove asks first ("Remove Grok?" / "Its aliases go too.") and sits at the bottom with no frame. The access token refreshes in the background. A signed-in card shows **Details**. When the session is dead, the card shows **Sign in** instead. Details does not edit upstream addresses.
 
 Device sign-in opens the verification page in a window and shows the code, the same address as a link, and a QR of that address. The address does not include the code.
 
