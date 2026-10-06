@@ -20,7 +20,7 @@ Exception: `/messages` without a prefix is the MCP SSE bridge; use `/v1/messages
 export OPENAI_BASE_URL=https://skgate.example.com/v1 OPENAI_API_KEY=sk-...
 ```
 
-**Model aliases.** On the provider card, the alias count opens the list. Map a name to one of the account's models (`grok-latest` to `grok-4.7`). Alias names are letters, digits and `. _ : -`, and may not equal a real model id. Signing out removes the aliases of that provider and leaves every other provider's aliases in place.
+**Model aliases.** On the provider card, the alias count opens the list. Map any name you choose to one of the account's models, for example `grok-latest` to `grok-4.7`. Alias names are letters, digits and `. _ : -`, and may not equal a real model id. Signing out removes the aliases of that provider and leaves every other provider's aliases in place.
 
 The model list shows aliases first; a request with an alias as `model` is sent upstream with the target, streaming included; changes apply to the next request. Responses are relayed as the provider sent them, so `model` in a response names the target.
 
