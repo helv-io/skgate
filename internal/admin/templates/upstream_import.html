@@ -1,6 +1,6 @@
 {{define "body"}}{{with .Data}}
 <h2>Import upstreams</h2><div class="card">
-<form method="post" action="/admin/upstreams/import" class="form wide"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<form method="post" action="/admin/upstreams/import" class="form wide" data-post><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>JSON: <code>{"mcpServers": {"name": {"command": "npx", "args": []}}}</code>, one server object, or entries with <code>url</code> and <code>headers</code><textarea class="wide" name="json" rows="12" spellcheck="false" autocomplete="off" data-code="json" data-json-check>{{.Text}}</textarea></label>
 <p class="muted" data-json-status aria-live="polite"></p></div>
 <script src="/admin/static/codemirror.js" defer></script>
@@ -8,7 +8,11 @@
 {{if not .Managed}}<p class="muted">Command entries are rejected: {{.Why}}</p>{{end}}
 <div class="row"><button class="btn">Import</button> <a class="act" href="/admin/upstreams">Back</a></div></form></div>
 {{if .Done}}<h2>Result</h2>
-<div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Alias</th><th>Result</th><th>Detail</th></tr></thead><tbody>
+{{template "import_result_body" .}}{{end}}
+{{end}}{{end}}
+{{/* import_result: what an import did, entry by entry. Shown once in a dialog over the import page when the form
+   posts in place (admin.showOnce), and under the form on the result screen otherwise. */}}
+{{define "import_result_body"}}<div class="card flush tablewrap"><table class="table"><thead><tr><th>Name</th><th>Alias</th><th>Result</th><th>Detail</th></tr></thead><tbody>
 {{range .Results}}<tr><td class="primary" data-label="Name"><code>{{.Name}}</code></td><td data-label="Alias"><code>{{.Alias}}</code></td><td class="status" data-label="Result">{{if eq .Status "created"}}{{template "pill" (pill "ok" "created" "")}}{{else if eq .Status "skipped"}}{{template "pill" (pill "warn" "skipped" "")}}{{else}}{{template "pill" (pill "bad" "invalid" "")}}{{end}}</td><td class="wrap" data-label="Detail">{{.Detail}}{{range .Notes}}<span class="sub">{{.}}</span>{{end}}</td></tr>
 {{end}}</tbody></table></div>{{end}}
-{{end}}{{end}}
+{{define "import_result"}}{{template "dialog_content" (infodlg "import-result" "Import result")}}{{template "import_result_body" .Data}}{{template "dialog_end"}}{{end}}

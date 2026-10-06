@@ -1,6 +1,8 @@
-// Polls the device sign-in state ([data-poll] holds the URL) and reloads the status page when it changes.
-// The same panel carries the verification address ([data-device-url], with the user code when one is known)
-// and opens it in a window when the panel is shown. A blocked window leaves the address on the page.
+// Polls the device sign-in state ([data-poll] holds the URL) and, when it changes, reads the status page again in
+// place (window.skgateRefresh), so the card shows the account or the error without a reload. Cancel posts in place
+// and takes the panel away, which ends the polling. The panel carries the verification address ([data-device-url],
+// with the user code when one is known) and opens it in a window when the page loads with it. A blocked window
+// leaves the address on the page.
 (function () {
   var el = document.querySelector("[data-poll]");
   if (!el) return;
@@ -8,10 +10,15 @@
   var open = el.getAttribute("data-device-url");
   if (open) window.open(open, "skgate-device", "width=520,height=720,noopener,noreferrer");
   var t = setInterval(function () {
+    // a refresh draws the panel again while the sign-in is pending; once no panel is in the page, it ended
+    if (!document.querySelector("[data-poll]")) { clearInterval(t); return; }
     fetch(url, { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (s) {
-        if (s.state !== "pending") { clearInterval(t); location.href = "/admin"; }
+        if (s.state === "pending") return;
+        clearInterval(t);
+        if (!window.skgateRefresh) { location.href = "/admin"; return; }
+        window.skgateRefresh().catch(function () { location.href = "/admin"; });
       })
       .catch(function () {});
   }, 3000);
@@ -140,6 +147,8 @@
   var informational = false; // the dialog in view only shows information (template attribute data-informational)
   var shownId = null; // id of the content dialog in view (its fragment is in the URL)
   var pushed = false; // opening it added a history entry
+  var once = null; // the template of a result shown once (data-once) in view: it goes when the dialog closes
+  var backing = false, queued = null; // a close went back in history; a dialog asked to open meanwhile waits for it
 
   // mode switches the one dialog between a confirmation and content copied from a template.
   function mode(content) {
@@ -162,7 +171,12 @@
     var had = pushed;
     pushed = false;
     try {
-      if (byBack && had) { history.back(); return; }
+      if (byBack && had) {
+        backing = true;
+        history.back();
+        setTimeout(function () { if (backing) { backing = false; openQueued(); } }, 600); // no popstate came
+        return;
+      }
       if (location.hash) history.replaceState(history.state, "", urlWith(""));
     } catch (err) { /* a document without a real address has no fragment to clear */ }
   }
@@ -191,6 +205,10 @@
     clearHash(replace !== true);
   }
   function restoreFocus() {
+    // the close event comes later than the close; a dialog opened again meanwhile (a result shown once, right after
+    // the confirmation that asked for it) is not tidied away
+    if (dlg.open) return;
+    if (once) { once.remove(); once = null; } // a result shown once is gone with its dialog
     var p = pending, o = opener;
     pending = null; opener = null;
     var f = (p && p.opener) || o;
@@ -206,6 +224,8 @@
     var tpl = id ? document.getElementById(id) : null;
     if (!tpl || !tpl.hasAttribute("data-dialog-content")) return;
     mode(true);
+    if (once && once !== tpl) once.remove();
+    once = tpl.hasAttribute("data-once") ? tpl : null;
     informational = tpl.hasAttribute("data-informational");
     bodyEl.textContent = "";
     titleEl.textContent = tpl.getAttribute("data-title") || "";
@@ -279,8 +299,17 @@
     requestClose();
   });
   window.addEventListener("hashchange", follow);
-  window.addEventListener("popstate", follow);
+  window.addEventListener("popstate", function () {
+    follow();
+    if (backing) { backing = false; openQueued(); }
+  });
   follow();
+  function openQueued() { var q = queued; queued = null; if (q) openContent(q.id, q.from, true); }
+  // skgateOpen opens a content dialog from script (a result shown once), after a close that is still going back.
+  window.skgateOpen = function (id, from) {
+    if (backing) { queued = { id: id, from: from }; return; }
+    openContent(id, from, true);
+  };
   function label(btn) { return ((btn && btn.textContent) || "").trim(); }
 
   document.addEventListener("submit", function (e) {
@@ -433,6 +462,7 @@
     return Array.prototype.some.call(form.querySelectorAll("input,select,textarea"), window.skgateDirtyControl);
   }
   window.skgateExplicitDirty = function (form) { return explicitForm(form) && formDirty(form); };
+  window.skgateExplicitForm = explicitForm;
   window.skgateLeaveActive = function () {
     if (window.skgateSI) return true;
     return Array.prototype.some.call(document.querySelectorAll("form"), function (f) { return window.skgateExplicitDirty(f); });
@@ -590,6 +620,35 @@ function bodyBusy(dlg, self) {
     var el = form && ((act.name && form.querySelector('[name="' + act.name + '"]')) || form.querySelector("button"));
     if (el && el.focus) el.focus();
   }
+  // keep carries what the person sees in a part over to its fresh copy: which <details> are open, and edits that are
+  // not saved yet (a field is found by its row's data-key, else by its name and place in the part).
+  function ident(el) { return el.getAttribute("data-key") || el.getAttribute("data-verbgroup") || el.id || ""; }
+  function twin(list, el, i) {
+    var id = ident(el);
+    if (!id) return list[i] || null;
+    for (var k = 0; k < list.length; k++) if (ident(list[k]) === id) return list[k];
+    return null;
+  }
+  function keep(old, fresh) {
+    var od = old.querySelectorAll("details"), fd = fresh.querySelectorAll("details");
+    Array.prototype.forEach.call(od, function (d, i) { var n = twin(fd, d, i); if (n) n.open = d.open; });
+    if (!window.skgateDirtyControl) return;
+    Array.prototype.forEach.call(old.querySelectorAll("input,select,textarea"), function (el) {
+      if (!el.name || el.type === "hidden" || !window.skgateDirtyControl(el)) return;
+      var row = el.closest("[data-key]"), from = old, to = fresh;
+      if (row && old.contains(row)) {
+        to = null;
+        Array.prototype.forEach.call(fresh.querySelectorAll("[data-key]"), function (r) { if (!to && r.getAttribute("data-key") === row.getAttribute("data-key")) to = r; });
+        if (!to) return;
+        from = row;
+      }
+      var q = '[name="' + el.name + '"]';
+      var t = to.querySelectorAll(q)[Array.prototype.indexOf.call(from.querySelectorAll(q), el)];
+      if (!t || t.type !== el.type || t.disabled) return;
+      if (el.type === "checkbox" || el.type === "radio") t.checked = el.checked;
+      else if (el.tagName !== "SELECT" || Array.prototype.some.call(t.options, function (o) { return o.value === el.value; })) t.value = el.value;
+    });
+  }
   function refresh() {
     var y = window.scrollY || window.pageYOffset || 0;
     var dlg = document.querySelector("[data-modal]");
@@ -605,7 +664,10 @@ function bodyBusy(dlg, self) {
         var doc = new DOMParser().parseFromString(html, "text/html");
         Array.prototype.forEach.call(doc.querySelectorAll("[data-live][id]"), function (f) {
           var o = document.getElementById(f.id);
-          if (o) o.replaceWith(document.importNode(f, true));
+          if (!o) return;
+          var n = document.importNode(f, true);
+          keep(o, n);
+          o.replaceWith(n);
         });
         Array.prototype.forEach.call(doc.querySelectorAll("template[data-dialog-content][id]"), function (f) {
           var o = document.getElementById(f.id), n = document.importNode(f, true);
@@ -618,8 +680,9 @@ function bodyBusy(dlg, self) {
         });
         // what the server no longer renders (a deleted row's dialog, a removed provider's card) goes too
         Array.prototype.forEach.call(document.querySelectorAll("[data-live][id], template[data-dialog-content][id]"), function (o) {
-          if (!doc.getElementById(o.id)) o.remove();
+          if (!doc.getElementById(o.id) && !o.hasAttribute("data-once")) o.remove(); // a result shown once is not on the page
         });
+        document.dispatchEvent(new Event("skgate:refreshed")); // scripts of a part draw it again (the tool counter, the filter)
         var body = document.querySelector("[data-modal-body]"), id = (function (h) { try { return decodeURIComponent(h); } catch (err) { return h; } })(location.hash.slice(1)), tpl = id && document.getElementById(id);
         if (body && !body.hidden && tpl && tpl.content) {
           merge(body, tpl);
@@ -715,6 +778,22 @@ function bodyBusy(dlg, self) {
     body.appendChild(tpl.content.cloneNode(true));
     dlg.scrollTop = top;
   }
+  // showOnce opens a result that is shown once (a new key or client secret, an import's outcome, an update to
+  // review): the answer carries its dialog template, which is put in the page only while the dialog is open (the
+  // modal drops data-once templates when it closes) and is never on the page the server renders. Closing it leaves
+  // the page as it was. Focus goes back to the form's button when it is still on the page.
+  function showOnce(html, form) {
+    var tpl = new DOMParser().parseFromString(html, "text/html").querySelector("template[data-dialog-content][id]");
+    if (!tpl || !window.skgateOpen) return;
+    var n = document.importNode(tpl, true), o = document.getElementById(tpl.id);
+    n.setAttribute("data-once", "");
+    if (o) o.remove();
+    (document.querySelector("main") || document.body).appendChild(n);
+    var act = form.getAttribute("action"), f = form.isConnected ? form : null;
+    if (!f) Array.prototype.forEach.call(document.querySelectorAll("form"), function (x) { if (!f && x.getAttribute("action") === act) f = x; });
+    var b = f && !f.closest("[data-modal]") ? f.querySelector("button:not([type=button])") : null;
+    window.skgateOpen(n.id, b);
+  }
   window.skgateRefresh = refresh;
   document.addEventListener("submit", function (e) {
     var form = e.target;
@@ -744,19 +823,24 @@ function bodyBusy(dlg, self) {
         return r.json().catch(function () { throw { say: "skgate answered with something unexpected. Reload the page and check what was saved." }; });
       })
       .then(function (j) {
-        var t = (j && j.toast) || {}, good = t.k === "ok";
+        var t = (j && j.toast) || {}, good = t.k === "ok", show = j && j.show;
         if (!good) {
           if (undo) { fail(t.m || "That did not work."); return; }
           window.skgateToast("bad", t.m || "That did not work.");
+          // a form with typed fields (Create key, Save on the tools page) keeps every one: nothing is read again
+          if (!show && window.skgateExplicitForm && window.skgateExplicitForm(form)) return;
+        } else if (j.tell && t.m) {
+          window.skgateToast("ok", t.m); // a notice, not a change: nothing on the page shows it ("No changes")
         }
         var x = document.querySelector("[data-modal] [data-modal-close]");
+        if (good) settle(form); // what was sent is saved: no longer an unsaved edit, and not carried over the fresh part
         if (good && form.getAttribute("data-post") === "close") {
-          settle(form);
           if (x && document.querySelector("[data-modal][open]")) x.click();
           dlgId = "";
         }
-        return refresh().then(function () { reopen(dlgId, x); refocus(key); }, function () {
+        return refresh().then(function () { reopen(dlgId, x); refocus(key); if (show) showOnce(show, form); }, function () {
           window.skgateToast(good ? "warn" : "bad", "Reload the page to see the change.");
+          if (show) showOnce(show, form);
         });
       })
       .catch(function (err) { fail(err && err.say ? err.say : "Couldn't reach skgate. Check your connection and try again."); })
@@ -2040,6 +2124,8 @@ document.addEventListener("change", function (e) {
   }
   filter.addEventListener("input", applyFilter);
   filter.addEventListener("keydown", function (e) { if (e.key === "Enter") e.preventDefault(); });
+  // a save or an update draws the tool list again in place: count it and filter it as before
+  document.addEventListener("skgate:refreshed", function () { if (!root.isConnected) return; render(); if (filter.value.trim()) applyFilter(); });
   var describe = root.querySelector("[data-tool-describe]");
   var busy = false;
   function allKeys() {

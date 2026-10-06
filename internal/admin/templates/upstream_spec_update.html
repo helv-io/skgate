@@ -1,6 +1,15 @@
 {{define "body"}}{{with .Data}}
 <h2>Update <code>{{.Alias}}</code></h2>
-<div class="callout warn"><strong>Review first.</strong> Nothing is replaced until you confirm.</div>
+{{template "spec_review_facts" .}}
+<div class="actions">
+<form method="post" action="/admin/upstreams/{{.Alias}}/spec/apply"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="token" value="{{.Token}}"><button class="btn">Confirm update</button></form>
+<form method="post" action="/admin/upstreams/{{.Alias}}/spec/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="token" value="{{.Token}}"><button class="act">Cancel</button></form>
+</div>
+{{end}}{{end}}
+{{define "oa_update_list"}}{{if .Items}}<h4>{{.Title}}</h4><ul class="diff">{{range .Items}}<li><code>{{.}}</code></li>{{end}}{{if .More}}<li class="muted">and {{.More}} more</li>{{end}}</ul>{{end}}{{end}}
+{{/* spec_review_facts: what an update would change. spec_review is the same review as a dialog over the tools page,
+   when Update posts in place (admin.showDialog); Close changes nothing. */}}
+{{define "spec_review_facts"}}<div class="callout warn"><strong>Review first.</strong> Nothing is replaced until you confirm.</div>
 <div class="tablewrap"><table class="table kv"><tbody>
 <tr><th>Tools exposed</th><td>{{.ToolsBefore}} now, {{.ToolsAfter}} after</td></tr>
 <tr><th>Operations</th><td>{{len .Added}}{{if .MoreAdded}}+{{.MoreAdded}}{{end}} added, {{len .Removed}}{{if .MoreRemoved}}+{{.MoreRemoved}}{{end}} removed, {{len .Chg}}{{if .MoreChanged}}+{{.MoreChanged}}{{end}} changed</td></tr>
@@ -10,9 +19,6 @@
 {{template "oa_update_list" (oaList "Added" .Added .MoreAdded)}}
 {{template "oa_update_list" (oaList "Removed" .Removed .MoreRemoved)}}
 {{template "oa_update_list" (oaList "Changed" .Chg .MoreChanged)}}
-<div class="actions">
-<form method="post" action="/admin/upstreams/{{.Alias}}/spec/apply"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="token" value="{{.Token}}"><button class="btn">Confirm update</button></form>
-<form method="post" action="/admin/upstreams/{{.Alias}}/spec/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="token" value="{{.Token}}"><button class="act">Cancel</button></form>
-</div>
-{{end}}{{end}}
-{{define "oa_update_list"}}{{if .Items}}<h2>{{.Title}}</h2><ul class="diff">{{range .Items}}<li><code>{{.}}</code></li>{{end}}{{if .More}}<li class="muted">and {{.More}} more</li>{{end}}</ul>{{end}}{{end}}
+{{end}}
+{{define "spec_review"}}{{template "dialog_content" (dlg "spec-review" (printf "Update %s" .Data.Alias))}}{{with .Data}}{{template "spec_review_facts" .}}
+<div class="row"><form method="post" action="/admin/upstreams/{{.Alias}}/spec/apply" data-post="close"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="token" value="{{.Token}}"><button class="btn">Confirm update</button></form></div>{{end}}{{template "dialog_end"}}{{end}}

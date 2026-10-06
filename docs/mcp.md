@@ -128,7 +128,7 @@ Env and header lists start with one row; **Add row** appends rows, **Delete** re
 
 Admin: mcp upstreams, **import JSON** above the table. Paste a `{"mcpServers": {...}}` object, a bare name-to-server map, or a single server object. Aliases come from the keys, lowercased and sanitized.
 
-The field checks the JSON while you type and the **Import** button waits until it is valid. Each entry is reported as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
+The field checks the JSON while you type and the **Import** button waits until it is valid. Each entry is reported in a dialog over the page as created, skipped (alias exists; nothing is overwritten) or invalid with the reason.
 
 ```json
 {

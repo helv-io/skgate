@@ -9,7 +9,7 @@
 <p>Open the window and enter this code.</p>
 {{if .DevURL}}<p class="muted">If the window didn't open, <a href="{{.DevOpen}}" target="_blank" rel="noopener noreferrer">{{.DevURL}}</a> and enter this code.</p>{{end}}
 {{template "copybox" (copycode "the sign-in code" .Dev.UserCode)}}
-<div class="row"><form method="post" action="/admin/providers/{{.ID}}/device/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Cancel</button></form></div>
+<div class="row"><form method="post" action="/admin/providers/{{.ID}}/device/cancel" data-post><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act">Cancel</button></form></div>
 </div>
 <div class="device-qr">{{qrsvg .DevOpen}}</div>
 </div>

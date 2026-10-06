@@ -125,9 +125,9 @@ Updates are manual. Nothing polls the address, nothing refreshes by itself, and 
 On the tools page, **Update** reads the description again from its address. It is on only for an upstream that was added with an address. A pasted description has no address: the button is off, with "no address to update from" as its tooltip and as a line of text next to it.
 
 1. **Update** downloads the description again and, if the text is the same as last time, says "No changes" and stops.
-2. Otherwise the new description gets the same checks and repair as **Check**. With no helper model the repair is skipped and the screen says so.
-3. A review screen shows the tools exposed now and after, the operations added, removed and changed, and what the repair fixed.
-4. **Confirm update** replaces the stored description. **Cancel** leaves everything as it was.
+2. Otherwise the new description gets the same checks and repair as **Check**. With no helper model the repair is skipped and the review says so.
+3. A review dialog over the tools page shows the tools exposed now and after, the operations added, removed and changed, and what the repair fixed.
+4. **Confirm update** replaces the stored description and the tools page shows it in place. Closing the dialog leaves everything as it was.
 
 Your tool selection (which tools are on, their names and descriptions) is kept for every operation that still exists. New operations stay off. The tools page shows when the description was last read ("Updated ...").
 

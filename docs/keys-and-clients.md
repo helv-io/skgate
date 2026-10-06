@@ -2,7 +2,7 @@
 
 Part of the [skgate README](../README.md).
 
-**Virtual keys** (admin: keys). The create form asks for a name; limits are optional, under **Limits**. Only a SHA-256 hash is stored; the token is shown once with a Copy button.
+**Virtual keys** (admin: keys). The create form asks for a name; limits are optional, under **Limits**. Only a SHA-256 hash is stored; the token is shown once, in a dialog over the list, with a Copy button.
 
 Send as `Authorization: Bearer sk-...` or `X-API-Key` to `/v1` and MCP endpoints. `?key=` works on MCP endpoints only, for a key that has it enabled in its edit dialog.
 

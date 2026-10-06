@@ -206,7 +206,7 @@ func (a *Admin) upstreamImport(w http.ResponseWriter, r *http.Request) {
 		if created == 0 {
 			t = toast{toastBad, "nothing imported"}
 		}
-		http.Redirect(w, r, a.stash(r, "import", d, t), http.StatusSeeOther)
+		a.showOnce(w, r, "upstream_import", "import_result", "import", d, t)
 		return
 	}
 	v, _ := a.DB.GetSetting(settingLastInclude)
