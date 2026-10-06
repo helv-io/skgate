@@ -49,6 +49,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.23.5] - 2026-10-06
+
+### Changed
+
+- Create key, Regenerate and Create client show the secret once in a dialog over the list; Save on the OpenAPI tools page, Update, Import and the Grok sign-in Cancel and completion update the page in place, without a reload
+
 ## [0.23.4] - 2026-10-06
 
 ### Changed
@@ -668,7 +674,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.4...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.5...HEAD
+[0.23.5]: https://github.com/helv-io/skgate/compare/v0.23.4...v0.23.5
 [0.23.4]: https://github.com/helv-io/skgate/compare/v0.23.3...v0.23.4
 [0.23.3]: https://github.com/helv-io/skgate/compare/v0.23.2...v0.23.3
 [0.23.2]: https://github.com/helv-io/skgate/compare/v0.23.1...v0.23.2
