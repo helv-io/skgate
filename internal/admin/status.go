@@ -32,11 +32,11 @@ type providerView struct {
 	Preset      keyed.Preset
 	BaseHost    string
 	ModelCount  int
-	HelperReady bool        // the helper model can run: some provider is ready (Grok signed in, or a key-based one)
-	Default     bool        // the provider whose settings hold the helper model (Grok)
-	HelperID    string      // where the helper model, reasoning and timeout are stored: the default provider
-	Inline      bool        // the MCP helper model form posts in place (no page reload)
-	Foreign     modelChoice // the current helper when it is not one of this provider's models; shown first
+	HelperReady bool         // the helper model can run: some provider is ready (Grok signed in, or a key-based one)
+	Default     bool         // the provider whose settings hold the helper model (Grok)
+	HelperID    string       // where the helper model, reasoning and timeout are stored: the default provider
+	Inline      bool         // the MCP helper model form posts in place (no page reload)
+	Foreign     *modelChoice // the current helper when it is not one of this provider's models or aliases; shown first
 	S           provider.Status
 	Dev         provider.DeviceFlow
 	DevURL      string   // verification address shown as link text, without the user code
@@ -49,8 +49,8 @@ type providerView struct {
 
 	CanModels   bool
 	Models      []string
-	Choices     []modelChoice // Models, then the aliases defined in skgate (Model aliases), each with the model it selects
-	Groups      []choiceGroup // the same choices as the picker shows them: Your aliases, Models, Vendor aliases
+	Choices     []modelChoice // Models, then this provider's aliases defined in skgate (Model aliases)
+	Groups      []choiceGroup // the same choices as the picker shows them: Aliases, Models, Vendor aliases
 	ModelHeavy  bool          // the chosen helper model (or the model its alias selects) looks like a heavy reasoning model
 	ModelsKnown bool
 	ModelsAt    string
@@ -248,10 +248,10 @@ type choiceGroup struct {
 // vendorAlias matches the ids a provider lists as moving names for another model ("grok-4-latest").
 var vendorAlias = regexp.MustCompile(`-latest(-|$)`)
 
-// groupChoices sorts the picker's choices into Your aliases (defined in skgate), Models, and Vendor aliases (the
+// groupChoices sorts the picker's choices into Aliases (defined in skgate), Models, and Vendor aliases (the
 // provider's own "-latest" names), in that order, leaving out an empty group. The order inside a group is kept.
 func groupChoices(list []modelChoice) []choiceGroup {
-	own := choiceGroup{Label: "Your aliases"}
+	own := choiceGroup{Label: "Aliases"}
 	models := choiceGroup{Label: "Models"}
 	vendor := choiceGroup{Label: "Vendor aliases"}
 	for _, c := range list {
@@ -273,10 +273,9 @@ func groupChoices(list []modelChoice) []choiceGroup {
 	return out
 }
 
-// modelChoices lists the provider's models followed by the aliases defined in skgate (the Model aliases of the same
-// screen), each as "alias (alias of model)". Choosing an alias stores it as it is; skgate resolves it to the model
-// when the helper calls the provider, as it does for /v1 requests. A chosen value that is neither stays selectable as
-// "(unlisted)".
+// modelChoices lists the provider's models followed by its aliases defined in skgate (the Model aliases of the same
+// screen), each named as it is, like in the alias table. Choosing an alias stores it as it is; skgate resolves it to
+// its target when the helper calls the provider, as it does for /v1 requests, so moving the alias moves the helper.
 func modelChoices(ids []string, aliases []provider.Alias, chosen string) []modelChoice {
 	var out []modelChoice
 	seen := map[string]bool{}
@@ -292,11 +291,8 @@ func modelChoices(ids []string, aliases []provider.Alias, chosen string) []model
 			continue
 		}
 		seen[al.Name] = true
-		out = append(out, modelChoice{Value: al.Name, Label: al.Name + " (alias of " + al.Target + ")",
+		out = append(out, modelChoice{Value: al.Name, Label: al.Name,
 			Frontier: provider.LooksFrontier(al.Name) || provider.LooksFrontier(al.Target), Selected: al.Name == chosen, Own: true})
-	}
-	if chosen != "" && !seen[chosen] {
-		out = append(out, modelChoice{Value: chosen, Label: chosen + " (unlisted)", Frontier: provider.LooksFrontier(chosen), Selected: true})
 	}
 	return out
 }
@@ -328,11 +324,13 @@ func keyedState(s provider.Status, k *keyed.Provider) pillView {
 	return pillView{"ok", "ready", ""}
 }
 
-// fillHelperChoices lists this provider's models only, under its prefix when it has one.
-// When the current helper belongs to another provider, it stays selectable at the top as that model id.
+// fillHelperChoices lists this provider's models, under its prefix when it has one, and its aliases.
+// When the current helper belongs to another provider, it stays selectable at the top as that model id or alias.
+// With no such helper there is no entry above "none".
 func (a *Admin) fillHelperChoices(v *providerView) {
 	chosen := v.Model
-	if chosen != "" && !contains(v.Models, chosen) {
+	aliases := a.Set.Aliases(v.ID)
+	if chosen != "" && !contains(v.Models, chosen) && !isAlias(aliases, chosen) {
 		id, _ := a.helperOwner(chosen)
 		label := chosen
 		frontier := provider.LooksFrontier(chosen)
@@ -346,11 +344,11 @@ func (a *Admin) fillHelperChoices(v *providerView) {
 		if id == "" {
 			label = chosen + " (unlisted)"
 		}
-		v.Foreign = modelChoice{Value: chosen, Label: label, Frontier: frontier, Selected: true}
-		v.ModelHeavy = v.Foreign.Frontier
+		v.Foreign = &modelChoice{Value: chosen, Label: label, Frontier: frontier, Selected: true}
+		v.ModelHeavy = frontier
 		chosen = ""
 	}
-	v.Choices = modelChoices(v.Models, nil, chosen)
+	v.Choices = modelChoices(v.Models, aliases, chosen)
 	v.Groups = groupChoices(v.Choices)
 }
 
