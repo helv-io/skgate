@@ -47,6 +47,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.23.2] - 2026-10-06
+
+### Changed
+
+- Phones do not zoom, and a change to the MCP helper model, reasoning or timeout on the tools page stays and is saved
+
 ## [0.23.1] - 2026-10-06
 
 ### Fixed
@@ -648,7 +654,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.1...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.2...HEAD
+[0.23.2]: https://github.com/helv-io/skgate/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/helv-io/skgate/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/helv-io/skgate/compare/v0.22.3...v0.23.0
 [0.22.3]: https://github.com/helv-io/skgate/compare/v0.22.2...v0.22.3
