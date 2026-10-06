@@ -201,7 +201,7 @@ func (s *Server) errorPage(w http.ResponseWriter, r *http.Request, status int, m
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>skgate</title><h3>Authorization error</h3><p>%s</p>`, html.EscapeString(msg))
+	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"><title>skgate</title><h3>Authorization error</h3><p>%s</p>`, html.EscapeString(msg))
 }
 
 func (s *Server) redirectError(w http.ResponseWriter, r *http.Request, ap authParams, code, desc string) {

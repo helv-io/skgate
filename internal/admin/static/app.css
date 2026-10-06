@@ -465,6 +465,12 @@ main.solo{max-width:none;min-height:100vh;min-height:100dvh;display:flex;align-i
   .logtext{flex:1 1 100%}
 }
 @media (pointer:coarse){:root{--code-size:16px}}
+/* Phones and tablets do not zoom: the viewport meta turns pinch zoom off, touch-action turns off double-tap zoom
+   (iOS ignores user-scalable=no), and a field under 16px would make iOS zoom in on focus. Desktop keeps its sizes. */
+html,body{touch-action:manipulation}
+@media (max-width:720px),(pointer:coarse){
+  input:not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]),select,textarea,textarea.wide{font-size:16px}
+}
 
 /* Tool tester: the answer of a Run, and the schema, scroll inside the dialog instead of stretching it. */
 .try-out{max-height:45vh;overflow:auto;word-break:break-word}
