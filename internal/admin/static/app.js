@@ -194,9 +194,9 @@
     var p = pending, o = opener;
     pending = null; opener = null;
     var f = (p && p.opener) || o;
-    if (f && f.focus) f.focus();
+    if (f && f.focus) f.focus({ preventScroll: true }); // the page stays where it was under the dialog
     var mn = f && f.closest ? f.closest("[data-menu]") : null; // the opener was an item of a menu that has closed: back to its button
-    if (mn && document.activeElement !== f) mn.querySelector("[data-menu-button]").focus();
+    if (mn && document.activeElement !== f) mn.querySelector("[data-menu-button]").focus({ preventScroll: true });
     mode(false);
     clearHash(false); // closed some other way than close(): never leave the fragment behind
   }
@@ -347,7 +347,7 @@
     if (stack) { // the form lives in the content: submit it first, then take the dialog away
       stack = null;
       submitPending(p);
-      close(true);
+      close(!p.form.hasAttribute("data-post")); // a post in place stays on the page: closing goes back, as by hand
       return;
     }
     close(true); // the form submit navigates away: replace the fragment, do not go back
@@ -454,7 +454,7 @@
     if (!window.skgateLeaveAsk || !window.skgateLeaveActive()) return;
     var form = e.target;
     if (!form || !form.hasAttribute) return;
-    if (form.hasAttribute("data-save") || form.hasAttribute("data-update") || form.hasAttribute("data-inline") || form.hasAttribute("data-confirm")) return;
+    if (form.hasAttribute("data-save") || form.hasAttribute("data-post") || form.hasAttribute("data-update") || form.hasAttribute("data-inline") || form.hasAttribute("data-confirm")) return;
     if (!window.skgateSI && window.skgateExplicitDirty(form)) return;
     if (e.defaultPrevented) return;
     e.preventDefault();
@@ -595,7 +595,12 @@ function bodyBusy(dlg, self) {
     var dlg = document.querySelector("[data-modal]");
     var top = dlg ? dlg.scrollTop : 0;
     return fetch(location.pathname + location.search, { credentials: "same-origin", cache: "no-store", headers: { Accept: "text/html" } })
-      .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.text(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error("status " + r.status);
+        // a redirect (a lost session) is another page: nothing on it may replace or remove this one's parts
+        if (r.url && new URL(r.url, location.href).pathname !== location.pathname) throw new Error("moved");
+        return r.text();
+      })
       .then(function (html) {
         var doc = new DOMParser().parseFromString(html, "text/html");
         Array.prototype.forEach.call(doc.querySelectorAll("[data-live][id]"), function (f) {
@@ -603,8 +608,17 @@ function bodyBusy(dlg, self) {
           if (o) o.replaceWith(document.importNode(f, true));
         });
         Array.prototype.forEach.call(doc.querySelectorAll("template[data-dialog-content][id]"), function (f) {
-          var o = document.getElementById(f.id);
-          if (o) o.replaceWith(document.importNode(f, true));
+          var o = document.getElementById(f.id), n = document.importNode(f, true);
+          if (o) { o.replaceWith(n); return; }
+          // a new one (an added provider's dialogs) goes after the one before it, or at the end of the page
+          var prev = f.previousElementSibling;
+          while (prev && !(prev.id && document.getElementById(prev.id))) prev = prev.previousElementSibling;
+          if (prev) document.getElementById(prev.id).after(n);
+          else (document.querySelector("main") || document.body).appendChild(n);
+        });
+        // what the server no longer renders (a deleted row's dialog, a removed provider's card) goes too
+        Array.prototype.forEach.call(document.querySelectorAll("[data-live][id], template[data-dialog-content][id]"), function (o) {
+          if (!doc.getElementById(o.id)) o.remove();
         });
         var body = document.querySelector("[data-modal-body]"), id = (function (h) { try { return decodeURIComponent(h); } catch (err) { return h; } })(location.hash.slice(1)), tpl = id && document.getElementById(id);
         if (body && !body.hidden && tpl && tpl.content) {
@@ -652,6 +666,101 @@ function bodyBusy(dlg, self) {
         Array.prototype.forEach.call(btns, function (b) { if (b.isConnected) b.disabled = false; });
         endSave(form, good === true);
       });
+  });
+
+  // In-place actions: a form with data-post (a toggle, a delete, revoke, remove, a process action) posts by fetch
+  // and the page stays where it is: no reload, no scroll jump. A good answer shows no toast: the parts of the page
+  // that show the state (data-live, the dialog templates, the open dialog) are read again, and that change is the
+  // answer; a row that is gone goes. Only an error is a toast. A switch flips at once and flips back on an error,
+  // with the reason as a toast and as its tooltip, like the update pill. A control keeps its size while it posts.
+  // data-post="close" also closes the open dialog after a good answer (a Save or an Add inside a dialog).
+  // A confirmation (data-confirm) asks first; the post follows once it is confirmed.
+  function flip(btn) {
+    if (!btn || !btn.classList.contains("toggle") || btn.getAttribute("role") !== "switch") return null;
+    var was = btn.getAttribute("aria-checked") === "true", text = btn.textContent;
+    function set(on, label) {
+      btn.setAttribute("aria-checked", on ? "true" : "false");
+      btn.classList.toggle("on", on);
+      btn.classList.toggle("off", !on);
+      if (label) btn.textContent = label;
+    }
+    set(!was, btn.getAttribute(was ? "data-off" : "data-on"));
+    return function () { set(was, text); };
+  }
+  // sig names a form by its action and its hidden fields (not the CSRF token), so the same control can be found
+  // again after the page parts were replaced.
+  function sig(form) {
+    var parts = [form.getAttribute("action") || ""];
+    Array.prototype.forEach.call(form.querySelectorAll("input[type=hidden]"), function (i) { if (i.name !== "csrf") parts.push(i.name + "=" + i.value); });
+    return parts.join("&");
+  }
+  function refocus(key) {
+    if (!key || (document.activeElement && document.activeElement !== document.body)) return;
+    var hit = null;
+    Array.prototype.forEach.call(document.querySelectorAll("form[data-post]"), function (f) { if (!hit && sig(f) === key) hit = f; });
+    var b = hit && hit.querySelector("button:not([type=button])");
+    if (b && b.focus) b.focus({ preventScroll: true });
+  }
+  // reopen shows the dialog the action was taken in (Detect) again from its fresh template, so it shows the new
+  // state; the dialog of something that is gone closes. A dialog with sections is merged by refresh instead.
+  function hashId() { var h = location.hash.slice(1); try { return decodeURIComponent(h); } catch (err) { return h; } }
+  function reopen(id, x) {
+    var dlg = document.querySelector("[data-modal][open]"), body = dlg && dlg.querySelector("[data-modal-body]");
+    if (!id || !body || body.hidden || hashId() !== id) return;
+    var tpl = document.getElementById(id);
+    if (!tpl || !tpl.content) { if (x) x.click(); return; }
+    if (body.querySelector("[data-section]")) return;
+    var top = dlg.scrollTop;
+    body.textContent = "";
+    body.appendChild(tpl.content.cloneNode(true));
+    dlg.scrollTop = top;
+  }
+  window.skgateRefresh = refresh;
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form || !form.hasAttribute || !form.hasAttribute("data-post") || e.defaultPrevented) return;
+    e.preventDefault();
+    if (form._posting) return;
+    form._posting = true;
+    var btn = e.submitter || form.querySelector("button:not([type=button])");
+    var undo = flip(btn);
+    var key = btn && document.activeElement === btn ? sig(form) : "";
+    var dlgId = form.closest("[data-modal-body]") ? hashId() : "";
+    if (btn && !undo) btn.disabled = true;
+    form.setAttribute("data-saving", "");
+    function done() {
+      form._posting = false;
+      form.removeAttribute("data-saving");
+      if (btn && btn.isConnected && !undo) btn.disabled = false;
+    }
+    function fail(msg) {
+      if (undo) undo();
+      if (btn && btn.isConnected) btn.title = msg;
+      window.skgateToast("bad", msg);
+    }
+    fetch(formURL(form), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
+      .then(function (r) {
+        if (!r.ok) throw { say: "skgate answered with an error (status " + r.status + "). Try again, or reload the page." };
+        return r.json().catch(function () { throw { say: "skgate answered with something unexpected. Reload the page and check what was saved." }; });
+      })
+      .then(function (j) {
+        var t = (j && j.toast) || {}, good = t.k === "ok";
+        if (!good) {
+          if (undo) { fail(t.m || "That did not work."); return; }
+          window.skgateToast("bad", t.m || "That did not work.");
+        }
+        var x = document.querySelector("[data-modal] [data-modal-close]");
+        if (good && form.getAttribute("data-post") === "close") {
+          settle(form);
+          if (x && document.querySelector("[data-modal][open]")) x.click();
+          dlgId = "";
+        }
+        return refresh().then(function () { reopen(dlgId, x); refocus(key); }, function () {
+          window.skgateToast(good ? "warn" : "bad", "Reload the page to see the change.");
+        });
+      })
+      .catch(function (err) { fail(err && err.say ? err.say : "Couldn't reach skgate. Check your connection and try again."); })
+      .then(done);
   });
 })();
 

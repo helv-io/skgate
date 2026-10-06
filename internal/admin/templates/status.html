@@ -6,9 +6,9 @@
 {{with .OpenAPI}}<tr><th>OpenAPI tools</th><td>{{template "pill" .}}</td></tr>{{end}}
 </tbody></table></div>
 <h2>Sign-in</h2>
-{{range .Providers}}{{template "provider_card" .}}{{end}}
+<div id="sign-in-cards" data-live>{{range .Providers}}{{template "provider_card" .}}{{end}}</div>
 <div class="row spread"><h2>Other providers</h2><button type="button" class="act" data-dialog-open="#add-provider">Add provider</button></div>
-{{range .Others}}{{template "keyed_card" .}}{{else}}<p class="muted">None</p>{{end}}
+<div id="other-providers" data-live>{{range .Others}}{{template "keyed_card" .}}{{else}}<p class="muted">None</p>{{end}}</div>
 <div id="alias-overview" data-live>{{if .Aliases}}<h2>Model aliases</h2>{{template "alias_overview" .}}{{end}}</div>
 {{range .Providers}}{{template "provider_dialog" .}}{{if .Default}}{{template "helper_dialog" .}}{{end}}{{template "aliases_dialog" .}}{{end}}
 {{range .Others}}{{template "aliases_dialog" .}}{{template "keyed_dialog" .}}{{end}}

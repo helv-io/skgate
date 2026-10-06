@@ -18,12 +18,22 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     if (!f) return null;
     return { model: f.querySelector('[name=model]').value, effort: f.querySelector('[name=effort]').value, timeout: f.querySelector('[name=timeout]').value };
   }, body);
+  const idle = async () => { for (let i = 0; i < 50; i++) { if (!(await pg.evaluate(() => !!document.querySelector("form[data-saving]")))) break; await wait(100); } await wait(300); };
+  // the dialog reloads the model list when it opens (deferred, then posted): pick only once that has answered and
+  // the dialog was drawn again from it, as a person would see the list first
   const open = async () => {
+    await pg.evaluate(() => {
+      window.__reload = null;
+      if (window.__watch) return;
+      window.__watch = true;
+      document.addEventListener("submit", e => { if (e.target.matches('form[action$="/models/reload"]')) window.__reload = e.target; }, true);
+    });
     await pg.click('[data-dialog-open="#helper-model"]');
     await pg.waitForSelector(body + ' form[action$="/model"]', { visible: true });
+    await pg.waitForFunction(() => window.__reload && !window.__reload._saving, { timeout: 10000 });
+    await idle();
   };
   const close = async () => { await pg.click("[data-modal] [data-modal-close]"); await wait(150); };
-  const idle = async () => { for (let i = 0; i < 50; i++) { if (!(await pg.evaluate(() => !!document.querySelector("form[data-saving]")))) break; await wait(100); } await wait(300); };
   const setSel = async (name, v) => { await pg.select(body + ` [name=${name}]`, v); await idle(); };
   const setNum = async (v) => {
     const sel = body + " [name=timeout]";
