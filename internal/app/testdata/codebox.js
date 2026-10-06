@@ -78,8 +78,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(s.page, "no sideways page scroll on a phone");
   // the form still sends the textarea
   await set(J, '{"mcpServers": {"cb": {"url": "http://127.0.0.1:1/mcp"}}}'); await wait(300);
-  await Promise.all([pg.waitForNavigation(), pg.click("form[action='/admin/upstreams/import'] button.btn")]);
-  ok(await pg.evaluate(() => document.body.textContent.includes("cb")), "Import sends the textarea value");
+  await pg.click("form[action='/admin/upstreams/import'] button.btn");
+  await pg.waitForSelector("[data-modal][open] [data-modal-body] table", { visible: true }); // the outcome, in a dialog over the page
+  ok(await pg.evaluate(() => /cb/.test(document.querySelector("[data-modal-body]").textContent) && /created/.test(document.querySelector("[data-modal-body]").textContent)), "Import sends the textarea value");
 
   // ---- OpenAPI paste box: YAML, TOML, JSON ----
   await pg.goto(url + "/admin/upstreams/new");

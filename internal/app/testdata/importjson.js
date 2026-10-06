@@ -26,8 +26,9 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await pg.$eval("textarea[name=json]", e => { e.value = '{"mcpServers": {"fixed": {"url": "http://127.0.0.1:1/mcp"}}}'; e.dispatchEvent(new Event("input", { bubbles: true })); });
   s = await st();
   ok(s.text === "Valid JSON · 1 server" && s.formValid, "singular " + JSON.stringify(s));
-  await Promise.all([pg.waitForNavigation(), pg.click("form[action='/admin/upstreams/import'] button.btn")]);
-  ok(await pg.evaluate(() => document.body.textContent.includes("fixed")), "the fixed JSON was imported");
+  await pg.click("form[action='/admin/upstreams/import'] button.btn");
+  await pg.waitForSelector("[data-modal][open] [data-modal-body] table", { visible: true }); // the outcome, in a dialog over the page
+  ok(await pg.evaluate(() => /fixed/.test(document.querySelector("[data-modal-body]").textContent) && /created/.test(document.querySelector("[data-modal-body]").textContent)), "the fixed JSON was imported");
   await b.close();
   console.log(bad.length ? "FAIL\n" + bad.join("\n") : "ALL OK");
   process.exit(bad.length ? 1 : 0);
