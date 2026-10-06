@@ -23,6 +23,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Provider details no longer edit upstream URLs
 
+## [0.22.1] - 2026-10-05
+
+### Changed
+
+- Device sign-in opens the verification address with the user code in the window, the link and the QR
+
 ## [0.22.0] - 2026-10-05
 
 ### Changed
@@ -594,7 +600,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.22.1...HEAD
+[0.22.1]: https://github.com/helv-io/skgate/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/helv-io/skgate/compare/v0.21.7...v0.22.0
 [0.21.7]: https://github.com/helv-io/skgate/compare/v0.21.6...v0.21.7
 [0.21.6]: https://github.com/helv-io/skgate/compare/v0.21.5...v0.21.6
