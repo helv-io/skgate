@@ -37,7 +37,9 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await wait(150);
   await pg.click("[data-dialog-open='#helper-model']");
   await pg.waitForSelector("dialog[open] input[name=timeout]");
-  await pg.click(dlg + "input[name=timeout]", { clickCount: 3 });
+  // A number input does not select its text on a triple click (that turned 120 into 120240).
+  // Clear it, then type the new value so the keystrokes are what the page sees.
+  await pg.evaluate(() => { document.querySelector("dialog[open] input[name=timeout]").value = ""; });
   await pg.type(dlg + "input[name=timeout]", "240");
   await pg.click(dlg + "[data-modal-close]");
   await wait(150);

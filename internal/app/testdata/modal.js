@@ -130,7 +130,7 @@ for (const native of [false,true]) {
   const dlg=d.querySelector("[data-modal]"), body=d.querySelector("[data-modal-body]");
   ok(!!d.querySelector("template[data-dialog-content]"),"details content is a template, not page text");
   ok(!/Refresh token/.test(d.body.textContent.replace(/<template[\s\S]*?<\/template>/g,"")) || true,"template content is inert");
-  const open=d.querySelector("[data-dialog-open]");
+  const open=d.querySelector('[data-dialog-open="#provider-grok"]');
   open.dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
   ok(dlg.hasAttribute("open")&&dlg.classList.contains("wide"),"Details opens the shared modal in content mode");
   ok(d.querySelector("[data-modal-title]").textContent==="Grok","title from the template");
@@ -139,6 +139,13 @@ for (const native of [false,true]) {
   d.querySelector("[data-modal-close]").click();
   ok(!dlg.hasAttribute("open"),"Close closes");
   ok(body.children.length===0&&!dlg.classList.contains("wide"),"content cleared after close");
+  // The helper and alias pills open their own dialogs. The refresh token stays in Details.
+  for (const [id, title] of [["helper-model", "MCP helper model"], ["aliases-grok", "Model aliases"]]) {
+    d.querySelector('[data-dialog-open="#'+id+'"]').dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+    ok(dlg.hasAttribute("open")&&d.querySelector("[data-modal-title]").textContent===title&&!/Refresh token/.test(body.textContent),id+" opens its own dialog");
+    d.querySelector("[data-modal-close]").click();
+    ok(!dlg.hasAttribute("open"),id+" closes");
+  }
   const so=[...d.querySelectorAll("form[data-confirm]")].find(f=>f.action.endsWith("/signout"));
   if(so){ const b=so.querySelector("button"); const ev=new w.Event("submit",{cancelable:true,bubbles:true}); ev.submitter=b; so.dispatchEvent(ev);
     ok(dlg.hasAttribute("open")&&!d.querySelector("[data-modal-actions]").hidden&&body.hidden,"confirmation mode restored after content");
