@@ -98,3 +98,13 @@ func (a *Admin) back(w http.ResponseWriter, r *http.Request, to, ok, errMsg stri
 	}
 	http.Redirect(w, r, to, http.StatusSeeOther)
 }
+
+// tell is back for an answer that is a notice, not a change (an update that found nothing new). Posted in place it
+// is still shown as a toast ({"tell": true}), because nothing on the page changes to show it.
+func (a *Admin) tell(w http.ResponseWriter, r *http.Request, to, msg string) {
+	if wantsJSON(r) {
+		httputil.JSON(w, http.StatusOK, map[string]any{"toast": toast{toastOK, clip(msg)}, "tell": true})
+		return
+	}
+	a.back(w, r, to, msg, "")
+}

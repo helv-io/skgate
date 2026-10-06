@@ -15,7 +15,8 @@ import (
 // OpenAPI upstreams are updated by hand, never on a schedule. The Update button on the tools page reads the
 // description again from its address, runs it through the SI layer (the same checks and repair as "Check
 // description"), and shows what would change. Nothing is replaced until the person confirms; cancel leaves
-// everything as it was. The review screen is a stashed result (see results.go), so a refresh repeats nothing.
+// everything as it was. The review is a dialog over the tools page when Update posts in place, and a stashed result
+// screen otherwise (see results.go); either way it is confirmed by the stash token, so nothing applies twice.
 
 // maxListed bounds how many operations a review screen names per kind.
 const maxListed = 40
@@ -95,7 +96,7 @@ func (a *Admin) oaSpecUpdate(w http.ResponseWriter, r *http.Request) {
 	doc.Source = st.Config.SpecURL
 	hash := openapi.Hash(raw)
 	if st.Config.SpecHash == hash || (st.Config.SpecHash == "" && string(doc.JSON()) == st.Config.Spec) {
-		a.back(w, r, back, "No changes", "")
+		a.tell(w, r, back, "No changes")
 		return
 	}
 	d := oaUpdateData{Alias: alias}
@@ -140,6 +141,11 @@ func (a *Admin) oaSpecUpdate(w http.ResponseWriter, r *http.Request) {
 	d.Removed, d.MoreRemoved = capList(df.Removed)
 	d.Chg, d.MoreChanged = capList(df.Changed)
 	d.ToolsBefore, d.ToolsAfter = len(st.Tools), len(openapi.Tools(ops, sel))
+	if wantsJSON(r) { // posted in place: the review is a dialog over the tools page, confirmed by its token
+		d.Token = a.stashToken(r, "oaupdate", d)
+		a.showDialog(w, r, "upstream_spec_update", "spec_review", d, toast{})
+		return
+	}
 	http.Redirect(w, r, a.stash(r, "oaupdate", d, toast{}), http.StatusSeeOther)
 }
 

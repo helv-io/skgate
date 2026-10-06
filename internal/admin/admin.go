@@ -524,7 +524,7 @@ func (a *Admin) keyCreate(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin/keys", "", "create failed")
 		return
 	}
-	http.Redirect(w, r, a.stash(r, "key", keysData{NewKey: full}, toast{toastOK, "key created"}), http.StatusSeeOther)
+	a.showOnce(w, r, "keys", "key_secret", "key", keysData{NewKey: full}, toast{toastOK, "key created"})
 }
 
 // limitsOf reads the optional limits of the key forms: the rate limit (empty = unlimited) and the expiration,
@@ -613,8 +613,8 @@ func expiresLog(t time.Time) string {
 	return timefmt.RFC3339(t)
 }
 
-// keyRegenerate swaps the secret of an active key and shows the new one once (rendered directly,
-// not redirected, so the token never sits in a cookie or URL).
+// keyRegenerate swaps the secret of an active key and shows the new one once (showOnce: a dialog over the keys page,
+// or the result screen), so the token never sits in a cookie or URL.
 func (a *Admin) keyRegenerate(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(r.PostFormValue("id"), 10, 64)
 	full, _, err := a.Keys.Regenerate(id)
@@ -622,7 +622,7 @@ func (a *Admin) keyRegenerate(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin/keys", "", err.Error())
 		return
 	}
-	http.Redirect(w, r, a.stash(r, "key", keysData{NewKey: full}, toast{toastOK, "key regenerated"}), http.StatusSeeOther)
+	a.showOnce(w, r, "keys", "key_secret", "key", keysData{NewKey: full}, toast{toastOK, "key regenerated"})
 }
 
 func (a *Admin) keyRevoke(w http.ResponseWriter, r *http.Request) {
@@ -1648,7 +1648,7 @@ func (a *Admin) clientCreate(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin/clients", "", "create failed")
 		return
 	}
-	http.Redirect(w, r, a.stash(r, "client", clientsData{NewID: c.ID, NewSecret: secret}, toast{}), http.StatusSeeOther)
+	a.showOnce(w, r, "clients", "client_secret", "client", clientsData{NewID: c.ID, NewSecret: secret}, toast{})
 }
 
 func (a *Admin) clientDelete(w http.ResponseWriter, r *http.Request) {
