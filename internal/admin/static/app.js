@@ -859,6 +859,34 @@ document.addEventListener("click", function (e) {
   }
 });
 
+// Prefix: lowercase letters and digits only, at most 16. Uppercase is lowercased as it is typed.
+// Any other character is dropped, and the hint under the field turns red for a second. A paste is
+// cleaned in one pass and flashes once when anything was dropped. No toast.
+document.addEventListener("input", function (e) {
+  var el = e.target;
+  if (!el || !el.hasAttribute || !el.hasAttribute("data-prefix")) return;
+  var raw = el.value, next = "", dropped = false, keep = 0, pos = el.selectionStart || 0;
+  for (var i = 0; i < raw.length; i++) {
+    var c = raw.charAt(i), okc = false;
+    if (c >= "A" && c <= "Z") { c = c.toLowerCase(); okc = true; }
+    else if ((c >= "a" && c <= "z") || (c >= "0" && c <= "9")) okc = true;
+    else dropped = true;
+    if (!okc) continue;
+    if (next.length >= 16) { dropped = true; continue; }
+    next += c;
+    if (i < pos) keep++;
+  }
+  if (next === raw) return;
+  el.value = next;
+  if (el.setSelectionRange) el.setSelectionRange(keep, keep);
+  if (!dropped) return;
+  var hint = el.form && el.form.querySelector("[data-prefix-hint]");
+  if (!hint) return;
+  hint.classList.add("bad");
+  clearTimeout(el._prefixFlash);
+  el._prefixFlash = setTimeout(function () { hint.classList.remove("bad"); }, 1000);
+});
+
 // Presets: choosing an option of a [data-preset] select copies its data-set-<field> attributes into the
 // form fields of that name (a field may be an <output>, for a hint).
 document.addEventListener("change", function (e) {

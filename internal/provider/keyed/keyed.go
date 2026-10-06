@@ -85,7 +85,7 @@ func (p *Provider) SetEnabled(on bool) error {
 
 // Remove forgets the key, the base override and the enabled flag. Aliases and the helper keep their own cleanup.
 func (p *Provider) Remove() {
-	for _, n := range []string{"enabled", "key", "base", "models"} {
+	for _, n := range []string{"enabled", "key", "base", "models", "prefix"} {
 		_ = p.DB.DeleteSetting("provider." + p.Preset.ID + "." + n)
 	}
 }

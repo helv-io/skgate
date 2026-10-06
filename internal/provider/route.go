@@ -95,8 +95,15 @@ func (p *Proxy) allAliases() []Alias {
 func (p *Proxy) resolve(name string) (Backend, string) {
 	for _, b := range p.Pool() {
 		if a, ok := findAlias(p.Set.Aliases(b.ID()), name); ok {
-			return b, a.Target
+			target := a.Target
+			if raw, ok := Bare(p.Set.Prefix(b.ID()), target); ok {
+				target = raw
+			}
+			return b, target
 		}
+	}
+	if b, raw, ok := p.byPrefix(name); ok {
+		return b, raw
 	}
 	for _, b := range p.Pool() {
 		if !isReady(b) {
@@ -107,6 +114,27 @@ func (p *Proxy) resolve(name string) (Backend, string) {
 		}
 	}
 	return p.firstReady(), name
+}
+
+// byPrefix matches the longest ready provider prefix at the front of name (openai_gpt-4o).
+func (p *Proxy) byPrefix(name string) (Backend, string, bool) {
+	var best Backend
+	var raw string
+	bestLen := 0
+	for _, b := range p.Pool() {
+		if !isReady(b) {
+			continue
+		}
+		pre := p.Set.Prefix(b.ID())
+		got, ok := Bare(pre, name)
+		if ok && len(pre) > bestLen {
+			best, raw, bestLen = b, got, len(pre)
+		}
+	}
+	if best == nil {
+		return nil, "", false
+	}
+	return best, raw, true
 }
 
 // route picks the provider for a request and rewrites the model in it: the "model" of a JSON body, or the id in

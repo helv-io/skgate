@@ -30,7 +30,9 @@ An alias whose target left the provider's list gets a warning pill with the deta
 
 Grok needs no API key. **Other providers** on the status page adds the rest: OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, or a custom endpoint that speaks the OpenAI API.
 
-**Add provider**, pick one (the address and a hint for the key fill in), paste the API key and **Add and test**. The address can be typed in any form; skgate finds the one that works.
+**Add provider**, pick one (the prefix, the address and a hint for the key fill in), paste the API key and **Add and test**. The address can be typed in any form; skgate finds the one that works.
+
+Each provider other than Grok has a prefix: lowercase letters and numbers, at most 16 characters, and no two providers share one. Its models are named `prefix_model`, so OpenAI's `gpt-4o` is `openai_gpt-4o`. Grok's models stay as they are. A request may use the prefixed name; skgate takes the prefix off before the provider sees it. A bare name still reaches the provider that lists it.
 
 skgate loads the provider's model list to test the connection; the provider is saved even when that fails, for example while a local server is down.
 

@@ -51,7 +51,7 @@ func chat(t *testing.T, base, key, model string) (int, string) {
 }
 
 func addProvider(br *browser, csrf, preset, base, key string) (*http.Response, string) {
-	return br.post("/admin/providers/add", url.Values{"csrf": {csrf}, "preset": {preset}, "base": {base}, "key": {key}})
+	return br.post("/admin/providers/add", url.Values{"csrf": {csrf}, "preset": {preset}, "base": {base}, "key": {key}, "prefix": {preset}})
 }
 
 // Adding a provider saves its key sealed, tests the connection, and shows a card with the key masked.
@@ -170,7 +170,7 @@ func TestHelperModelOfAnotherProvider(t *testing.T) {
 	_, page = br.get("/admin")
 	oaDlg := page[strings.Index(page, `id="provider-openai"`):]
 	oaDlg = oaDlg[:strings.Index(oaDlg, "</template>")]
-	if !strings.Contains(oaDlg, `<option value="gpt-x"`) || strings.Contains(oaDlg, "OpenAI models") {
+	if !strings.Contains(oaDlg, `<option value="openai_gpt-x"`) || strings.Contains(oaDlg, "OpenAI models") {
 		t.Fatalf("OpenAI details should list its own models only:\n%s", oaDlg)
 	}
 	grokPick := page[strings.Index(page, `<select name="model"`):]
@@ -183,7 +183,7 @@ func TestHelperModelOfAnotherProvider(t *testing.T) {
 		t.Fatalf("flash %q %q", k, m)
 	}
 	_, page = br.get("/admin")
-	bare := strings.Contains(page, `value="gpt-x" selected>gpt-x</option>`) || strings.Contains(page, `value="gpt-x" data-frontier selected>gpt-x</option>`)
+	bare := strings.Contains(page, `value="openai_gpt-x" selected>openai_gpt-x</option>`) || strings.Contains(page, `value="openai_gpt-x" data-frontier selected>openai_gpt-x</option>`)
 	if strings.Contains(page, ">gpt-x ·") || strings.Contains(page, "· OpenAI") || !bare {
 		t.Fatal("a helper from another provider is shown as its model id")
 	}
@@ -192,7 +192,7 @@ func TestHelperModelOfAnotherProvider(t *testing.T) {
 		t.Fatal("an unknown model must be refused")
 	}
 	_, page = br.get("/admin/upstreams/new")
-	if strings.Contains(page, `disabled title="sign in on the status page"`) || !strings.Contains(page, "MCP helper model: gpt-x") {
+	if strings.Contains(page, `disabled title="sign in on the status page"`) || !strings.Contains(page, "MCP helper model: openai_gpt-x") {
 		t.Fatal("Suggest should be available")
 	}
 	st, _, err := a.Proxy.Post(t.Context(), "/chat/completions", []byte(`{"model":"gpt-x","messages":[]}`))
@@ -280,10 +280,35 @@ func TestAddDialogListsPresets(t *testing.T) {
 	d := page[strings.Index(page, `id="add-provider"`):]
 	d = d[:strings.Index(d, "</template>")]
 	for _, want := range []string{"OpenAI", "Anthropic", "Google Gemini", "Mistral", "DeepSeek", "Groq", "OpenRouter", "Ollama", "LM Studio", "Custom endpoint",
-		`data-set-base="https://api.anthropic.com/v1"`, `data-set-base="http://localhost:11434/v1"`, `data-preset`, `data-preset-href="docs"`} {
+		`data-set-base="https://api.anthropic.com/v1"`, `data-set-base="http://localhost:11434/v1"`, `data-set-prefix="openai"`, `data-set-prefix="custom"`, `data-preset`, `data-preset-href="docs"`,
+		`name="prefix"`, `maxlength="16"`, "Lowercase letters and numbers"} {
 		if !strings.Contains(d, want) {
 			t.Errorf("Add dialog lacks %q", want)
 		}
+	}
+	if strings.Index(d, `name="prefix"`) > strings.Index(d, `name="base"`) {
+		t.Error("Prefix sits after Base URL")
+	}
+}
+
+// A prefix is required, lowercase letters and numbers, and unique.
+func TestPrefixIsRequiredUniqueAndShort(t *testing.T) {
+	grokUp, _ := modelsUpstream(t, "grok-4.7")
+	oa, _ := openAIUpstream(t, "gpt-x")
+	_, _, br, csrf, _ := signedInProvider(t, grokUp)
+	for name, prefix := range map[string]string{"empty": "", "dash": "open-ai", "upper": "OpenAI", "long": strings.Repeat("a", 17)} {
+		resp, _ := br.post("/admin/providers/add", url.Values{"csrf": {csrf}, "preset": {"openai"}, "prefix": {prefix}, "base": {oa.URL + "/v1"}, "key": {"sk-live"}})
+		if k, _ := flashOf(resp); k != "bad" {
+			t.Errorf("%s: flash %s", name, k)
+		}
+	}
+	if v, _ := br.post("/admin/providers/add", url.Values{"csrf": {csrf}, "preset": {"openai"}, "prefix": {"openai"}, "base": {oa.URL + "/v1"}, "key": {"sk-live"}}); flashKind(v) != "ok" {
+		k, m := flashOf(v)
+		t.Fatalf("add %s %s", k, m)
+	}
+	resp, _ := br.post("/admin/providers/add", url.Values{"csrf": {csrf}, "preset": {"anthropic"}, "prefix": {"openai"}, "base": {oa.URL + "/v1"}, "key": {"sk-live"}})
+	if k, m := flashOf(resp); k != "bad" || !strings.Contains(m, "already used") {
+		t.Fatalf("duplicate: %s %s", k, m)
 	}
 }
 

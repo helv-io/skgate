@@ -145,6 +145,11 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 			v.ModelsAt = timefmt.Minute(at)
 		}
 	}
+	if pre := a.Set.Prefix(id); pre != "" {
+		for i, m := range v.Models {
+			v.Models[i] = provider.Expose(pre, m)
+		}
+	}
 	v.ModelCount = len(v.Models)
 	v.HelperID = id
 	if d := a.Providers.Default(); d != nil {
@@ -323,8 +328,8 @@ func keyedState(s provider.Status, k *keyed.Provider) pillView {
 	return pillView{"ok", "ready", ""}
 }
 
-// fillHelperChoices lists this provider's models only. When the current helper belongs to another provider,
-// it stays selectable at the top as its model id. The id is enough; a prefix is a later change.
+// fillHelperChoices lists this provider's models only, under its prefix when it has one.
+// When the current helper belongs to another provider, it stays selectable at the top as that model id.
 func (a *Admin) fillHelperChoices(v *providerView) {
 	chosen := v.Model
 	if chosen != "" && !contains(v.Models, chosen) {
@@ -360,7 +365,14 @@ func (a *Admin) helperOwner(model string) (id, name string) {
 		return "", ""
 	}
 	for _, p := range a.Providers.List() {
-		if ids, _, ok := a.Proxy.Models.Get(p.ID()); ok && contains(ids, model) {
+		ids, _, ok := a.Proxy.Models.Get(p.ID())
+		if !ok {
+			continue
+		}
+		if contains(ids, model) {
+			return p.ID(), p.Name()
+		}
+		if raw, ok := provider.Bare(a.Set.Prefix(p.ID()), model); ok && contains(ids, raw) {
 			return p.ID(), p.Name()
 		}
 	}
