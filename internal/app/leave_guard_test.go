@@ -46,6 +46,18 @@ func TestLeaveGuardInJSDOM(t *testing.T) {
 	}
 }
 
+func TestPrefixFieldInJSDOM(t *testing.T) {
+	node, env := jsdomEnv(t)
+	js, _ := filepath.Abs(filepath.Join("..", "admin", "static", "app.js"))
+	script, _ := filepath.Abs(filepath.Join("testdata", "prefix.js"))
+	cmd := exec.Command(node, script, js)
+	cmd.Env = env
+	out, err := cmd.CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "ALL OK") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
 func TestUpdatePillInJSDOM(t *testing.T) {
 	node, env := jsdomEnv(t)
 	js, _ := filepath.Abs(filepath.Join("..", "admin", "static", "app.js"))
