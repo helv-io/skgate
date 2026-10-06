@@ -65,7 +65,7 @@ To upgrade, back up `./data`, then `docker compose pull && docker compose up -d`
 
 ## Proxy your SI providers
 
-skgate is also an OpenAI-compatible API in front of your SI providers. Point your apps at one address; switch the provider behind them without changing the apps. Model aliases give your apps a stable model name of your choosing.
+skgate is also an OpenAI-compatible API in front of your SI providers. Point your apps at one address; switch the provider behind them without changing the apps. User-defined model aliases give your apps a stable model name of your choosing.
 
 Grok can use subscription sign-in with no API key. Other providers use that provider's API key (OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, and any OpenAI-compatible endpoint).
 
@@ -105,9 +105,9 @@ print(r.choices[0].message.content)
 
 </details>
 
-<details><summary>Model alias: your own name for a model</summary>
+<details><summary>Model aliases: user-defined names for models</summary>
 
-Pick any name and point it at a model. This example uses `grok-latest`, but the name is up to you.
+Aliases are user-defined: skgate ships with none. Pick any name and point it at a model. This example uses `grok-latest`, but the name is up to you.
 
 Change the target in this one place and every app using that name switches at once, with no client config changes.
 
@@ -237,7 +237,7 @@ Served at `https://skgate.example.com/mcp/everything`. For Python servers use `"
 | --- | --- |
 | Grok sign-in | Device code or browser paste-back; tokens refresh |
 | Other providers | OpenAI, Anthropic, Gemini and more by API key ([docs](docs/api.md)) |
-| Model aliases | Your own model names; change the target once |
+| Model aliases | User-defined model names; change the target once |
 | API | `/v1`, `/api/v1`, `/api`, no prefix; SSE ([docs](docs/api.md)) |
 | Virtual keys | Hashed; tokens in/out per key ([docs](docs/keys-and-clients.md)) |
 | MCP | Remote, stdio and git servers behind OAuth 2.1 ([docs](docs/mcp.md)) |
