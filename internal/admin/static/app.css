@@ -164,6 +164,11 @@ td.status form{display:inline-flex;margin:0;vertical-align:middle}
 .act.toggle.on:hover{color:var(--ok);border-color:var(--ok)}
 .act.toggle:disabled,.act.toggle:disabled:hover{opacity:.45;cursor:not-allowed;color:var(--dim);border-color:var(--line);background:var(--btn)}
 .act.toggle:disabled::before{background-position:left 2px center}
+/* A switch with both labels (data-on, data-off) is as wide as the longer one, so flipping it moves nothing: the
+   other label sits under the shown one, hidden and flat. */
+.act.toggle[data-on][data-off]{display:inline-grid;grid-template-columns:auto auto;column-gap:8px;row-gap:0;align-items:center;justify-items:start}
+.act.toggle[data-on][data-off]::after{content:attr(data-on);grid-area:2/2;height:0;overflow:hidden;visibility:hidden}
+.act.toggle[data-on][data-off].on::after{content:attr(data-off)}
 /* action groups: the buttons of a screen in labelled groups (lifecycle, maintenance, links, danger); the danger group
    sits apart on the right, and under 720px the groups stack */
 .action-groups{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-start;margin:0 0 12px}

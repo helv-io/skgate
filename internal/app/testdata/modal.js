@@ -14,7 +14,8 @@ function load(file, native){
     w.HTMLDialogElement.prototype.showModal=function(){this.setAttribute("open","");};
     w.HTMLDialogElement.prototype.close=function(){ if(this.hasAttribute("open")){this.removeAttribute("open"); this.dispatchEvent(new w.Event("close"));} };
   }
-  w.HTMLFormElement.prototype.requestSubmit=function(s){ this.dispatchEvent(new w.Event("submit",{cancelable:true,bubbles:true})) && (this._submitted=(this._submitted||0)+1); };
+  // a confirmed submit counts whether it then loads a page or posts in place (data-post)
+  w.HTMLFormElement.prototype.requestSubmit=function(s){ this._submitted=(this._submitted||0)+1; this.dispatchEvent(new w.Event("submit",{cancelable:true,bubbles:true})); };
   w.fetch=()=>Promise.reject(new TypeError("offline"));
   w.eval(js);
   return {w,d:w.document,calls};

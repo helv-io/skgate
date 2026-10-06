@@ -120,7 +120,7 @@ func TestKeyRowHasOneAction(t *testing.T) {
 	a.Keys.Verify(full) // a used key stays listed after it is revoked
 	a.Keys.Revoke(gone.ID)
 	_, page := br.get("/admin/keys")
-	table := page[strings.Index(page, "<tbody>"):strings.Index(page, "</tbody>")]
+	table := page[strings.Index(page, `<tbody id="key-rows"`):strings.Index(page, "</tbody>")]
 	if strings.Contains(table, "<form") || strings.Count(table, "data-dialog-open") != 2 {
 		t.Errorf("the table rows hold one dialog button each and no forms:\n%s", table)
 	}

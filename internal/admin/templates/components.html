@@ -69,7 +69,7 @@
 {{/* proc_action: one process action of a managed upstream as a button in a form that returns to the process page.
    Takes a procActionData (build one with "procAction": csrf, alias, action, label, class, confirm text; the class is
    "", "accent" or "danger"; with a confirm text the shared modal asks first). */}}
-{{define "proc_action"}}<form method="post" action="/admin/upstreams/{{.Alias}}/process"{{if .Confirm}} data-confirm="{{.Confirm}}"{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="{{.Action}}"><button class="act{{if .Class}} {{.Class}}{{end}}">{{.Label}}</button></form>{{end}}
+{{define "proc_action"}}<form method="post" action="/admin/upstreams/{{.Alias}}/process" data-post{{if .Confirm}} data-confirm="{{.Confirm}}"{{end}}><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="to" value="logs"><input type="hidden" name="action" value="{{.Action}}"><button class="act{{if .Class}} {{.Class}}{{end}}">{{.Label}}</button></form>{{end}}
 
 {{/* gated_act: a button that posts to Action, or, when Reason is set, the same button disabled with the reason as its
    tooltip AND as a visible hint (touch has no hover). Build it with "gate": id, label, action, csrf, reason ("" = enabled). */}}

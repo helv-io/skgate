@@ -37,7 +37,7 @@
 {{define "provider_body"}}
 {{template "helper_section" .}}
 {{template "alias_section" .}}
-<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/remove" data-confirm="Its aliases go too." data-confirm-title="Remove {{.Name}}?" data-confirm-ok="Remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Remove provider</button></form></div>
+<div class="actions"><form method="post" action="/admin/providers/{{.ID}}/remove" data-post data-confirm="Its aliases go too." data-confirm-title="Remove {{.Name}}?" data-confirm-ok="Remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="act danger">Remove provider</button></form></div>
 {{end}}
 
 {{/* effort_select: the reasoning dropdown. Takes an effortView. */}}
@@ -121,7 +121,7 @@
    hint (data-preset). Takes a statusData. */}}
 {{define "add_provider_dialog"}}{{template "dialog_content" (dlg "add-provider" "Add provider")}}
 {{with index .Presets 0}}{{$first := .}}
-<form method="post" action="/admin/providers/add" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<form method="post" action="/admin/providers/add" class="form" data-post="close"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>Provider<select name="preset" data-preset>{{range $.Presets}}<option value="{{.ID}}" data-set-base="{{.Base}}" data-set-prefix="{{.ID}}" data-set-hint="{{.Hint}}" data-set-docs="{{.Docs}}">{{.Name}}{{if .Added}}, added{{end}}</option>{{end}}</select></label></div>
 <p class="muted"><output name="hint">{{$first.Hint}}</output> <a href="{{$first.Docs}}" target="_blank" rel="noopener noreferrer" data-preset-href="docs"{{if not $first.Docs}} hidden{{end}}>Get a key</a></p>
 <div class="field"><label>Prefix<input type="text" name="prefix" value="{{$first.ID}}" maxlength="16" autocomplete="off" spellcheck="false" data-prefix></label>
