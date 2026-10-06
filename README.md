@@ -65,7 +65,7 @@ To upgrade, back up `./data`, then `docker compose pull && docker compose up -d`
 
 ## Proxy your SI providers
 
-skgate is also an OpenAI-compatible API in front of your SI providers. Point your apps at one address; switch the provider behind them without changing the apps. Model aliases (`grok-latest`) keep a stable model name.
+skgate is also an OpenAI-compatible API in front of your SI providers. Point your apps at one address; switch the provider behind them without changing the apps. Model aliases give your apps a stable model name of your choosing.
 
 Grok can use subscription sign-in with no API key. Other providers use that provider's API key (OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, and any OpenAI-compatible endpoint).
 
@@ -105,11 +105,13 @@ print(r.choices[0].message.content)
 
 </details>
 
-<details><summary>Model alias: one name that always points at the newest model</summary>
+<details><summary>Model alias: your own name for a model</summary>
 
-Map `grok-latest` to the latest available model. Change the target in this one place and every app using `grok-latest` is upgraded at once, with no client config changes.
+Pick any name and point it at a model. This example uses `grok-latest`, but the name is up to you.
 
-Grok > **Aliases**: **New alias** `grok-latest`, **Target model** the newest model in the list (for example `grok-4.7`), **Add alias**.
+Change the target in this one place and every app using that name switches at once, with no client config changes.
+
+Grok > **Aliases**: **New alias** `grok-latest`, **Target model** `grok-4.7`, **Add alias**.
 
 ```text
 client sends   {"model": "grok-latest", ...}
@@ -235,7 +237,7 @@ Served at `https://skgate.example.com/mcp/everything`. For Python servers use `"
 | --- | --- |
 | Grok sign-in | Device code or browser paste-back; tokens refresh |
 | Other providers | OpenAI, Anthropic, Gemini and more by API key ([docs](docs/api.md)) |
-| Model aliases | `grok-latest` maps to the newest model; change the target once |
+| Model aliases | Your own model names; change the target once |
 | API | `/v1`, `/api/v1`, `/api`, no prefix; SSE ([docs](docs/api.md)) |
 | Virtual keys | Hashed; tokens in/out per key ([docs](docs/keys-and-clients.md)) |
 | MCP | Remote, stdio and git servers behind OAuth 2.1 ([docs](docs/mcp.md)) |
