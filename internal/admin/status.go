@@ -37,8 +37,9 @@ type providerView struct {
 	Inline      bool // the MCP helper model form posts in place (no page reload)
 	S           provider.Status
 	Dev         provider.DeviceFlow
+	DevURL      string   // verification address without the user code; the device panel, its link and its QR all use this
 	State       pillView // sign-in pill; the hover text carries the detail
-	Expiry      string   // "in 59m", "expired" or ""
+	Expiry      string   // when the access token ends, the same timestamp as the rest of the admin, or ""
 	Info        []provider.InfoRow
 
 	Base, Fallback, DefaultBase string
@@ -113,19 +114,19 @@ func tipJoin(a, b string) string {
 	return a
 }
 
+// expiryText is the access-token expiry on the provider card: the same absolute timestamp the
+// rest of the admin uses (keys, technical details). Empty when there is nothing to show.
 func expiryText(s provider.Status) string {
-	if !s.SignedIn {
+	if !s.SignedIn || s.Expires.IsZero() {
 		return ""
 	}
-	if s.ExpiresIn <= 0 {
-		return "expired"
-	}
-	return "in " + untilText(s.ExpiresIn)
+	return timefmt.DateTime(s.Expires)
 }
 
 func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView {
 	id := p.ID()
-	v := providerView{ID: id, Name: p.Name(), S: p.Status(), Dev: p.Device(), Info: p.Info(),
+	dev := p.Device()
+	v := providerView{ID: id, Name: p.Name(), S: p.Status(), Dev: dev, DevURL: deviceLink(dev), Info: p.Info(),
 		Base: a.Set.Base(p), Fallback: a.Set.Fallback(p), DefaultBase: p.DefaultBase(), CanModels: a.proxyFor(id) != nil}
 	v.State, v.Expiry = stateOf(v.S), expiryText(v.S)
 	v.Default = id == a.Providers.Default().ID()
@@ -170,7 +171,7 @@ func (a *Admin) providerView(r *http.Request, p provider.Provider) providerView 
 	v.Timeout, v.Frontier = int(a.Set.HelperTimeout(id)/time.Second), provider.FrontierTimeoutSecs
 	switch {
 	case v.Model == "":
-		v.ModelPill = pillView{"off", "no model", "pick a model in the details to enable Suggest configuration"}
+		v.ModelPill = pillView{"off", "no model", "pick a model to enable Suggest configuration"}
 	case v.ModelsKnown && !contains(v.Models, v.Model) && !a.knownModel(v.Model):
 		v.ModelPill = pillView{"warn", modelWithReasoning(v.Model, v.Effort.Value), "no longer in the provider's model list"}
 	default:

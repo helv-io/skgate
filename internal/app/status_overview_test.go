@@ -22,13 +22,13 @@ func TestStatusOverviewAndReadablePills(t *testing.T) {
 	if strings.Index(page, "<h2>Overview</h2>") > strings.Index(page, "<h2>Sign-in</h2>") {
 		t.Error("the overview comes first")
 	}
-	if !strings.Contains(page, ">no model</span>") || !strings.Contains(page, ">no aliases</span>") {
+	if !strings.Contains(page, ">no model</button>") || !strings.Contains(page, ">no aliases</button>") {
 		t.Errorf("empty states are phrases too:\n%s", page)
 	}
 	br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"grok-4.7"}, "effort": {"low"}, "timeout": {"120"}})
 	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"fast"}, "target": {"grok-mini"}})
 	_, page = br.get("/admin")
-	for _, w := range []string{">grok-4.7 \u00b7 reasoning low</span>", ">1 alias</span>"} {
+	for _, w := range []string{">grok-4.7 \u00b7 reasoning low</button>", ">1 alias</button>"} {
 		if !strings.Contains(page, w) {
 			t.Errorf("status page misses the pill %q:\n%s", w, page)
 		}
@@ -36,7 +36,7 @@ func TestStatusOverviewAndReadablePills(t *testing.T) {
 	br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"grok-4.7"}, "effort": {"auto"}, "timeout": {"120"}})
 	br.post("/admin/providers/grok/aliases/put", url.Values{"csrf": {csrf}, "name": {"quick"}, "target": {"grok-mini"}})
 	_, page = br.get("/admin")
-	for _, w := range []string{">grok-4.7 \u00b7 reasoning auto</span>", ">2 aliases</span>"} {
+	for _, w := range []string{">grok-4.7 \u00b7 reasoning auto</button>", ">2 aliases</button>"} {
 		if !strings.Contains(page, w) {
 			t.Errorf("status page misses the pill %q", w)
 		}

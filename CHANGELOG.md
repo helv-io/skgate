@@ -9,6 +9,18 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 ### Added
 
 - README: Star History chart
+- README: model aliases are opened from the provider card
+
+### Changed
+
+- Sign out of a provider removes its aliases and leaves the others
+- Device sign-in shows the code, the verification address, and a QR
+- The helper-model and alias counts open their own dialogs
+- A provider card shows when the token expires, as a date and time
+
+### Removed
+
+- Provider details no longer edit upstream URLs
 
 ## [0.21.7] - 2026-10-05
 

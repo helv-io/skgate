@@ -1,8 +1,12 @@
 // Polls the device sign-in state ([data-poll] holds the URL) and reloads the status page when it changes.
+// The same panel carries the verification address ([data-device-url], without the user code) and opens it
+// in a window when the panel is shown. A blocked window leaves the address on the page.
 (function () {
   var el = document.querySelector("[data-poll]");
   if (!el) return;
   var url = el.getAttribute("data-poll");
+  var open = el.getAttribute("data-device-url");
+  if (open) window.open(open, "skgate-device", "width=520,height=720,noopener,noreferrer");
   var t = setInterval(function () {
     fetch(url, { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
