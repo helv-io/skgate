@@ -324,12 +324,11 @@ func keyedState(s provider.Status, k *keyed.Provider) pillView {
 }
 
 // fillHelperChoices lists this provider's models only. When the current helper belongs to another provider,
-// it stays selectable at the top, labeled with that provider. Prefixes are not in use yet, so the label
-// names the provider ("gpt-x · OpenAI").
+// it stays selectable at the top as its model id. The id is enough; a prefix is a later change.
 func (a *Admin) fillHelperChoices(v *providerView) {
 	chosen := v.Model
 	if chosen != "" && !contains(v.Models, chosen) {
-		id, name := a.helperOwner(chosen)
+		id, _ := a.helperOwner(chosen)
 		label := chosen
 		frontier := provider.LooksFrontier(chosen)
 		for _, p := range a.Providers.List() {
@@ -339,10 +338,7 @@ func (a *Admin) fillHelperChoices(v *providerView) {
 				}
 			}
 		}
-		switch {
-		case id != "" && id != v.ID:
-			label = chosen + " · " + name
-		case id == "":
+		if id == "" {
 			label = chosen + " (unlisted)"
 		}
 		v.Foreign = modelChoice{Value: chosen, Label: label, Frontier: frontier, Selected: true}

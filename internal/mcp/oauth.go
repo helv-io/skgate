@@ -485,23 +485,7 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request) {
 		httputil.OAuthError(w, 405, "invalid_request", "POST only")
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		var m map[string]any
-		if json.NewDecoder(r.Body).Decode(&m) != nil {
-			reqlog.Reject(r, "invalid request: body is not valid JSON")
-			httputil.OAuthError(w, 400, "invalid_request", "invalid JSON body")
-			return
-		}
-		r.PostForm = url.Values{}
-		for k, v := range m {
-			if sv, ok := v.(string); ok {
-				r.PostForm.Set(k, sv)
-			}
-		}
-	} else if err := r.ParseForm(); err != nil {
-		reqlog.Reject(r, "invalid request: body is not application/x-www-form-urlencoded")
-		httputil.OAuthError(w, 400, "invalid_request", "body must be application/x-www-form-urlencoded")
+	if !readPostForm(w, r) {
 		return
 	}
 	s.purgeExpired()
@@ -623,10 +607,15 @@ func (s *Server) grantRefresh(w http.ResponseWriter, r *http.Request, c Client, 
 	}
 	var client, res, scope string
 	var sub, email sql.NullString
-	var exp int64
-	err := s.DB.QueryRow(`DELETE FROM oauth_tokens WHERE hash=? AND kind='refresh' RETURNING client_id,resource,scope,expires_at,sub,email`,
-		httputil.SHA256Hex(rt)).Scan(&client, &res, &scope, &exp, &sub, &email)
-	if err != nil || client != c.ID || time.Now().Unix() >= exp {
+	var exp, rotated int64
+	hash := httputil.SHA256Hex(rt)
+	err := s.DB.QueryRow(`SELECT client_id,resource,scope,expires_at,sub,email,rotated_at FROM oauth_tokens WHERE hash=? AND kind='refresh'`,
+		hash).Scan(&client, &res, &scope, &exp, &sub, &email, &rotated)
+	now := time.Now().Unix()
+	if err != nil || client != c.ID || now >= exp {
+		if err == nil && now >= exp && rotated != 0 {
+			_, _ = s.DB.Exec(`DELETE FROM oauth_tokens WHERE hash=?`, hash)
+		}
 		switch {
 		case err != nil:
 			reqlog.Reject(r, "invalid_grant: refresh token is unknown or already used")
@@ -649,7 +638,105 @@ func (s *Server) grantRefresh(w http.ResponseWriter, r *http.Request, c Client, 
 	if req := strings.TrimSpace(r.PostFormValue("scope")); req != "" {
 		scope = req
 	}
+	if err := s.consumeRefresh(hash, rotated, now); err != nil {
+		reqlog.Reject(r, "invalid_grant: refresh token is unknown or already used")
+		httputil.OAuthError(w, 400, "invalid_grant", "refresh token is invalid or expired")
+		return
+	}
 	s.mintTokens(w, r, c, resource, scope, sub.String, email.String)
+}
+
+// consumeRefresh spends a refresh token. The first use keeps the row for refreshGrace so one retry
+// still works. The retry deletes it. A third use finds nothing.
+func (s *Server) consumeRefresh(hash string, rotated, now int64) error {
+	if rotated == 0 {
+		grace := now + int64(refreshGrace.Seconds())
+		res, err := s.DB.Exec(`UPDATE oauth_tokens SET rotated_at=?, expires_at=? WHERE hash=? AND kind='refresh' AND rotated_at=0`,
+			now, grace, hash)
+		if err != nil {
+			return err
+		}
+		n, _ := res.RowsAffected()
+		if n != 1 {
+			return sql.ErrNoRows
+		}
+		return nil
+	}
+	res, err := s.DB.Exec(`DELETE FROM oauth_tokens WHERE hash=? AND kind='refresh' AND rotated_at=?`, hash, rotated)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// readPostForm reads a token-endpoint body: form fields, or a JSON object of strings.
+func readPostForm(w http.ResponseWriter, r *http.Request) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		var m map[string]any
+		if json.NewDecoder(r.Body).Decode(&m) != nil {
+			reqlog.Reject(r, "invalid request: body is not valid JSON")
+			httputil.OAuthError(w, 400, "invalid_request", "invalid JSON body")
+			return false
+		}
+		r.PostForm = url.Values{}
+		for k, v := range m {
+			if sv, ok := v.(string); ok {
+				r.PostForm.Set(k, sv)
+			}
+		}
+		return true
+	}
+	if err := r.ParseForm(); err != nil {
+		reqlog.Reject(r, "invalid request: body is not application/x-www-form-urlencoded")
+		httputil.OAuthError(w, 400, "invalid_request", "body must be application/x-www-form-urlencoded")
+		return false
+	}
+	return true
+}
+
+// revoke implements RFC 7009. The presented access or refresh token is deleted when it belongs to
+// the authenticated client. An unknown token is still 200, so the answer does not say whether it existed.
+func (s *Server) revoke(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		reqlog.Reject(r, "method %s not allowed on /revoke (POST only)", r.Method)
+		httputil.OAuthError(w, 405, "invalid_request", "POST only")
+		return
+	}
+	if !readPostForm(w, r) {
+		return
+	}
+	c, ok := s.clientAuth(w, r)
+	if !ok {
+		return
+	}
+	tok := r.PostFormValue("token")
+	if tok == "" {
+		reqlog.Reject(r, "invalid request: token is required")
+		httputil.OAuthError(w, 400, "invalid_request", "token is required")
+		return
+	}
+	kinds := []string{"refresh", "access"}
+	if r.PostFormValue("token_type_hint") == "access_token" {
+		kinds = []string{"access", "refresh"}
+	}
+	hash := httputil.SHA256Hex(tok)
+	for _, kind := range kinds {
+		res, err := s.DB.Exec(`DELETE FROM oauth_tokens WHERE hash=? AND kind=? AND client_id=?`, hash, kind, c.ID)
+		if err != nil {
+			continue
+		}
+		if n, _ := res.RowsAffected(); n > 0 {
+			reqlog.Note(r, "token revoked")
+			break
+		}
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) mintTokens(w http.ResponseWriter, r *http.Request, c Client, resource, scope, sub, email string) {

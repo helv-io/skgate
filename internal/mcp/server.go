@@ -22,6 +22,9 @@ const (
 	AccessTTL  = time.Hour
 	RefreshTTL = 30 * 24 * time.Hour
 	CodeTTL    = 10 * time.Minute
+	// refreshGrace is how long a just-rotated refresh token can be presented once more,
+	// so a client that lost the token response can retry without being signed out.
+	refreshGrace = 60 * time.Second
 )
 
 // SupportedScopes are advertised in metadata. Scopes do not restrict access (single admin).
@@ -93,6 +96,8 @@ func (s *Server) Routes(mux *http.ServeMux) {
 	mux.Handle("/register/", httputil.CORS(http.HandlerFunc(s.register)))
 	mux.Handle("/token", httputil.CORS(http.HandlerFunc(s.token)))
 	mux.Handle("/token/", httputil.CORS(http.HandlerFunc(s.token)))
+	mux.Handle("/revoke", httputil.CORS(http.HandlerFunc(s.revoke)))
+	mux.Handle("/revoke/", httputil.CORS(http.HandlerFunc(s.revoke)))
 	mux.HandleFunc("/authorize", s.authorize)
 	mux.HandleFunc("/authorize/", s.authorize)
 	mux.HandleFunc("/mcp", s.serveMCP)
@@ -110,6 +115,7 @@ func (s *Server) asMetadataDoc() map[string]any {
 		"authorization_endpoint":                         iss + "/authorize",
 		"token_endpoint":                                 iss + "/token",
 		"registration_endpoint":                          iss + "/register",
+		"revocation_endpoint":                            iss + "/revoke",
 		"response_types_supported":                       []string{"code"},
 		"grant_types_supported":                          []string{"authorization_code", "refresh_token"},
 		"code_challenge_methods_supported":               []string{"S256"},
@@ -277,21 +283,31 @@ func (s *Server) verifyAccessToken(tok, path string) string {
 	return ""
 }
 
-// audienceOK enforces RFC 8707 binding: a token bound to a resource only works for that resource
-// (or its parents, PUBLIC_URL and PUBLIC_URL/mcp). Legacy SSE paths are not audience checked.
+// audienceOK enforces RFC 8707 binding. A token bound to a resource works for that resource or its
+// parent (/mcp for MCP paths, /sse for the legacy SSE paths, including POST /messages). A token for
+// the whole server works everywhere. A token issued for /mcp does not work on /sse.
 func (s *Server) audienceOK(resource, path string) bool {
 	resource = strings.TrimRight(resource, "/")
 	if resource == "" || resource == s.Issuer() {
 		return true
 	}
 	p := "/" + strings.Trim(path, "/")
-	if !strings.HasPrefix(p, "/mcp") {
+	switch {
+	case p == "/mcp" || strings.HasPrefix(p, "/mcp/"):
+		if resource == s.Issuer()+"/mcp" {
+			return true
+		}
+		return resource == s.Issuer()+p
+	case p == "/sse" || strings.HasPrefix(p, "/sse/"):
+		if resource == s.Issuer()+"/sse" {
+			return true
+		}
+		return resource == s.Issuer()+p
+	case p == "/messages":
+		return resource == s.Issuer()+"/sse" || strings.HasPrefix(resource, s.Issuer()+"/sse/")
+	default:
 		return true
 	}
-	if resource == s.Issuer()+"/mcp" {
-		return true
-	}
-	return resource == s.Issuer()+p
 }
 
 // validResource reports whether a client supplied RFC 8707 resource belongs to this server.

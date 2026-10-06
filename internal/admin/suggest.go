@@ -26,7 +26,7 @@ func (a *Admin) suggestState(r *http.Request) suggestState {
 	v := a.providerView(r, p)
 	v.CSRF, _ = a.Session(r)
 	v.Inline = true
-	st := suggestState{P: &v}
+	st := suggestState{P: &v, Wait: a.siWaitSecs()}
 	switch {
 	case !v.HelperReady:
 		st.Why = "sign in on the status page"
@@ -50,8 +50,46 @@ func (a *Admin) controlsHTML(r *http.Request) (string, error) {
 // model call also stops after a silent spell, the helper timeout.
 const suggestCap = 5 * time.Minute
 
+// siWaitSecs is how long the browser keeps a helper call open. It is at least the helper timeout, and at least
+// as long as the server will work on the call.
+func (a *Admin) siWaitSecs() int {
+	idle := provider.DefaultHelperTimeout
+	if p := a.Providers.Default(); p != nil {
+		idle = a.Set.HelperTimeout(p.ID())
+	}
+	if a.SuggestIdle > 0 {
+		idle = a.SuggestIdle
+	}
+	limit := max(suggestCap, 2*idle)
+	assist := max(suggestCap/2, 2*idle)
+	if assist > limit {
+		limit = assist
+	}
+	if limit < idle {
+		limit = idle
+	}
+	secs := int((limit + time.Second - 1) / time.Second)
+	if secs < 1 {
+		secs = 1
+	}
+	return secs
+}
+
 // ndjson is the streamed form of the answer: stage events, then a result or an error line.
 const ndjson = "application/x-ndjson"
+
+// ndjsonSend writes one JSON object per line and flushes it. The first call sets the headers.
+func ndjsonSend(w http.ResponseWriter) func(any) {
+	w.Header().Set("Content-Type", ndjson)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Accel-Buffering", "no")
+	return func(v any) {
+		_ = json.NewEncoder(w).Encode(v)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+	}
+}
 
 // upstreamSuggest answers with a validated suggestion as JSON for the client script to put into the
 // form. It saves nothing. POST only (guard checks the CSRF token).

@@ -246,7 +246,7 @@ func TestUpstreamListSplitsTypeAndStatus(t *testing.T) {
 		t.Error("the columns are Status, Name, Type, Enabled, ...")
 	}
 	row := func(alias string) string {
-		for _, r := range strings.Split(list, "<tr>")[1:] {
+		for _, r := range strings.Split(strings.ReplaceAll(list, "<tr ", "<tr>"), "<tr>")[1:] {
 			if i := strings.Index(r, "</tr>"); i >= 0 && strings.Contains(r[:i], `href="#upstream-`+alias+`"`) {
 				return r[:i]
 			}

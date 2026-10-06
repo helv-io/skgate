@@ -182,6 +182,11 @@ func TestHelperModelOfAnotherProvider(t *testing.T) {
 	if k, m := flashOf(resp); k != "ok" {
 		t.Fatalf("flash %q %q", k, m)
 	}
+	_, page = br.get("/admin")
+	bare := strings.Contains(page, `value="gpt-x" selected>gpt-x</option>`) || strings.Contains(page, `value="gpt-x" data-frontier selected>gpt-x</option>`)
+	if strings.Contains(page, ">gpt-x ·") || strings.Contains(page, "· OpenAI") || !bare {
+		t.Fatal("a helper from another provider is shown as its model id")
+	}
 	resp, _ = br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"unknown-model"}})
 	if k, _ := flashOf(resp); k != "bad" {
 		t.Fatal("an unknown model must be refused")

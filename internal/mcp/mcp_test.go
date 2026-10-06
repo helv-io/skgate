@@ -154,7 +154,8 @@ func TestWellKnownMetadata(t *testing.T) {
 		}
 		m := readJSON(t, resp)
 		if m["issuer"] != e.ts.URL || m["authorization_endpoint"] != e.ts.URL+"/authorize" ||
-			m["token_endpoint"] != e.ts.URL+"/token" || m["registration_endpoint"] != e.ts.URL+"/register" {
+			m["token_endpoint"] != e.ts.URL+"/token" || m["registration_endpoint"] != e.ts.URL+"/register" ||
+			m["revocation_endpoint"] != e.ts.URL+"/revoke" {
 			t.Errorf("%s: bad endpoints %v", p, m)
 		}
 		if !strings.Contains(toJSON(m["code_challenge_methods_supported"]), "S256") ||
@@ -413,9 +414,16 @@ func TestPKCEEndToEnd(t *testing.T) {
 			if tok2["access_token"] == access || tok2["refresh_token"] == refresh {
 				t.Fatal("tokens not rotated")
 			}
-			if r := e.do("POST", "/token", hdr, form(rb...)); r.StatusCode != 400 {
-				t.Fatal("old refresh token still valid")
+			grace := e.do("POST", "/token", hdr, form(rb...))
+			if grace.StatusCode != 200 {
+				t.Fatal("one retry of the previous refresh token")
 			}
+			grace.Body.Close()
+			again := e.do("POST", "/token", hdr, form(rb...))
+			if again.StatusCode != 400 {
+				t.Fatal("refresh token reused after its one grace retry")
+			}
+			again.Body.Close()
 			// a different client cannot use the token
 			other := e.register(hostedRedirect, "none")
 			_ = other
@@ -881,7 +889,8 @@ func TestLegacySSEBridge(t *testing.T) {
 func TestCORSOnMCP(t *testing.T) {
 	e := newEnv(t, nil)
 	r := e.do("OPTIONS", "/mcp/x", map[string]string{"Origin": "https://client.example", "Access-Control-Request-Method": "POST"}, "")
-	if r.StatusCode != 204 || !strings.Contains(r.Header.Get("Access-Control-Allow-Headers"), "Mcp-Session-Id") {
+	allow := r.Header.Get("Access-Control-Allow-Headers")
+	if r.StatusCode != 204 || !strings.Contains(allow, "Mcp-Session-Id") || !strings.Contains(allow, "Mcp-Method") || !strings.Contains(allow, "Mcp-Name") {
 		t.Errorf("preflight: %d %v", r.StatusCode, r.Header)
 	}
 	r = e.do("POST", "/mcp/x", nil, `{}`)

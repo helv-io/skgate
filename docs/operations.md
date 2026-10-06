@@ -69,6 +69,6 @@ Offline, rate limited or an unreadable answer simply shows no hint. `UPDATE_CHEC
 
 ### Logging
 
-Requests to `/authorize`, `/token`, `/register`, `/.well-known/*`, `/admin/oidc/*`, `/mcp`, `/sse` and `/messages` are logged as one line with `method`, `path`, `status`, `dur`, `client_id`, `redirect_host`, `ua`, `origin`, upstream fields and, on every 4xx/5xx, a `reason`.
+Requests to `/authorize`, `/token`, `/revoke`, `/register`, `/.well-known/*`, `/admin/oidc/*`, `/mcp`, `/sse` and `/messages` are logged as one line with `method`, `path`, `status`, `dur`, `client_id`, `redirect_host`, `ua`, `origin`, upstream fields and, on every 4xx/5xx, a `reason`.
 
 `LOG_LEVEL=debug` adds the redacted query, remote address, credential carriers present (never values), response size and notes.

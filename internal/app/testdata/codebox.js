@@ -10,6 +10,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const b = await puppeteer.launch({ executablePath: chrome, args: ["--no-sandbox", "--headless=new"] });
   const pg = await b.newPage();
+  pg.on("dialog", d => d.accept()); // a reload after an unsaved edit is the tab-close warning; the check is leaving
   const csp = [];
   pg.on("console", m => { if (/Content Security Policy|violates|Refused/i.test(m.text())) csp.push(m.text()); });
   pg.on("pageerror", e => csp.push("page error: " + e.message));

@@ -69,7 +69,7 @@ func (s *Server) serveSSE(w http.ResponseWriter, r *http.Request) {
 		authPath += "/" + alias
 	}
 	if ok, presented := s.authenticate(r, authPath); !ok {
-		s.unauthorized(w, r, "/mcp"+strings.TrimPrefix(authPath, "/sse"), presented)
+		s.unauthorized(w, r, authPath, presented) // this path's own protected-resource document
 		return
 	}
 	var up Upstream
@@ -160,7 +160,7 @@ func (s *Server) serveMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ok, presented := s.authenticate(r, "/messages"); !ok {
-		s.unauthorized(w, r, "/mcp", presented)
+		s.unauthorized(w, r, "/sse", presented) // the POST half of /sse
 		return
 	}
 	s.sessMu.Lock()

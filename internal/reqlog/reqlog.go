@@ -166,7 +166,7 @@ func HostOf(raw string) string {
 // Logged reports whether a path belongs to the endpoints that get request lines.
 func Logged(path string) bool {
 	switch {
-	case path == "/authorize", path == "/token", path == "/register":
+	case path == "/authorize", path == "/token", path == "/register", path == "/revoke":
 		return true
 	case strings.HasPrefix(path, "/.well-known/"):
 		return true
