@@ -15,10 +15,10 @@
 
 The plane in the logo is an inside joke. The public wouldn't understand it, and I'm not about to explain it. Sorry.
 
-## Is it good?
+## Quality
 
 <details>
-<summary>Live answer</summary>
+<summary>Is it good?</summary>
 
 Yes
 
