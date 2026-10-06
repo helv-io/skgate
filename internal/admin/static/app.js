@@ -109,8 +109,8 @@
   window.skgateDirtyMark = mark;
   window.skgateDirtyControl = dirtyControl;
   window.addEventListener("beforeunload", function (e) {
-    var body = document.querySelector("[data-modal-body]");
-    if (body && !body.hidden && window.skgateDirty(body).length) { e.preventDefault(); e.returnValue = ""; }
+    if (window.skgateLeaveGo) return; // this navigation was a Save or a chosen Leave
+    if (window.skgateLeaveActive && window.skgateLeaveActive()) { e.preventDefault(); e.returnValue = ""; }
   });
 })();
 
@@ -274,7 +274,10 @@
     if (o.tagName === "A") e.preventDefault(); // a link to the dialog's fragment: the dialog opens, the address is set once
     openContent((o.getAttribute("data-dialog-open") || "").replace(/^#/, ""), o, true);
   });
-  closeBtn.addEventListener("click", function () { requestClose(); });
+  closeBtn.addEventListener("click", function () {
+    if (pending && pending.leave) { pending = null; if (!unstack()) close(); return; }
+    requestClose();
+  });
   window.addEventListener("hashchange", follow);
   window.addEventListener("popstate", follow);
   follow();
@@ -301,6 +304,7 @@
     }
     informational = false;
     pending = { form: form, submitter: btn, opener: btn || document.activeElement };
+    cancelBtn.textContent = "Cancel";
     titleEl.textContent = form.getAttribute("data-confirm-title") || (word ? word.charAt(0).toUpperCase() + word.slice(1) : "Confirm");
     textEl.textContent = text;
     okBtn.textContent = form.getAttribute("data-confirm-ok") || (word ? word.charAt(0).toUpperCase() + word.slice(1) : "Confirm");
@@ -338,6 +342,7 @@
     var p = pending;
     if (!p) return close();
     pending = null;
+    if (p.leave) { if (!unstack()) close(); return; } // Stay
     if (p.discard) { stack = null; close(true); return; }
     if (stack) { // the form lives in the content: submit it first, then take the dialog away
       stack = null;
@@ -348,7 +353,19 @@
     close(true); // the form submit navigates away: replace the fragment, do not go back
     submitPending(p);
   });
-  cancelBtn.addEventListener("click", function () { if (!unstack()) close(); });
+  cancelBtn.addEventListener("click", function () {
+    var p = pending;
+    if (p && p.leave) {
+      pending = null;
+      if (window.skgateAbortSI) window.skgateAbortSI();
+      var go = p.leave;
+      close(true);
+      window.skgateLeaveGo = true;
+      go();
+      return;
+    }
+    if (!unstack()) close();
+  });
   // A click on the backdrop lands on the dialog element itself; clicks inside land on its children. Only a dialog
   // that merely shows information closes that way; one with a form, a field or a decision ignores it (a drag that
   // starts in a field and ends outside must not throw the input away). Escape and the buttons always close.
@@ -357,14 +374,93 @@
   // With the focus outside the dialog Escape reaches it as a native cancel, not as a key press: content with unsaved
   // edits still asks. Anything else closes natively and restoreFocus tidies up.
   dlg.addEventListener("cancel", function (e) {
+    if (pending && pending.leave) { e.preventDefault(); pending = null; if (!unstack()) close(); return; }
     if (shownId === null || (!stack && !(window.skgateDirty && window.skgateDirty(bodyEl).length))) return;
     e.preventDefault();
     if (!unstack()) requestClose();
   });
   dlg.addEventListener("close", restoreFocus);
   dlg.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { e.preventDefault(); if (unstack()) return; if (requestClose()) restoreFocus(); }
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    if (pending && pending.leave) { pending = null; if (!unstack()) close(); return; }
+    if (unstack()) return;
+    if (requestClose()) restoreFocus();
   });
+  // skgateLeaveAsk is the shared leave prompt. Stay is bottom-left, Leave beside it, Close is Stay.
+  window.skgateLeaveAsk = function (why, go) {
+    var title = why === "si" ? "SI is still working." : "Unsaved changes";
+    var text = why === "si" ? "Leave and lose this result?" : "Leave and lose them?";
+    if (shownId !== null && !stack && bodyEl && !bodyEl.hidden) {
+      stack = { title: titleEl.textContent, informational: informational };
+      bodyEl.hidden = true;
+      dlg.classList.remove("wide");
+    } else if (shownId === null) {
+      mode(false);
+    }
+    informational = false;
+    pending = { leave: go };
+    titleEl.textContent = title;
+    textEl.textContent = text;
+    textEl.hidden = false;
+    actionsEl.hidden = false;
+    closeBtn.hidden = false;
+    okBtn.textContent = "Stay";
+    okBtn.classList.remove("confirm-danger");
+    cancelBtn.textContent = "Leave";
+    if (dlg.showModal) { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute("open", "");
+    if (window.skgateRaiseToasts) window.skgateRaiseToasts();
+    okBtn.focus();
+  };
+})();
+
+// Leave guard: while a helper call is running, or a form with an explicit Save has unsaved edits, in-app
+// navigation asks first. Forms that save on change never ask. Tab close uses beforeunload only then.
+(function () {
+  function explicitForm(form) {
+    if (!form || !form.querySelector) return false;
+    var btn = form.querySelector("button.btn:not([type=button])");
+    if (!btn) return false;
+    return Array.prototype.some.call(form.querySelectorAll("input,select,textarea"), function (el) {
+      if (!el.name || el.name === "csrf") return false;
+      var t = (el.type || "").toLowerCase();
+      if (t === "hidden" || t === "submit" || t === "button") return false;
+      return !(el.hasAttribute && el.hasAttribute("data-autosave"));
+    });
+  }
+  function formDirty(form) {
+    if (!window.skgateDirtyControl) return false;
+    return Array.prototype.some.call(form.querySelectorAll("input,select,textarea"), window.skgateDirtyControl);
+  }
+  window.skgateExplicitDirty = function (form) { return explicitForm(form) && formDirty(form); };
+  window.skgateLeaveActive = function () {
+    if (window.skgateSI) return true;
+    return Array.prototype.some.call(document.querySelectorAll("form"), function (f) { return window.skgateExplicitDirty(f); });
+  };
+  function why() { return window.skgateSI ? "si" : "form"; }
+  window.skgateGo = function (url) { window.skgateLeaveGo = true; location.href = url; };
+  document.addEventListener("click", function (e) {
+    if (!window.skgateLeaveAsk || !window.skgateLeaveActive()) return;
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+    if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+    var href = a.getAttribute("href") || "";
+    if (!href || href.charAt(0) === "#") return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.skgateLeaveAsk(why(), function () { window.skgateGo(a.href); });
+  }, true);
+  document.addEventListener("submit", function (e) {
+    if (!window.skgateLeaveAsk || !window.skgateLeaveActive()) return;
+    var form = e.target;
+    if (!form || !form.hasAttribute) return;
+    if (form.hasAttribute("data-save") || form.hasAttribute("data-update") || form.hasAttribute("data-inline") || form.hasAttribute("data-confirm")) return;
+    if (!window.skgateSI && window.skgateExplicitDirty(form)) return;
+    if (e.defaultPrevented) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.skgateLeaveAsk(why(), function () { form.submit(); });
+  }, true);
 })();
 
 // A field with data-autosave posts its form on change. The saved value is the server's until the page is read again,
@@ -882,6 +978,113 @@ document.addEventListener("input", function (e) {
 });
 
 
+// Helper calls share one progress treatment: the button keeps its label, a thin bar runs along its bottom edge,
+// and a muted line beside it shows the stage. The line turns red in that same spot on an error. Every exit
+// re-enables the button. The fetch is aborted on leave and after data-si-wait seconds (at least the helper timeout).
+function siLine(btn) {
+  var row = btn.closest ? (btn.closest(".row") || btn.parentNode) : btn.parentNode;
+  return row ? row.querySelector("[data-si-status]") : null;
+}
+function siSay(btn, text, bad) {
+  var line = siLine(btn);
+  if (!line) return;
+  line.textContent = text || "";
+  line.hidden = !text;
+  line.classList.toggle("bad", !!bad);
+  line.classList.toggle("muted", !bad);
+}
+function siSecs(btn) {
+  var s = parseInt(btn.getAttribute("data-si-wait"), 10);
+  if (!s) {
+    var other = document.querySelector("[data-si-wait]");
+    if (other) s = parseInt(other.getAttribute("data-si-wait"), 10);
+  }
+  if (!s || s < 1) s = 300;
+  return s;
+}
+function siStart(btn) {
+  btn.classList.add("running");
+  btn.disabled = true;
+  var ac = new AbortController();
+  var timed = false, left = false;
+  var timer = setTimeout(function () { timed = true; ac.abort(); }, siSecs(btn) * 1000);
+  var job = {
+    signal: ac.signal,
+    abort: function () { left = true; clearTimeout(timer); try { ac.abort(); } catch (err) { /* already ended */ } },
+    finish: function () {
+      clearTimeout(timer);
+      btn.classList.remove("running");
+      if (window.skgateSI === job) window.skgateSI = null;
+    },
+    timedOut: function () { return timed && !left; },
+    left: function () { return left; }
+  };
+  window.skgateSI = job;
+  window.skgateAbortSI = function () { if (window.skgateSI) window.skgateSI.abort(); };
+  return job;
+}
+function readLines(r, onLine) {
+  var type = (r.headers && r.headers.get && r.headers.get("Content-Type")) || "";
+  if (type.indexOf("x-ndjson") < 0 || !r.body || !r.body.getReader) {
+    return r.json().then(function (j) { onLine(j); });
+  }
+  var rd = r.body.getReader(), dec = new TextDecoder(), buf = "";
+  function pump() {
+    return rd.read().then(function (c) {
+      if (c.done) {
+        if (buf) { try { onLine(JSON.parse(buf)); } catch (err) { /* ignore a trailing scrap */ } }
+        return;
+      }
+      buf += dec.decode(c.value, { stream: true });
+      var parts = buf.split("\n");
+      buf = parts.pop();
+      parts.forEach(function (l) { if (!l) return; try { onLine(JSON.parse(l)); } catch (err) { /* skip */ } });
+      return pump();
+    });
+  }
+  return pump();
+}
+
+// The update pill posts one update and refreshes its row in place. The bar is drawn inside the pill.
+document.addEventListener("submit", function (e) {
+  var form = e.target;
+  if (!form || !form.hasAttribute || !form.hasAttribute("data-update") || e.defaultPrevented) return;
+  e.preventDefault();
+  var btn = form.querySelector("button");
+  var row = form.closest("tr");
+  var id = row && row.id;
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.classList.add("running");
+  function fail(msg) {
+    btn.classList.remove("running");
+    btn.disabled = false;
+    btn.classList.remove("warn");
+    btn.classList.add("bad");
+    btn.title = msg;
+  }
+  function poll() {
+    fetch(location.pathname + location.search, { credentials: "same-origin", cache: "no-store", headers: { Accept: "text/html" } })
+      .then(function (r) { if (!r.ok) throw new Error("status"); return r.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        var fresh = id && doc.getElementById(id);
+        var old = id && document.getElementById(id);
+        if (fresh && old) old.replaceWith(document.importNode(fresh, true));
+        var now = id && document.getElementById(id);
+        if (now && now.querySelector("[data-updating]")) setTimeout(poll, 700);
+      })
+      .catch(function () { if (btn.isConnected) fail("Couldn't reach skgate."); });
+  }
+  fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j.toast || j.toast.k !== "ok") { fail((j.toast && j.toast.m) || "update failed"); return; }
+      poll();
+    })
+    .catch(function () { fail("Couldn't reach skgate."); });
+});
+
 // Suggest configuration: [data-suggest="url"] posts the source and token of its form and fills the manual fields
 // with the validated answer, for review. Nothing is saved. The fields stay usable whatever the outcome.
 // The server streams one JSON object per line (stage events, then a result or an error); the status pill
@@ -1029,22 +1232,27 @@ document.addEventListener("input", function (e) {
   function sourceLine(s) {
     return [s.name, s.language, (s.files || []).join(", ")].filter(Boolean).join(" \u00b7 ");
   }
-  function done(form, b, timer, x, secs) {
-    clearInterval(timer);
+  function done(form, b, job, x) {
+    if (job) job.finish();
     b._busy = false;
     sync(form);
-    if (x.timeout) { // a limit was hit: say where and after how long, and offer the reasoning setting when the model was slow
+    if (!x || x.left || (job && job.left())) return;
+    if (x.timeout) { // a limit was hit: the line turns red, and a slow model offers the reasoning setting
       var t = x.timeout, slow = t.stage === "model";
       var why = t.kind === "idle" ? "No data for " + t.secs + "s." : "The overall limit of " + t.secs + "s was reached.";
       var lines = [why];
       if (slow) lines.push("Lower the MCP helper model's reasoning (now: " + (t.effort || "auto") + "), or pick a faster model.");
-      show(form, "bad", "Timed out while " + t.where + " \u00b7 " + secs + "s", lines, slow);
+      siSay(b, "Timed out while " + t.where, true);
+      show(form, "", "", lines, slow);
       return;
     }
-    if (x.error) { // said once, here: no pill, no toast
-      show(form, "bad", "", [x.error]);
+    if (x.error) { // said once, on the line beside the button: no pill, no toast
+      siSay(b, x.error, true);
+      var out = form.querySelector("[data-suggest-out]");
+      if (out) out.hidden = true;
       return;
     }
+    siSay(b, "", false);
     if (x.result.kind === "openapi") { // an address of a REST API: the form becomes an OpenAPI upstream
       var sel = document.querySelector("[data-kind-select]");
       if (sel) { sel.value = "openapi"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
@@ -1052,7 +1260,7 @@ document.addEventListener("input", function (e) {
       if (form.elements.alias && form.elements.alias.type !== "hidden" && !form.elements.alias.value) set(form, "alias", x.result.alias);
       form.dispatchEvent(new Event("input", { bubbles: true })); // the Add button follows the fields
       var found = x.result.title ? "Found " + x.result.title + "." : "Found the description.";
-      window.skgateToast("ok", found + " Review and save.");
+      siSay(b, found + " Review and save.", false);
       return;
     }
     apply(form, x.result);
@@ -1072,47 +1280,37 @@ document.addEventListener("input", function (e) {
     body.set("git_token", form.elements.git_token ? form.elements.git_token.value : "");
     if (form.elements.mode && form.elements.mode.value === "edit" && form.elements.alias) body.set("alias_existing", form.elements.alias.value);
     b._busy = true;
-    b.disabled = true;
-    var t0 = Date.now(), stage = "Starting", info = [];
-    var chars = 0;
-    function tick() { show(form, "warn", stage + (chars ? " \u00b7 " + (chars >= 1000 ? (chars / 1000).toFixed(1) + "k" : chars) + " chars" : "") + " \u00b7 " + Math.round((Date.now() - t0) / 1000) + "s", info); }
-    var timer = setInterval(tick, 1000);
-    tick();
+    var job = siStart(b);
+    var stage = "Starting", chars = 0;
+    function paint() {
+      siSay(b, stage + (chars ? " \u00b7 " + (chars >= 1000 ? (chars / 1000).toFixed(1) + "k" : chars) + " chars" : ""), false);
+    }
+    paint();
     var finished = false;
-    function finish(x) { if (!finished) { finished = true; done(form, b, timer, x, Math.round((Date.now() - t0) / 1000)); } }
-    function line(l) {
-      var m;
-      try { m = JSON.parse(l); } catch (err) { return; }
+    function finish(x) { if (!finished) { finished = true; done(form, b, job, x); } }
+    function line(m) {
+      if (!m) return;
       if (m.stage) {
         if (m.label && m.label !== stage) chars = 0;
         stage = m.label || stage;
         if (m.chars) chars = m.chars;
-        if (m.source) info = [sourceLine(m.source)];
-        tick();
+        paint();
       } else if (m.result || m.error) {
         finish(m);
       }
     }
-    fetch(b.getAttribute("data-suggest"), { method: "POST", credentials: "same-origin", body: body, headers: { Accept: "application/x-ndjson" } })
+    fetch(b.getAttribute("data-suggest"), { method: "POST", credentials: "same-origin", body: body, headers: { Accept: "application/x-ndjson" }, signal: job.signal })
       .then(function (r) {
-        var type = r.headers.get("Content-Type") || "";
-        if (type.indexOf("x-ndjson") < 0 || !r.body || !r.body.getReader) { // refused before streaming, or no stream support
-          return r.json().then(function (j) { finish(r.ok ? { result: j } : { error: j.error || "The request failed (HTTP " + r.status + ")." }); });
-        }
-        var rd = r.body.getReader(), dec = new TextDecoder(), buf = "";
-        function pump() {
-          return rd.read().then(function (c) {
-            if (c.done) { buf.split("\n").forEach(function (l) { if (l) line(l); }); return; }
-            buf += dec.decode(c.value, { stream: true });
-            var parts = buf.split("\n");
-            buf = parts.pop();
-            parts.forEach(function (l) { if (l) line(l); });
-            return pump();
-          });
-        }
-        return pump();
+        return readLines(r, function (m) {
+          if (m && !m.stage && !m.result && !m.error && r.ok) m = { result: m };
+          line(m);
+        }).then(function () { if (!r.ok && !finished) finish({ error: "The request failed (HTTP " + r.status + ")." }); });
       })
-      .catch(function () { finish({ error: "Couldn't reach skgate. Check your connection and try again." }); })
+      .catch(function () {
+        if (job.left()) finish({ left: true });
+        else if (job.timedOut()) finish({ error: "Timed out." });
+        else finish({ error: "Couldn't reach skgate. Check your connection and try again." });
+      })
       .then(function () { finish({ error: "the answer ended early" }); });
   });
 })();
@@ -1555,17 +1753,28 @@ document.addEventListener("change", function (e) {
     if (!t) return;
     var rb = t.closest("[data-oa-repair]");
     if (rb) {
-      rb.disabled = true;
+      if (rb.disabled || rb.classList.contains("running")) return;
+      if (!rb.getAttribute("data-si-wait") && btn.getAttribute("data-si-wait")) rb.setAttribute("data-si-wait", btn.getAttribute("data-si-wait"));
+      var job = siStart(rb);
       diff.hidden = true;
-      var was = summary.textContent;
-      summary.textContent = "Repairing";
-      post(btn.getAttribute("data-oa-repair-url")).then(function (j) {
+      siSay(rb, "Asking SI", false);
+      var body = new URLSearchParams();
+      body.set("csrf", btn.getAttribute("data-csrf"));
+      body.set("oa_spec_url", form.elements.oa_spec_url.value);
+      body.set("oa_spec_text", form.elements.oa_spec_text.value);
+      var done = false;
+      function end(j) {
+        if (done) return;
+        done = true;
+        job.finish();
         rb.disabled = false;
-        summary.textContent = was;
-        if (j.error) { window.skgateToast("bad", j.error); return; }
-        repaired = j.spec;
+        if (!j || j.left || job.left()) return;
+        if (j.error) { siSay(rb, j.error, true); return; }
+        var res = j.result || j;
+        siSay(rb, "", false);
+        repaired = res.spec;
         diffList.textContent = "";
-        (j.changes || []).forEach(function (c) {
+        (res.changes || []).forEach(function (c) {
           var li = el("li");
           li.appendChild(el("code", "", c.path));
           if (c.reason) li.appendChild(el("div", "muted", c.reason));
@@ -1573,10 +1782,20 @@ document.addEventListener("change", function (e) {
           if (c.after) li.appendChild(el("div", "add", "+ " + c.after));
           diffList.appendChild(li);
         });
-        var left = (j.remaining || []).length;
-        diffTitle.textContent = (j.changes || []).length + " changes, " + left + (left === 1 ? " problem" : " problems") + " left";
+        var left = (res.remaining || []).length;
+        diffTitle.textContent = (res.changes || []).length + " changes, " + left + (left === 1 ? " problem" : " problems") + " left";
         diff.hidden = false;
-      }).catch(function () { rb.disabled = false; summary.textContent = was; window.skgateToast("bad", "repair failed"); });
+      }
+      fetch(btn.getAttribute("data-oa-repair-url"), { method: "POST", credentials: "same-origin", headers: { Accept: "application/x-ndjson" }, body: body, signal: job.signal })
+        .then(function (r) {
+          return readLines(r, function (m) {
+            if (m && m.stage) { siSay(rb, m.label || m.stage, false); return; }
+            if (m && !m.result && !m.error && r.ok) m = { result: m };
+            end(m);
+          });
+        })
+        .catch(function () { end(job.left() ? { left: true } : { error: job.timedOut() ? "Timed out." : "Couldn't reach skgate." }); })
+        .then(function () { if (!done) end({ error: "the answer ended early" }); });
       return;
     }
     if (t.closest("[data-oa-apply]")) {
@@ -1673,36 +1892,50 @@ document.addEventListener("change", function (e) {
   if (describe) describe.addEventListener("click", function () {
     if (describe.disabled || busy) return;
     var keys = allKeys();
-    if (!keys.length) { window.skgateToast("bad", "no tools to name"); return; }
+    if (!keys.length) { siSay(describe, "no tools to name", true); return; }
+    var job = siStart(describe);
     setBusy(true);
-    window.skgateToast("ok", "Suggesting");
+    siSay(describe, "Reading tools", false);
     var body = new URLSearchParams();
     body.set("csrf", root.querySelector('input[name="csrf"]').value);
-    fetch(root.getAttribute("data-suggest-url"), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: body })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (j.error) { window.skgateToast("bad", j.error); return; }
-        var on = {};
-        Array.prototype.forEach.call(j.on || [], function (k) { on[k] = true; });
-        var named = 0, selected = 0;
-        Array.prototype.forEach.call(root.querySelectorAll("[data-tool]"), function (row) {
-          var key = row.getAttribute("data-key"), box = row.querySelector("[data-tool-on]");
-          var s = j.tools && j.tools[key];
-          if (s) {
-            if (s.name) row.querySelector("[data-tool-name]").value = s.name;
-            if (s.description) row.querySelector("[data-tool-desc]").value = s.description;
-            named++;
-          }
-          if (box && !box.disabled) {
-            box.checked = !!on[key];
-            if (box.checked) selected++;
-          }
+    var done = false;
+    function end(j) {
+      if (done) return;
+      done = true;
+      job.finish();
+      setBusy(false);
+      if (!j || j.left || job.left()) return;
+      if (j.error) { siSay(describe, j.error, true); return; }
+      var res = j.result || j;
+      var on = {};
+      Array.prototype.forEach.call(res.on || [], function (k) { on[k] = true; });
+      var named = 0, selected = 0;
+      Array.prototype.forEach.call(root.querySelectorAll("[data-tool]"), function (row) {
+        var key = row.getAttribute("data-key"), box = row.querySelector("[data-tool-on]");
+        var s = res.tools && res.tools[key];
+        if (s) {
+          if (s.name) row.querySelector("[data-tool-name]").value = s.name;
+          if (s.description) row.querySelector("[data-tool-desc]").value = s.description;
+          named++;
+        }
+        if (box && !box.disabled) {
+          box.checked = !!on[key];
+          if (box.checked) selected++;
+        }
+      });
+      render();
+      siSay(describe, "Filled " + named + " " + (named === 1 ? "name" : "names") + ", " + selected + " on", false);
+    }
+    fetch(root.getAttribute("data-suggest-url"), { method: "POST", credentials: "same-origin", headers: { Accept: "application/x-ndjson" }, body: body, signal: job.signal })
+      .then(function (r) {
+        return readLines(r, function (m) {
+          if (m && m.stage) { siSay(describe, m.label || m.stage, false); return; }
+          if (m && !m.result && !m.error && r.ok) m = { result: m };
+          end(m);
         });
-        render();
-        window.skgateToast("ok", "Filled " + named + " " + (named === 1 ? "name" : "names") + ", " + selected + " on");
       })
-      .catch(function () { window.skgateToast("bad", "suggestion failed"); })
-      .then(function () { setBusy(false); });
+      .catch(function () { end(job.left() ? { left: true } : { error: job.timedOut() ? "Timed out." : "Couldn't reach skgate." }); })
+      .then(function () { if (!done) end({ error: "the answer ended early" }); });
   });
   render();
 })();
@@ -1770,7 +2003,7 @@ document.addEventListener("change", function (e) {
     fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json", "X-Follow": "1" }, body: new URLSearchParams(new FormData(form)) })
       .then(function (r) { return r.json(); })
       .then(function (j) {
-        if (j.to) { window.location.assign(j.to); return; }
+        if (j.to) { window.skgateLeaveGo = true; window.location.assign(j.to); return; }
         window.skgateToast(j.toast ? j.toast.k : "bad", j.toast ? j.toast.m : "The request failed.");
       })
       .catch(function () { window.skgateToast("bad", "The request failed."); })
@@ -1960,3 +2193,12 @@ document.addEventListener("change", function (e) {
   new MutationObserver(scan).observe(body, { childList: true });
   scan();
 })();
+
+// A submit that the page lets through is a chosen navigation (Save, Import, a confirmed delete). The tab-close
+// warning stays quiet for it. The browser starts that navigation as its own task, so the quiet period has to
+// outlast this turn. If the page stays (a download), the warning comes back.
+document.addEventListener("submit", function (e) {
+  if (e.defaultPrevented) return;
+  window.skgateLeaveGo = true;
+  setTimeout(function () { window.skgateLeaveGo = false; }, 3000);
+});

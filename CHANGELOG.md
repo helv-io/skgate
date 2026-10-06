@@ -13,6 +13,14 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
+- The update pill updates the upstream in place, and the row refreshes where it is
+- A helper request keeps its button and shows the stage beside it. An error turns that line red
+- Leaving while a request runs, or with unsaved changes, asks first
+- A helper from another provider is shown as its model id
+- /sse answers 401 with its own protected-resource metadata, and a token for that resource is accepted there
+- Browsers may send the Mcp-Method and Mcp-Name headers
+- A rotated refresh token still works once, for about a minute, so a lost response can be retried
+- POST /revoke revokes an access or refresh token, and discovery advertises revocation_endpoint
 - An alias target and a helper-model field save when they change, and the status page updates without a reload
 - Provider details is the helper model, the aliases, and remove. The token refreshes in the background
 - The helper model waits 300 seconds by default. A timeout already saved is kept

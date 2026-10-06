@@ -206,9 +206,12 @@ func (d *DB) sealLegacy() error {
 // oauth_clients.pkce_seen is set (internal, not shown) after a client's first successful PKCE exchange; from then on the client needs PKCE.
 // oauth_clients.jwks_uri is the JWKS URL of a metadata-document client that uses private_key_jwt.
 // sub and email hold the OIDC identity that approved an MCP authorization code and the tokens it minted.
+// oauth_tokens.rotated_at is set when a refresh token is rotated. The row then lives for the grace
+// window (expires_at is shortened) so one retry of a lost response still works.
 func migrate(db *sql.DB) error {
 	for _, m := range []struct{ table, col, typ string }{
 		{"oauth_codes", "sub", "TEXT"}, {"oauth_codes", "email", "TEXT"}, {"oauth_tokens", "sub", "TEXT"}, {"oauth_tokens", "email", "TEXT"},
+		{"oauth_tokens", "rotated_at", "INTEGER NOT NULL DEFAULT 0"},
 		{"upstreams", "host_override", "TEXT NOT NULL DEFAULT ''"},
 		{"upstreams", "detected_kind", "TEXT NOT NULL DEFAULT ''"}, {"upstreams", "detected_note", "TEXT NOT NULL DEFAULT ''"},
 		{"upstreams", "include_in_mcp", "INTEGER NOT NULL DEFAULT 0"},

@@ -95,6 +95,7 @@ type Proc struct {
 	rev, revFull string      // installed commit of a git upstream (short, full)
 	remote       *RemoteInfo // last ls-remote result
 	checking     bool
+	updating     bool   // an update is in progress (fetch, rebuild, restart)
 	updErr       string // last failed update (the previous version keeps running where possible)
 	updErrAt     time.Time
 	lastUpdate   string // one line about the last applied update

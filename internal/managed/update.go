@@ -188,6 +188,7 @@ type UpdateInfo struct {
 
 	Err        string // last failed update
 	ErrAt      time.Time
+	Updating   bool // an update is running now
 	LastUpdate string
 	LastAt     time.Time
 	AutoEvery  time.Duration
@@ -205,6 +206,7 @@ func (p *Proc) UpdateInfo() UpdateInfo {
 	p.mu.Lock()
 	u.RevFull, u.Err, u.ErrAt, u.LastUpdate, u.LastAt = p.revFull, p.updErr, p.updErrAt, p.lastUpdate, p.lastUpdateAt
 	u.AutoNext = p.autoNext
+	u.Updating = p.updating
 	r := p.remote
 	p.mu.Unlock()
 	if spec.AutoUpdate == 0 {
@@ -295,23 +297,49 @@ func (p *Proc) autoUpdate(ctx context.Context) {
 // error is kept for the admin UI (UpdateInfo.Err).
 func (p *Proc) Update() error { return p.update(p.m.ctx, false) }
 
-// UpdateAsync runs Update in the background; the outcome shows in UpdateInfo.
+// UpdateAsync runs Update in the background; the outcome shows in UpdateInfo. Updating is true
+// before this returns, so the list can show progress on the next read.
 func (p *Proc) UpdateAsync() error {
-	if !p.updMu.TryLock() {
+	if !p.beginUpdate() {
 		return errUpdating
 	}
-	p.updMu.Unlock()
-	if !p.m.bg(func(ctx context.Context) { _ = p.update(ctx, false) }) {
+	if !p.m.bg(func(ctx context.Context) {
+		defer p.endUpdate()
+		_ = p.updateBody(ctx, false)
+	}) {
+		p.endUpdate()
 		return errors.New("shutting down")
 	}
 	return nil
 }
 
-func (p *Proc) update(ctx context.Context, auto bool) (err error) {
+// beginUpdate marks an update as running and holds updMu until endUpdate.
+func (p *Proc) beginUpdate() bool {
 	if !p.updMu.TryLock() {
+		return false
+	}
+	p.mu.Lock()
+	p.updating = true
+	p.mu.Unlock()
+	return true
+}
+
+func (p *Proc) endUpdate() {
+	p.mu.Lock()
+	p.updating = false
+	p.mu.Unlock()
+	p.updMu.Unlock()
+}
+
+func (p *Proc) update(ctx context.Context, auto bool) error {
+	if !p.beginUpdate() {
 		return errUpdating
 	}
-	defer p.updMu.Unlock()
+	defer p.endUpdate()
+	return p.updateBody(ctx, auto)
+}
+
+func (p *Proc) updateBody(ctx context.Context, auto bool) (err error) {
 	spec := p.Spec()
 	tag := "update"
 	if auto {

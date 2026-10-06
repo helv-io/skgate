@@ -40,7 +40,7 @@
 <p class="muted" data-code-status aria-live="polite"></p>
 <script src="/admin/static/codemirror.js" defer></script></div>
 {{if .HasSpec}}<div class="row"><a class="act" href="/admin/upstreams/{{$.U.Alias}}/tools">Choose tools</a><span class="muted">{{.Tools}} of {{.Ops}} on</span></div>{{end}}
-<div class="row"><button type="button" class="act" data-oa-check data-oa-check-url="/admin/openapi/check" data-oa-repair-url="/admin/openapi/repair" data-csrf="{{$.CSRF}}">Check</button></div>
+<div class="row"><button type="button" class="act" data-oa-check data-oa-check-url="/admin/openapi/check" data-oa-repair-url="/admin/openapi/repair" data-csrf="{{$.CSRF}}" data-si-wait="{{$.Suggest.Wait}}">Check</button></div>
 {{template "oa_check_result"}}
 <div class="field"><label>Key<input type="password" name="oa_auth_value" autocomplete="new-password" placeholder="{{if $.U.Masked}}{{$.U.Masked}}{{else}}Optional{{end}}"></label></div>
 <input type="hidden" name="oa_skip_check" value="" data-oa-skip>

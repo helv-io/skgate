@@ -7,6 +7,7 @@ const ok = (c, m) => { if (!c) bad.push(m); };
 (async () => {
   const b = await puppeteer.launch({ executablePath: chrome, args: ["--no-sandbox", "--headless=new"] });
   const pg = await b.newPage();
+  pg.on("dialog", d => d.accept()); // a reload after suggested names is the tab-close warning; the check is leaving
   await pg.setCookie(...JSON.parse(cookiesJSON));
   await pg.setViewport({ width: 1280, height: 900 });
   await pg.goto(url + "/admin/upstreams/" + alias + "/tools");

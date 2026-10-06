@@ -52,7 +52,7 @@ A copy is kept for the `Cache-Control` max-age (between 5 minutes and 24 hours, 
 
 The newest 500 such clients are kept. There is no setting for any of this; an instance that cannot reach the client's host simply does not accept that client ID.
 
-Discovery: `PUBLIC_URL/.well-known/oauth-authorization-server`. Protected-resource metadata is served per endpoint (`/.well-known/oauth-protected-resource/mcp` and `/mcp/<alias>`, `resource` equal to the URL). The site-root document (`/.well-known/oauth-protected-resource`) is the same as for `/mcp`.
+Discovery: `PUBLIC_URL/.well-known/oauth-authorization-server`. It names `revocation_endpoint` (`POST /revoke`, RFC 7009): the client authenticates as at `/token` and sends `token`. An unknown token is still a success. Protected-resource metadata is served per endpoint (`/.well-known/oauth-protected-resource/mcp` and `/mcp/<alias>`, and the same for `/sse`, `resource` equal to the URL). The site-root document (`/.well-known/oauth-protected-resource`) is the same as for `/mcp`. A refresh token rotates on use. The previous one works once more for about a minute, so a retry after a lost response still succeeds.
 
 PKCE: a `code_challenge` that is sent must be `S256` and is always verified.
 

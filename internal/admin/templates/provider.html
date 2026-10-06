@@ -70,7 +70,7 @@
 {{/* suggest_controls: the "Suggest configuration" button and, when signed in, the control that opens the MCP helper
    model dialog. Takes a suggestState. Re-rendered by the server after the model changed, and swapped in by app.js. */}}
 {{define "suggest_controls"}}<div class="row" data-suggest-controls>
-<button type="button" class="act" data-suggest="/admin/upstreams/suggest" {{if not .Enabled}}disabled title="{{.Why}}" data-suggest-off{{end}}>Suggest configuration</button>
+<button type="button" class="act" data-suggest="/admin/upstreams/suggest" {{if not .Enabled}}disabled title="{{.Why}}" data-suggest-off{{end}} data-si-wait="{{.Wait}}">Suggest configuration</button><span class="muted si-status" data-si-status hidden></span>
 {{with .P}}{{if .HelperReady}}<button type="button" class="act" data-dialog-open="#helper-model">{{if .Model}}MCP helper model: {{.Model}}{{else}}Pick MCP helper model{{end}}</button>{{end}}{{template "helper_dialog" .}}{{end}}
 </div>{{end}}
 

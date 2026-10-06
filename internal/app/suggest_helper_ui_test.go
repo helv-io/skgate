@@ -357,7 +357,7 @@ func TestSuggestTimeoutIsVisible(t *testing.T) {
 
 	_, js := r.br.get("/admin/static/app.js")
 	_, page := r.br.get("/admin/upstreams/new")
-	if !strings.Contains(js, "Timed out while ") || !strings.Contains(js, `"Lower reasoning"`) || !strings.Contains(js, `"#helper-model"`) || !strings.Contains(page, `id="helper-model"`) {
+	if !strings.Contains(js, "Timed out while ") || !strings.Contains(js, `"Lower reasoning"`) || !strings.Contains(js, `"#helper-model"`) || !strings.Contains(page, `id="helper-model"`) || !strings.Contains(page, `data-si-status`) || !strings.Contains(page, `data-si-wait="`) {
 		t.Error("the timed-out state or the Lower reasoning button is missing")
 	}
 }

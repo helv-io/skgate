@@ -8,6 +8,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const b = await puppeteer.launch({ executablePath: chrome, args: ["--no-sandbox", "--headless=new"] });
   const pg = await b.newPage();
+  pg.on("dialog", d => d.accept()); // leaving a page with unsaved tool edits is the tab-close warning; the check is leaving
   await pg.setCookie(...JSON.parse(cookiesJSON));
   await pg.setViewport({ width: 1280, height: 900 });
   await pg.goto(url + "/admin/upstreams/" + alias + "/tools");
