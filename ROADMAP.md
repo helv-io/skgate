@@ -8,11 +8,6 @@ Small fixes to discovery.
 
 - **Protected-resource metadata for `/sse`.** The document at `/.well-known/oauth-protected-resource/sse` already exists, but a 401 from `/sse` still points clients at the `/mcp` document. It should point at its own, like `/mcp/<alias>` does.
 
-## Planned
-
-- **`client_credentials` grant** for confidential clients created by an admin, for machine-to-machine use without a browser sign-in.
-- **`private_key_jwt` for admin-created clients**, with the client's public key or key set registered by the admin. Clients that sign in with a metadata document URL can already use `private_key_jwt` through their `jwks_uri`.
-
 ## Later
 
 - CORS: allow the `Mcp-Method` and `Mcp-Name` request headers.
@@ -21,3 +16,10 @@ Small fixes to discovery.
 - Alias fields in the OIDC discovery metadata.
 - A short grace period for refresh token rotation, so a retry after a lost response does not sign the client out.
 - Additional header names for presenting a key.
+
+## On request
+
+Built only if someone asks for it in an issue. Mostly for server-to-server setups, not the usual browser sign-in.
+
+- **`client_credentials` grant** for confidential clients created by an admin, for machine-to-machine use without a browser sign-in.
+- **`private_key_jwt` for admin-created clients**, with the client's public key or key set registered by the admin. Clients that sign in with a metadata document URL can already use `private_key_jwt` through their `jwks_uri`.
