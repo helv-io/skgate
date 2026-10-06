@@ -15,6 +15,7 @@ function load(file, native){
     w.HTMLDialogElement.prototype.close=function(){ if(this.hasAttribute("open")){this.removeAttribute("open"); this.dispatchEvent(new w.Event("close"));} };
   }
   w.HTMLFormElement.prototype.requestSubmit=function(s){ this.dispatchEvent(new w.Event("submit",{cancelable:true,bubbles:true})) && (this._submitted=(this._submitted||0)+1); };
+  w.fetch=()=>Promise.reject(new TypeError("offline"));
   w.eval(js);
   return {w,d:w.document,calls};
 }
@@ -134,22 +135,26 @@ for (const native of [false,true]) {
   open.dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
   ok(dlg.hasAttribute("open")&&dlg.classList.contains("wide"),"Details opens the shared modal in content mode");
   ok(d.querySelector("[data-modal-title]").textContent==="Grok","title from the template");
-  ok(!body.hidden&&/Refresh token/.test(body.textContent),"content shown, refresh token only inside");
+  ok(!body.hidden&&/MCP helper model/.test(body.textContent)&&/Model aliases/.test(body.textContent)&&!/Refresh token/.test(body.textContent),"content is the helper model and the aliases");
   ok(d.querySelector("[data-modal-actions]").hidden,"no confirm buttons in content mode");
+  const rm=body.querySelector('form[action$="/remove"]');
+  ok(!!rm&&/Remove provider/.test(rm.textContent)&&!body.querySelector(".danger-zone"),"Remove is a plain button");
+  { const b=rm.querySelector("button"); const ev=new w.Event("submit",{cancelable:true,bubbles:true}); ev.submitter=b; rm.dispatchEvent(ev);
+    ok(dlg.hasAttribute("open")&&!d.querySelector("[data-modal-actions]").hidden&&body.hidden,"Remove asks in the shared modal");
+    ok(d.querySelector("[data-modal-title]").textContent==="Remove Grok?"&&d.querySelector("[data-modal-text]").textContent==="Its aliases go too.","the question is short");
+    ok(d.querySelector("[data-modal-ok]").textContent==="Remove"&&d.querySelector("[data-modal-ok]").classList.contains("confirm-danger"),"Remove is red");
+    d.querySelector("[data-modal-cancel]").click();
+    ok(!body.hidden&&/MCP helper model/.test(body.textContent),"Cancel returns to Details"); }
   d.querySelector("[data-modal-close]").click();
   ok(!dlg.hasAttribute("open"),"Close closes");
   ok(body.children.length===0&&!dlg.classList.contains("wide"),"content cleared after close");
-  // The helper and alias pills open their own dialogs. The refresh token stays in Details.
+  // The helper and alias pills open the same components.
   for (const [id, title] of [["helper-model", "MCP helper model"], ["aliases-grok", "Model aliases"]]) {
     d.querySelector('[data-dialog-open="#'+id+'"]').dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
     ok(dlg.hasAttribute("open")&&d.querySelector("[data-modal-title]").textContent===title&&!/Refresh token/.test(body.textContent),id+" opens its own dialog");
     d.querySelector("[data-modal-close]").click();
     ok(!dlg.hasAttribute("open"),id+" closes");
   }
-  const so=[...d.querySelectorAll("form[data-confirm]")].find(f=>f.action.endsWith("/signout"));
-  if(so){ const b=so.querySelector("button"); const ev=new w.Event("submit",{cancelable:true,bubbles:true}); ev.submitter=b; so.dispatchEvent(ev);
-    ok(dlg.hasAttribute("open")&&!d.querySelector("[data-modal-actions]").hidden&&body.hidden,"confirmation mode restored after content");
-    d.querySelector("[data-modal-cancel]").click(); }
 }
 // remote form: the header name shows only for the auth types that use a header; host override is under Advanced
 { const {w,d}=load("new.html",false);

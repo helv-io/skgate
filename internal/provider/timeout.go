@@ -9,7 +9,7 @@ import (
 )
 
 // DefaultHelperTimeout is how long the MCP helper model may stay silent before a suggestion is given up.
-const DefaultHelperTimeout = 120 * time.Second
+const DefaultHelperTimeout = 300 * time.Second
 
 // FrontierTimeoutSecs is the timeout suggested (never applied) for models that look like heavy reasoners.
 const FrontierTimeoutSecs = 600

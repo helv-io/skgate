@@ -19,7 +19,7 @@ func TestHelperTimeoutSettingAndSuggestion(t *testing.T) {
 	}
 	post(url.Values{})
 	_, page := br.get("/admin")
-	for _, want := range []string{`name="timeout" value="120"`, "Heavy reasoning models need about 600 seconds.",
+	for _, want := range []string{`name="timeout" data-autosave value="300"`, "Heavy reasoning models need about 600 seconds.",
 		`<option value="grok-4.7-reasoning" data-frontier>`, `<option value="grok-mini">`, `data-frontier-hint="600"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("status page lacks %q", want)
@@ -28,13 +28,13 @@ func TestHelperTimeoutSettingAndSuggestion(t *testing.T) {
 	if strings.Contains(page, `<p class="muted" data-frontier-hint="600" >`) { // hidden unless the chosen model is heavy
 		t.Error("the suggestion shows with no model chosen")
 	}
-	if got := a.Admin.Set.HelperTimeout("grok"); got != 120*time.Second {
+	if got := a.Admin.Set.HelperTimeout("grok"); got != 300*time.Second {
 		t.Fatalf("default %s", got)
 	}
 
 	// saving a heavy model does not touch the timeout; the suggestion is shown, not applied
 	br.post("/admin/providers/grok/model", url.Values{"csrf": {csrf}, "model": {"grok-4.7-reasoning"}})
-	if got := a.Admin.Set.HelperTimeout("grok"); got != 120*time.Second {
+	if got := a.Admin.Set.HelperTimeout("grok"); got != 300*time.Second {
 		t.Fatalf("choosing a heavy model changed the timeout to %s", got)
 	}
 	_, page = br.get("/admin")
@@ -60,7 +60,7 @@ func TestHelperTimeoutSettingAndSuggestion(t *testing.T) {
 		}
 	}
 	_, page = br.get("/admin")
-	if !strings.Contains(page, `name="timeout" value="900"`) || strings.Contains(page, `data-frontier-hint="600" >`) {
+	if !strings.Contains(page, `name="timeout" data-autosave value="900"`) || strings.Contains(page, `data-frontier-hint="600" >`) {
 		t.Error("the field shows the stored value; at 900 s no suggestion is needed")
 	}
 }
