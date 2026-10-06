@@ -484,6 +484,11 @@ function revertAutosave(form) {
   });
   if (form.querySelector("[data-frontier-hint]")) frontierHint(form);
 }
+// formURL is where a form posts. form.action is not used: a control named "action" (the process forms carry one)
+// shadows that property, and the fetch would go to "[object HTMLInputElement]".
+function formURL(form) {
+  return form.getAttribute("action") || location.pathname + location.search;
+}
 function submitForm(form) {
   if (form.requestSubmit) form.requestSubmit();
   else form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
@@ -630,7 +635,7 @@ function bodyBusy(dlg, self) {
     if (!beginSave(form)) return;
     var btns = form.querySelectorAll("button:not([type=button])");
     Array.prototype.forEach.call(btns, function (b) { b.disabled = true; });
-    fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
+    fetch(formURL(form), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
       .then(function (r) {
         if (!r.ok) throw { say: "skgate answered with an error (status " + r.status + "). Try again, or reload the page." };
         return r.json().catch(function () { throw { say: "skgate answered with something unexpected. Reload the page and check what was saved." }; });
@@ -1074,6 +1079,8 @@ function readLines(r, onLine) {
 }
 
 // The update pill posts one update and refreshes its row in place. The bar is drawn inside the pill.
+// A failure, from the request or from the update itself, turns the pill red with the reason in its title and
+// shows that reason as a toast, so it is seen on a phone too, where there is no hover.
 document.addEventListener("submit", function (e) {
   var form = e.target;
   if (!form || !form.hasAttribute || !form.hasAttribute("data-update") || e.defaultPrevented) return;
@@ -1084,33 +1091,42 @@ document.addEventListener("submit", function (e) {
   if (!btn || btn.disabled) return;
   btn.disabled = true;
   btn.classList.add("running");
+  function say(msg) { if (window.skgateToast) window.skgateToast("bad", msg); }
   function fail(msg) {
-    btn.classList.remove("running");
-    btn.disabled = false;
-    btn.classList.remove("warn");
-    btn.classList.add("bad");
-    btn.title = msg;
+    var now = id && document.getElementById(id);
+    var b = (now && now.querySelector("form[data-update] button")) || btn;
+    b.classList.remove("running", "warn");
+    b.removeAttribute("data-updating");
+    b.disabled = false;
+    b.classList.add("bad");
+    b.title = msg;
+    say(msg);
   }
   function poll() {
     fetch(location.pathname + location.search, { credentials: "same-origin", cache: "no-store", headers: { Accept: "text/html" } })
-      .then(function (r) { if (!r.ok) throw new Error("status"); return r.text(); })
+      .then(function (r) { if (!r.ok) throw { say: "skgate answered with an error (status " + r.status + "). Reload the page to see the update." }; return r.text(); })
       .then(function (html) {
         var doc = new DOMParser().parseFromString(html, "text/html");
         var fresh = id && doc.getElementById(id);
         var old = id && document.getElementById(id);
         if (fresh && old) old.replaceWith(document.importNode(fresh, true));
         var now = id && document.getElementById(id);
-        if (now && now.querySelector("[data-updating]")) setTimeout(poll, 700);
+        if (now && now.querySelector("[data-updating]")) { setTimeout(poll, 700); return; }
+        var b = now && now.querySelector("form[data-update] button.bad");
+        if (b) say(b.title || "update failed");
       })
-      .catch(function () { if (btn.isConnected) fail("Couldn't reach skgate."); });
+      .catch(function (err) { fail(err && err.say ? err.say : "Couldn't reach skgate. Reload the page to see the update."); });
   }
-  fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
-    .then(function (r) { return r.json(); })
+  fetch(formURL(form), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
+    .then(function (r) {
+      if (!r.ok) throw { say: "skgate answered with an error (status " + r.status + "). Try again, or reload the page." };
+      return r.json().catch(function () { throw { say: "skgate answered with something unexpected. Reload the page and try again." }; });
+    })
     .then(function (j) {
-      if (!j.toast || j.toast.k !== "ok") { fail((j.toast && j.toast.m) || "update failed"); return; }
+      if (!j || !j.toast || j.toast.k !== "ok") { fail((j && j.toast && j.toast.m) || "update failed"); return; }
       poll();
     })
-    .catch(function () { fail("Couldn't reach skgate."); });
+    .catch(function (err) { fail(err && err.say ? err.say : "Couldn't reach skgate. Check your connection and try again."); });
 });
 
 // Suggest configuration: [data-suggest="url"] posts the source and token of its form and fills the manual fields
@@ -1455,7 +1471,7 @@ function frontierHint(form) {
     var again = form.getAttribute("data-inline");
     var btn = form.querySelector("button");
     if (btn) btn.disabled = true;
-    fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
+    fetch(formURL(form), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: new URLSearchParams(new FormData(form)) })
       .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.json(); })
       .then(function (j) {
         var good = j.toast.k === "ok";
@@ -2028,7 +2044,7 @@ document.addEventListener("change", function (e) {
     busy = true;
     form.setAttribute("aria-busy", "true");
     sync();
-    fetch(form.action, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json", "X-Follow": "1" }, body: new URLSearchParams(new FormData(form)) })
+    fetch(formURL(form), { method: "POST", credentials: "same-origin", headers: { Accept: "application/json", "X-Follow": "1" }, body: new URLSearchParams(new FormData(form)) })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j.to) { window.skgateLeaveGo = true; window.location.assign(j.to); return; }
