@@ -45,6 +45,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.23.1] - 2026-10-06
+
+### Fixed
+
+- The update pill updates the upstream when tapped or clicked, and a failed update shows as a toast
+
 ## [0.23.0] - 2026-10-05
 
 ### Changed
@@ -640,7 +646,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.23.1...HEAD
+[0.23.1]: https://github.com/helv-io/skgate/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/helv-io/skgate/compare/v0.22.3...v0.23.0
 [0.22.3]: https://github.com/helv-io/skgate/compare/v0.22.2...v0.22.3
 [0.22.2]: https://github.com/helv-io/skgate/compare/v0.22.1...v0.22.2
