@@ -24,6 +24,53 @@ func TestDeviceLinkOmitsTheUserCode(t *testing.T) {
 	}
 }
 
+func TestDeviceOpenCarriesTheUserCode(t *testing.T) {
+	const (
+		uri  = "https://accounts.x.ai/oauth2/device"
+		code = "ABCD-1234"
+	)
+	built := uri + "?user_code=" + code
+	d := provider.DeviceFlow{UserCode: code, VerificationURI: uri, VerificationURIComplete: built}
+	if got := deviceOpen(d); got != built {
+		t.Fatalf("complete URI: %q", got)
+	}
+	// A provider that names the code its own way is opened as it asked, not rebuilt.
+	odd := "https://login.example/device?otc=" + code
+	d.VerificationURIComplete = odd
+	if got := deviceOpen(d); got != odd {
+		t.Fatalf("provider complete URI wins: %q", got)
+	}
+	d.VerificationURIComplete = "  "
+	if got := deviceOpen(d); got != built {
+		t.Fatalf("blank complete URI is built: %q", got)
+	}
+	d.VerificationURIComplete = ""
+	if got := deviceOpen(d); got != built {
+		t.Fatalf("missing complete URI is built: %q", got)
+	}
+	d.UserCode = ""
+	if got := deviceOpen(d); got != uri {
+		t.Fatalf("no code falls back to the plain address: %q", got)
+	}
+	got := deviceOpen(provider.DeviceFlow{UserCode: "A&B", VerificationURI: uri + "?foo=1"})
+	if want := uri + "?foo=1&user_code=A%26B"; got != want {
+		t.Fatalf("append: got %q want %q", got, want)
+	}
+	if got := deviceOpen(provider.DeviceFlow{UserCode: code, VerificationURI: "not a url"}); got != "not a url" {
+		t.Fatalf("unparseable address falls back: %q", got)
+	}
+	if deviceOpen(provider.DeviceFlow{}) != "" {
+		t.Fatal("no address")
+	}
+	plain := deviceLink(provider.DeviceFlow{UserCode: code, VerificationURI: uri, VerificationURIComplete: built})
+	if plain != uri {
+		t.Fatalf("link text: %q", plain)
+	}
+	if qrSVG(built) == qrSVG(uri) {
+		t.Fatal("the QR of the address with the code must differ from the plain address")
+	}
+}
+
 func TestQRSVgDrawsTheAddress(t *testing.T) {
 	const uri = "https://accounts.x.ai/oauth2/device"
 	svg := string(qrSVG(uri))

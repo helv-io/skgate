@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"rsc.io/qr"
 
 	"github.com/helv-io/skgate/internal/mcp"
 	"github.com/helv-io/skgate/internal/provider/grok"
@@ -376,13 +379,63 @@ func TestProviderCardShowsExpiryAsATimestamp(t *testing.T) {
 	}
 }
 
-// Device sign-in shows the code, the verification address without the code, and a QR of that address.
-// The page script opens the address in a window.
+// Device sign-in shows the code and the plain verification address as link text. The popup,
+// the link href and the QR open the address with the user code: the provider's complete URI
+// when it sent one, otherwise the address with the code appended.
 func TestDevicePanelShowsTheCodeTheAddressAndAQR(t *testing.T) {
 	const (
 		verify = "https://accounts.x.ai/oauth2/device"
 		code   = "ABCD-1234"
 	)
+	open := verify + "?user_code=" + code
+	// A provider's own complete URI is not rebuilt, even when it is not user_code on verification_uri.
+	other := "https://login.example/device?otc=" + code
+	for _, tc := range []struct {
+		name, complete, open string
+	}{
+		{"complete URI", open, open},
+		{"provider form", other, other},
+		{"built from the code", "", open},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			card := devicePanelCard(t, verify, code, tc.complete)
+			link := `<a href="` + tc.open + `" target="_blank" rel="noopener noreferrer">` + verify + `</a>`
+			for _, want := range []string{
+				`data-device-url="` + tc.open + `"`,
+				"Open the window and enter this code.",
+				"If the window didn't open, " + link,
+				`class="copybox big" data-copy-text="` + code + `"`,
+				"Tap to copy",
+				">Cancel</button>",
+			} {
+				if !strings.Contains(card, want) {
+					t.Errorf("device panel lacks %q", want)
+				}
+			}
+			if strings.Contains(card, ">"+tc.open+"<") {
+				t.Fatal("the link text includes the user code")
+			}
+			if !strings.Contains(card, signInQR(tc.open)) {
+				t.Error("the QR does not encode the address with the code")
+			}
+			if plain := signInQR(verify); plain != signInQR(tc.open) && strings.Contains(card, plain) {
+				t.Fatal("the QR encodes the address without the code")
+			}
+		})
+	}
+	js, err := os.ReadFile("../admin/static/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(js), `window.open(open, "skgate-device", "width=520,height=720,noopener,noreferrer")`) {
+		t.Fatal("the panel does not open the verification address in a window")
+	}
+}
+
+// devicePanelCard starts a device sign-in against a fake issuer and returns the Grok card.
+// complete is the provider's verification_uri_complete; empty means the provider omitted it.
+func devicePanelCard(t *testing.T, verify, code, complete string) string {
+	t.Helper()
 	var srv *httptest.Server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
@@ -396,10 +449,14 @@ func TestDevicePanelShowsTheCodeTheAddressAndAQR(t *testing.T) {
 			w.WriteHeader(400)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]any{
+		body := map[string]any{
 			"device_code": "DEV", "user_code": code, "verification_uri": verify,
-			"verification_uri_complete": verify + "?user_code=" + code, "expires_in": 600, "interval": 3600,
-		})
+			"expires_in": 600, "interval": 3600,
+		}
+		if complete != "" {
+			body["verification_uri_complete"] = complete
+		}
+		json.NewEncoder(w).Encode(body)
 	})
 	mux.HandleFunc("/oauth2/token", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
@@ -418,32 +475,30 @@ func TestDevicePanelShowsTheCodeTheAddressAndAQR(t *testing.T) {
 		t.Fatalf("start: %d %s %s", resp.StatusCode, k, m)
 	}
 	_, page := br.get("/admin")
-	card := grokCard(page)
-	link := `<a href="` + verify + `" target="_blank" rel="noopener noreferrer">` + verify + `</a>`
-	for _, want := range []string{
-		`data-device-url="` + verify + `"`,
-		"Open the window and enter this code.",
-		"If the window didn't open, " + link,
-		code,
-		"Tap to copy",
-		`<svg class="qr"`,
-		`aria-label="Sign-in QR"`,
-		">Cancel</button>",
-	} {
-		if !strings.Contains(card, want) {
-			t.Errorf("device panel lacks %q", want)
+	return grokCard(page)
+}
+
+// signInQR is the SVG the device panel draws for text. It matches admin.qrSVG.
+func signInQR(text string) string {
+	code, err := qr.Encode(text, qr.M)
+	if err != nil || code.Size < 1 {
+		return ""
+	}
+	const quiet = 4
+	n := code.Size + quiet*2
+	var b strings.Builder
+	fmt.Fprintf(&b, `<svg class="qr" viewBox="0 0 %d %d" role="img" aria-label="Sign-in QR">`, n, n)
+	fmt.Fprintf(&b, `<rect width="%d" height="%d" fill="#fff"/>`, n, n)
+	b.WriteString(`<path fill="#111" d="`)
+	for y := 0; y < code.Size; y++ {
+		for x := 0; x < code.Size; x++ {
+			if code.Black(x, y) {
+				fmt.Fprintf(&b, "M%d %dh1v1h-1z", x+quiet, y+quiet)
+			}
 		}
 	}
-	if strings.Contains(card, "user_code=") || strings.Contains(card, verify+"?user_code") {
-		t.Fatal("the address on the page includes the user code")
-	}
-	js, err := os.ReadFile("../admin/static/app.js")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(js), `window.open(open, "skgate-device", "width=520,height=720,noopener,noreferrer")`) {
-		t.Fatal("the panel does not open the verification address in a window")
-	}
+	b.WriteString(`"/></svg>`)
+	return b.String()
 }
 
 func grokCard(page string) string {

@@ -1,6 +1,6 @@
 // Polls the device sign-in state ([data-poll] holds the URL) and reloads the status page when it changes.
-// The same panel carries the verification address ([data-device-url], without the user code) and opens it
-// in a window when the panel is shown. A blocked window leaves the address on the page.
+// The same panel carries the verification address ([data-device-url], with the user code when one is known)
+// and opens it in a window when the panel is shown. A blocked window leaves the address on the page.
 (function () {
   var el = document.querySelector("[data-poll]");
   if (!el) return;
