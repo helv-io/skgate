@@ -109,7 +109,7 @@ print(r.choices[0].message.content)
 
 Map `grok-latest` to the latest available model. Change the target in this one place and every app using `grok-latest` is upgraded at once, with no client config changes.
 
-Grok > **Details** > Model aliases: **New alias** `grok-latest`, **Target model** the newest model in the list (for example `grok-4.7`), **Add alias**.
+Grok > **Aliases**: **New alias** `grok-latest`, **Target model** the newest model in the list (for example `grok-4.7`), **Add alias**.
 
 ```text
 client sends   {"model": "grok-latest", ...}
@@ -318,7 +318,7 @@ Set these under `environment:` or in an `env_file`. Placeholders are in [`.env.e
 | `MANAGED_DIR` | `/data/managed` | Work dirs and clones of managed upstreams. |
 | `MANAGED_MAX_PROCS` | `0` | Concurrent managed processes; `0` is unlimited. |
 
-Grok needs no variables; its base URL and aliases are in its **Details** dialog.
+Grok needs no variables. Sign in on the status page. Model aliases are the **Aliases** control on that card.
 
 Everything lives in `/data` (`skgate.db`, `secrets.key`): back up both.
 
