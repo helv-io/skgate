@@ -155,7 +155,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if f, ok := be.(ListFilter); ok {
 				raw = f.FilterModels(raw)
 			}
-			p.Models.Set(be.ID(), ModelIDs(raw))
+			ids := ModelIDs(raw)
+			p.Models.Set(be.ID(), ids)
+			p.adoptHelper(be.ID(), ids)
+			raw = prefixModelList(raw, p.Set.Prefix(be.ID()))
 			resp.Body = io.NopCloser(bytes.NewReader(injectAliases(raw, p.allAliases())))
 			httputil.CopyResponse(w, resp, "Content-Length", "Content-Encoding")
 			return
@@ -292,7 +295,66 @@ func (p *Proxy) FetchModelsOf(ctx context.Context, id string) ([]string, error) 
 		return nil, errors.New("model list is empty or unreadable")
 	}
 	p.Models.Set(id, ids)
+	p.adoptHelper(id, ids)
 	return ids, nil
+}
+
+// adoptHelper rewrites a helper that names one of this provider's raw model ids to prefix_model.
+// An alias name is left alone, and so is a model the unprefixed provider (Grok) also lists.
+func (p *Proxy) adoptHelper(id string, ids []string) {
+	prefix := p.Set.Prefix(id)
+	if prefix == "" || p.Backend == nil {
+		return
+	}
+	owner := p.Backend.ID()
+	helper := p.Set.Model(owner)
+	if helper == "" {
+		return
+	}
+	if _, ok := Bare(prefix, helper); ok {
+		return
+	}
+	for _, b := range p.Pool() {
+		if _, ok := findAlias(p.Set.Aliases(b.ID()), helper); ok {
+			return
+		}
+	}
+	if !contains(ids, helper) {
+		return
+	}
+	for _, b := range p.Pool() {
+		if p.Set.Prefix(b.ID()) != "" {
+			continue
+		}
+		if got, _, ok := p.Models.Get(b.ID()); ok && contains(got, helper) {
+			return
+		}
+	}
+	_ = p.Set.SetModel(owner, Expose(prefix, helper))
+}
+
+// prefixModelList rewrites each model id in an OpenAI-style list to prefix_id.
+func prefixModelList(raw []byte, prefix string) []byte {
+	if prefix == "" {
+		return raw
+	}
+	var top map[string]json.RawMessage
+	var data []map[string]json.RawMessage
+	if json.Unmarshal(raw, &top) != nil || json.Unmarshal(top["data"], &data) != nil {
+		return raw
+	}
+	for _, d := range data {
+		var id string
+		if json.Unmarshal(d["id"], &id) == nil && id != "" {
+			d["id"], _ = json.Marshal(Expose(prefix, id))
+		}
+	}
+	top["data"], _ = json.Marshal(data)
+	out, err := json.Marshal(top)
+	if err != nil {
+		return raw
+	}
+	return out
 }
 
 // Post sends a JSON request to a provider endpoint (for example /chat/completions) and returns the

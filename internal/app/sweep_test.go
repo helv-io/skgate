@@ -44,10 +44,10 @@ func TestNoHorizontalScrollInBrowser(t *testing.T) {
 	post("/admin/providers/grok/aliases/put", url.Values{"name": {"grok-latest"}, "target": {"grok-4.7-reasoning"}})
 	post("/admin/providers/grok/model", url.Values{"model": {strings.Repeat("a", 60)}, "effort": {"medium"}}) // the long alias as helper model, with its reasoning pill
 	post("/admin/providers/grok/aliases/put", url.Values{"name": {strings.Repeat("a", 60)}, "target": {"grok-4.7-reasoning"}})
-	post("/admin/providers/add", url.Values{"preset": {"openai"}, "base": {up.URL + "/v1"}, "key": {"sk-" + strings.Repeat("k", 60)}}) // key-based providers: cards, dialogs and the alias overview
+	post("/admin/providers/add", url.Values{"preset": {"openai"}, "prefix": {"openai"}, "base": {up.URL + "/v1"}, "key": {"sk-" + strings.Repeat("k", 60)}}) // key-based providers: cards, dialogs and the alias overview
 	post("/admin/providers/openai/models/reload", url.Values{})
 	post("/admin/providers/openai/aliases/put", url.Values{"name": {strings.Repeat("o", 60)}, "target": {"plain"}})
-	post("/admin/providers/add", url.Values{"preset": {"custom"}, "base": {"https://llm.example.com/" + strings.Repeat("very/long/", 12) + "v1"}})
+	post("/admin/providers/add", url.Values{"preset": {"custom"}, "prefix": {"custom"}, "base": {"https://llm.example.com/" + strings.Repeat("very/long/", 12) + "v1"}})
 	post("/admin/upstreams/save", stdioForm(csrf, "mgd", url.Values{"lifecycle": {"always"}, "args": {"--config", "/very/long/path/" + strings.Repeat("dir/", 20) + "file.json"}}))
 	post("/admin/upstreams/save", url.Values{"csrf": {csrf}, "mode": {"new"}, "kind": {"remote"}, "alias": {longName[:63]},
 		"url": {"https://mcp.example.com/" + strings.Repeat("a/very/long/path/", 12) + "mcp?x=" + strings.Repeat("q", 80)}, "auth_kind": {"header"},

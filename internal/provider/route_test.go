@@ -68,6 +68,40 @@ func TestAliasRoutesToItsProviderAndModel(t *testing.T) {
 	}
 }
 
+func TestPrefixedModelIsStrippedBeforeTheProvider(t *testing.T) {
+	r := newRig(t, nil)
+	_, got := withSecond(t, r, "KEY-2", nil)
+	if err := r.set.SetPrefix("other", "other"); err != nil {
+		t.Fatal(err)
+	}
+	r.proxy.Models.Set("other", []string{"other-1"})
+	st, _, _ := r.do(t, "POST", "/v1/chat/completions", `{"model":"other_other-1"}`)
+	if st != 200 || !strings.Contains(got.body, `"model":"other-1"`) || strings.Contains(got.body, "other_other-1") {
+		t.Fatalf("status %d body %q", st, got.body)
+	}
+	// the longer prefix wins when one prefix starts another
+	if err := r.set.SetPrefix("fake", "ot"); err != nil {
+		t.Fatal(err)
+	}
+	got.body = ""
+	r.do(t, "POST", "/v1/chat/completions", `{"model":"other_other-1"}`)
+	if !strings.Contains(got.body, `"model":"other-1"`) {
+		t.Fatalf("shorter prefix took the request: %q", got.body)
+	}
+	// a bare id still reaches the provider that lists it
+	got.body = ""
+	r.do(t, "POST", "/v1/chat/completions", `{"model":"other-1"}`)
+	if !strings.Contains(got.body, `"model":"other-1"`) {
+		t.Fatalf("bare id: %q", got.body)
+	}
+	// with the first provider signed out, the model list uses the prefix
+	r.be.signedOut = true
+	_, body, _ := r.do(t, "GET", "/v1/models", "")
+	if !strings.Contains(body, `"other_other-1"`) || strings.Contains(body, `"other-1"`) {
+		t.Fatalf("list: %s", body)
+	}
+}
+
 func TestModelOnlyAnotherProviderListsGoesThere(t *testing.T) {
 	r := newRig(t, nil)
 	_, got := withSecond(t, r, "KEY-2", nil)

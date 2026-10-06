@@ -41,6 +41,15 @@ func New(cfg *config.Config, db *store.DB) *App {
 	a.Providers = provider.NewRegistry(append([]provider.Provider{g}, keyedProviders...)...)
 	set := provider.Settings{KV: db}
 	set.MigrateLegacy(g.ID())
+	var defs []provider.PrefixDef
+	for _, p := range keyedProviders {
+		k, _ := keyed.Keyed(p)
+		if k == nil || !k.Enabled() {
+			continue
+		}
+		defs = append(defs, provider.PrefixDef{ID: k.ID(), Base: k.Preset.ID})
+	}
+	set.MigratePrefixes(defs, g.ID())
 	a.Keys = vkeys.New(db)
 	_ = a.Keys.MigrateGlobalURLKey(db) // the old global ?key= switch becomes a per-key one
 	a.MCP = mcp.NewServer(cfg, db, a.Keys)

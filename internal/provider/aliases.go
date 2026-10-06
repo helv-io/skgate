@@ -67,14 +67,20 @@ func (s Settings) PutAlias(id, name, target string, real []string) error {
 	if len(real) == 0 {
 		return errors.New("model list unavailable, sign in and reload the models first")
 	}
+	prefix := s.Prefix(id)
+	raw := target
+	if b, ok := Bare(prefix, target); ok {
+		raw = b
+	}
 	for _, r := range real {
-		if strings.EqualFold(r, name) {
-			return fmt.Errorf("alias %q collides with the model id %q", name, r)
+		if strings.EqualFold(r, name) || strings.EqualFold(Expose(prefix, r), name) {
+			return fmt.Errorf("alias %q collides with the model id %q", name, Expose(prefix, r))
 		}
 	}
-	if !contains(real, target) {
+	if !contains(real, raw) {
 		return fmt.Errorf("target %q is not one of the provider's models", target)
 	}
+	target = Expose(prefix, raw)
 	list := s.Aliases(id)
 	for i := range list {
 		if list[i].Name == name {

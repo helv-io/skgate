@@ -140,12 +140,24 @@ func (a *Admin) keyedAdd(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, "/admin#add-provider", "", err.Error())
 		return
 	}
+	prefix := strings.TrimSpace(r.PostFormValue("prefix"))
+	if err := provider.CheckPrefix(prefix); err != nil {
+		a.back(w, r, "/admin#add-provider", "", err.Error())
+		return
+	}
+	if a.prefixTaken(pr.ID, prefix) {
+		a.back(w, r, "/admin#add-provider", "", "that prefix is already used")
+		return
+	}
 	var err2 error
 	if key != "" {
 		err2 = k.SaveKey(key)
 	}
 	if err2 == nil {
 		err2 = k.SetEnabled(true)
+	}
+	if err2 == nil {
+		err2 = a.Set.SetPrefix(pr.ID, prefix)
 	}
 	if err2 != nil {
 		a.saveFailed(w, r, "/admin#add-provider", err2)
@@ -215,13 +227,28 @@ func (a *Admin) keyedRemove(w http.ResponseWriter, r *http.Request) {
 	}
 	def := a.Providers.Default().ID()
 	helper := a.Set.Model(def)
-	if ids, _, known := a.Proxy.Models.Get(k.ID()); isAlias(a.Set.Aliases(k.ID()), helper) || known && contains(ids, helper) {
+	ids, _, known := a.Proxy.Models.Get(k.ID())
+	raw, bare := provider.Bare(a.Set.Prefix(k.ID()), helper)
+	if isAlias(a.Set.Aliases(k.ID()), helper) || known && (contains(ids, helper) || bare && contains(ids, raw)) {
 		_ = a.Set.SetModel(def, "")
 	}
 	_ = a.Set.Delete(k.ID(), "aliases")
 	k.Remove()
 	a.Proxy.Models.Delete(k.ID())
 	a.back(w, r, "/admin", k.Name()+" removed", "")
+}
+
+// prefixTaken reports whether another provider already uses prefix.
+func (a *Admin) prefixTaken(self, prefix string) bool {
+	for _, p := range a.Providers.List() {
+		if p.ID() == self {
+			continue
+		}
+		if a.Set.Prefix(p.ID()) == prefix {
+			return true
+		}
+	}
+	return false
 }
 
 // readyProviders lists the providers that can take requests now.
@@ -244,11 +271,48 @@ func (a *Admin) knownModel(name string) bool {
 		}
 	}
 	for _, p := range a.readyProviders() {
-		if ids, _, ok := a.Proxy.Models.Get(p.ID()); ok && contains(ids, name) {
+		ids, _, ok := a.Proxy.Models.Get(p.ID())
+		if !ok {
+			continue
+		}
+		if contains(ids, name) {
+			return true
+		}
+		if raw, ok := provider.Bare(a.Set.Prefix(p.ID()), name); ok && contains(ids, raw) {
 			return true
 		}
 	}
 	return false
+}
+
+// exposeModel stores a key-based provider's model as prefix_model. A Grok model, an alias and a
+// name that is already prefixed stay as they are.
+func (a *Admin) exposeModel(m string) string {
+	if m == "" || a.Proxy == nil {
+		return m
+	}
+	for _, p := range a.Providers.List() {
+		if _, ok := provider.Bare(a.Set.Prefix(p.ID()), m); ok {
+			return m
+		}
+	}
+	for _, p := range a.Providers.List() {
+		pre := a.Set.Prefix(p.ID())
+		if pre == "" {
+			continue
+		}
+		ids, _, ok := a.Proxy.Models.Get(p.ID())
+		if !ok || !contains(ids, m) {
+			continue
+		}
+		if d := a.Providers.Default(); d != nil {
+			if gids, _, ok := a.Proxy.Models.Get(d.ID()); ok && contains(gids, m) {
+				return m
+			}
+		}
+		return provider.Expose(pre, m)
+	}
+	return m
 }
 
 // aliasRow is one line of the overview of where each alias points.

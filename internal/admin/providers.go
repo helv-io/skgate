@@ -261,7 +261,7 @@ func (a *Admin) modelsReload(w http.ResponseWriter, r *http.Request) {
 
 func (a *Admin) modelSelect(w http.ResponseWriter, r *http.Request) {
 	p := providerOf(r)
-	m := r.PostFormValue("model")
+	m := a.exposeModel(r.PostFormValue("model"))
 	if m != "" {
 		ids, _, known := a.models(r.Context(), p)
 		if !(known && contains(ids, m)) && !a.knownModel(m) {

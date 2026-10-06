@@ -141,6 +141,7 @@ button.running::after{content:"";position:absolute;left:0;right:0;bottom:0;heigh
 @media (prefers-reduced-motion:reduce){button.running::after{animation:none;opacity:.85}}
 td.status form{display:inline-flex;margin:0;vertical-align:middle}
 .si-status.bad{color:var(--bad)}
+[data-prefix-hint].bad{color:var(--bad)}
 .act.accent,button.accent{color:var(--acc);border-color:var(--acc)}
 /* danger: red at rest (touch screens have no hover), brighter border and a red wash on hover */
 .act.danger,button.danger{color:var(--bad);border-color:var(--bad-line)}

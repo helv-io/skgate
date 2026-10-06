@@ -13,6 +13,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
+- A provider other than Grok has a prefix, and its models are named prefix_model
 - The update pill updates the upstream in place, and the row refreshes where it is
 - A helper request keeps its button and shows the stage beside it. An error turns that line red
 - Leaving while a request runs, or with unsaved changes, asks first

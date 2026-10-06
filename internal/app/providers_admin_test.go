@@ -343,7 +343,7 @@ func TestSignOutClearsOnlyThatProvidersAliases(t *testing.T) {
 	if n := len(a.Admin.Set.Aliases("grok")); n != 0 {
 		t.Fatalf("grok aliases left: %d", n)
 	}
-	if als := a.Admin.Set.Aliases("openai"); len(als) != 1 || als[0].Name != "smart" || als[0].Target != "gpt-x" {
+	if als := a.Admin.Set.Aliases("openai"); len(als) != 1 || als[0].Name != "smart" || als[0].Target != "openai_gpt-x" {
 		t.Fatalf("openai aliases: %+v", als)
 	}
 	if _, ok := a.MCP.Upstreams.Get("keep"); !ok {

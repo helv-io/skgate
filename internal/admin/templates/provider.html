@@ -116,8 +116,10 @@
 {{define "add_provider_dialog"}}{{template "dialog_content" (dlg "add-provider" "Add provider")}}
 {{with index .Presets 0}}{{$first := .}}
 <form method="post" action="/admin/providers/add" class="form"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<div class="field"><label>Provider<select name="preset" data-preset>{{range $.Presets}}<option value="{{.ID}}" data-set-base="{{.Base}}" data-set-hint="{{.Hint}}" data-set-docs="{{.Docs}}">{{.Name}}{{if .Added}}, added{{end}}</option>{{end}}</select></label></div>
+<div class="field"><label>Provider<select name="preset" data-preset>{{range $.Presets}}<option value="{{.ID}}" data-set-base="{{.Base}}" data-set-prefix="{{.ID}}" data-set-hint="{{.Hint}}" data-set-docs="{{.Docs}}">{{.Name}}{{if .Added}}, added{{end}}</option>{{end}}</select></label></div>
 <p class="muted"><output name="hint">{{$first.Hint}}</output> <a href="{{$first.Docs}}" target="_blank" rel="noopener noreferrer" data-preset-href="docs"{{if not $first.Docs}} hidden{{end}}>Get a key</a></p>
+<div class="field"><label>Prefix<input type="text" name="prefix" value="{{$first.ID}}" maxlength="16" autocomplete="off" spellcheck="false" data-prefix></label>
+<p class="muted" data-prefix-hint>Lowercase letters and numbers</p></div>
 <div class="field"><label>Base URL<input type="url" name="base" value="{{$first.Base}}" autocomplete="off" spellcheck="false"></label></div>
 <div class="field"><label>API key<input type="password" name="key" autocomplete="new-password" spellcheck="false"></label></div>
 <div class="row"><button class="btn">Add and test</button></div></form>
