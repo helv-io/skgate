@@ -106,3 +106,15 @@ func TestDescribeCapsOnList(t *testing.T) {
 		t.Fatalf("on=%d want %d", len(got), SelectHard)
 	}
 }
+
+// The core set serves whole workflows: the writes on the main records belong in it, bulk and admin operations do not.
+func TestDescribePromptSelectsWritesOnMainRecords(t *testing.T) {
+	for _, need := range []string{"create, add, save, update, import, upload, tag or organize", "find something, then store or update it", "a set of reads alone is incomplete", "Deleting a single record", "bulk delete, purge, users, permissions, server settings, resets"} {
+		if !strings.Contains(describePrompt, need) {
+			t.Errorf("describe prompt lacks %q", need)
+		}
+	}
+	if strings.Contains(describePrompt, "Skip deprecated, rare, admin-only and write operations") {
+		t.Error("describe prompt still skips write operations")
+	}
+}
