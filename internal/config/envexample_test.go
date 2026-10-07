@@ -89,3 +89,32 @@ func TestConsentDefaultsToRequired(t *testing.T) {
 		}
 	}
 }
+
+// Examples and placeholders name no upstream application: hosts read application:8080 and the like.
+func TestExamplesNameNoApplication(t *testing.T) {
+	root := filepath.Join("..", "..")
+	files := []string{"README.md", "CHANGELOG.md", filepath.Join("internal", "admin", "static", "app.js")}
+	for _, g := range []string{filepath.Join("docs", "*.md"), filepath.Join("internal", "admin", "templates", "*.html")} {
+		m, _ := filepath.Glob(filepath.Join(root, g))
+		for _, p := range m {
+			r, _ := filepath.Rel(root, p)
+			files = append(files, r)
+		}
+	}
+	if len(files) < 10 {
+		t.Fatalf("found only %d files", len(files))
+	}
+	// Split so this file does not contain them.
+	bad := []string{"mea" + "lie", "placeholder=\"Home " + "Assistant\""}
+	for _, f := range files {
+		b, err := os.ReadFile(filepath.Join(root, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, w := range bad {
+			if strings.Contains(strings.ToLower(string(b)), strings.ToLower(w)) {
+				t.Errorf("%s names an application in an example: %q", f, w)
+			}
+		}
+	}
+}

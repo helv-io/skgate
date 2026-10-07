@@ -269,7 +269,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Added
 
-- The OpenAPI form finds the description itself. Enter the address of the API, such as http://mealie:9000, and skgate tries the usual places, reads linked descriptions, and saves the address that worked.
+- The OpenAPI form finds the description itself. Enter the address of the API, such as http://application:8080, and skgate tries the usual places, reads linked descriptions, and saves the address that worked.
 - The server address of an OpenAPI upstream comes from the description, or from the address you gave. The Base URL in Advanced is only an override.
 - One key field for an OpenAPI upstream. skgate sends it the way the description says, bearer, basic, a header or the web address, and tries the usual alternatives when the server refuses it. A line in Advanced sets the way by hand.
 - The source box of Suggest takes the address of a REST API and turns the form into an OpenAPI upstream.
@@ -278,7 +278,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Changed
 
-- One rule for addresses: a server on the internet needs https; plain http stays fine for names like mealie, IP addresses and .local names. It applies to OpenAPI, remote MCP servers, import and the tester.
+- One rule for addresses: a server on the internet needs https; plain http stays fine for names like application, IP addresses and .local names. It applies to OpenAPI, remote MCP servers, import and the tester.
 - Test on an OpenAPI upstream sends one safe read to check the key and the server.
 
 ## [0.14.2] - 2026-10-04

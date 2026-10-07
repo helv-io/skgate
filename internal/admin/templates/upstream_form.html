@@ -35,7 +35,7 @@
 </div>
 
 <div class="group" data-kind="openapi">
-{{with .OA}}<div class="field"><label>Address<input type="text" inputmode="url" name="oa_spec_url" placeholder="http://mealie:9000" value="{{.SpecURL}}" autocomplete="off" spellcheck="false" data-oa-spec-url></label></div>
+{{with .OA}}<div class="field"><label>Address<input type="text" inputmode="url" name="oa_spec_url" placeholder="http://application:8080" value="{{.SpecURL}}" autocomplete="off" spellcheck="false" data-oa-spec-url></label></div>
 <div class="field"><label>Or paste the description<textarea name="oa_spec_text" rows="8" spellcheck="false" autocomplete="off" placeholder="{{if .HasSpec}}Empty keeps {{.Title}}{{else}}openapi: 3.0.3{{end}}" data-code="auto" data-oa-spec-text{{if .HasSpec}} data-oa-has{{end}}></textarea></label>
 <p class="muted" data-code-status aria-live="polite"></p>
 <script src="/admin/static/codemirror.js" defer></script></div>

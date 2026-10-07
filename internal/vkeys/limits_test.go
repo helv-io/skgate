@@ -208,7 +208,7 @@ func TestGlobalQueryKeySettingMigratesToEveryKey(t *testing.T) {
 func TestSetLabelRenamesActiveKeysOnly(t *testing.T) {
 	m := New(newDB(t))
 	_, k, _ := m.Create("old")
-	if err := m.SetLabel(k.ID, "  Home Assistant "); err != nil {
+	if err := m.SetLabel(k.ID, "  My assistant "); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.SetLabel(k.ID, ""); err != nil {

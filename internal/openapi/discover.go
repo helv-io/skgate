@@ -80,7 +80,7 @@ func Discover(ctx context.Context, raw string) (*Found, error) {
 }
 
 // entryURLs turns what a person typed into the addresses to start from. An address without a scheme is a host
-// (mealie:9000): a host on the internet is reached over https, any other first over http.
+// (application:8080): a host on the internet is reached over https, any other first over http.
 func entryURLs(raw string) ([]*url.URL, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

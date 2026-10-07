@@ -1391,7 +1391,7 @@ document.addEventListener("submit", function (e) {
   function sourceKind(v) {
     v = v.trim();
     if (!v) return "";
-    if (/^[\w.-]+:\d{1,5}(\/|$)/.test(v) && !/^(npm|pypi|uvx):/i.test(v)) return "api"; // mealie:9000
+    if (/^[\w.-]+:\d{1,5}(\/|$)/.test(v) && !/^(npm|pypi|uvx):/i.test(v)) return "api"; // application:8080
     var m = /^(https?):\/\/([^\/:@]+)([^@]*)$/i.exec(v);
     if (m && !/github|gitlab|bitbucket|gitea|forgejo|codeberg|sr\.ht|npmjs|pypi\.org/i.test(m[2]) &&
         (m[1].toLowerCase() === "http" || /(\.(json|ya?ml|toml)|openapi|swagger|api-docs)(\?|$)/i.test(m[3]) || m[3].split("/").filter(Boolean).length < 2)) return "api";

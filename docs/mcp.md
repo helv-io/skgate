@@ -89,7 +89,7 @@ The manual fields (command, arguments, environment, install, timeouts) are alway
 | PyPI package (`pkg==1.2.3`, `pypi:pkg`, pypi.org URL) | Runs with `uvx`. |
 | crates.io, Go modules, Docker, NuGet, RubyGems, Maven, JSR/Deno | Refused with a message: the image has no `cargo`, `docker`, `gem`, `mvn` or `deno`, and NuGet packages and Go module addresses are not run directly (point at the git repository instead). |
 
-An address of a REST API typed into the source field (`http://mealie:9000`, `mealie:9000`, a link to an `openapi.json` or a documentation page) is not a source to suggest for. Suggest looks for its OpenAPI description, with no helper model and even when none is set, and turns the form into an OpenAPI upstream with the address and an alias filled in. See [Finding the description](openapi.md#finding-the-description).
+An address of a REST API typed into the source field (`http://application:8080`, `application:8080`, a link to an `openapi.json` or a documentation page) is not a source to suggest for. Suggest looks for its OpenAPI description, with no helper model and even when none is set, and turns the form into an OpenAPI upstream with the address and an alias filled in. See [Finding the description](openapi.md#finding-the-description).
 
 How Suggest configuration works:
 

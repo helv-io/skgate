@@ -2,7 +2,7 @@
 <h2>Virtual keys</h2>
 {{if .NewKey}}<div class="card">{{template "key_secret_body" .NewKey}}</div>{{end}}
 <div class="card" id="key-create" data-live><form method="post" action="/admin/keys/create" class="form" data-post><input type="hidden" name="csrf" value="{{$.CSRF}}">
-<div class="field"><label>Name<input type="text" name="label" maxlength="80" placeholder="Home Assistant" autocomplete="off"></label></div>
+<div class="field"><label>Name<input type="text" name="label" maxlength="80" placeholder="My assistant" autocomplete="off"></label></div>
 <details><summary class="muted">Limits</summary>
 <div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit"></label></div>
 {{template "expiry_field" neverExpires}}

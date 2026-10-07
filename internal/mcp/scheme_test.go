@@ -10,7 +10,7 @@ func TestAddressSchemeRule(t *testing.T) {
 		url string
 		ok  bool
 	}{
-		{"http://mealie:9000", true}, {"http://nas.local/api", true}, {"http://10.0.0.7:8080", true},
+		{"http://application:8080", true}, {"http://nas.local/api", true}, {"http://10.0.0.7:8080", true},
 		{"https://api.example.com", true}, {"http://api.example.com", false}, {"http://example.org:8080/v1", false},
 	} {
 		oa := Upstream{Alias: "a", Kind: KindOpenAPI, URL: tc.url, AuthKind: AuthNone, Enabled: true}
@@ -25,7 +25,7 @@ func TestAddressSchemeRule(t *testing.T) {
 }
 
 func TestImportAndTesterFollowTheAddressRule(t *testing.T) {
-	items, err := ParseImport(`{"mcpServers":{"lan":{"url":"http://mealie:9000/mcp"},"web":{"url":"http://mcp.example.com/mcp"},"ok":{"url":"https://mcp.example.com/mcp"}}}`)
+	items, err := ParseImport(`{"mcpServers":{"lan":{"url":"http://application:8080/mcp"},"web":{"url":"http://mcp.example.com/mcp"},"ok":{"url":"https://mcp.example.com/mcp"}}}`)
 	if err != nil {
 		t.Fatal(err)
 	}

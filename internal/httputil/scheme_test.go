@@ -7,9 +7,9 @@ import (
 
 func TestPublicHost(t *testing.T) {
 	for host, want := range map[string]bool{
-		"mealie": false, "mealie:9000": false, "localhost": false, "localhost:8080": false, "127.0.0.1": false, "10.0.0.5:80": false,
+		"application": false, "application:8080": false, "localhost": false, "localhost:8080": false, "127.0.0.1": false, "10.0.0.5:80": false,
 		"[::1]:80": false, "nas.local": false, "box.lan": false, "api.corp.internal": false, "x.home.arpa": false, "foo.localhost": false,
-		"mealie.example": false, "box.test": false, "svc.cluster.local": false,
+		"application.example": false, "box.test": false, "svc.cluster.local": false,
 		"example.com": true, "api.example.com:8443": true, "Example.COM.": true, "foo.co.uk": true, "x.github.io": true, "a.dev": true, "a.app": true,
 	} {
 		if got := PublicHost(host); got != want {
@@ -20,9 +20,9 @@ func TestPublicHost(t *testing.T) {
 
 func TestCheckScheme(t *testing.T) {
 	for raw, ok := range map[string]bool{
-		"http://mealie:9000/openapi.json": true, "http://192.168.1.2": true, "http://nas.local/x": true, "http://localhost:3000": true,
-		"https://example.com": true, "https://mealie:9000": true,
-		"http://example.com": false, "http://api.example.com:8080/v1": false, "ftp://mealie": false, "mealie": false,
+		"http://application:8080/openapi.json": true, "http://192.168.1.2": true, "http://nas.local/x": true, "http://localhost:3000": true,
+		"https://example.com": true, "https://application:8080": true,
+		"http://example.com": false, "http://api.example.com:8080/v1": false, "ftp://application": false, "application": false,
 	} {
 		u, _ := url.Parse(raw)
 		if err := CheckScheme(u); (err == nil) != ok {

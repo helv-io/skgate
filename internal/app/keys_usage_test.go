@@ -206,20 +206,20 @@ func TestKeyEditFormInKeyDialog(t *testing.T) {
 	if i > strings.Index(page, "<h4>Details</h4>") || strings.Index(page[i:], "action=\"/admin/keys/revoke\"") > strings.Index(page[i:], "<h4>Details</h4>") {
 		t.Error("the editable part, with revoke and regenerate, belongs above Details")
 	}
-	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {id}, "label": {"Home Assistant"}, "rate": {"7"}, "urlkey": {"1"}})
+	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {id}, "label": {"My assistant"}, "rate": {"7"}, "urlkey": {"1"}})
 	ks, _ = a.Keys.List()
-	if k := ks[0]; k.Label != "Home Assistant" || k.RatePerMin != 7 || !k.URLKey {
+	if k := ks[0]; k.Label != "My assistant" || k.RatePerMin != 7 || !k.URLKey {
 		t.Fatalf("Save did not store all three: %+v", k)
 	}
 	if _, page = br.get("/admin/keys"); !strings.Contains(page, `<input type="checkbox" name="urlkey" value="1" checked>`) {
 		t.Error("the dialog must show the state")
 	}
-	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {id}, "label": {"Home Assistant"}})
+	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {id}, "label": {"My assistant"}})
 	if ks, _ = a.Keys.List(); ks[0].URLKey || ks[0].Limited() {
 		t.Fatalf("an unchecked box turns ?key= off and an empty rate clears the limit: %+v", ks[0])
 	}
 	br.post("/admin/keys/update", url.Values{"csrf": {csrf}, "id": {id}, "label": {"other"}, "rate": {"x"}, "urlkey": {"1"}})
-	if ks, _ = a.Keys.List(); ks[0].Label != "Home Assistant" || ks[0].URLKey {
+	if ks, _ = a.Keys.List(); ks[0].Label != "My assistant" || ks[0].URLKey {
 		t.Fatalf("a bad value must save nothing: %+v", ks[0])
 	}
 	if resp, _ := br.post("/admin/settings/query-key", url.Values{"csrf": {csrf}}); resp.StatusCode == 200 || resp.StatusCode == 303 {

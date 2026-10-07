@@ -187,7 +187,7 @@ func looksLikeAPI(in string) bool {
 	path = "/" + strings.Split(path, "?")[0]
 	switch {
 	case scheme == "":
-		return strings.Contains(rest, "/") && specLikePath(path) // mealie.lan/openapi.json
+		return strings.Contains(rest, "/") && specLikePath(path) // application.lan/openapi.json
 	case scheme == "http", specLikePath(path):
 		return true
 	}

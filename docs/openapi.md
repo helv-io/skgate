@@ -12,7 +12,7 @@ skgate itself makes the HTTP calls: there is no process to run, so it works in t
 
 | Field | Meaning |
 | --- | --- |
-| Address | The API, its description or its documentation page. `http://mealie:9000` is enough: skgate finds the description itself (see [Finding the description](#finding-the-description)). |
+| Address | The API, its description or its documentation page. `http://application:8080` is enough: skgate finds the description itself (see [Finding the description](#finding-the-description)). |
 | Or paste the description | JSON, YAML or TOML. Pasted text wins over the address. A description of more than a few MB is easier to give as an address. |
 | Key | The only credential field. Paste it as it is; skgate adds `Bearer` or whatever the API wants (see [The key](#the-key)). Empty means an open API. |
 | Advanced | Closed by default. **Send the key as** forces a way: a header name such as `X-Custom-Key` or `Authorization`, `?name` for a query parameter, `bearer`, `basic` (the key is `user:password`) or `none`. **Base URL** overrides where the calls go. |
@@ -24,7 +24,7 @@ The base URL is the server named by the description (variables replaced by their
 
 Pressing one tests the upstream first: the server must answer, and take the key. If the test fails the page stays as it is, with every field, the pasted description and the key, and a short error says why. Only a passing test stores anything.
 
-An address on the internet needs https. Plain http is accepted for names that cannot be on the internet: a single-label name such as `mealie` (a Docker service), an IP address, `localhost`, and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`.
+An address on the internet needs https. Plain http is accepted for names that cannot be on the internet: a single-label name such as `application` (a Docker service), an IP address, `localhost`, and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`.
 
 skgate decides what is on the internet with the public suffix list. The same rule applies to the address of a remote upstream, and Suggest follows it for the addresses it takes.
 

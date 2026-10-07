@@ -195,7 +195,7 @@ func TestDiscoverSameHostRedirectIsFollowed(t *testing.T) {
 }
 
 func TestDiscoverRefusesPublicHttpAndBadInput(t *testing.T) {
-	for _, in := range []string{"http://api.example.com", "", "a b", "ftp://x", "http://u:p@mealie"} {
+	for _, in := range []string{"http://api.example.com", "", "a b", "ftp://x", "http://u:p@application"} {
 		if _, err := Discover(context.Background(), in); err == nil {
 			t.Errorf("%q accepted", in)
 		}
@@ -203,11 +203,11 @@ func TestDiscoverRefusesPublicHttpAndBadInput(t *testing.T) {
 }
 
 func TestLinksAreSameHostOnly(t *testing.T) {
-	s := newSearch(context.Background(), mustURL(t, "http://mealie:9000"))
-	page := []byte(`SwaggerUIBundle({url: "https://petstore.swagger.io/v2/swagger.json"}) <redoc spec-url="/ok.json">
+	s := newSearch(context.Background(), mustURL(t, "http://application:8080"))
+	page := []byte(`SwaggerUIBundle({url: "https://other.example.com/v2/swagger.json"}) <redoc spec-url="/ok.json">
 <link rel="service-desc" href="http://other:9000/x">`)
-	got := s.links(page, mustURL(t, "http://mealie:9000/docs"))
-	if len(got) != 1 || got[0] != "http://mealie:9000/ok.json" {
+	got := s.links(page, mustURL(t, "http://application:8080/docs"))
+	if len(got) != 1 || got[0] != "http://application:8080/ok.json" {
 		t.Errorf("links: %v", got)
 	}
 }

@@ -146,10 +146,10 @@ func TestKeyCreateFormIsJustAName(t *testing.T) {
 	if strings.Contains(form, "<details open") {
 		t.Error("the limits start folded")
 	}
-	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"Home Assistant"}})
+	br.post("/admin/keys/create", url.Values{"csrf": {csrf}, "label": {"My assistant"}})
 	br.post("/admin/keys/create", url.Values{"csrf": {csrf}})
 	ks, _ := a.Keys.List()
-	if len(ks) != 2 || ks[1].Label != "Home Assistant" || ks[0].Label != "unnamed" || ks[1].Limited() || !ks[1].ExpiresAt.IsZero() {
+	if len(ks) != 2 || ks[1].Label != "My assistant" || ks[0].Label != "unnamed" || ks[1].Limited() || !ks[1].ExpiresAt.IsZero() {
 		t.Fatalf("defaults: %+v", ks)
 	}
 }

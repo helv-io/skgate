@@ -4,9 +4,9 @@ import "testing"
 
 func TestParseSourceRoutesAPIAddresses(t *testing.T) {
 	api := []string{
-		"http://mealie:9000", "http://mealie:9000/openapi.json", "mealie:9000", "localhost:3000", "192.168.1.5:8080/docs",
+		"http://application:8080", "http://application:8080/openapi.json", "application:8080", "localhost:3000", "192.168.1.5:8080/docs",
 		"http://nas.local/api", "https://api.example.com", "https://api.example.com/openapi.json", "https://example.com/swagger.yaml",
-		"mealie.lan/openapi.json", "http://10.0.0.2/swagger/v1/swagger.json", "https://mealie.example.com/api-docs",
+		"application.lan/openapi.json", "http://10.0.0.2/swagger/v1/swagger.json", "https://application.example.com/api-docs",
 	}
 	for _, in := range api {
 		s, err := ParseSource(in)
@@ -36,7 +36,7 @@ func TestParseSourceRoutesAPIAddresses(t *testing.T) {
 
 func TestAliasFor(t *testing.T) {
 	for in, want := range map[string]string{
-		"http://mealie:9000/openapi.json": "mealie", "mealie:9000": "mealie", "https://api.example.com": "example",
+		"http://application:8080/openapi.json": "application", "application:8080": "application", "https://api.example.com": "example",
 		"https://www.Foo-Bar.io/x": "foo-bar", "http://192.168.1.5:80": "api", "http://[::1]:80": "api", "http://docs.api.acme.dev": "acme",
 	} {
 		if got := AliasFor(in); got != want {

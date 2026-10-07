@@ -25,7 +25,7 @@ func newDB(t *testing.T) *store.DB {
 func TestKeyFormatHashOnlyVerifyRevoke(t *testing.T) {
 	db := newDB(t)
 	m := New(db)
-	full, k, err := m.Create("home assistant")
+	full, k, err := m.Create("my assistant")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestKeyFormatHashOnlyVerifyRevoke(t *testing.T) {
 	if !LooksLikeKey(full) {
 		t.Fatal("LooksLikeKey false for minted key")
 	}
-	if k.Prefix != full[:8] || k.Label != "home assistant" {
+	if k.Prefix != full[:8] || k.Label != "my assistant" {
 		t.Fatalf("bad metadata %+v", k)
 	}
 	// only the hash is stored: the secret must not appear in any column
