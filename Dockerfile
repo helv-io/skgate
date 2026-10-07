@@ -7,11 +7,11 @@
 #   docker build --target slim -t skgate:slim .
 #   docker build -t skgate:latest .
 
-ARG GO_VERSION=1.25
+ARG GO_VERSION=1.26
 ARG NODE_VERSION=22
 ARG UV_VERSION=0.12
 ARG DOTNET_VERSION=10.0
-ARG GO_RUNTIME_VERSION=1.25
+ARG GO_RUNTIME_VERSION=1.26
 
 FROM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
