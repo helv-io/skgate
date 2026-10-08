@@ -49,6 +49,20 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.24.2] - 2026-10-08
+
+### Added
+
+- The full image bundles Bun (bun, bunx), pnpm and Deno; managed servers can start with bunx, pnpm dlx or deno run npm:
+
+### Changed
+
+- Suggest configuration can answer with bunx, pnpm dlx or deno, detects Deno projects, and explains how to run a JSR package with deno
+
+### Fixed
+
+- Update of a bunx upstream fetches the package again instead of reusing the copy in its temporary directory
+
 ## [0.24.1] - 2026-10-07
 
 ### Changed
@@ -696,7 +710,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.24.1...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.24.2...HEAD
+[0.24.2]: https://github.com/helv-io/skgate/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/helv-io/skgate/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/helv-io/skgate/compare/v0.23.6...v0.24.0
 [0.23.6]: https://github.com/helv-io/skgate/compare/v0.23.5...v0.23.6
