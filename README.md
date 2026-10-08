@@ -60,7 +60,7 @@ services:
 
 Image tags:
 
-- `latest`: proxy + managed MCP servers (Node.js, Python, uv, .NET, Go, git)
+- `latest`: proxy + managed MCP servers. Bundles Node.js (`npx`), pnpm, Bun (`bunx`), Deno, Python (`uv`, `uvx`), Go, .NET and git.
 - `slim`: proxy only
 
 To upgrade, back up `./data`, then `docker compose pull && docker compose up -d`.
@@ -171,7 +171,7 @@ Hosted connectors use OAuth (leave client ID and secret empty). Scripts and CLIs
 
 On a RAM-constrained homelab, idle MCP servers should cost nothing.
 
-Managed servers (`npx`, `uvx`, git) are child processes of skgate.
+Managed servers (`npx`, `pnpm dlx`, `bunx`, `deno`, `uvx`, git) are child processes of skgate.
 
 By default (**Lifecycle** `on-demand`) one starts on its first request and stops after 10 minutes without requests; the next request starts it again.
 
@@ -207,7 +207,15 @@ stopped  --request-->  starting  -->  running  --10 min idle-->  stopped
 {"mcpServers": {"everything": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-everything"]}}}
 ```
 
-Served at `https://skgate.example.com/mcp/everything`. For Python servers use `"command": "uvx", "args": ["<package>"]`.
+Served at `https://skgate.example.com/mcp/everything`. The same package runs with any bundled runner:
+
+| Runner | `command` | `args` |
+| --- | --- | --- |
+| npm | `npx` | `["-y", "<package>"]` |
+| pnpm | `pnpm` | `["dlx", "<package>"]` |
+| Bun | `bunx` | `["<package>"]` |
+| Deno | `deno` | `["run", "-A", "npm:<package>"]` |
+| Python | `uvx` | `["<package>"]` |
 
 </details>
 
