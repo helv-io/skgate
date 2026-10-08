@@ -535,22 +535,33 @@ func (p *Proc) updateGit(ctx context.Context, spec Spec, old string) (string, er
 }
 
 // updateCommand clears the upstream's own package cache and restarts it. The old cache is kept
-// aside until the new start works, and put back when it does not.
+// aside until the new start works, and put back when it does not. The upstream's TMPDIR goes the
+// same way, because bunx installs the packages it runs there rather than in a cache.
 func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (string, error) {
 	cache, err := p.m.AliasCacheDir(spec.Alias)
 	if err != nil {
 		return "", err
 	}
+	base, err := p.m.AliasDir(spec.Alias)
+	if err != nil {
+		return "", err
+	}
+	tmp := filepath.Join(base, "tmp")
 	up := p.runState()
 	p.lifeMu.Lock()
 	p.stopLocked(false)
 	p.lifeMu.Unlock()
 	aside := filepath.Join(filepath.Dir(cache), ".old-"+spec.Alias)
+	tmpAside := filepath.Join(base, ".old-tmp")
 	_ = p.m.removeAll(aside)
+	_ = p.m.removeAll(tmpAside)
 	if _, e := os.Stat(cache); e == nil {
 		if err := os.Rename(cache, aside); err != nil {
 			return "", fmt.Errorf("clearing the package cache: %w", err)
 		}
+	}
+	if _, e := os.Stat(tmp); e == nil {
+		_ = os.Rename(tmp, tmpAside) // best effort: a stale TMPDIR only delays a bunx update
 	}
 	p.note("package cache cleared")
 	p.mu.Lock()
@@ -561,6 +572,7 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 	}
 	if !up {
 		_ = p.m.removeAll(aside)
+		_ = p.m.removeAll(tmpAside)
 		return "", nil
 	}
 	if err := p.startAndWait(ctx, spec); err != nil {
@@ -574,11 +586,16 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 				msg = "; restoring the package cache failed: " + e.Error()
 			}
 		}
+		if _, e := os.Stat(tmpAside); e == nil {
+			_ = p.m.removeAll(tmp)
+			_ = os.Rename(tmpAside, tmp)
+		}
 		if e := p.startAndWait(ctx, spec); e != nil {
 			return "", fmt.Errorf("%v; the previous version does not start: %v%s", err, e, msg)
 		}
 		return "", fmt.Errorf("%v; the previous version is kept%s", err, msg)
 	}
+	_ = p.m.removeAll(tmpAside)
 	_ = p.m.removeAll(aside)
 	p.mu.Lock()
 	v := p.serverVer

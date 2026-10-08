@@ -220,6 +220,8 @@ func TestUpdateCommandClearsOnlyItsOwnCacheAndRestarts(t *testing.T) {
 	cb, _ := m.AliasCacheDir("b")
 	os.WriteFile(filepath.Join(ca, "marker"), nil, 0o600)
 	os.WriteFile(filepath.Join(cb, "marker"), nil, 0o600)
+	da, _ := m.AliasDir("a")
+	os.MkdirAll(filepath.Join(da, "tmp", "bunx-1-pkg-a@latest"), 0o700) // bunx installs in TMPDIR
 	pid := a.Status().PID
 	if err := a.Update(); err != nil {
 		t.Fatal(err)
@@ -229,6 +231,12 @@ func TestUpdateCommandClearsOnlyItsOwnCacheAndRestarts(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(cb, "marker")); err != nil {
 		t.Fatal("b's cache must be untouched")
+	}
+	if _, err := os.Stat(filepath.Join(da, "tmp", "bunx-1-pkg-a@latest")); err == nil {
+		t.Fatal("a's TMPDIR must be cleared")
+	}
+	if _, err := os.Stat(filepath.Join(da, ".old-tmp")); err == nil {
+		t.Fatal("the old TMPDIR must be removed after a good start")
 	}
 	if st := a.Status(); st.State != StateRunning || st.PID == pid {
 		t.Fatalf("a must have restarted: %+v", st)
@@ -258,12 +266,17 @@ func TestUpdateCommandFailureRestoresTheCache(t *testing.T) {
 	os.MkdirAll(ca, 0o700)
 	os.WriteFile(filepath.Join(ca, "marker"), nil, 0o600)
 	initSession(t, serve(t, p).URL, nil)
+	da, _ := m.AliasDir("a")
+	os.WriteFile(filepath.Join(da, "tmp", "marker"), nil, 0o600)
 	err := p.Update()
 	if err == nil || !strings.Contains(err.Error(), "cannot resolve pkg") || !strings.Contains(err.Error(), "previous version is kept") {
 		t.Fatalf("%v", err)
 	}
 	if _, e := os.Stat(filepath.Join(ca, "marker")); e != nil {
 		t.Fatal("the old cache must be back")
+	}
+	if _, e := os.Stat(filepath.Join(da, "tmp", "marker")); e != nil {
+		t.Fatal("the old TMPDIR must be back")
 	}
 	if p.Status().State != StateRunning || !strings.Contains(upFor(t, p).Err, "cannot resolve pkg") {
 		t.Fatalf("%+v %+v", p.Status(), upFor(t, p))

@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1082,6 +1083,12 @@ func typeLabel(u mcp.Upstream) string {
 		return "managed \u00b7 npm"
 	case "uvx", "uv":
 		return "managed \u00b7 pypi"
+	}
+	if pkg, ok := managed.PackageOf(managed.Spec{Command: u.Command, Args: u.Args, Shell: u.Shell}); ok {
+		if pkg.Runner == "deno run" && slices.ContainsFunc(u.Args, func(a string) bool { return strings.HasPrefix(a, "jsr:") }) {
+			return "managed \u00b7 jsr"
+		}
+		return "managed \u00b7 npm" // bun x, deno run npm:
 	}
 	return "managed \u00b7 command"
 }

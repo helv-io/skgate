@@ -12,8 +12,8 @@ import (
 	"github.com/helv-io/skgate/internal/config"
 )
 
-// Real-runtime smoke tests: set SKGATE_E2E=1 (needs network, node/npx and uv/uvx). They run real
-// MCP servers through skgate's HTTP endpoints.
+// Real-runtime smoke tests: set SKGATE_E2E=1 (needs network, node/npx and uv/uvx; bunx, pnpm, deno and go
+// are used when installed). They run real MCP servers through skgate's HTTP endpoints.
 func e2eEnv(t *testing.T) *env {
 	if os.Getenv("SKGATE_E2E") != "1" {
 		t.Skip("set SKGATE_E2E=1 to run real npx/uvx servers")
@@ -102,6 +102,47 @@ func TestE2ENpxServerEverything(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	if _, err := os.Stat("/proc/" + itoaT(pid)); err == nil {
 		t.Fatalf("npx server pid %d survived shutdown", pid)
+	}
+}
+
+// The other bundled npm runners start the same reference server, and Update fetches it again.
+func TestE2EOtherNPMRunners(t *testing.T) {
+	for _, c := range []struct {
+		alias, cmd string
+		args       []string
+	}{
+		{"bunx", "bunx", []string{"@modelcontextprotocol/server-everything"}},
+		{"pnpm", "pnpm", []string{"dlx", "@modelcontextprotocol/server-everything"}},
+		{"deno", "deno", []string{"run", "-A", "npm:@modelcontextprotocol/server-everything"}},
+	} {
+		t.Run(c.alias, func(t *testing.T) {
+			e := e2eEnv(t)
+			if _, err := exec.LookPath(c.cmd); err != nil {
+				t.Skip(c.cmd + " is not installed")
+			}
+			if err := e.srv.Upstreams.Create(Upstream{Alias: c.alias, Kind: KindStdio, Command: c.cmd, Args: c.args,
+				Enabled: true, IncludeInMCP: true, StartupSecs: 240}); err != nil {
+				t.Fatal(err)
+			}
+			key, _, _ := e.keys.Create("t")
+			hdr := e2eSession(t, e, key, c.alias)
+			out := readBody(e.do("POST", "/mcp/"+c.alias, hdr, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"message":"hello `+c.alias+`"}}}`))
+			if !strings.Contains(out, "hello "+c.alias) {
+				t.Fatalf("echo: %s", out)
+			}
+			p := e.srv.Managed.Lookup(c.alias)
+			if u := p.UpdateInfo(); !u.HasPkg || u.Package.Name != "@modelcontextprotocol/server-everything" {
+				t.Fatalf("package not recognized: %+v", u)
+			}
+			if err := p.Update(); err != nil {
+				t.Fatalf("update: %v", err)
+			}
+			if tr := e.srv.Test(t.Context(), c.alias); !tr.OK {
+				t.Fatalf("after update: %+v", tr)
+			}
+			t.Logf("%s: echo and update ok", c.alias)
+			e.srv.ShutdownManaged()
+		})
 	}
 }
 

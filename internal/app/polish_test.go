@@ -227,7 +227,7 @@ func TestAddUpstreamHasItsOwnPage(t *testing.T) {
 }
 
 // The list says what an upstream is (Type) and how it is doing (Status) in separate columns, with one vocabulary:
-// remote, managed · git, managed · npm, managed · pypi, managed · command. The name opens the details.
+// remote, managed · git, managed · npm, managed · jsr, managed · pypi, managed · command. The name opens the details.
 func TestUpstreamListSplitsTypeAndStatus(t *testing.T) {
 	a, br, _ := managedApp(t)
 	for _, u := range []mcp.Upstream{
@@ -236,6 +236,10 @@ func TestUpstreamListSplitsTypeAndStatus(t *testing.T) {
 		{Alias: "nodepkg", Kind: mcp.KindStdio, Command: "npx", Args: []string{"-y", "thing@1.0.0"}, Enabled: true},
 		{Alias: "pypkg", Kind: mcp.KindStdio, Command: "uvx", Args: []string{"thing==1.0.0"}, Enabled: true},
 		{Alias: "prog", Kind: mcp.KindStdio, Command: "cat", Enabled: true},
+		{Alias: "denonpm", Kind: mcp.KindStdio, Command: "deno", Args: []string{"run", "-A", "npm:thing@1.0.0"}, Enabled: true},
+		{Alias: "denojsr", Kind: mcp.KindStdio, Command: "deno", Args: []string{"run", "-A", "jsr:@scope/thing"}, Enabled: true},
+		{Alias: "denofile", Kind: mcp.KindStdio, Command: "deno", Args: []string{"run", "-A", "main.ts"}, Enabled: true},
+		{Alias: "bunpkg", Kind: mcp.KindStdio, Command: "bun", Args: []string{"x", "thing"}, Enabled: true},
 	} {
 		if err := a.MCP.Upstreams.Create(u); err != nil {
 			t.Fatal(err)
@@ -254,7 +258,8 @@ func TestUpstreamListSplitsTypeAndStatus(t *testing.T) {
 		t.Fatalf("no row for %s", alias)
 		return ""
 	}
-	for alias, want := range map[string]string{"rem": "remote", "gitsrv": "managed \u00b7 git", "nodepkg": "managed \u00b7 npm", "pypkg": "managed \u00b7 pypi", "prog": "managed \u00b7 command"} {
+	for alias, want := range map[string]string{"rem": "remote", "gitsrv": "managed \u00b7 git", "nodepkg": "managed \u00b7 npm", "pypkg": "managed \u00b7 pypi", "prog": "managed \u00b7 command",
+		"denonpm": "managed \u00b7 npm", "denojsr": "managed \u00b7 jsr", "denofile": "managed \u00b7 command", "bunpkg": "managed \u00b7 npm"} {
 		r := row(alias)
 		if !strings.Contains(r, `<td class="inline" data-label="Type"><span class="chip">`+want+`</span></td>`) {
 			t.Errorf("%s: type is not %q:\n%s", alias, want, r)

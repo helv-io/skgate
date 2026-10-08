@@ -8,7 +8,7 @@ import (
 
 // Package is the package a runner command (npx, uvx, ...) fetches and runs.
 type Package struct {
-	Runner  string // npx, bunx, pnpm dlx, uvx, uv tool run, pipx run
+	Runner  string // npx, bunx, bun x, pnpm dlx, deno run, uvx, uv tool run, pipx run
 	Spec    string // as written, e.g. @scope/pkg@1.2.3 or pkg==1.2.3
 	Name    string
 	Version string // exact version when pinned, else the tag or range as written ("" when none)
@@ -23,6 +23,7 @@ var runnerFlagsWithValue = map[string]map[string]bool{
 	"uvx":    {"--from": true, "--with": true, "--with-requirements": true, "--with-editable": true, "-p": true, "--python": true, "--index": true, "--index-url": true, "--extra-index-url": true, "--default-index": true, "-i": true, "--directory": true, "--project": true, "--config-file": true, "--env-file": true, "-c": true, "--constraints": true, "--overrides": true, "--refresh-package": true, "-P": true, "--upgrade-package": true},
 	"pnpm":   {"--package": true, "-p": true},
 	"bunx":   {"-p": true, "--package": true},
+	"deno":   {"-c": true, "--config": true, "--import-map": true, "--lock": true, "--cert": true, "--location": true, "--seed": true, "-L": true, "--log-level": true},
 	"pipx":   {"--spec": true, "--python": true, "--index-url": true, "-i": true},
 	"uvtool": {"--from": true, "--with": true, "-p": true, "--python": true, "--index": true, "--index-url": true},
 }
@@ -41,6 +42,14 @@ func PackageOf(s Spec) (Package, bool) {
 		runner, kind = "npx", "npx"
 	case "bunx":
 		runner, kind = "bunx", "bunx"
+	case "bun":
+		if len(args) > 0 && args[0] == "x" {
+			runner, kind, args = "bun x", "bunx", args[1:]
+		}
+	case "deno":
+		if len(args) > 0 && args[0] == "run" {
+			runner, kind, args = "deno run", "deno", args[1:]
+		}
 	case "uvx":
 		runner, kind = "uvx", "uvx"
 	case "pnpm":
@@ -96,6 +105,14 @@ func PackageOf(s Spec) (Package, bool) {
 	spec := explicit
 	if spec == "" {
 		spec = positional
+	}
+	if kind == "deno" { // deno runs a package only by its npm: or jsr: specifier; anything else is a file
+		var ok bool
+		if spec, ok = strings.CutPrefix(spec, "npm:"); !ok {
+			if spec, ok = strings.CutPrefix(spec, "jsr:"); !ok {
+				return Package{}, false
+			}
+		}
 	}
 	if spec == "" {
 		return Package{}, false
