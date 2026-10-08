@@ -227,6 +227,29 @@ func TestGoEnv(t *testing.T) {
 	}
 }
 
+// Bun, pnpm and Deno children keep their packages in their own cache, and their quiet settings pass through.
+func TestBunPnpmDenoEnv(t *testing.T) {
+	parent := []string{"DENO_NO_UPDATE_CHECK=1", "DENO_NO_PROMPT=1", "DO_NOT_TRACK=1", "NPM_CONFIG_UPDATE_NOTIFIER=false", "DENO_DIR=/shared", "BUN_INSTALL_CACHE_DIR=/shared"}
+	got := strings.Join(BuildEnv(parent, "/h", "/t", CacheEnv("/c")), "\n")
+	for _, want := range []string{"BUN_INSTALL_CACHE_DIR=/c/bun", "DENO_DIR=/c/deno", "pnpm_config_store_dir=/c/pnpm-store", "DENO_NO_UPDATE_CHECK=1", "DENO_NO_PROMPT=1", "DO_NOT_TRACK=1", "NPM_CONFIG_UPDATE_NOTIFIER=false"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s in\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "/shared") {
+		t.Error("a shared cache leaked into the child")
+	}
+	offered := map[string]bool{}
+	for _, c := range commonCommands {
+		offered[c.Name] = true
+	}
+	for _, name := range []string{"bunx", "bun", "pnpm", "deno"} {
+		if !offered[name] {
+			t.Errorf("%s is not offered as a command", name)
+		}
+	}
+}
+
 // An empty value is not a value: the variable stays unset so the program's own default applies.
 func TestBuildEnvSkipsEmptyValues(t *testing.T) {
 	env := BuildEnv([]string{"LANG=en_US.UTF-8"}, "/h", "/t", []KV{{"UNSET_ME", ""}, {"LANG", ""}, {"KEPT", "v"}})

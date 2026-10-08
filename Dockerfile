@@ -2,7 +2,8 @@
 #
 # Targets:
 #   slim  proxy only (static binary on distroless); managed upstreams are unavailable.
-#   full  slim + managed runtimes: Node.js (npm, npx), Python 3 (pip, venv), uv/uvx, .NET 10 SDK, Go, git, tini.
+#   full  slim + managed runtimes: Node.js (npm, npx), pnpm, Bun (bun, bunx), Deno, Python 3 (pip, venv), uv/uvx,
+#         .NET 10 SDK, Go, git, tini.
 # The last stage is the default target, so a plain `docker build .` produces `full`.
 #   docker build --target slim -t skgate:slim .
 #   docker build -t skgate:latest .
@@ -12,6 +13,9 @@ ARG NODE_VERSION=22
 ARG UV_VERSION=0.12
 ARG DOTNET_VERSION=10.0
 ARG GO_RUNTIME_VERSION=1.26
+ARG BUN_VERSION=1.4
+ARG DENO_VERSION=2.9.7
+ARG PNPM_VERSION=12
 
 FROM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
@@ -49,6 +53,10 @@ FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS dotnet
 FROM golang:${GO_RUNTIME_VERSION}-bookworm AS gotool
 RUN rm -rf /usr/local/go/doc /usr/local/go/test /usr/local/go/misc /usr/local/go/api
 
+FROM oven/bun:${BUN_VERSION}-debian AS bun
+
+FROM denoland/deno:bin-${DENO_VERSION} AS deno
+
 FROM node:${NODE_VERSION}-bookworm-slim AS full
 # The official MCP registry checks this label against the name in server.json.
 LABEL io.modelcontextprotocol.server.name="io.github.helv-io/skgate" \
@@ -62,6 +70,14 @@ COPY --from=dotnet /usr/share/dotnet /usr/share/dotnet
 RUN ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet
 COPY --from=gotool /usr/local/go /usr/local/go
 RUN ln -s /usr/local/go/bin/go /usr/local/bin/go
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=deno /deno /usr/local/bin/deno
+# pnpm from npm, not corepack: the corepack shim would fetch pnpm into each child's home on its first run.
+ARG PNPM_VERSION
+RUN ln -s bun /usr/local/bin/bunx \
+ && npm install -g --no-fund --no-audit --no-update-notifier pnpm@${PNPM_VERSION} \
+ && rm -rf /root/.npm /root/.cache /tmp/* \
+ && bun --version && deno --version && pnpm --version
 COPY --from=build /out/skgate-full /skgate
 COPY --from=build --chown=1000:1000 /out/data /data
 # Managed children inherit only an allow list of these (see README). Package caches live on the
@@ -70,6 +86,12 @@ ENV DB_PATH=/data/skgate.db LISTEN_ADDR=:8080 \
     MANAGED_DIR=/data/managed \
     XDG_CACHE_HOME=/data/cache \
     NPM_CONFIG_CACHE=/data/cache/npm \
+    NPM_CONFIG_UPDATE_NOTIFIER=false \
+    BUN_INSTALL_CACHE_DIR=/data/cache/bun \
+    DENO_DIR=/data/cache/deno \
+    DENO_NO_UPDATE_CHECK=1 \
+    DENO_NO_PROMPT=1 \
+    DO_NOT_TRACK=1 \
     UV_CACHE_DIR=/data/cache/uv \
     UV_LINK_MODE=copy \
     PIP_CACHE_DIR=/data/cache/pip \

@@ -13,7 +13,7 @@ import (
 var inheritKeys = []string{
 	"PATH", "LANG", "LC_ALL", "LC_CTYPE", "TZ",
 	"SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
-	"NPM_CONFIG_CACHE", "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR", "UV_TOOL_DIR", "XDG_CACHE_HOME", "PIP_CACHE_DIR",
+	"NPM_CONFIG_CACHE", "NPM_CONFIG_UPDATE_NOTIFIER", "BUN_INSTALL_CACHE_DIR", "DENO_DIR", "DENO_NO_UPDATE_CHECK", "DENO_NO_PROMPT", "DO_NOT_TRACK", "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR", "UV_TOOL_DIR", "XDG_CACHE_HOME", "PIP_CACHE_DIR",
 	"DOTNET_ROOT", "DOTNET_CLI_TELEMETRY_OPTOUT", "DOTNET_NOLOGO", "DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "DOTNET_GENERATE_ASPNET_CERTIFICATE", "NUGET_PACKAGES",
 	"GOROOT", "GOTOOLCHAIN", "GOPROXY", "GOSUMDB", "CGO_ENABLED",
 	"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
@@ -23,6 +23,9 @@ var inheritKeys = []string{
 func CacheEnv(cacheDir string) []KV {
 	return []KV{
 		{"NPM_CONFIG_CACHE", filepath.Join(cacheDir, "npm")},
+		{"BUN_INSTALL_CACHE_DIR", filepath.Join(cacheDir, "bun")},
+		{"pnpm_config_store_dir", filepath.Join(cacheDir, "pnpm-store")}, // pnpm reads its settings from lowercase pnpm_config_*
+		{"DENO_DIR", filepath.Join(cacheDir, "deno")},
 		{"UV_CACHE_DIR", filepath.Join(cacheDir, "uv")},
 		{"PIP_CACHE_DIR", filepath.Join(cacheDir, "pip")},
 		{"XDG_CACHE_HOME", filepath.Join(cacheDir, "xdg")},
