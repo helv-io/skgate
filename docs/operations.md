@@ -8,7 +8,7 @@ Image: `ghcr.io/helv-io/skgate`.
 
 | Tag | Contents |
 | --- | --- |
-| `latest` | Full: proxy + managed upstreams. Adds Node.js (npm/npx), Python 3 (pip), uv/uvx, the .NET SDK (`dotnet`), Go, git and tini as PID 1. |
+| `latest` | Full: proxy + managed upstreams. Adds Node.js (`npm`, `npx`), pnpm, Bun (`bun`, `bunx`), Deno, Python 3 (`pip`), `uv`/`uvx`, the .NET SDK (`dotnet`), Go, git and tini as PID 1. |
 | `slim` | Proxy only: MCP and provider proxying. No runtimes; managed upstreams are unavailable. |
 
 Release tags add versioned names: `X.Y.Z` and `vX.Y.Z` (full), `X.Y.Z-slim` and `vX.Y.Z-slim` (slim). Each release also gets `<sha12>` and `<sha12>-slim` (the 12-character commit SHA).

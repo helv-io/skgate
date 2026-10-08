@@ -84,10 +84,10 @@ The manual fields (command, arguments, environment, install, timeouts) are alway
 
 | Source | Result |
 | --- | --- |
-| Git URL (GitHub, GitLab, Gitea/Forgejo, Bitbucket; `/tree/<ref>/<dir>` accepted) | Git upstream. Node, Python, .NET (`dotnet`) and Go (`go`) repositories are detected. |
-| npm package (`pkg`, `@scope/pkg@1.2.3`, `npm:pkg`, npmjs.com URL) | Runs with `npx`. |
+| Git URL (GitHub, GitLab, Gitea/Forgejo, Bitbucket; `/tree/<ref>/<dir>` accepted) | Git upstream. Node, Deno (`deno.json`), Python, .NET (`dotnet`) and Go (`go`) repositories are detected. |
+| npm package (`pkg`, `@scope/pkg@1.2.3`, `npm:pkg`, npmjs.com URL) | Runs with `npx`, or with `bunx`, `pnpm dlx` or `deno run npm:` when its README says so. |
 | PyPI package (`pkg==1.2.3`, `pypi:pkg`, pypi.org URL) | Runs with `uvx`. |
-| crates.io, Go modules, Docker, NuGet, RubyGems, Maven, JSR/Deno | Refused with a message: the image has no `cargo`, `docker`, `gem`, `mvn` or `deno`, and NuGet packages and Go module addresses are not run directly (point at the git repository instead). |
+| crates.io, Go modules, Docker, NuGet, RubyGems, Maven, JSR/Deno | Refused with a message: the image has no `cargo`, `docker`, `gem` or `mvn`, and NuGet packages, Go module addresses and JSR packages are not read directly (point at the git repository instead, or run a JSR package by hand with `deno` and `run -A jsr:<package>`). |
 
 An address of a REST API typed into the source field (`http://application:8080`, `application:8080`, a link to an `openapi.json` or a documentation page) is not a source to suggest for. Suggest looks for its OpenAPI description, with no helper model and even when none is set, and turns the form into an OpenAPI upstream with the address and an alias filled in. See [Finding the description](openapi.md#finding-the-description).
 
@@ -105,7 +105,7 @@ How Suggest configuration works:
 
 | Field | Notes |
 | --- | --- |
-| Command | Required. A dropdown of the commands found on `PATH` at runtime (`npx`, `bunx`, `pnpm`, `npm`, `node`, `deno`, `uvx`, `uv`, `pipx`, `python3`, `python`, `dotnet`, `go`, `git`, `docker`, `sh`, `bash`; only those installed) or **Custom path…** for any other name or absolute path. Stored commands not in the list open as Custom. Executed directly (no shell). |
+| Command | Required. A dropdown of the commands found on `PATH` at runtime (`npx`, `bunx`, `pnpm`, `npm`, `node`, `bun`, `deno`, `uvx`, `uv`, `pipx`, `python3`, `python`, `dotnet`, `go`, `git`, `docker`, `sh`, `bash`; only those installed) or **Custom path…** for any other name or absolute path. Stored commands not in the list open as Custom. Executed directly (no shell). |
 | Args | One per line. |
 | Env | Name/value rows (up to 64), encrypted at rest. Secret values (keys, tokens, passwords) are masked; URLs, hosts and the like show in clear. A variable with an empty value is not set, so the server keeps its own default. |
 | Shell mode | Opt-in. Runs `sh -c` on the command line. Off by default. |
@@ -121,6 +121,9 @@ Env and header lists start with one row; **Add row** appends rows, **Delete** re
 
 ```
 # Command: npx            Args: -y, @modelcontextprotocol/server-everything
+# Command: pnpm           Args: dlx, @modelcontextprotocol/server-everything
+# Command: bunx           Args: @modelcontextprotocol/server-everything
+# Command: deno           Args: run, -A, npm:@modelcontextprotocol/server-everything
 # Command: uvx            Args: mcp-server-time
 ```
 
@@ -179,9 +182,9 @@ The field checks the JSON while you type and the **Import** button waits until i
 ### Updates
 
 - **Git.** skgate records the installed commit and shows it (short SHA and ref) on the upstream list and the process page. Every 30 minutes, and on **Check**, it asks the remote where the ref points (`git ls-remote`, no clone; same token handling as the other git steps). A branch or default ref that moved shows **update available** and emphasizes **Update**, which stays usable at any time. Tags and commit IDs are shown as **pinned** and are never "ahead".
-- **Command.** **Update** clears that upstream's package cache and restarts it, so `npx` and `uvx` resolve the package again. Caches are per upstream, in `<db dir>/cache/managed/<alias>`; clearing one never touches another. An exact version (`pkg@1.2.3`, `pkg==1.2.3`) is shown as **pinned** and stays that version.
+- **Command.** **Update** clears that upstream's package cache and its `TMPDIR` (where `bunx` installs) and restarts it, so the runner resolves the package again. Caches are per upstream, in `<db dir>/cache/managed/<alias>`; clearing one never touches another. An exact version (`pkg@1.2.3`, `pkg==1.2.3`) is shown as **pinned** and stays that version.
 - **Rollback.** An update fetches while the old version keeps running. If the fetch, install or start fails, the previous commit (or package cache) is restored and restarted, and the error is shown on the process page and logged. Updating a stopped upstream does not start it.
-- **Auto-update** is off by default. Choose an interval (every 15 minutes to weekly) in the upstream form, or set `autoUpdateSeconds` (at least 300) in import JSON. It applies to git branches and default refs that moved, and to unpinned packages run by `npx`, `bunx`, `pnpm dlx`, `uvx`, `uv tool run` or `pipx run`. It never touches tags, commit IDs, pinned versions or other commands. Each update is logged as `managed[alias]: update auto old=<version> new=<version>`; manual ones as `update old=... new=...`; failures as `update failed: ...`.
+- **Auto-update** is off by default. Choose an interval (every 15 minutes to weekly) in the upstream form, or set `autoUpdateSeconds` (at least 300) in import JSON. It applies to git branches and default refs that moved, and to unpinned packages run by `npx`, `bunx`, `bun x`, `pnpm dlx`, `deno run npm:` or `jsr:`, `uvx`, `uv tool run` or `pipx run`. It never touches tags, commit IDs, pinned versions or other commands. Each update is logged as `managed[alias]: update auto old=<version> new=<version>`; manual ones as `update old=... new=...`; failures as `update failed: ...`.
 - **OpenAPI.** Manual only: **Update** on the tools page reads the description again, shows what changed and waits for your confirmation. See [Update from the address](openapi.md#update-from-the-address).
 - **Safety.** An enabled auto-update runs newly published third-party code without review, with the upstream's environment and secrets. Pin a version or use a tag where that is not acceptable.
 
@@ -210,10 +213,10 @@ Replies are JSON, or an SSE stream when the client asks for progress or supports
 /data/managed/<alias>/repo  clone (git)
 /data/managed/<alias>/home  HOME of the child
 /data/managed/<alias>/tmp   TMPDIR of the child
-/data/cache/managed/<alias>  package caches (npm, uv, pip, xdg, nuget, dotnet, go), one directory per upstream
+/data/cache/managed/<alias>  package caches (npm, bun, pnpm-store, deno, uv, pip, xdg, nuget, dotnet, go), one directory per upstream
 ```
 
-In the full image each child gets the cache variables of its package managers (npm, uv, pip, XDG, NuGet, .NET, Go) under its own cache directory (the image sets shared defaults for tools run by hand), so the rest of the filesystem can be read-only (mount `/data` writable).
+In the full image each child gets the cache variables of its package managers (npm, Bun, pnpm, Deno, uv, pip, XDG, NuGet, .NET, Go) under its own cache directory (the image sets shared defaults for tools run by hand), so the rest of the filesystem can be read-only (mount `/data` writable).
 
 Deleting or disabling an upstream stops its process; its directory under `MANAGED_DIR` is left in place.
 
