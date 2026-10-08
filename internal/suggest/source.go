@@ -330,6 +330,9 @@ func (s Source) UnsupportedMessage(runners []string) string {
 	if s.Ecosystem == "Go modules" { // Go can build a repository, but a module path is not run directly
 		return "A Go module address is not run directly. Give the git repository of the module instead."
 	}
+	if s.Needs == "deno" && contains(runners, "deno") { // deno runs it, but Suggest reads no JSR or deno.land page
+		return "A JSR or deno.land package is not read directly. Give its git repository, or set the command to deno with the args run -A jsr:" + s.Name + "."
+	}
 	have := ""
 	if len(runners) > 0 {
 		have = " (available runners: " + strings.Join(runners, ", ") + ")"

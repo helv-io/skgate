@@ -244,7 +244,7 @@ func (f *Fetcher) fetchPyPI(ctx context.Context, s Source) (Context, error) {
 }
 
 var readmeNames = []string{"README.md", "readme.md", "README.rst", "README.txt", "README"}
-var manifestNames = []string{"package.json", "pyproject.toml", "server.json", "smithery.yaml", "requirements.txt", "Cargo.toml", "go.mod", "Dockerfile"}
+var manifestNames = []string{"package.json", "deno.json", "pyproject.toml", "server.json", "smithery.yaml", "requirements.txt", "Cargo.toml", "go.mod", "Dockerfile"}
 
 // forge describes how to read raw files from a git host.
 type forge struct {

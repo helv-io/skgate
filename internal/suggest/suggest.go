@@ -21,6 +21,7 @@ Rules:
 - Pick the stdio transport. Use an HTTP-mode server only if the source offers no stdio mode; then set transport to "http" and say so in warnings.
 - command must be one of the allowed commands and a bare program name. args is a list of single arguments, one per item, no shell syntax.
 - Pin the version when the documents give one (npx pkg@1.2.3, uvx pkg==1.2.3). Do not invent versions.
+- An npm package runs with npx -y PKG unless the documents name another runner: bunx PKG, pnpm with args dlx PKG, or deno with args run -A npm:PKG.
 - List every environment variable the documents say the server requires or commonly uses. Give each a name, a short description, secret and required. Leave value an empty string: never put a real secret, example key or sample value in it.
 - secret is true for API keys, tokens, passwords, client secrets and other credentials. It is false for URLs, hosts, ports, paths, flags, modes and other settings.
 - required is true when the documents say the server cannot work without the variable, false when it is optional or has a default.
@@ -28,6 +29,7 @@ Rules:
 - Do not invent environment variables, flags, commands or package names that the documents do not support. If something is unknown, leave it out and add a warning.
 - install is a shell command to run before start, or an empty string. Use it only when the documents require a build or dependency step for a git source.
 - A .NET project (a .csproj file) uses the command dotnet when it is allowed. Build once in install (dotnet build PATH/Project.csproj -c Release) and start with args run --no-build -c Release --project PATH/Project.csproj -- followed by the stdio flag the documents name (usually --stdio). Use a startup_secs of at least 120.
+- A Deno project (a deno.json file) uses the command deno when it is allowed. Start with args run -A followed by the entry file the documents name (often main.ts or mod.ts).
 - A Go module (a go.mod file) uses the command go when it is allowed. Compile once in install (go build ./...) and start with args run PACKAGE (for example run . or run ./cmd/NAME) followed by the stdio flag the documents name, if any. Use a startup_secs of at least 120.
 - startup_secs is how long the first start may take (10 to 600).
 - alias is a short lowercase name using a-z, 0-9 and dashes.
@@ -152,8 +154,7 @@ func (s *Service) progress(e Event) {
 	}
 }
 
-var languages = map[string]string{"package.json": "Node.js", "pyproject.toml": "Python", "requirements.txt": "Python",
-	"Cargo.toml": "Rust", "go.mod": "Go"}
+var languages = map[string]string{"deno.json": "Deno", "package.json": "Node.js", "pyproject.toml": "Python", "requirements.txt": "Python", "Cargo.toml": "Rust", "go.mod": "Go"}
 
 // info summarizes a fetched Context.
 func (c Context) info() SourceInfo {
@@ -642,22 +643,22 @@ var specFlags = map[string]bool{"-p": true, "--package": true, "--from": true, "
 // checkPackage makes sure the runner arguments name the requested package and pins a known version.
 func checkPackage(r *Result, doc Context) error {
 	want := strings.ToLower(doc.Name)
-	if !contains([]string{"npx", "pnpm", "bunx", "npm", "uvx", "uv", "pipx"}, r.Command) {
-		return fmt.Errorf("a %s package needs a package runner (npx or uvx), not %s", doc.Kind, r.Command)
+	if !contains([]string{"npx", "pnpm", "bunx", "bun", "deno", "npm", "uvx", "uv", "pipx"}, r.Command) {
+		return fmt.Errorf("a %s package needs a package runner such as npx or uvx, not %s", doc.Kind, r.Command)
 	}
 	for i := 0; i < len(r.Args); i++ {
 		a := r.Args[i]
 		if strings.HasPrefix(a, "-") {
 			if specFlags[a] && i+1 < len(r.Args) {
 				i++
-				if name, _, _ := splitSpec(r.Args[i]); strings.ToLower(name) == want {
+				if name, _, _ := splitSpec(r.Args[i]); bareName(name) == want {
 					r.Args[i] = pin(r.Args[i], doc)
 					return nil
 				}
 			}
 			continue
 		}
-		if name, _, _ := splitSpec(a); strings.ToLower(name) == want {
+		if name, _, _ := splitSpec(a); bareName(name) == want {
 			r.Args[i] = pin(a, doc)
 			if pin(a, doc) != a {
 				r.Warnings = append(r.Warnings, "pinned "+doc.Name+" to "+doc.Version)
@@ -666,6 +667,15 @@ func checkPackage(r *Result, doc Context) error {
 		}
 	}
 	return fmt.Errorf("the arguments do not name the package %s", doc.Name)
+}
+
+// bareName is a package name without the npm: or jsr: specifier deno puts before it, lowercased.
+func bareName(name string) string {
+	name = strings.ToLower(name)
+	for _, p := range []string{"npm:", "jsr:"} {
+		name = strings.TrimPrefix(name, p)
+	}
+	return name
 }
 
 func splitSpec(a string) (name, sep, ver string) {

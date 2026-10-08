@@ -72,6 +72,13 @@ func TestParseSource(t *testing.T) {
 	if m := s.UnsupportedMessage([]string{"npx", "uvx"}); !strings.Contains(m, "cargo") || !strings.Contains(m, "npx, uvx") || !strings.Contains(m, "npm or PyPI") {
 		t.Fatalf("message: %s", m)
 	}
+	s, _ = ParseSource("jsr:@scope/srv")
+	if m := s.UnsupportedMessage([]string{"npx", "deno"}); !strings.Contains(m, "run -A jsr:@scope/srv") || strings.Contains(m, "does not include") {
+		t.Fatalf("with deno: %s", m)
+	}
+	if m := s.UnsupportedMessage([]string{"npx"}); !strings.Contains(m, "does not include") {
+		t.Fatalf("without deno: %s", m)
+	}
 }
 
 // rewrite sends every request to the test server, recording the original URL and headers.
@@ -331,6 +338,32 @@ func TestInvalidModelOutputIsRejected(t *testing.T) {
 		if r, err := Validate(in, src, doc, runners); err == nil {
 			t.Errorf("%s accepted: %+v", name, r)
 		}
+	}
+}
+
+// Bun, pnpm and Deno run npm packages too; the package is found and pinned behind deno's npm: specifier.
+func TestOtherNPMRunnersAreAccepted(t *testing.T) {
+	src, _ := ParseSource("mcp-thing")
+	doc := Context{Kind: KindNPM, Name: "mcp-thing", Version: "3.1.0", Files: []File{{"README", "Set THING_KEY"}}}
+	all := append([]string{"bunx", "bun", "pnpm", "deno"}, runners...)
+	for cmd, c := range map[string]struct{ args, want string }{
+		"bunx": {`"mcp-thing"`, "mcp-thing@3.1.0"},
+		"bun":  {`"x","mcp-thing"`, "x mcp-thing@3.1.0"},
+		"pnpm": {`"dlx","mcp-thing"`, "dlx mcp-thing@3.1.0"},
+		"deno": {`"run","-A","npm:mcp-thing"`, "run -A npm:mcp-thing@3.1.0"},
+	} {
+		in := strings.Replace(strings.Replace(goodReply(), `"command":"npx"`, `"command":"`+cmd+`"`, 1), `"-y","mcp-thing"`, c.args, 1)
+		r, err := Validate(in, src, doc, all)
+		if err != nil {
+			t.Errorf("%s: %v", cmd, err)
+			continue
+		}
+		if got := strings.Join(r.Args, " "); !strings.HasSuffix(got, c.want) {
+			t.Errorf("%s: args %q, want %q", cmd, got, c.want)
+		}
+	}
+	if !strings.Contains(SystemPrompt, "run -A npm:PKG") || !strings.Contains(SystemPrompt, "deno.json") {
+		t.Error("the prompt does not say how deno runs packages and projects")
 	}
 }
 
