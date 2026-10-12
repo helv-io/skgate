@@ -49,6 +49,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.25.2] - 2026-10-12
+
+### Changed
+
+- Maintenance only
+
 ## [0.25.1] - 2026-10-12
 
 ### Changed
@@ -723,7 +729,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.25.1...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.25.2...HEAD
+[0.25.2]: https://github.com/helv-io/skgate/compare/v0.25.1...v0.25.2
 [0.25.1]: https://github.com/helv-io/skgate/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/helv-io/skgate/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/helv-io/skgate/compare/v0.24.1...v0.24.2
