@@ -263,10 +263,7 @@ func (p *Proc) start(h startHint, explicit bool) error {
 	p.state, p.phase = StateStarting, ""
 	p.notifyLocked()
 	p.mu.Unlock()
-	go func() {
-		defer p.m.release()
-		p.supervise(ctx, sup.done, h)
-	}()
+	go p.supervise(ctx, sup.done, h)
 	return nil
 }
 
@@ -392,7 +389,9 @@ func (p *Proc) backoff(n int) time.Duration {
 type fatalError struct{ error }
 
 func (p *Proc) supervise(ctx context.Context, done chan struct{}, h startHint) {
+	// The slot is free before done closes, so a Stop that returned has given it back.
 	defer close(done)
+	defer p.m.release()
 	for {
 		err := p.runOnce(ctx, h)
 		if ctx.Err() != nil {
