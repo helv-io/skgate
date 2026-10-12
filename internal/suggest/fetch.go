@@ -254,6 +254,9 @@ type forge struct {
 	url     func(path string) string
 	headers map[string]string
 	list    func(dir string) string // directory listing, to find .NET projects
+	// whole is the whole-tree listing of the forge (one request, or a few pages), nil when it has none. page counts
+	// from 1; the answer is parsed by parseWhole.
+	whole func(page int) string
 }
 
 func (f *Fetcher) forgeFor(s Source, token string) forge {
@@ -277,7 +280,13 @@ func (f *Fetcher) forgeFor(s Source, token string) forge {
 		contents := func(p string) string {
 			return f.GitHubAPI + "/repos/" + s.Path + "/contents/" + esc(full(p)) + "?ref=" + url.QueryEscape(ref)
 		}
-		return forge{url: contents, headers: h, list: func(d string) string { return strings.Replace(contents(d), "/contents/?", "/contents?", 1) }}
+		return forge{url: contents, headers: h, list: func(d string) string { return strings.Replace(contents(d), "/contents/?", "/contents?", 1) },
+			whole: func(page int) string {
+				if page > 1 {
+					return ""
+				}
+				return f.GitHubAPI + "/repos/" + s.Path + "/git/trees/" + esc(ref) + "?recursive=1"
+			}}
 	case strings.Contains(s.Host, "gitlab"):
 		h := map[string]string{}
 		if token != "" {
@@ -287,6 +296,8 @@ func (f *Fetcher) forgeFor(s Source, token string) forge {
 			return "https://" + s.Host + "/api/v4/projects/" + url.PathEscape(s.Path) + "/repository/files/" + url.PathEscape(full(p)) + "/raw?ref=" + url.QueryEscape(ref)
 		}, headers: h, list: func(d string) string {
 			return "https://" + s.Host + "/api/v4/projects/" + url.PathEscape(s.Path) + "/repository/tree?path=" + url.QueryEscape(strings.TrimSuffix(full(d), "/")) + "&ref=" + url.QueryEscape(ref)
+		}, whole: func(page int) string {
+			return "https://" + s.Host + "/api/v4/projects/" + url.PathEscape(s.Path) + "/repository/tree?recursive=true&per_page=100&page=" + strconv.Itoa(page) + "&ref=" + url.QueryEscape(ref)
 		}}
 	case s.Host == "bitbucket.org":
 		h := map[string]string{}
@@ -306,6 +317,8 @@ func (f *Fetcher) forgeFor(s Source, token string) forge {
 		return "https://" + s.Host + "/api/v1/repos/" + s.Path + "/raw/" + esc(full(p)) + "?ref=" + url.QueryEscape(ref)
 	}, headers: h, list: func(d string) string {
 		return "https://" + s.Host + "/api/v1/repos/" + s.Path + "/contents/" + esc(full(d)) + "?ref=" + url.QueryEscape(ref)
+	}, whole: func(page int) string {
+		return "https://" + s.Host + "/api/v1/repos/" + s.Path + "/git/trees/" + esc(ref) + "?recursive=true&per_page=1000&page=" + strconv.Itoa(page)
 	}}
 }
 
@@ -373,7 +386,7 @@ func (f *Fetcher) fetchGitAs(ctx context.Context, s Source, token string, shared
 	}
 	if reached {
 		f.dotnetProjects(ctx, fg, &c, b)
-		c.Tree = f.tree(ctx, fg)
+		c.Tree = f.tree(ctx, fg, s.Subdir)
 		c.read = func(ctx context.Context, name string, max int) (string, bool) {
 			st, body, err := f.get(ctx, fg.url(name), fg.headers, max)
 			if err != nil || st != 200 || bytes.IndexByte(body, 0) >= 0 {
@@ -573,12 +586,15 @@ func Readable(name string) bool {
 }
 
 // tree lists the repository files, breadth first, within the safety limits.
-func (f *Fetcher) tree(ctx context.Context, fg forge) []string {
+func (f *Fetcher) tree(ctx context.Context, fg forge, subdir string) []string {
+	ctx, cancel := context.WithTimeout(ctx, treeTime)
+	defer cancel()
+	if out, ok := f.wholeTree(ctx, fg, subdir); ok {
+		return out
+	}
 	if fg.list == nil {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, treeTime)
-	defer cancel()
 	var out []string
 	queue, lists := []string{""}, 0
 	for len(queue) > 0 && lists < treeLists && len(out) < treeEntries && ctx.Err() == nil {
@@ -646,4 +662,110 @@ func dirEntriesAll(b []byte) (files, dirs []string) {
 		}
 	}
 	return
+}
+
+// wholePages bounds the pages of a paginated whole-tree listing (GitLab answers 100 entries a page).
+const wholePages = treeEntries / 100
+
+// wholeTree lists the repository in one request (GitHub, Gitea) or a few pages (GitLab), relative to subdir, with
+// the same folders skipped as the walk. ok is false when the forge has no such listing, refuses it, or cut it short
+// (GitHub's truncated), so the caller walks folder by folder instead.
+func (f *Fetcher) wholeTree(ctx context.Context, fg forge, subdir string) (out []string, ok bool) {
+	if fg.whole == nil {
+		return nil, false
+	}
+	prefix := strings.Trim(subdir, "/")
+	if prefix != "" {
+		prefix += "/"
+	}
+	for page := 1; page <= wholePages; page++ {
+		u := fg.whole(page)
+		if u == "" {
+			break
+		}
+		st, body, h, err := f.getH(ctx, u, fg.headers, 8<<20)
+		if err != nil || st != 200 {
+			return nil, false
+		}
+		entries, truncated, paged, err := parseWhole(body)
+		if err != nil || (truncated && !paged) {
+			return nil, false
+		}
+		for _, e := range entries {
+			if !strings.HasPrefix(e.path, prefix) || e.path == strings.TrimSuffix(prefix, "/") {
+				continue
+			}
+			rel := strings.TrimPrefix(e.path, prefix)
+			if skippedPath(rel) {
+				continue
+			}
+			if e.dir {
+				rel += "/"
+			}
+			out = append(out, rel)
+			if len(out) >= treeEntries {
+				return out, true
+			}
+		}
+		more := false
+		switch {
+		case paged: // Gitea: truncated means another page
+			more = truncated
+		case h.Get("X-Next-Page") != "": // GitLab
+			more = true
+		}
+		if !more {
+			return out, true
+		}
+	}
+	return out, true
+}
+
+type wholeEntry struct {
+	path string
+	dir  bool
+}
+
+// parseWhole reads a whole-tree answer: GitHub and Gitea send {tree:[{path,type}],truncated} (Gitea adds page),
+// GitLab a bare array of {path,type}. paged tells that truncated means "more pages" (Gitea), not "cut off" (GitHub).
+func parseWhole(b []byte) (entries []wholeEntry, truncated, paged bool, err error) {
+	type item struct {
+		Path string `json:"path"`
+		Type string `json:"type"`
+	}
+	add := func(items []item) {
+		for _, it := range items {
+			switch it.Type {
+			case "blob":
+				entries = append(entries, wholeEntry{it.Path, false})
+			case "tree":
+				entries = append(entries, wholeEntry{it.Path, true})
+			}
+		}
+	}
+	var arr []item
+	if json.Unmarshal(b, &arr) == nil {
+		add(arr)
+		return entries, false, false, nil
+	}
+	var obj struct {
+		Tree      []item `json:"tree"`
+		Truncated bool   `json:"truncated"`
+		Page      int    `json:"page"`
+	}
+	if err := json.Unmarshal(b, &obj); err != nil {
+		return nil, false, false, err
+	}
+	add(obj.Tree)
+	return entries, obj.Truncated, obj.Page > 0, nil
+}
+
+// skippedPath tells whether a path lies in a folder the tree never lists (dependencies, build output, VCS data).
+func skippedPath(p string) bool {
+	for _, seg := range strings.Split(p, "/") {
+		if treeSkip[strings.ToLower(seg)] {
+			return true
+		}
+	}
+	return false
 }
