@@ -23,7 +23,18 @@ func deadAddr(t *testing.T) string {
 	return addr
 }
 
+// noDNS makes every name lookup fail at once, as an unknown name does, so the DNS cases need no network and no
+// resolver: on a host whose resolver is slow or absent, a real lookup of a .invalid name can time out instead.
+func noDNS(t *testing.T) {
+	old := net.DefaultResolver
+	net.DefaultResolver = &net.Resolver{PreferGo: true, Dial: func(context.Context, string, string) (net.Conn, error) {
+		return nil, errors.New("no resolver in tests")
+	}}
+	t.Cleanup(func() { net.DefaultResolver = old })
+}
+
 func TestNetFailNamesTheKindAndNoAddress(t *testing.T) {
+	noDNS(t)
 	addr := deadAddr(t)
 	ctx := context.Background()
 	req, _ := http.NewRequestWithContext(ctx, "POST", "http://"+addr+"/mcp", nil)
@@ -62,6 +73,7 @@ func TestNetFailNamesTheKindAndNoAddress(t *testing.T) {
 }
 
 func TestTestSuggestsThePortThatAnswersMCP(t *testing.T) {
+	noDNS(t)
 	e := newEnv(t, nil)
 	f := newAuthMCP(t, "none", false)
 	u, _ := url.Parse(f.URL)

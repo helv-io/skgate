@@ -72,10 +72,10 @@ async function run(lines, hang, reject){
     ok(form.elements.alias.value==="","the alias is empty");
     type("   "); ok(b.disabled,"blanks are not a source");
     type("npm:thing"); ok(!b.disabled&&!b.title,"enabled once there is a source, with the alias still empty");
-    ok(!shown('[data-show-for="git"]')&&!shown('[data-hide-for="package"]'),"a package hides the token, the ref and the install command");
+    ok(!shown('[data-show-for="git"]')&&!shown('[data-hide-for="package"]'),"a package hides the ref and the install command");
     type("https://github.com/acme/thing");
-    ok(shown('[data-show-for="git"]')&&shown('[data-hide-for="package"]'),"a repository shows the token, the ref and the install command");
-    ok([...form.querySelectorAll('[data-show-for="git"]')].every(e=>!e.hidden)&&form.querySelectorAll('[data-show-for="git"]').length>=2,"token and ref are both shown");
+    ok(shown('[data-show-for="git"]')&&shown('[data-hide-for="package"]'),"a repository shows the ref and the install command");
+    ok([...form.querySelectorAll('[data-show-for="git"]')].every(e=>!e.hidden)&&form.querySelectorAll('[data-show-for="git"]').length>=1,"the ref is shown");
     type("@scope/pkg@1.2.3"); ok(!shown('[data-show-for="git"]'),"a scoped package is a package");
     type("git@github.com:acme/thing.git"); ok(shown('[data-show-for="git"]'),"an ssh address is a repository");
     type("github.com/acme/thing"); ok(shown('[data-show-for="git"]'),"a bare host path is a repository");
