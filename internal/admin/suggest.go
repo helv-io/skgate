@@ -166,6 +166,17 @@ func (a *Admin) upstreamSuggest(w http.ResponseWriter, r *http.Request) {
 	timeout := func() map[string]any {
 		return map[string]any{"kind": te.Kind, "stage": te.Stage, "where": te.Where(), "secs": int(te.After.Round(time.Second) / time.Second), "effort": cmp.Or(svc.Effort, "auto")}
 	}
+	var ae *suggest.AuthError
+	if errors.As(err, &ae) {
+		if info := authInfo(ae); info != nil {
+			if stream {
+				send(map[string]any{"error": err.Error(), "auth": info})
+			} else {
+				httputil.JSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error(), "auth": info})
+			}
+			return
+		}
+	}
 	if stream {
 		if errors.As(err, &te) {
 			send(map[string]any{"error": err.Error(), "timeout": timeout()})
@@ -201,4 +212,25 @@ func (a *Admin) suggestOpenAPI(w http.ResponseWriter, r *http.Request, src sugge
 	w.Header().Set("Cache-Control", "no-store")
 	httputil.JSON(w, http.StatusOK, map[string]any{"kind": "openapi", "alias": src.Name, "spec_url": entered,
 		"title": f.Doc.Title(), "operations": len(f.Doc.Operations())})
+}
+
+// authInfo is what the access token dialog shows: who answered and how, in plain words. Only answers a token can
+// change (401, 403, 404) open it; anything else stays an ordinary error.
+func authInfo(e *suggest.AuthError) map[string]any {
+	var why string
+	switch e.Status {
+	case http.StatusUnauthorized:
+		why = "This server asked for sign-in"
+	case http.StatusForbidden:
+		why = "This server refused access"
+	case http.StatusNotFound:
+		why = "This server found no public repository here"
+	default:
+		return nil
+	}
+	if e.Refused {
+		why = "The token did not work"
+	}
+	return map[string]any{"host": e.Host, "status": e.Status, "status_text": http.StatusText(e.Status),
+		"why": why, "hint": e.Hint(), "refused": e.Refused}
 }

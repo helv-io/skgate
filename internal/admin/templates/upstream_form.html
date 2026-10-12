@@ -11,10 +11,11 @@
 {{/* The order follows the work: Type, then Source with Suggest and its results (they fill the rest), then the alias. */}}
 <div class="group" data-kind="stdio git">
 <div class="field"><label>MCP source URL / package<input type="text" name="source" value="{{.Source}}" placeholder="https://host/org/repo, npm or PyPI package" autocomplete="off" spellcheck="false" data-suggest-source></label></div>
-{{if or .New (eq .U.Kind "git")}}<div class="field" data-show-for="git"><label>Access token<input type="password" name="git_token" placeholder="{{if .TokenMasked}}{{.TokenMasked}}{{else}}Private repositories{{end}}" autocomplete="off" data-suggest-token></label></div>
-{{if .TokenMasked}}<div class="row" data-show-for="git"><label class="check"><input type="checkbox" name="clear_token" value="1"> remove the stored token</label></div>{{end}}{{end}}
+{{if or .New (eq .U.Kind "git")}}<input type="hidden" name="git_token" value="" data-suggest-token>
+{{if .TokenMasked}}<div class="row" data-show-for="git"><label class="check"><input type="checkbox" name="clear_token" value="1"> remove the stored token {{.TokenMasked}}</label></div>{{end}}{{end}}
 {{template "suggest_controls" .Suggest}}
 {{template "suggest_result"}}
+{{template "suggest_auth"}}
 </div>
 {{if .New}}<div class="field"><label>Alias<input type="text" name="alias" required pattern="[a-z0-9\-]+" title="lowercase letters, digits and dashes" maxlength="63" value="{{.U.Alias}}"></label></div>{{end}}
 

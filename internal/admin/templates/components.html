@@ -124,6 +124,19 @@
 <details data-suggest-notes hidden><summary class="muted">Notes</summary><ul class="muted" data-suggest-notes-list></ul></details>
 </div>{{end}}
 
+{{/* suggest_auth: the access token dialog of "Suggest configuration". It opens only when the repository could not be
+   read without a token; app.js fills the reason and the host, and Retry runs Suggest again with the token, which the
+   form then saves with the upstream. */}}
+{{define "suggest_auth"}}{{template "dialog_content" (dlg "suggest-auth" "Access token")}}
+<div class="form">
+<p data-suggest-auth-why></p>
+<p class="muted" data-suggest-auth-host></p>
+<div class="field"><label>Access token<input type="password" autocomplete="off" spellcheck="false" data-suggest-auth-token></label></div>
+<p class="muted" data-suggest-auth-hint></p>
+<div class="row"><button type="button" class="act" data-suggest-auth-retry>Retry</button></div>
+</div>
+{{template "dialog_end"}}{{end}}
+
 {{/* brandmark: the product mark above a Solo page's card. */}}
 {{define "brandmark"}}<div class="brandmark"><img src="/favicon.svg" alt="" width="20" height="20">skgate</div>{{end}}
 

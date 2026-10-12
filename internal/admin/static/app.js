@@ -1507,6 +1507,41 @@ document.addEventListener("submit", function (e) {
     lines.push("Review before saving");
     show(form, x.result.confidence === "high" ? "ok" : "warn", x.result.confidence + " confidence", lines, false, x.result.notes);
   }
+  // askToken opens the access token dialog when the repository could not be read without one: the reason in plain
+  // words, the host that answered, and a hint on the token. Retry puts the token in the form (it is saved with the
+  // upstream) and runs Suggest again. A refused token shows here too, so it can be fixed and retried.
+  var authFor = null;
+  function askToken(form, btn, a) {
+    if (!document.getElementById("suggest-auth") || !window.skgateOpen) return false;
+    authFor = { form: form, btn: btn };
+    window.skgateOpen("suggest-auth", btn);
+    var body = document.querySelector("[data-modal-body]");
+    if (!body) return true;
+    var why = body.querySelector("[data-suggest-auth-why]"), host = body.querySelector("[data-suggest-auth-host]");
+    var hint = body.querySelector("[data-suggest-auth-hint]"), tok = body.querySelector("[data-suggest-auth-token]");
+    why.textContent = a.why + ": " + a.status + " " + a.status_text;
+    why.classList.toggle("bad", !!a.refused);
+    host.textContent = "Answered by " + a.host;
+    hint.textContent = a.hint;
+    if (tok) { tok.value = ""; tok.focus(); }
+    return true;
+  }
+  function retryToken() {
+    var body = document.querySelector("[data-modal-body]");
+    var tok = body && body.querySelector("[data-suggest-auth-token]");
+    if (!authFor || !tok || !tok.value.trim()) { if (tok) tok.focus(); return; }
+    var f = authFor.form, btn = authFor.btn;
+    if (f.elements.git_token) f.elements.git_token.value = tok.value.trim();
+    var close = document.querySelector("[data-modal-close]");
+    if (close) close.click();
+    setTimeout(function () { btn.click(); }, 0);
+  }
+  document.addEventListener("click", function (e) {
+    if (e.target && e.target.closest && e.target.closest("[data-suggest-auth-retry]")) retryToken();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.target && e.target.matches && e.target.matches("[data-suggest-auth-token]")) { e.preventDefault(); retryToken(); }
+  });
   document.addEventListener("click", function (e) {
     var b = e.target && e.target.closest ? e.target.closest("[data-suggest]") : null;
     if (!b || b.disabled) return;
@@ -1526,7 +1561,12 @@ document.addEventListener("submit", function (e) {
     }
     paint();
     var finished = false;
-    function finish(x) { if (!finished) { finished = true; done(form, b, job, x); } }
+    function finish(x) {
+      if (finished) return;
+      finished = true;
+      if (x && x.auth && askToken(form, b, x.auth)) { job.finish(); b._busy = false; sync(form); siSay(b, x.auth.why, true); return; }
+      done(form, b, job, x);
+    }
     function line(m) {
       if (!m) return;
       if (m.stage) {
