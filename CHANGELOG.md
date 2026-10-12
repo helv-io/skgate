@@ -50,6 +50,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.26.1] - 2026-10-12
+
+### Changed
+
+- Free a managed slot before Stop returns
+
 ## [0.26.0] - 2026-10-12
 
 ### Changed
@@ -742,7 +748,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.26.1...HEAD
+[0.26.1]: https://github.com/helv-io/skgate/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/helv-io/skgate/compare/v0.25.3...v0.26.0
 [0.25.3]: https://github.com/helv-io/skgate/compare/v0.25.2...v0.25.3
 [0.25.2]: https://github.com/helv-io/skgate/compare/v0.25.1...v0.25.2
