@@ -49,6 +49,13 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.25.0] - 2026-10-12
+
+### Changed
+
+- Suggest asks for an access token only when the host needs one
+- Suggest lets the helper model explore the repository and reports when a token is needed
+
 ## [0.24.2] - 2026-10-08
 
 ### Added
@@ -710,7 +717,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.24.2...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/helv-io/skgate/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/helv-io/skgate/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/helv-io/skgate/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/helv-io/skgate/compare/v0.23.6...v0.24.0
