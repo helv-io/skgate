@@ -136,7 +136,7 @@ Needs the `latest` image and an MCP helper model from any ready provider. The fi
    | --- | --- |
    | `@modelcontextprotocol/server-everything` | npm package, `npx` |
    | `pypi:mcp-server-time` | PyPI package, `uvx` |
-   | `https://github.com/example-org/notes-mcp` | git repo: clone, install, run (private: **Access token**) |
+   | `https://github.com/example-org/notes-mcp` | git repo: clone, install, run (private: Suggest asks for a token) |
 
 2. **Suggest configuration**. skgate fetches the README and manifests (`package.json`, `pyproject.toml`, `server.json`).
 

@@ -190,7 +190,7 @@ func TestAddUpstreamFieldsDeclareTheirKind(t *testing.T) {
 	_, page := br.get("/admin/upstreams/new")
 	form := page[strings.Index(page, `action="/admin/upstreams/save"`):]
 	for _, want := range []string{
-		`data-show-for="git"><label>Ref`, `data-show-for="git"><label>Access token`,
+		`data-show-for="git"><label>Ref`, `name="git_token" value="" data-suggest-token`, `id="suggest-auth"`,
 		`data-hide-for="package"><label>Install command`,
 		`data-suggest-off`, `aria-live="polite"`,
 	} {
