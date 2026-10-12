@@ -93,3 +93,9 @@ func TestPrivateRepoAnswersAnAuthError(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPromptNamesNodeEntryRule(t *testing.T) {
+	if !strings.Contains(SystemPrompt, "scripts.start") || !strings.Contains(SystemPrompt, "dist/src/index.js") {
+		t.Fatal("the system prompt lacks the Node entry rule")
+	}
+}

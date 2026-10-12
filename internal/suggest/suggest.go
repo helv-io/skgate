@@ -29,6 +29,7 @@ Rules:
 - Do not invent environment variables, flags, commands or package names that the documents do not support. If something is unknown, leave it out and add a warning.
 - install is a shell command to run before start, or an empty string. Use it only when the documents require a build or dependency step for a git source.
 - A .NET project (a .csproj file) uses the command dotnet when it is allowed. Build once in install (dotnet build PATH/Project.csproj -c Release) and start with args run --no-build -c Release --project PATH/Project.csproj -- followed by the stdio flag the documents name (usually --stdio). Use a startup_secs of at least 120.
+- A Node project from a git source starts the file its start script runs (package.json scripts.start, or bin), not main, when they differ: main is often stale. A TypeScript build (tsc) writes where tsconfig.json says: with outDir and no rootDir, and tests or other folders compiled too, the output keeps the src folder (dist/src/index.js, not dist/index.js).
 - A Deno project (a deno.json file) uses the command deno when it is allowed. Start with args run -A followed by the entry file the documents name (often main.ts or mod.ts).
 - A Go module (a go.mod file) uses the command go when it is allowed. Compile once in install (go build ./...) and start with args run PACKAGE (for example run . or run ./cmd/NAME) followed by the stdio flag the documents name, if any. Use a startup_secs of at least 120.
 - startup_secs is how long the first start may take (10 to 600).
