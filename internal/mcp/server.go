@@ -58,6 +58,7 @@ type Server struct {
 	health   healthBook // how the latest calls to each remote upstream went
 	cimd     cimdBook   // freshness of client ID metadata documents
 	jwks     jwksBook   // JWKS cache for private_key_jwt metadata clients
+	tools    toolsHub   // tools/list_changed streams (listchanged.go)
 
 	// Managed runs the child processes of stdio and git upstreams (never spawns when disabled).
 	Managed *managed.Manager
@@ -68,15 +69,18 @@ func NewServer(cfg *config.Config, db *store.DB, keys *vkeys.Manager) *Server {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.ResponseHeaderTimeout = 2 * time.Minute
 	lg := reqlog.New(reqlog.ParseLevel(cfg.LogLevel), os.Stderr)
-	return &Server{
+	var s *Server
+	s = &Server{
 		Managed: managed.NewManager(managed.Options{Enabled: config.ManagedAvailable(), Dir: cfg.ManagedDir, CacheDir: cfg.ManagedCacheDir, MaxProcs: cfg.ManagedMaxProcs, RunAs: managed.DetectRunAs(),
-			StopGrace: cfg.ManagedStopGrace, LogLines: cfg.ManagedLogLines, InstallMax: cfg.ManagedInstallMax, Logf: lg.Printf, Version: config.Version}),
+			StopGrace: cfg.ManagedStopGrace, LogLines: cfg.ManagedLogLines, InstallMax: cfg.ManagedInstallMax, Logf: lg.Printf, Version: config.Version,
+			OnToolsChanged: func(alias string) { s.ToolsChanged(alias) }}),
 		Cfg: cfg, DB: db, Keys: keys, Upstreams: NewUpstreams(db), Clients: NewClients(db),
 		HTTP:     &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 		sessions: map[string]*sseSession{},
 		up:       newUpClient(),
 		Log:      lg,
 	}
+	return s
 }
 
 // Issuer is the AS issuer identifier (PUBLIC_URL).

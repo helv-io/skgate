@@ -73,11 +73,11 @@ func TestOpenAPIServedOnItsOwnEndpoint(t *testing.T) {
 	if m["error"] == nil || len(api.seen) != 1 {
 		t.Fatalf("disabled tool called: %v %v", m, api.seen)
 	}
-	// notifications get 202, GET is not supported
+	// notifications get 202, GET needs Accept: text/event-stream
 	if r := e.do("POST", "/mcp/notes", map[string]string{"Authorization": "Bearer " + key}, `{"jsonrpc":"2.0","method":"notifications/initialized"}`); r.StatusCode != 202 {
 		t.Errorf("notification: %d", r.StatusCode)
 	}
-	if r := e.do("GET", "/mcp/notes", map[string]string{"Authorization": "Bearer " + key}, ""); r.StatusCode != 405 {
+	if r := e.do("GET", "/mcp/notes", map[string]string{"Authorization": "Bearer " + key}, ""); r.StatusCode != 406 {
 		t.Errorf("GET: %d", r.StatusCode)
 	}
 	// a client key is still required

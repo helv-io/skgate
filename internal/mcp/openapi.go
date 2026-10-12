@@ -209,18 +209,28 @@ func oaToolJSON(t openapi.Tool) map[string]any {
 	return map[string]any{"name": t.Name, "description": t.Description, "inputSchema": t.InputSchema, "annotations": ann}
 }
 
+// oaToolList is the tools/list array of an OpenAPI upstream.
+func (s *Server) oaToolList(up Upstream) ([]any, error) {
+	st, err := s.Upstreams.OpenAPI(up.Alias)
+	if err != nil {
+		return nil, err
+	}
+	tools := make([]any, 0, len(st.Tools))
+	for _, t := range st.Tools {
+		tools = append(tools, oaToolJSON(t.WithoutCredential(up.caller(st.Scheme).Auth)))
+	}
+	return tools, nil
+}
+
 // oaDispatch answers one MCP request for an OpenAPI upstream: tools/list and tools/call, nothing else.
 func (s *Server) oaDispatch(ctx context.Context, up Upstream, method string, params json.RawMessage) (any, *rpcError) {
 	switch method {
 	case "tools/list":
-		st, err := s.Upstreams.OpenAPI(up.Alias)
+		tools, err := s.oaToolList(up)
 		if err != nil {
 			return nil, &rpcError{Code: rpcInternalError, Message: err.Error()}
 		}
-		tools := make([]any, 0, len(st.Tools))
-		for _, t := range st.Tools {
-			tools = append(tools, oaToolJSON(t.WithoutCredential(up.caller(st.Scheme).Auth)))
-		}
+		s.tools.served(up.Alias, tools)
 		return map[string]any{"tools": tools}, nil
 	case "tools/call":
 		var p struct {
@@ -326,8 +336,8 @@ func (c *upClient) callOpenAPI(s *Server, ctx context.Context, up Upstream, meth
 
 const maxOAEnvelope = 4 << 20
 
-// serveOpenAPI answers /mcp/{alias} for an OpenAPI upstream. Streamable HTTP without sessions or streams: every
-// POST is answered at once.
+// serveOpenAPI answers /mcp/{alias} for an OpenAPI upstream. Streamable HTTP without sessions: every POST is
+// answered at once; a GET stream carries only tools/list_changed.
 func (s *Server) serveOpenAPI(w http.ResponseWriter, r *http.Request, up Upstream) {
 	reqlog.Upstream(r, up.Alias, "", 0, "openapi")
 	httputil.SetCORS(w)
@@ -335,10 +345,13 @@ func (s *Server) serveOpenAPI(w http.ResponseWriter, r *http.Request, up Upstrea
 	case http.MethodDelete:
 		w.WriteHeader(http.StatusNoContent)
 		return
+	case http.MethodGet:
+		s.serveToolsStream(w, r, up.Alias)
+		return
 	case http.MethodPost:
 	default:
-		w.Header().Set("Allow", "POST, DELETE, OPTIONS")
-		jsonErr(w, http.StatusMethodNotAllowed, "method_not_allowed", "this server answers POST requests; it has no event stream")
+		w.Header().Set("Allow", "GET, POST, DELETE, OPTIONS")
+		jsonErr(w, http.StatusMethodNotAllowed, "method_not_allowed", "use POST (JSON-RPC) or GET (event stream for tools/list_changed)")
 		return
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxOAEnvelope))
@@ -421,7 +434,7 @@ func (s *Server) oaInitialize(up Upstream, params json.RawMessage) map[string]an
 	}
 	return map[string]any{
 		"protocolVersion": proto,
-		"capabilities":    map[string]any{"tools": map[string]any{"listChanged": false}},
+		"capabilities":    map[string]any{"tools": map[string]any{"listChanged": true}},
 		"serverInfo":      map[string]any{"name": clipText(title, 80), "version": config.Version},
 	}
 }

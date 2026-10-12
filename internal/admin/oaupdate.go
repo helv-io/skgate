@@ -191,6 +191,7 @@ func (a *Admin) oaSpecApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.MCP.ForgetHealth(alias)
+	a.MCP.ToolsChanged(alias)
 	n := a.MCP.Upstreams.OpenAPIToolCount(alias)
 	a.back(w, r, back, fmt.Sprintf("%s updated, %d %s exposed", alias, n, plural(n, "tool", "tools")), "")
 }

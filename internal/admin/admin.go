@@ -1482,6 +1482,7 @@ func (a *Admin) upstreamToggle(w http.ResponseWriter, r *http.Request) {
 	if flag == mcp.FlagEnabled {
 		a.MCP.SyncManaged(alias)
 	}
+	a.MCP.UpstreamsChanged(alias)
 	state := "on"
 	if !on {
 		state = "off"

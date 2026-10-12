@@ -102,6 +102,7 @@ type Proc struct {
 	lastUpdateAt time.Time
 	autoNext     time.Time
 	serverVer    string // serverInfo name and version from the last initialize
+	toolsHash    string // hash of the last tools/list (see tools.go)
 	updMu        sync.Mutex
 
 	sessions map[string]*Session
@@ -565,6 +566,7 @@ func (p *Proc) runOnce(ctx context.Context, h startHint) error {
 	if initErr == nil {
 		p.setState(StateRunning, "")
 		p.logf("running pid %d", c.pid)
+		p.checkToolsAsync(true)
 		select {
 		case <-ctx.Done():
 		case <-c.exited:

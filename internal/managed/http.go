@@ -184,7 +184,7 @@ func (p *Proc) serveInitialize(w http.ResponseWriter, r *http.Request, m rpcMsg,
 	}
 	s := p.newSession(hello)
 	w.Header().Set("Mcp-Session-Id", s.ID)
-	out := mustJSON(rpcMsg{JSONRPC: "2.0", ID: m.ID, Result: res})
+	out := mustJSON(rpcMsg{JSONRPC: "2.0", ID: m.ID, Result: withListChanged(res)})
 	if sseOK, jsonOK := acceptsSSE(r); sseOK && !jsonOK {
 		startSSE(w)
 		writeEvent(w, out)

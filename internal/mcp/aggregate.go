@@ -69,10 +69,13 @@ func (s *Server) serveAggregate(w http.ResponseWriter, r *http.Request) {
 		httputil.SetCORS(w)
 		w.WriteHeader(http.StatusNoContent)
 		return
+	case http.MethodGet:
+		s.serveToolsStream(w, r, "")
+		return
 	default:
-		reqlog.Reject(r, "method %s not allowed on the aggregated /mcp endpoint (POST only)", r.Method)
-		w.Header().Set("Allow", "POST, DELETE, OPTIONS")
-		jsonErr(w, http.StatusMethodNotAllowed, "method_not_allowed", "the aggregated /mcp endpoint accepts POST (JSON-RPC); it has no server-initiated stream")
+		reqlog.Reject(r, "method %s not allowed on the aggregated /mcp endpoint", r.Method)
+		w.Header().Set("Allow", "GET, POST, DELETE, OPTIONS")
+		jsonErr(w, http.StatusMethodNotAllowed, "method_not_allowed", "the aggregated /mcp endpoint accepts POST (JSON-RPC) and GET (event stream for tools/list_changed)")
 		return
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxMCPBody))
@@ -179,7 +182,7 @@ func (s *Server) aggInitialize(params json.RawMessage) map[string]any {
 	return map[string]any{
 		"protocolVersion": proto,
 		"capabilities": map[string]any{
-			"tools":     map[string]any{"listChanged": false},
+			"tools":     map[string]any{"listChanged": true},
 			"resources": map[string]any{"listChanged": false, "subscribe": false},
 			"prompts":   map[string]any{"listChanged": false},
 		},
