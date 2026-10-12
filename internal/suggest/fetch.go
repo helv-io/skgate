@@ -1,6 +1,7 @@
 package suggest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -34,6 +35,8 @@ type Context struct {
 	Name    string // package name or owner/repo
 	Version string // latest or requested version, when the registry says
 	Files   []File
+	Tree    []string // git: the repository paths (folders end in /), for the model to explore
+	read    func(ctx context.Context, name string, max int) (string, bool)
 }
 
 // Summary lists the fetched files with their sizes, for logs.
@@ -325,7 +328,17 @@ func (f *Fetcher) fetchGitAs(ctx context.Context, s Source, token string, shared
 	fg := f.forgeFor(s, token)
 	c := Context{Kind: KindGit, Name: s.Path}
 	b := &budget{maxTotal}
-	reached, denied := false, false
+	reached, denied, status := false, false, 0
+	note := func(st int) { // the strongest answer seen: a refusal beats a miss
+		if st == 401 || st == 403 {
+			denied = true
+			if status != 401 {
+				status = st
+			}
+		} else if st != 200 && (status == 0 || st == 404 && !denied) {
+			status = st
+		}
+	}
 	for _, n := range readmeNames {
 		st, body, h, err := f.getH(ctx, fg.url(n), fg.headers, maxFile)
 		if err != nil {
@@ -342,9 +355,7 @@ func (f *Fetcher) fetchGitAs(ctx context.Context, s Source, token string, shared
 		if st == 401 && shared {
 			return Context{}, errSharedTokenRefused
 		}
-		if st == 401 || st == 403 {
-			denied = true
-		}
+		note(st)
 	}
 	for _, n := range manifestNames {
 		st, body, h, err := f.getH(ctx, fg.url(n), fg.headers, maxFile)
@@ -358,24 +369,23 @@ func (f *Fetcher) fetchGitAs(ctx context.Context, s Source, token string, shared
 			reached = true
 			c.add(b, n, clip(body, maxFile))
 		}
-		if st == 401 || st == 403 {
-			denied = true
-		}
+		note(st)
 	}
 	if reached {
 		f.dotnetProjects(ctx, fg, &c, b)
+		c.Tree = f.tree(ctx, fg)
+		c.read = func(ctx context.Context, name string, max int) (string, bool) {
+			st, body, err := f.get(ctx, fg.url(name), fg.headers, max)
+			if err != nil || st != 200 || bytes.IndexByte(body, 0) >= 0 {
+				return "", false
+			}
+			return string(body), true
+		}
 	}
 	if !reached {
 		own := token != "" && !shared // the upstream's own token
-		switch {
-		case !own && denied:
-			return Context{}, errors.New("the repository needs authentication: add an access token")
-		case !own:
-			return Context{}, errors.New("no README or manifest found, private repositories need an access token")
-		case denied:
-			return Context{}, errors.New("the access token was refused by the host")
-		}
-		return Context{}, errors.New("no README or manifest found, check the URL, ref and token")
+		// Private repositories answer 404 to strangers on GitHub and Gitea, so a miss may need a token too.
+		return Context{}, &AuthError{Host: s.Host, Status: status, Refused: own, Denied: denied}
 	}
 	return c, nil
 }
@@ -498,4 +508,142 @@ func (f *Fetcher) dotnetProjects(ctx context.Context, fg forge, c *Context, b *b
 			c.add(b, p, clip(pb, 4<<10))
 		}
 	}
+}
+
+// AuthError tells that the repository could not be read and a token may help: the host asked for sign-in
+// (Denied, 401/403) or hid the repository (404). Refused means the token that was sent did not work.
+type AuthError struct {
+	Host    string
+	Status  int
+	Refused bool
+	Denied  bool
+}
+
+func (e *AuthError) Error() string {
+	switch {
+	case !e.Refused && e.Denied:
+		return "the repository needs authentication: add an access token"
+	case !e.Refused:
+		return "no README or manifest found, private repositories need an access token"
+	case e.Denied:
+		return "the access token was refused by the host"
+	}
+	return "no README or manifest found, check the URL, ref and token"
+}
+
+// Hint is one line on the token to paste for this host.
+func (e *AuthError) Hint() string {
+	switch {
+	case e.Host == "github.com":
+		return "A GitHub token that can read this repository"
+	case strings.Contains(e.Host, "gitlab"):
+		return "A GitLab token that can read this repository"
+	case e.Host == "bitbucket.org":
+		return "A Bitbucket access token that can read this repository"
+	}
+	return "A token from " + e.Host + " that can read this repository"
+}
+
+// Exploration safety limits. They are generous on purpose: the model decides what is relevant, these only keep a
+// suggestion from running away (huge monorepos, slow hosts).
+const (
+	treeEntries = 5000             // paths listed
+	treeLists   = 200              // directory listings
+	treeTime    = 30 * time.Second // to list the tree
+)
+
+// treeSkip are folders never listed: dependencies, build output and VCS data, never the project's own settings.
+var treeSkip = map[string]bool{".git": true, "node_modules": true, "vendor": true, ".venv": true, "venv": true,
+	"__pycache__": true, "dist": true, "build": true, "target": true, ".next": true, ".cache": true}
+
+var reSecretFile = regexp.MustCompile(`(?i)(^|/)(\.env(\.[^/]*)?|[^/]*\.(pem|key|p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)|\.npmrc|\.pypirc|\.netrc|credentials(\.json)?|secrets?\.(ya?ml|json|toml))$`)
+var reSample = regexp.MustCompile(`(?i)(example|sample|template|dist|default)`)
+var reBinary = regexp.MustCompile(`(?i)\.(png|jpe?g|gif|webp|ico|svg|pdf|zip|gz|tgz|bz2|xz|7z|tar|jar|war|exe|dll|so|dylib|bin|wasm|woff2?|ttf|otf|eot|mp[34]|mov|avi|lock|db|sqlite)$`)
+
+// Readable tells whether the model may read a file of the repository: never real env or secret files (a sample such
+// as .env.example is fine) and never binaries.
+func Readable(name string) bool {
+	if reBinary.MatchString(name) {
+		return false
+	}
+	if reSecretFile.MatchString(name) && !reSample.MatchString(path.Base(name)) {
+		return false
+	}
+	return true
+}
+
+// tree lists the repository files, breadth first, within the safety limits.
+func (f *Fetcher) tree(ctx context.Context, fg forge) []string {
+	if fg.list == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, treeTime)
+	defer cancel()
+	var out []string
+	queue, lists := []string{""}, 0
+	for len(queue) > 0 && lists < treeLists && len(out) < treeEntries && ctx.Err() == nil {
+		dir := queue[0]
+		queue = queue[1:]
+		lists++
+		st, body, err := f.get(ctx, fg.list(dir), fg.headers, 1<<20)
+		if err != nil || st != 200 {
+			continue
+		}
+		files, dirs := dirEntriesAll(body)
+		join := func(n string) string {
+			if dir == "" {
+				return n
+			}
+			return dir + "/" + n
+		}
+		for _, n := range files {
+			out = append(out, join(n))
+		}
+		for _, d := range dirs {
+			if !treeSkip[strings.ToLower(d)] {
+				out = append(out, join(d)+"/")
+				queue = append(queue, join(d))
+			}
+		}
+	}
+	if len(out) > treeEntries {
+		out = out[:treeEntries]
+	}
+	return out
+}
+
+// dirEntriesAll is dirEntries with the folder names as well.
+func dirEntriesAll(b []byte) (files, dirs []string) {
+	var arr []struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(b, &arr) == nil {
+		for _, e := range arr {
+			switch e.Type {
+			case "", "file", "blob":
+				files = append(files, e.Name)
+			case "dir", "tree":
+				dirs = append(dirs, e.Name)
+			}
+		}
+		return
+	}
+	var bb struct {
+		Values []struct {
+			Path string `json:"path"`
+			Type string `json:"type"`
+		} `json:"values"`
+	}
+	if json.Unmarshal(b, &bb) == nil {
+		for _, v := range bb.Values {
+			switch v.Type {
+			case "commit_file":
+				files = append(files, path.Base(v.Path))
+			case "commit_directory":
+				dirs = append(dirs, path.Base(v.Path))
+			}
+		}
+	}
+	return
 }

@@ -235,11 +235,19 @@ func (s *Service) Suggest(ctx context.Context, model string, src Source, token s
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return nil, &TimeoutError{Kind: "cap", Stage: StageFetch, After: time.Since(t0)}
 		}
+		var ae *AuthError
+		if errors.As(err, &ae) {
+			return nil, ae
+		}
 		return nil, errors.New(scrub(err.Error(), token))
 	}
 	s.logf("suggest: fetched kind=%s name=%s version=%s files=%s in %s", doc.Kind, doc.Name, orNone(doc.Version), doc.Summary(), since(t))
 	si := doc.info()
 	s.progress(Event{Stage: StageRead, Label: "Reading README", Source: &si})
+	s.explore(ctx, model, src, &doc, token, t0)
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return nil, &TimeoutError{Kind: "cap", Stage: StageRead, After: time.Since(t0)}
+	}
 	body, err := buildRequest(model, s.Effort, src, doc, runners, token)
 	if err != nil {
 		return nil, err
