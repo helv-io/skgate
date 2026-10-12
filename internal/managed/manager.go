@@ -36,6 +36,8 @@ type Options struct {
 	Environ    func() []string // parent environment, default os.Environ
 	Version    string          // skgate version, sent as clientInfo
 	RunAs      *RunAs          // identity of children; nil = same as skgate (see DetectRunAs)
+	// OnToolsChanged, when set, is called (in the background) after an upstream's tool list changed.
+	OnToolsChanged func(alias string)
 
 	// Supervision tuning (tests shrink these).
 	BackoffBase  time.Duration // first restart delay, doubles per consecutive crash

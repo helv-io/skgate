@@ -216,6 +216,9 @@ func (p *Proc) onNotification(m rpcMsg) {
 	}
 	out := mustJSON(rpcMsg{JSONRPC: "2.0", Method: m.Method, Params: m.Params})
 	p.broadcast(out)
+	if m.Method == ToolsListChanged {
+		p.checkToolsAsync(false) // the child told its clients; the hash follows and the other transports hear of it
+	}
 }
 
 func compact(b json.RawMessage) string {
@@ -627,6 +630,11 @@ func (p *Proc) Call(ctx context.Context, method string, params any) (result json
 	if err := p.Ensure(ctx, startHint{}); err != nil {
 		return nil, nil, err
 	}
+	return p.callRunning(ctx, method, params)
+}
+
+// callRunning is Call on a process that is already running; it never starts one.
+func (p *Proc) callRunning(ctx context.Context, method string, params any) (result json.RawMessage, rpcErr *RPCError, err error) {
 	var pb json.RawMessage
 	if params != nil {
 		pb = mustJSON(params)
