@@ -421,11 +421,11 @@ func TestAggregatePromptsResourcesAndFallbacks(t *testing.T) {
 	if st, m := e.rpc(key, "/mcp", `not json`); st != 400 || m["error"] == nil {
 		t.Fatalf("garbage: %d %v", st, m)
 	}
-	// inbound auth still required, GET has no stream, DELETE is a no-op
+	// inbound auth still required, GET needs Accept: text/event-stream, DELETE is a no-op
 	if r := e.do("POST", "/mcp", nil, `{}`); r.StatusCode != 401 {
 		t.Fatalf("unauthenticated aggregate: %d", r.StatusCode)
 	}
-	if r := e.do("GET", "/mcp", map[string]string{"Authorization": "Bearer " + key}, ""); r.StatusCode != 405 {
+	if r := e.do("GET", "/mcp", map[string]string{"Authorization": "Bearer " + key}, ""); r.StatusCode != 406 {
 		t.Fatalf("GET /mcp: %d", r.StatusCode)
 	}
 	if r := e.do("DELETE", "/mcp", map[string]string{"Authorization": "Bearer " + key}, ""); r.StatusCode != 204 {
