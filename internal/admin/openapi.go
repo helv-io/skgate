@@ -255,6 +255,7 @@ func (a *Admin) saveOpenAPI(w http.ResponseWriter, r *http.Request, u mcp.Upstre
 		return
 	}
 	a.MCP.ForgetHealth(u.Alias)
+	a.MCP.ToolsChanged(u.Alias)
 	_ = a.DB.SetSetting(settingLastInclude, map[bool]string{true: "1", false: "0"}[u.IncludeInMCP])
 	n := a.MCP.Upstreams.OpenAPIToolCount(u.Alias)
 	if !edit || fresh {
@@ -508,6 +509,7 @@ func (a *Admin) upstreamToolsSave(w http.ResponseWriter, r *http.Request) {
 		a.back(w, r, back, "", err.Error())
 		return
 	}
+	a.MCP.ToolsChanged(alias)
 	n := a.MCP.Upstreams.OpenAPIToolCount(alias)
 	a.back(w, r, back, fmt.Sprintf("%s: %d %s exposed", alias, n, plural(n, "tool", "tools")), "")
 }

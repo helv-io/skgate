@@ -158,11 +158,18 @@ func (s *server) handle(m msg) {
 			s.reply(m.ID, map[string]any{})
 		}
 	case "tools/list":
-		s.reply(m.ID, map[string]any{"tools": []map[string]any{
+		tools := []map[string]any{
 			{"name": "echo", "description": "Echo the text argument.\nSecond line.", "inputSchema": map[string]any{"type": "object"}},
 			{"name": "slow", "description": "Sleep ms then answer.", "inputSchema": map[string]any{"type": "object"}},
 			{"name": "progress", "description": "Send progress notifications.", "inputSchema": map[string]any{"type": "object"}},
-		}})
+		}
+		if f := os.Getenv("FAKE_TOOLS_FILE"); f != "" { // one extra tool per line, read on every list
+			b, _ := os.ReadFile(f)
+			for _, n := range strings.Fields(string(b)) {
+				tools = append(tools, map[string]any{"name": n, "description": "Extra.", "inputSchema": map[string]any{"type": "object"}})
+			}
+		}
+		s.reply(m.ID, map[string]any{"tools": tools})
 	case "resources/list":
 		s.reply(m.ID, map[string]any{"resources": []map[string]any{{"uri": "file:///fake.txt", "name": "fake.txt"}}})
 	case "resources/read":
