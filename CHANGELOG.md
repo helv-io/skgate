@@ -8,6 +8,7 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Added
 
+- Connected MCP clients are told when an upstream's tools change (notifications/tools/list_changed), after an update, a reinstall, a restart or a tool selection change. Every endpoint skgate answers advertises listChanged, and /mcp and OpenAPI upstreams have a GET event stream for it
 - README: Star History chart
 - README: model aliases are opened from the provider card
 

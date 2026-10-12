@@ -251,6 +251,7 @@ Served at `https://skgate.example.com/mcp/everything`. The same package runs wit
 | API | `/v1`, `/api/v1`, `/api`, no prefix; SSE ([docs](docs/api.md)) |
 | Virtual keys | Hashed; tokens in/out per key ([docs](docs/keys-and-clients.md)) |
 | MCP | Remote, stdio and git servers behind OAuth 2.1 ([docs](docs/mcp.md)) |
+| Live tool updates | Connected clients hear when an upstream's tools change after an update, a reinstall or a tool switched on or off, and pick up the new tools without reconnecting |
 | REST APIs as tools | Give an OpenAPI description, pick the operations (or let **Suggest names and selection** name them and pick a core set), and MCP clients get them as tools ([docs](docs/openapi.md)) |
 
 ## Tested MCP clients

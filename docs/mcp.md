@@ -235,4 +235,4 @@ Deleting or disabling an upstream stops its process; its directory under `MANAGE
 - Each call uses the upstream's own effective auth and host override. `nextCursor` is followed (20 pages max).
 - An upstream that is down or errors is skipped in lists and logged (`aggregate alias=... skipped=true reason=...`); the rest still answer. Unknown prefix: JSON-RPC `-32602`.
 - One session (`Mcp-Session-Id`) per upstream is kept in memory and re-created if the upstream forgets it or its settings change.
-- Request/response only: `GET /mcp` returns 405, `DELETE /mcp` is a no-op.
+- `GET /mcp` (Accept: text/event-stream) is an event stream that carries only `notifications/tools/list_changed`; `DELETE /mcp` is a no-op.
