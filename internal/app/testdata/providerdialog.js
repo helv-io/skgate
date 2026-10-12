@@ -41,7 +41,14 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await wait(150);
   await pg.click("[data-dialog-open='#helper-model']");
   await pg.waitForFunction(() => document.querySelector("dialog[open] select[name=model]") && !document.querySelector("[data-saving]"), { timeout: 5000 });
-  await pg.select("dialog[open] select[name=model]", "grok-mini");
+  // Opening the dialog reloads the model list in the background, which redraws the select; on a busy machine a
+  // pick made before that redraw is lost, so pick again until the card shows it.
+  for (let i = 0; i < 20; i++) {
+    if (await pg.evaluate(() => /grok-mini/.test(document.querySelector("#grok").textContent))) break;
+    await pg.waitForFunction(() => document.querySelector("dialog[open] select[name=model]") && !document.querySelector("[data-saving]"), { timeout: 5000 });
+    if (await pg.evaluate(() => document.querySelector("dialog[open] select[name=model]").value !== "grok-mini")) await pg.select("dialog[open] select[name=model]", "grok-mini");
+    await wait(500);
+  }
   await pg.waitForFunction(() => /grok-mini/.test(document.querySelector("#grok").textContent), { timeout: 5000 });
   await pg.evaluate(() => {
     const el = document.querySelector("dialog[open] input[name=timeout]");
