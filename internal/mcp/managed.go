@@ -48,6 +48,7 @@ func (s *Server) proc(up Upstream) (*managed.Proc, error) {
 func (s *Server) SyncManaged(alias string) {
 	up, ok := s.Upstreams.Get(alias)
 	if !ok || !up.Managed() || !up.Enabled {
+		s.ToolsChanged(alias) // a managed one that runs reports its own change after the restart
 		s.Managed.Forget(alias)
 		if !ok {
 			s.Managed.DropLog(alias) // the upstream is gone: so is its kept output
