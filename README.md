@@ -1,7 +1,7 @@
 <p align="center"><img src="docs/img/logo.svg" width="72" alt="skgate logo"></p>
 <h1 align="center">skgate</h1>
 
-<p align="center">Serve your MCP servers and REST APIs from one OAuth-protected gateway. Also proxy your SI providers behind one address with model aliases, and use your Grok subscription as an OpenAI-compatible API, no API key needed.</p>
+<p align="center">Self-hosted MCP gateway and LLM proxy. Serve any MCP server or REST API behind OAuth 2.1 from one address, and proxy your AI providers (OpenAI, Anthropic, Gemini, Grok, Ollama and more) through one OpenAI-compatible API with model aliases and virtual keys. Your Grok subscription works too, no API key needed.</p>
 
 <p align="center">Any MCP server. skgate can run them for you, so you do not need one container per server.</p>
 
@@ -269,12 +269,24 @@ Clients tested by the author against a live skgate. Status is what happened, not
 | Home Assistant | Warning | Needs a manual OAuth client ID and secret. Only one MCP upstream can be used. |
 | Cline | Untested | |
 | Continue | Untested | |
-| Cursor | Untested | |
+| Cursor | OK | |
 | Goose | Untested | |
 | LibreChat | Untested | |
 | VS Code | Untested | |
 | Windsurf | Untested | |
 | Zed | Untested | |
+
+## How skgate compares
+
+A rough guide from each project's docs as of 2026-10-13. Check them for current features.
+
+| | skgate | [LiteLLM](https://github.com/BerriAI/litellm) | [MetaMCP](https://github.com/metatool-ai/metamcp) |
+| --- | --- | --- | --- |
+| OpenAI-compatible LLM proxy | Yes | Yes, 100+ providers | No |
+| MCP gateway | Yes | Yes | Yes |
+| Runs stdio MCP servers | Yes, started on demand, stopped when idle | Yes, off unless `LITELLM_ENABLE_MCP_STDIO=true` | Yes |
+| OAuth for MCP clients | OAuth 2.1 with dynamic client registration | Yes, dynamic client registration at the gateway | Yes, MCP spec 2025-06-18 OAuth |
+| Database | SQLite, one container | Postgres for virtual keys | Postgres (Docker Compose) |
 
 ## Comparison
 
