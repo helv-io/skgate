@@ -150,8 +150,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok(!(await pg.$("[data-modal][open]")), w + ": nothing reopens after the close");
 
     // a refused create keeps what was typed, with the reason as a toast
+    await pg.$eval("#key-create details", d => { d.open = true; }); // open first: the limits push the button down
     y = await scrollTo("#key-create button.btn");
-    await pg.$eval("#key-create details", d => { d.open = true; });
     await setVal("#key-create input[name=label]", "kept");
     await setVal("#key-create input[name=rate]", "2000000000");
     await pg.click("#key-create button.btn");
