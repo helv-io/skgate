@@ -46,7 +46,7 @@ The screen opens with one line (`OK · 3 tools · 435 ms`, or `failed · 435 ms`
 
 A filter box narrows the tools by name or description as you type, and each description is one line that opens to the rest of the text. Each tool has a **Test** button that opens the same form as on an OpenAPI tools page (schema fields, Edit as JSON, Run); Run calls the upstream for real through the gateway, as the admin.
 
-Passthrough upstreams are tested without credentials.
+Passthrough upstreams are tested without credentials. They are never on the aggregated `/mcp`, which has no single caller credential to pass on: use `/mcp/{alias}`. The **In /mcp** switch is off and greyed out for them, and an upgrade turns it off for any that had it.
 
 When the connection is refused or the name does not resolve, Test says so in words and adds a hint.
 

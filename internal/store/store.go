@@ -392,6 +392,10 @@ func migrate(db *sql.DB) error {
 	if _, err := db.Exec(`UPDATE upstreams SET include_in_mcp=0 WHERE include_in_mcp=1 AND kind IN ('stdio','git') AND lifecycle<>'always'`); err != nil {
 		return err
 	}
+	// Passthrough upstreams are never on /mcp: it has no caller credential to pass on. Idempotent.
+	if _, err := db.Exec(`UPDATE upstreams SET include_in_mcp=0 WHERE include_in_mcp=1 AND auth_kind='passthrough'`); err != nil {
+		return err
+	}
 	return nil
 }
 

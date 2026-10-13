@@ -166,3 +166,21 @@ func TestSavedPublicIPOverHTTPGivesAClearError(t *testing.T) {
 		t.Fatalf("test: %+v", tr)
 	}
 }
+
+func TestPassthroughUpstreamsAreNotOnAggregatedMCP(t *testing.T) {
+	e := newEnv(t, nil)
+	if err := e.srv.Upstreams.Create(Upstream{Alias: "pt", URL: "http://pt:8000/mcp", AuthKind: AuthPassthrough, Enabled: true, IncludeInMCP: true}); err != nil {
+		t.Fatal(err)
+	}
+	if u, _ := e.srv.Upstreams.Get("pt"); u.IncludeInMCP {
+		t.Fatal("saving a passthrough upstream must clear In /mcp")
+	}
+	if _, err := e.srv.Upstreams.SetFlag("pt", FlagInclude, true); err != ErrPassthroughInMCP {
+		t.Fatalf("toggle: %v", err)
+	}
+	// a row from an older release that still has the flag
+	e.db.Exec(`UPDATE upstreams SET include_in_mcp=1 WHERE alias='pt'`)
+	if inc, _ := e.srv.Upstreams.Included(); len(inc) != 0 {
+		t.Fatalf("included: %+v", inc)
+	}
+}

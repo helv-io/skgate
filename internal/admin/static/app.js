@@ -1119,8 +1119,8 @@ document.addEventListener("change", function (e) {
   Array.prototype.forEach.call(document.querySelectorAll("[data-pick]"), apply);
 })();
 
-// Include in /mcp: managed servers can join only when always-on, so the checkbox is disabled (and cleared) for an
-// on-demand managed upstream. The server enforces the same rule.
+// Include in /mcp: managed servers can join only when always-on, and passthrough upstreams never (/mcp has no
+// caller credential to pass on), so the checkbox is disabled (and cleared) for them. The server enforces the same rules.
 (function () {
   var inc = document.querySelector("[data-include]");
   var sel = document.querySelector("[data-kind-select]");
@@ -1128,7 +1128,11 @@ document.addEventListener("change", function (e) {
   function sync() {
     var managed = sel.value === "stdio" || sel.value === "git";
     var life = inc.form.elements.lifecycle;
-    var off = managed && life && life.value !== "always";
+    var auth = inc.form.elements.auth_kind;
+    var pass = sel.value === "remote" && auth && auth.value === "passthrough";
+    var off = (managed && life && life.value !== "always") || pass;
+    var note = inc.form.querySelector("[data-when-auth]");
+    if (note) note.hidden = !pass;
     inc.disabled = !!off;
     if (off) inc.checked = false;
   }

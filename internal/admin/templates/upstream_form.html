@@ -79,6 +79,7 @@
 
 
 <div class="row"><label class="check"><input type="checkbox" name="enabled" value="1" {{if or .New .U.Enabled}}checked{{end}}> enabled</label></div>
-<div class="field"><label class="check"><input type="checkbox" name="include" value="1" data-include {{if .Include}}checked{{end}}{{if and (ne .U.Kind "remote") (ne .U.Kind "openapi") (ne .U.Lifecycle "always")}} disabled{{end}}> include in /mcp</label>
-<p class="muted" data-kind="stdio git">Only always-on servers can be in /mcp.</p></div>
+<div class="field"><label class="check"><input type="checkbox" name="include" value="1" data-include {{if .Include}}checked{{end}}{{if or (and (ne .U.Kind "remote") (ne .U.Kind "openapi") (ne .U.Lifecycle "always")) (eq .U.AuthKind "passthrough")}} disabled{{end}}> include in /mcp</label>
+<p class="muted" data-kind="stdio git">Only always-on servers can be in /mcp.</p>
+<p class="muted" data-when-auth="passthrough"{{if ne .U.AuthKind "passthrough"}} hidden{{end}}>Passthrough upstreams are not in /mcp.</p></div>
 {{end}}
