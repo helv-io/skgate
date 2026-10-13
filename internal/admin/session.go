@@ -14,6 +14,7 @@ import (
 
 	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/oidcauth"
+	"github.com/helv-io/skgate/internal/secrets"
 )
 
 const (
@@ -94,18 +95,26 @@ func (a *Admin) secret() []byte {
 	if a.secretKey != nil {
 		return a.secretKey
 	}
-	v, ok, err := a.DB.LookupSetting("session_secret")
+	raw, ok, err := a.DB.LookupSetting("session_secret")
 	if err != nil { // cannot tell whether one exists: use a throwaway key for this call and decide later
 		return []byte(httputil.RandString(48))
 	}
-	if ok && v != "" {
-		if b, err := base64.RawStdEncoding.DecodeString(v); err == nil && len(b) >= 32 {
-			a.secretKey = b
-			return b
+	if ok && raw != "" {
+		// Sealed with SECRETS_KEY like the other credentials, so the database alone cannot mint admin cookies.
+		// A plaintext value from an older release is sealed on the spot; one that cannot be opened (the key
+		// changed) is replaced, which signs admins out once.
+		if v, oerr := a.DB.Secrets.Open(raw); oerr == nil {
+			if b, err := base64.RawStdEncoding.DecodeString(v); err == nil && len(b) >= 32 {
+				if !secrets.IsSealed(raw) {
+					_ = a.DB.SetSecret("session_secret", v)
+				}
+				a.secretKey = b
+				return b
+			}
 		}
 	}
 	b := []byte(httputil.RandString(48))
-	if a.DB.SetSetting("session_secret", base64.RawStdEncoding.EncodeToString(b)) != nil {
+	if a.DB.SetSecret("session_secret", base64.RawStdEncoding.EncodeToString(b)) != nil {
 		return b // not stored: do not keep it either, so the next call tries again
 	}
 	a.secretKey = b
