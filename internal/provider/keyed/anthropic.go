@@ -238,7 +238,7 @@ func toMessages(req map[string]json.RawMessage) (msg map[string]any, stream bool
 				case "required":
 					msg["tool_choice"] = map[string]any{"type": "any"}
 				case "none":
-					delete(msg, "tools")
+					msg["tool_choice"] = map[string]any{"type": "none"} // keep tools: a history with tool_use needs them
 				default:
 					msg["tool_choice"] = map[string]any{"type": "auto"}
 				}

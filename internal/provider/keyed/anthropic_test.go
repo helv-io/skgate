@@ -243,3 +243,18 @@ func TestNoKeyIsAnErrorBeforeAnyRequest(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 }
+
+// tool_choice "none" keeps the tools and asks for none (review INT-05): Anthropic refuses a history with tool_use
+// blocks when tools are missing.
+func TestAnthropicToolChoiceNoneKeepsTools(t *testing.T) {
+	var req map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(`{"model":"m","messages":[{"role":"user","content":"hi"}],
+		"tools":[{"type":"function","function":{"name":"now","parameters":{"type":"object"}}}],"tool_choice":"none"}`), &req)
+	msg, _, _ := toMessages(req)
+	if msg["tools"] == nil {
+		t.Fatal("tools were dropped")
+	}
+	if c, _ := msg["tool_choice"].(map[string]any); c["type"] != "none" {
+		t.Fatalf("tool_choice: %v", msg["tool_choice"])
+	}
+}
