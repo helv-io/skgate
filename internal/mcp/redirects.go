@@ -61,6 +61,9 @@ func (s *Server) doFollow(req *http.Request, body []byte) (*http.Response, error
 		if next.Scheme != "http" && next.Scheme != "https" {
 			return nil, errors.New("upstream redirected to an unsupported scheme")
 		}
+		if req.URL.Scheme == "https" && next.Scheme != "https" { // the credentials would travel in the clear
+			return nil, fmt.Errorf("upstream redirected (HTTP %d) from https to http, which skgate does not follow", resp.StatusCode)
+		}
 		if sameHost {
 			next.Host = origin // a Location naming the override host still connects to the real one
 		}

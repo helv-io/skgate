@@ -120,3 +120,24 @@ func TestRewriteLocation(t *testing.T) {
 		t.Errorf("relative Location: %q", h.Get("Location"))
 	}
 }
+
+// An https upstream that redirects to http on the same host is not followed (review SEC-06): the next hop would
+// carry the outbound credentials in the clear.
+func TestUpstreamRedirectHTTPSDowngradeIsNotFollowed(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "http://"+r.Host+"/mcp")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	}))
+	defer ts.Close()
+	s := &Server{HTTP: ts.Client()}
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/mcp/", nil)
+	req.Header.Set("Authorization", "Bearer UPSECRET")
+	resp, err := s.doFollow(req, []byte(`{}`))
+	if err == nil {
+		resp.Body.Close()
+		t.Fatal("https to http redirect was followed")
+	}
+	if !strings.Contains(err.Error(), "https to http") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
