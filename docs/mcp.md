@@ -30,7 +30,7 @@ An upstream that only offers OAuth is reported as `oauth (unsupported)` and gets
 
 Editing URL, credentials, header name or host override clears the result. Existing upstreams keep their mode.
 
-**Addresses.** An address on the internet needs `https`; plain `http` is accepted for a single-label name (a Docker service), an IP address, `localhost` and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`. The rule is the same for remote and OpenAPI upstreams, Test and import, and Suggest. Git clones are always https.
+**Addresses.** An address on the internet needs `https`; plain `http` is accepted for a single-label name (a Docker service), a private, loopback or CGNAT (`100.64.0.0/10`) IP address, `localhost` and names ending in `.local`, `.lan`, `.internal` or `.home.arpa`. The rule is the same for remote and OpenAPI upstreams, Test and import, and Suggest. Git clones are always https. A public IP address needs https too; an upstream saved over plain http to one by an earlier release keeps its row but fails with `use https for a server on the internet` until it is edited.
 
 **Add and Save test first.** The form posts in place and the upstream is tested before anything is stored: a remote upstream must answer `initialize`, an OpenAPI one must answer its first GET without parameters with a 2xx (see [the connection check](openapi.md#the-connection-check)).
 

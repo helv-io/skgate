@@ -1,6 +1,8 @@
 package mcp
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -141,5 +143,26 @@ func TestDeleteUnusedClients(t *testing.T) {
 	db.QueryRow(`SELECT COUNT(*) FROM oauth_tokens WHERE client_id='used-old'`).Scan(&tokens)
 	if tokens != 0 {
 		t.Errorf("the tokens of a deleted client are deleted too: %d", tokens)
+	}
+}
+
+func TestSavedPublicIPOverHTTPGivesAClearError(t *testing.T) {
+	e := newEnv(t, nil)
+	if err := e.srv.Upstreams.Create(Upstream{Alias: "pub", URL: "http://8.8.8.8/mcp", Enabled: true}); err == nil {
+		t.Fatal("a public IP over http must be refused on save")
+	}
+	// a row saved by an older release
+	e.db.Exec(`INSERT INTO upstreams(alias,url,created_at) VALUES('old','http://8.8.8.8/mcp',0)`)
+	up, ok := e.srv.Upstreams.Get("old")
+	if !ok {
+		t.Fatal("row missing")
+	}
+	req := httptest.NewRequest(http.MethodPost, "/mcp/old", nil)
+	_, err := e.srv.forward(req, up, http.MethodPost, []byte("{}"), nil)
+	if err == nil || !strings.Contains(err.Error(), "use https") || !strings.Contains(err.Error(), "old") {
+		t.Fatalf("want a clear https error, got %v", err)
+	}
+	if tr := e.srv.testUpstream(req.Context(), up); !strings.Contains(tr.Error, "use https") {
+		t.Fatalf("test: %+v", tr)
 	}
 }

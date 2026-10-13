@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -176,8 +177,12 @@ func (s *Server) forward(in *http.Request, up Upstream, method string, body []by
 			}
 		}
 	}
-	if _, err := url.Parse(target); err != nil {
+	pu, err := url.Parse(target)
+	if err != nil {
 		return nil, err
+	}
+	if err := httputil.CheckScheme(pu); err != nil { // a saved upstream from before the rule: edit it to https
+		return nil, fmt.Errorf("upstream %s: %w", up.Alias, err)
 	}
 	var rd io.Reader
 	if body != nil {

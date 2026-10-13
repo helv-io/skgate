@@ -12,15 +12,34 @@ import (
 // privateSuffixes end the names of machines on a home or company network. They never have a public TLD.
 var privateSuffixes = []string{".local", ".lan", ".internal", ".home.arpa", ".localhost", ".localdomain"}
 
-// PublicHost reports whether host (a name or an IP, with or without a port) is on the internet: a name that ends
-// in a public top-level domain. Single-label names (a Docker service), IP addresses, localhost and the usual
-// home and company suffixes are not.
+// cgnat is the shared address space of carrier-grade NAT and overlay networks such as Tailscale.
+var cgnat = &net.IPNet{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}
+
+// PublicIP reports whether ip is reachable on the internet: not private, loopback, link-local,
+// unspecified or CGNAT (100.64.0.0/10).
+func PublicIP(ip net.IP) bool {
+	if ip4 := ip.To4(); ip4 != nil {
+		ip = ip4
+	}
+	return !(ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsUnspecified() || cgnat.Contains(ip))
+}
+
+// PublicHost reports whether host (a name or an IP, with or without a port) is on the internet: a public IP
+// address, or a name that ends in a public top-level domain. Single-label names (a Docker service), private,
+// loopback and CGNAT addresses, localhost and the usual home and company suffixes are not.
 func PublicHost(host string) bool {
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
 	}
 	host = strings.ToLower(strings.Trim(strings.TrimSuffix(host, "."), "[]"))
-	if host == "" || net.ParseIP(host) != nil || !strings.Contains(host, ".") {
+	if i := strings.IndexByte(host, '%'); i >= 0 { // IPv6 zone
+		host = host[:i]
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return PublicIP(ip)
+	}
+	if host == "" || !strings.Contains(host, ".") {
 		return false
 	}
 	for _, s := range privateSuffixes {

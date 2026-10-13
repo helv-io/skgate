@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/helv-io/skgate/internal/httputil"
 	"io"
 	"mime"
 	"net/http"
@@ -172,6 +173,9 @@ func (c *Caller) build(ctx context.Context, t Tool, args map[string]any) (*http.
 		q.Set(c.Auth.Name, c.Auth.Value)
 	}
 	base.RawQuery = q.Encode()
+	if err := httputil.CheckScheme(base); err != nil { // a base URL saved before the rule: edit it to https
+		return nil, err
+	}
 	req, err := http.NewRequestWithContext(ctx, o.Method, base.String(), body)
 	if err != nil {
 		return nil, errors.New("the request cannot be built")
