@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.helv-io/skgate",
   "title": "skgate",
-  "description": "OAuth MCP gateway. SI proxy with model aliases. Grok subscription as OpenAI-compatible API, no key.",
+  "description": "Self-hosted MCP gateway and LLM proxy: OAuth 2.1, model aliases, Grok subscription as an API.",
   "websiteUrl": "https://github.com/helv-io/skgate",
   "repository": {
     "url": "https://github.com/helv-io/skgate",
