@@ -50,6 +50,26 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.27.0] - 2026-10-13
+
+### Changed
+
+- Managed: each upstream runs as its own uid with private directories (review SEC-02)
+- Keys: separate per-key MCP rate limit, /v1 limit labelled as such (review PROD-01)
+- MCP: keep passthrough upstreams off the aggregated /mcp (review INT-03)
+- API: /v1/models merges every ready provider's list (review INT-01)
+- Upstreams: require https for public IP addresses (review SEC-05)
+- Secrets: scrypt for SECRETS_KEY passphrases, enc:v2 with startup reseal (review SEC-04)
+- Store: fall back to TRUNCATE journal when WAL fails (review PROD-03)
+- Anthropic: forward GET /models/{id} (review INT-05)
+- Anthropic: tool_choice "none" keeps the tools (review INT-05)
+- Registration cap evicts unused clients first (review PROD-02)
+- Refresh never widens the token scope (review SEC-07)
+- Bind POST /messages to the resource of its SSE stream (review SEC-07)
+- Do not follow an upstream redirect from https to http (review SEC-06)
+- Seal the admin cookie signing key at rest (review SEC-03)
+- Server.json: searchable registry description
+
 ## [0.26.1] - 2026-10-12
 
 ### Changed
@@ -748,7 +768,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.26.1...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/helv-io/skgate/compare/v0.26.1...v0.27.0
 [0.26.1]: https://github.com/helv-io/skgate/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/helv-io/skgate/compare/v0.25.3...v0.26.0
 [0.25.3]: https://github.com/helv-io/skgate/compare/v0.25.2...v0.25.3
