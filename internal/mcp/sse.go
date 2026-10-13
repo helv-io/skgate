@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/helv-io/skgate/internal/vkeys"
 	"io"
 	"net/http"
 	"net/url"
@@ -26,7 +27,8 @@ import (
 type sseSession struct {
 	id       string
 	up       Upstream
-	agg      bool // bare /sse: served by the aggregator instead of one upstream
+	agg      bool   // bare /sse: served by the aggregator instead of one upstream
+	authPath string // the resource the stream was opened for; POST /messages must be allowed there too
 	events   chan []byte
 	mu       sync.Mutex // serializes upstream requests until response headers arrive
 	upstream string     // upstream Mcp-Session-Id
@@ -96,7 +98,7 @@ func (s *Server) serveSSE(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	rc := http.NewResponseController(w)
-	ss := &sseSession{id: httputil.RandString(32), up: up, agg: alias == "", events: make(chan []byte, 64), done: make(chan struct{})}
+	ss := &sseSession{id: httputil.RandString(32), up: up, agg: alias == "", authPath: authPath, events: make(chan []byte, 64), done: make(chan struct{})}
 	s.sessMu.Lock()
 	if len(s.sessions) >= 256 {
 		s.sessMu.Unlock()
@@ -170,6 +172,14 @@ func (s *Server) serveMessages(w http.ResponseWriter, r *http.Request) {
 		reqlog.Reject(r, "unknown or closed SSE session")
 		jsonErr(w, http.StatusNotFound, "unknown_session", "unknown or closed SSE session")
 		return
+	}
+	// An OAuth token bound to one /sse/{alias} must not drive a stream opened for another alias.
+	if tok := httputil.BearerToken(r); tok != "" && !vkeys.LooksLikeKey(tok) && s.verifyAccessToken(tok, "/messages") == "" {
+		if why := s.verifyAccessToken(tok, ss.authPath); why != "" {
+			reqlog.Reject(r, "invalid token: %s", why)
+			s.unauthorized(w, r, ss.authPath, true)
+			return
+		}
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxMCPBody))
 	if err != nil || !json.Valid(body) {
