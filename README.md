@@ -496,7 +496,7 @@ Hints for Authelia, Authentik, Keycloak, Zitadel and Pocket ID: [docs/oidc.md](d
 - Managed upstreams run admin-supplied commands; use the `slim` image to disable them.
 - A key can be allowed in the URL (`?key=`) for clients that cannot send headers. It is off per key by default, because URLs leak into logs, history and referrers.
 
-More: [operations](docs/operations.md).
+More, including the known trade-offs: [operations](docs/operations.md#known-trade-offs).
 
 ## Built with SI assistance
 
