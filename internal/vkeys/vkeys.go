@@ -33,8 +33,9 @@ type Key struct {
 	Revoked   bool
 	Usage     Usage
 	// Optional limits; 0 / the zero time mean none (see limits.go).
-	RatePerMin int64
-	ExpiresAt  time.Time
+	RatePerMin    int64
+	MCPRatePerMin int64
+	ExpiresAt     time.Time
 	// URLKey allows this key as ?key= on MCP endpoints. Off by default: URLs end up in logs, history and referrers.
 	URLKey bool
 }
@@ -54,8 +55,9 @@ type Manager struct {
 	// Logf receives purge notices (default: the standard logger).
 	Logf func(format string, args ...any)
 	// Now replaces the clock of the rate windows (tests).
-	Now     func() time.Time
-	windows map[int64]*window
+	Now        func() time.Time
+	windows    map[int64]*window
+	mcpWindows map[int64]*window
 }
 
 // New returns a Manager.
@@ -126,9 +128,9 @@ func (m *Manager) lookup(token string) (Key, bool) {
 	}
 	var k Key
 	var created, last, revoked, expires, urlKey int64
-	err := m.db.QueryRow(`SELECT k.id,k.prefix,k.label,k.created_at,k.last_used,k.revoked_at,k.last4,k.rate_per_min,k.expires_at,k.url_key,COALESCE(u.requests,0)
+	err := m.db.QueryRow(`SELECT k.id,k.prefix,k.label,k.created_at,k.last_used,k.revoked_at,k.last4,k.rate_per_min,k.mcp_rate_per_min,k.expires_at,k.url_key,COALESCE(u.requests,0)
 		FROM vkeys k LEFT JOIN key_usage u ON u.key_id=k.id WHERE k.hash=?`,
-		httputil.SHA256Hex(token)).Scan(&k.ID, &k.Prefix, &k.Label, &created, &last, &revoked, &k.Last4, &k.RatePerMin, &expires, &urlKey, &k.Usage.Requests)
+		httputil.SHA256Hex(token)).Scan(&k.ID, &k.Prefix, &k.Label, &created, &last, &revoked, &k.Last4, &k.RatePerMin, &k.MCPRatePerMin, &expires, &urlKey, &k.Usage.Requests)
 	if err != nil || revoked != 0 {
 		return Key{}, false
 	}
@@ -239,7 +241,7 @@ func (m *Manager) RunPurge(ctx context.Context, every time.Duration) {
 // List returns all keys, newest first, with their usage (pending increments are written first).
 func (m *Manager) List() ([]Key, error) {
 	_ = m.FlushUsage()
-	rows, err := m.db.Query(`SELECT k.id,k.prefix,k.label,k.created_at,k.last_used,k.revoked_at,k.last4,k.rate_per_min,k.expires_at,k.url_key,
+	rows, err := m.db.Query(`SELECT k.id,k.prefix,k.label,k.created_at,k.last_used,k.revoked_at,k.last4,k.rate_per_min,k.mcp_rate_per_min,k.expires_at,k.url_key,
 		COALESCE(u.prompt_tokens,0),COALESCE(u.completion_tokens,0),COALESCE(u.total_tokens,0),
 		COALESCE(u.requests,0),COALESCE(u.mcp_requests,0),COALESCE(u.last_used,0)
 		FROM vkeys k LEFT JOIN key_usage u ON u.key_id=k.id ORDER BY k.id DESC`)
@@ -251,7 +253,7 @@ func (m *Manager) List() ([]Key, error) {
 	for rows.Next() {
 		var k Key
 		var c, l, r, ul, ex, uk int64
-		if err := rows.Scan(&k.ID, &k.Prefix, &k.Label, &c, &l, &r, &k.Last4, &k.RatePerMin, &ex, &uk,
+		if err := rows.Scan(&k.ID, &k.Prefix, &k.Label, &c, &l, &r, &k.Last4, &k.RatePerMin, &k.MCPRatePerMin, &ex, &uk,
 			&k.Usage.PromptTokens, &k.Usage.CompletionTokens, &k.Usage.TotalTokens, &k.Usage.Requests, &k.Usage.MCPRequests, &ul); err != nil {
 			return nil, err
 		}

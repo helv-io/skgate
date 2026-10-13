@@ -12,6 +12,8 @@ import (
 //
 //   - RatePerMin: at most this many /v1 requests in each minute (a fixed one-minute window per key). 0 = no rate limit.
 //     A request over it is answered with 429 and does not count.
+//   - MCPRatePerMin: the same for MCP requests, counted separately (an MCP session sends many small requests,
+//     so it gets its own number). 0 = no limit, the default.
 //   - ExpiresAt: from this moment the key is refused everywhere (/v1 and MCP) with 401 and a message that says it
 //     expired. The zero time = never expires. The date can be moved or cleared again.
 const MaxLimit = 1_000_000_000
@@ -54,6 +56,21 @@ func (m *Manager) SetLimits(id, ratePerMin int64, expires time.Time) error {
 	return nil
 }
 
+// SetMCPRate stores the MCP rate limit of an active key; 0 clears it.
+func (m *Manager) SetMCPRate(id, perMin int64) error {
+	if perMin < 0 || perMin > MaxLimit {
+		return fmt.Errorf("the MCP rate limit must be a whole number from 0 to %d", MaxLimit)
+	}
+	res, err := m.db.Exec(`UPDATE vkeys SET mcp_rate_per_min=? WHERE id=? AND revoked_at=0`, perMin, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return errors.New("key not found or revoked")
+	}
+	return nil
+}
+
 // SetLabel renames an active key.
 func (m *Manager) SetLabel(id int64, label string) error {
 	res, err := m.db.Exec(`UPDATE vkeys SET label=? WHERE id=? AND revoked_at=0`, CleanLabel(label), id)
@@ -80,31 +97,41 @@ type window struct {
 
 // Check applies k's rate limit to one /v1 request and returns nil if it may go on. k must come from Verify.
 func (m *Manager) Check(k Key) *Rejection {
-	if k.RatePerMin <= 0 {
+	return m.take(&m.windows, k.ID, k.RatePerMin, "Rate limit")
+}
+
+// CheckMCP applies k's MCP rate limit to one MCP request, counted apart from /v1.
+func (m *Manager) CheckMCP(k Key) *Rejection {
+	return m.take(&m.mcpWindows, k.ID, k.MCPRatePerMin, "MCP rate limit")
+}
+
+func (m *Manager) take(windows *map[int64]*window, id, limit int64, what string) *Rejection {
+	if limit <= 0 {
 		return nil
 	}
 	now := m.clock()
 	m.umu.Lock()
 	defer m.umu.Unlock()
-	if m.windows == nil {
-		m.windows = map[int64]*window{}
+	if *windows == nil {
+		*windows = map[int64]*window{}
 	}
-	if len(m.windows) > 512 { // forget windows that ended
-		for id, w := range m.windows {
+	ws := *windows
+	if len(ws) > 512 { // forget windows that ended
+		for id, w := range ws {
 			if now.Sub(w.start) >= time.Minute {
-				delete(m.windows, id)
+				delete(ws, id)
 			}
 		}
 	}
-	w := m.windows[k.ID]
+	w := ws[id]
 	if w == nil || now.Sub(w.start) >= time.Minute {
 		w = &window{start: now}
-		m.windows[k.ID] = w
+		ws[id] = w
 	}
-	if w.n >= k.RatePerMin {
+	if w.n >= limit {
 		wait := w.start.Add(time.Minute).Sub(now)
 		return &Rejection{Code: "rate_limit_exceeded", RetryAfter: wait,
-			Message: fmt.Sprintf("Rate limit of %d requests per minute reached for this API key. Retry in %d seconds.", k.RatePerMin, secs(wait))}
+			Message: fmt.Sprintf("%s of %d requests per minute reached for this API key. Retry in %d seconds.", what, limit, secs(wait))}
 	}
 	w.n++
 	return nil

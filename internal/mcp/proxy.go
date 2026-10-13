@@ -91,7 +91,10 @@ func (s *Server) serveMCP(w http.ResponseWriter, r *http.Request) {
 	if alias != "" {
 		authPath += "/" + alias
 	}
-	if okAuth, presented := s.authenticate(r, authPath); !okAuth {
+	if okAuth, presented, rej := s.authenticate(r, authPath); rej != nil {
+		s.tooMany(w, rej)
+		return
+	} else if !okAuth {
 		s.unauthorized(w, r, authPath, presented)
 		return
 	}

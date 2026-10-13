@@ -4,7 +4,9 @@
 <div class="card" id="key-create" data-live><form method="post" action="/admin/keys/create" class="form" data-post><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <div class="field"><label>Name<input type="text" name="label" maxlength="80" placeholder="My assistant" autocomplete="off"></label></div>
 <details><summary class="muted">Limits</summary>
-<div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit"></label></div>
+<div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit"></label>
+<p class="muted">Applies to /v1 only.</p></div>
+<div class="field"><label>Max MCP requests per minute<input type="number" name="mcp_rate" min="0" inputmode="numeric" placeholder="no limit"></label></div>
 {{template "expiry_field" neverExpires}}
 </details>
 <div class="row"><button class="btn">Create key</button></div></form></div>
@@ -16,7 +18,9 @@
 {{range .Keys}}{{template "dialog_content" (dlg (printf "key-%d" .ID) "Virtual key")}}
 {{if not .Revoked}}<form method="post" action="/admin/keys/update" class="form" data-post="close"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
 <div class="field"><label>Name<input type="text" name="label" maxlength="80" value="{{.Label}}"></label></div>
-<div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></label></div>
+<div class="field"><label>Max requests per minute<input type="number" name="rate" min="0" inputmode="numeric" placeholder="no limit" value="{{if .RatePerMin}}{{.RatePerMin}}{{end}}"></label>
+<p class="muted">Applies to /v1 only.</p></div>
+<div class="field"><label>Max MCP requests per minute<input type="number" name="mcp_rate" min="0" inputmode="numeric" placeholder="no limit" value="{{if .MCPRatePerMin}}{{.MCPRatePerMin}}{{end}}"></label></div>
 {{template "expiry_field" (expiry .ExpiresAt)}}
 <div class="field"><label class="check"><input type="checkbox" name="urlkey" value="1" {{if .URLKey}}checked{{end}}> Accept this key in the URL as <code>?key=</code></label>
 <p class="muted">The key can show up in logs and browser history.</p></div>

@@ -322,6 +322,7 @@ func (d *DB) resealAll() error {
 // pasted) and spec_hash the SHA-256 of the text fetched then ("" = not recorded); a manual update compares with them.
 // vkeys.last4 is the last 4 characters of a key, only for display (older keys have none).
 // vkeys.rate_per_min (requests per minute) and vkeys.expires_at (unix time, 0 = never) are optional; old keys stay unlimited and never expire.
+// vkeys.mcp_rate_per_min is the separate per-minute limit on MCP requests (0 = none, the default).
 // vkeys.url_key (0/1) allows that key as ?key= on MCP endpoints; it replaced the global allow_query_key setting.
 // vkeys.hard_stop is no longer read or written; the column stays so older and newer files open alike.
 // oauth_clients.last_used_at is the unix time of the last /authorize or /token use (0 = never).
@@ -350,7 +351,7 @@ func migrate(db *sql.DB) error {
 		{"upstreams", "auto_update_secs", "INTEGER NOT NULL DEFAULT 0"},
 		{"vkeys", "last4", "TEXT NOT NULL DEFAULT ''"},
 		{"vkeys", "rate_per_min", "INTEGER NOT NULL DEFAULT 0"}, {"vkeys", "hard_stop", "INTEGER NOT NULL DEFAULT 0"}, {"vkeys", "expires_at", "INTEGER NOT NULL DEFAULT 0"},
-		{"vkeys", "url_key", "INTEGER NOT NULL DEFAULT 0"},
+		{"vkeys", "url_key", "INTEGER NOT NULL DEFAULT 0"}, {"vkeys", "mcp_rate_per_min", "INTEGER NOT NULL DEFAULT 0"},
 		{"upstream_openapi", "fetched_at", "INTEGER NOT NULL DEFAULT 0"}, {"upstream_openapi", "spec_hash", "TEXT NOT NULL DEFAULT ''"},
 		{"oauth_clients", "last_used_at", "INTEGER NOT NULL DEFAULT 0"},
 		{"oauth_clients", "pkce_seen", "INTEGER NOT NULL DEFAULT 0"},

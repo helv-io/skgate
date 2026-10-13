@@ -227,3 +227,38 @@ func TestSetLabelRenamesActiveKeysOnly(t *testing.T) {
 		t.Fatal("a revoked key cannot be renamed")
 	}
 }
+
+func TestMCPRateLimitIsSeparateFromV1(t *testing.T) {
+	m := New(newDB(t))
+	now := time.Unix(1_700_000_000, 0)
+	m.Now = func() time.Time { return now }
+	full, k, _ := m.Create("mcp")
+	if v, _ := m.Verify(full); v.MCPRatePerMin != 0 || m.CheckMCP(v) != nil {
+		t.Fatal("MCP is unlimited by default")
+	}
+	if err := m.SetLimits(k.ID, 1, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SetMCPRate(k.ID, 2); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SetMCPRate(k.ID, -1); err == nil {
+		t.Fatal("negative must be refused")
+	}
+	v, _ := m.Verify(full)
+	if m.Check(v) != nil || m.Check(v) == nil {
+		t.Fatal("/v1 limit of 1")
+	}
+	if m.CheckMCP(v) != nil || m.CheckMCP(v) != nil {
+		t.Fatal("MCP has its own count")
+	}
+	rej := m.CheckMCP(v)
+	if rej == nil || !strings.Contains(rej.Message, "MCP rate limit of 2") {
+		t.Fatalf("%+v", rej)
+	}
+	m.SetMCPRate(k.ID, 0)
+	v, _ = m.Verify(full)
+	if m.CheckMCP(v) != nil {
+		t.Fatal("0 clears the MCP limit")
+	}
+}

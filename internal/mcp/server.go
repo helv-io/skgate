@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -202,8 +203,9 @@ func (s *Server) unauthorized(w http.ResponseWriter, r *http.Request, path strin
 
 // authenticate checks inbound MCP credentials: virtual key via Authorization Bearer or X-API-Key,
 // optional ?key=, or an OAuth access token issued by this server. path is the request path (for the
-// RFC 8707 audience check). It returns (ok, presentedSomething).
-func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool) {
+// RFC 8707 audience check). It returns (ok, presentedSomething); rej is set when a valid key is over its MCP rate
+// limit, and the caller answers 429 (see tooMany).
+func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool, rej *vkeys.Rejection) {
 	// An earlier credential may fail with a recorded reason while a later one succeeds.
 	defer func() {
 		if ok {
@@ -214,9 +216,13 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 		presented = true
 		if vkeys.LooksLikeKey(tok) {
 			if key, ok := s.Keys.Verify(tok); ok {
+				if rej := s.Keys.CheckMCP(key); rej != nil {
+					reqlog.Reject(r, "key %d: MCP rate limit", key.ID)
+					return false, true, rej
+				}
 				s.Keys.Record(key.ID, vkeys.Usage{MCPRequests: 1})
 				reqlog.Note(r, "auth=virtual-key")
-				return true, true
+				return true, true, nil
 			}
 			if at, late := s.Keys.ExpiredAt(tok); late {
 				reqlog.Reject(r, "invalid token: virtual key expired %s (key ending %s)", timefmt.RFC3339(at), tokTail(tok))
@@ -225,7 +231,7 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 			}
 		} else if why := s.verifyAccessToken(tok, path); why == "" {
 			reqlog.Note(r, "auth=oauth-token")
-			return true, true
+			return true, true, nil
 		} else {
 			reqlog.Reject(r, "invalid token: %s", why)
 		}
@@ -233,9 +239,13 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 	if k := strings.TrimSpace(r.Header.Get("X-API-Key")); k != "" {
 		presented = true
 		if key, ok := s.Keys.Verify(k); ok {
+			if rej := s.Keys.CheckMCP(key); rej != nil {
+				reqlog.Reject(r, "key %d: MCP rate limit", key.ID)
+				return false, true, rej
+			}
 			s.Keys.Record(key.ID, vkeys.Usage{MCPRequests: 1})
 			reqlog.Note(r, "auth=x-api-key")
-			return true, true
+			return true, true, nil
 		}
 		if at, late := s.Keys.ExpiredAt(k); late {
 			reqlog.Reject(r, "invalid token: X-API-Key is a virtual key that expired %s", timefmt.RFC3339(at))
@@ -248,9 +258,13 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 		if key, ok := s.Keys.Verify(k); ok && !key.URLKey {
 			reqlog.Reject(r, "invalid token: ?key= is a valid virtual key that is not allowed in the URL (enable it in the key's details)")
 		} else if ok {
+			if rej := s.Keys.CheckMCP(key); rej != nil {
+				reqlog.Reject(r, "key %d: MCP rate limit", key.ID)
+				return false, true, rej
+			}
 			s.Keys.Record(key.ID, vkeys.Usage{MCPRequests: 1})
 			reqlog.Note(r, "auth=query-key")
-			return true, true
+			return true, true, nil
 		} else {
 			if at, late := s.Keys.ExpiredAt(k); late {
 				reqlog.Reject(r, "invalid token: ?key= is a virtual key that expired %s", timefmt.RFC3339(at))
@@ -259,7 +273,14 @@ func (s *Server) authenticate(r *http.Request, path string) (ok, presented bool)
 			}
 		}
 	}
-	return false, presented
+	return false, presented, nil
+}
+
+// tooMany answers a request over its key's MCP rate limit: 429 with Retry-After.
+func (s *Server) tooMany(w http.ResponseWriter, rej *vkeys.Rejection) {
+	httputil.SetCORS(w)
+	w.Header().Set("Retry-After", strconv.Itoa(rej.RetryAfterSeconds()))
+	httputil.JSON(w, http.StatusTooManyRequests, map[string]string{"error": rej.Code, "error_description": rej.Message})
 }
 
 // tokTail shows only the last 4 characters of a credential (asterisks when it is short), the most

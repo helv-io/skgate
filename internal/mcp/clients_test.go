@@ -184,3 +184,26 @@ func TestPassthroughUpstreamsAreNotOnAggregatedMCP(t *testing.T) {
 		t.Fatalf("included: %+v", inc)
 	}
 }
+
+func TestMCPRateLimitAnswers429(t *testing.T) {
+	e := newEnv(t, nil)
+	full, k, _ := e.keys.Create("m")
+	if err := e.keys.SetMCPRate(k.ID, 1); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"jsonrpc":"2.0","id":1,"method":"ping"}`
+	hdr := map[string]string{"Authorization": "Bearer " + full, "Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
+	if r := e.do("POST", "/mcp", hdr, body); r.StatusCode == http.StatusTooManyRequests || r.StatusCode == http.StatusUnauthorized {
+		t.Fatalf("first request: %d", r.StatusCode)
+	}
+	r := e.do("POST", "/mcp", hdr, body)
+	if r.StatusCode != http.StatusTooManyRequests || r.Header.Get("Retry-After") == "" {
+		t.Fatalf("second request: %d", r.StatusCode)
+	}
+	// /v1 is not counted against the MCP limit and vice versa: another key is untouched
+	other, _, _ := e.keys.Create("o")
+	hdr["Authorization"] = "Bearer " + other
+	if r := e.do("POST", "/mcp", hdr, body); r.StatusCode == http.StatusTooManyRequests {
+		t.Fatal("another key must not be limited")
+	}
+}

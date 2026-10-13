@@ -512,6 +512,10 @@ func (a *Admin) keys(w http.ResponseWriter, r *http.Request) {
 
 func (a *Admin) keyCreate(w http.ResponseWriter, r *http.Request) {
 	rate, expires, err := limitsOf(r)
+	var mcpRate int64
+	if err == nil {
+		mcpRate, err = mcpRateOf(r)
+	}
 	if err != nil {
 		a.back(w, r, "/admin/keys", "", err.Error())
 		return
@@ -519,6 +523,9 @@ func (a *Admin) keyCreate(w http.ResponseWriter, r *http.Request) {
 	full, k, err := a.Keys.Create(r.PostFormValue("label"))
 	if err == nil && (rate > 0 || !expires.IsZero()) {
 		err = a.Keys.SetLimits(k.ID, rate, expires)
+	}
+	if err == nil && mcpRate > 0 {
+		err = a.Keys.SetMCPRate(k.ID, mcpRate)
 	}
 	if err != nil {
 		a.MCP.Log.Printf("admin: key create failed: %v", err)
@@ -542,6 +549,19 @@ func limitsOf(r *http.Request) (rate int64, expires time.Time, err error) {
 		return 0, time.Time{}, err
 	}
 	return rate, expires, nil
+}
+
+// mcpRateOf reads the optional MCP rate limit of the key forms (empty = unlimited).
+func mcpRateOf(r *http.Request) (int64, error) {
+	v := strings.TrimSpace(r.PostFormValue("mcp_rate"))
+	if v == "" {
+		return 0, nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || n < 0 || n > vkeys.MaxLimit {
+		return 0, fmt.Errorf("the MCP rate limit is a whole number of requests per minute, 0 to %d", vkeys.MaxLimit)
+	}
+	return n, nil
 }
 
 // keyExpiry answers the live preview under the expiration field: what the text means, or why it does not.
@@ -589,8 +609,15 @@ func expiryOf(t time.Time) expiryData {
 func (a *Admin) keyUpdate(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(r.PostFormValue("id"), 10, 64)
 	rate, expires, err := limitsOf(r)
+	var mcpRate int64
+	if err == nil {
+		mcpRate, err = mcpRateOf(r)
+	}
 	if err == nil {
 		err = a.Keys.SetLimits(id, rate, expires)
+	}
+	if err == nil {
+		err = a.Keys.SetMCPRate(id, mcpRate)
 	}
 	if err == nil {
 		err = a.Keys.SetLabel(id, r.PostFormValue("label"))

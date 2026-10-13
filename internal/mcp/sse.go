@@ -70,7 +70,10 @@ func (s *Server) serveSSE(w http.ResponseWriter, r *http.Request) {
 	if alias != "" {
 		authPath += "/" + alias
 	}
-	if ok, presented := s.authenticate(r, authPath); !ok {
+	if ok, presented, rej := s.authenticate(r, authPath); rej != nil {
+		s.tooMany(w, rej)
+		return
+	} else if !ok {
 		s.unauthorized(w, r, authPath, presented) // this path's own protected-resource document
 		return
 	}
@@ -161,7 +164,10 @@ func (s *Server) serveMessages(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, http.StatusMethodNotAllowed, "method_not_allowed", "POST only")
 		return
 	}
-	if ok, presented := s.authenticate(r, "/messages"); !ok {
+	if ok, presented, rej := s.authenticate(r, "/messages"); rej != nil {
+		s.tooMany(w, rej)
+		return
+	} else if !ok {
 		s.unauthorized(w, r, "/sse", presented) // the POST half of /sse
 		return
 	}
