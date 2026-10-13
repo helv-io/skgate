@@ -258,3 +258,18 @@ func TestAnthropicToolChoiceNoneKeepsTools(t *testing.T) {
 		t.Fatalf("tool_choice: %v", msg["tool_choice"])
 	}
 }
+
+// GET /models/{id} is forwarded (review INT-05) instead of answered with 404.
+func TestAnthropicModelByID(t *testing.T) {
+	f := newFake(t, func(w http.ResponseWriter) { io.WriteString(w, `{"id":"claude-x","type":"model"}`) })
+	a := anthropic(t, f)
+	resp, err := a.RoundTrip(context.Background(), http.MethodGet, "/models/claude-x", "", http.Header{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || f.path != "/v1/models/claude-x" || !strings.Contains(string(b), "claude-x") {
+		t.Fatalf("%d %s %s", resp.StatusCode, f.path, b)
+	}
+}

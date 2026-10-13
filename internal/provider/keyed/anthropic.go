@@ -38,6 +38,8 @@ func (a *Anthropic) RoundTrip(ctx context.Context, method, rest, rawQuery string
 	case method == http.MethodGet && strings.TrimRight(rest, "/") == "/models":
 		q := url.Values{"limit": {"1000"}}.Encode()
 		return a.call(ctx, http.MethodGet, "/models?"+q, key, nil, nil)
+	case method == http.MethodGet && strings.HasPrefix(rest, "/models/") && len(rest) > len("/models/"):
+		return a.call(ctx, http.MethodGet, rest, key, nil, nil) // the id is already path-escaped by the proxy
 	case method == http.MethodPost && strings.TrimRight(rest, "/") == "/chat/completions":
 		var req map[string]json.RawMessage
 		if json.Unmarshal(body, &req) != nil {
@@ -65,7 +67,7 @@ func (a *Anthropic) RoundTrip(ctx context.Context, method, rest, rawQuery string
 		b, _ := json.Marshal(fromMessage(raw, model))
 		return synth(http.StatusOK, b), nil
 	}
-	return synth(http.StatusNotFound, errBody("invalid_request_error", "this provider supports /models and /chat/completions")), nil
+	return synth(http.StatusNotFound, errBody("invalid_request_error", "this provider supports /models, /models/{id} and /chat/completions")), nil
 }
 
 func (a *Anthropic) call(ctx context.Context, method, path, key string, body []byte, hdr http.Header) (*http.Response, error) {
