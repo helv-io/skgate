@@ -1,7 +1,7 @@
 <p align="center"><img src="docs/img/logo.svg" width="72" alt="skgate logo"></p>
 <h1 align="center">skgate</h1>
 
-<p align="center">Self-hosted MCP gateway and LLM proxy. Serve any MCP server or REST API behind OAuth 2.1 from one address, and proxy your AI providers (OpenAI, Anthropic, Gemini, Grok, Ollama and more) through one OpenAI-compatible API with model aliases and virtual keys. Your Grok subscription works too, no API key needed.</p>
+<p align="center">Self-hosted MCP gateway and LLM proxy. Serve any MCP server or REST API behind OAuth 2.1 from one address, and proxy your LLM providers (OpenAI, Anthropic, Gemini, Grok, Ollama and more) through one OpenAI-compatible API with model aliases and virtual keys. Your Grok subscription works too, no API key needed.</p>
 
 <p align="center">Any MCP server. skgate can run them for you, so you do not need one container per server.</p>
 
