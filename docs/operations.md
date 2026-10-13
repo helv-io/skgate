@@ -31,6 +31,8 @@ To use it before it is listed, copy the file to `/boot/config/plugins/dockerMan/
 
 `ca_profile.xml` at the repository root is the maintainer profile (a `CommunityApplications` document with the profile text, icon, web page and forum thread; the Community Apps scanner looks for it there) and `unraid/skgate.png` the icon.
 
+Keep `/data` on a disk path (`/mnt/user/appdata` on a cache pool, or `/mnt/cache/...`). When the file system refuses SQLite's WAL journal, as some FUSE and network mounts do, skgate logs a warning and falls back to the TRUNCATE journal, which works there with less concurrency.
+
 skgate needs an OIDC provider and a public https address, as everywhere else. Questions and support: the [Unraid forum thread](https://forums.unraid.net/topic/200787-support-skgate-an-mcp-proxy-that-just-works/).
 
 ## Upgrading

@@ -45,6 +45,9 @@ func main() {
 	defer db.Close()
 	privateDB(cfg.DBPath)
 	log.Printf("secrets: encryption key from %s", db.SecretsSource)
+	for _, w := range db.Warnings {
+		log.Printf("warning: %s", w)
+	}
 	for _, line := range startupNotes(cfg) {
 		log.Print(line)
 	}

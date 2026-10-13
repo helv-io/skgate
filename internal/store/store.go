@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 
@@ -20,6 +21,11 @@ type DB struct {
 	Secrets *secrets.Box
 	// SecretsSource names where the encryption key came from (for the startup log).
 	SecretsSource string
+	// JournalMode is the SQLite journal mode in use: "wal", or "truncate" when the file system
+	// refused WAL (some network and FUSE mounts do).
+	JournalMode string
+	// Warnings are startup notes for the log (WAL fallback, weak SECRETS_KEY).
+	Warnings []string
 }
 
 const schema = `
@@ -99,23 +105,23 @@ func OpenWith(path, secretsKey string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	dsn := "file:" + path + "?" + url.Values{"_pragma": {"busy_timeout(5000)", "journal_mode(WAL)", "foreign_keys(1)"}}.Encode()
-	sdb, err := sql.Open("sqlite", dsn)
+	var warnings []string
+	mode := "wal"
+	sdb, err := openSQL(path, "WAL")
 	if err != nil {
-		return nil, err
-	}
-	// A single connection keeps SQLite simple and avoids lock contention; callers must not
-	// hold rows open while issuing another query.
-	sdb.SetMaxOpenConns(1)
-	if _, err := sdb.Exec(schema); err != nil {
-		sdb.Close()
-		return nil, fmt.Errorf("migrate: %w", err)
+		// Some file systems (network shares, FUSE mounts such as Unraid's user shares) cannot
+		// hold WAL's shared-memory file. A rollback journal works there, with less concurrency.
+		mode = "truncate"
+		warnings = append(warnings, fmt.Sprintf("database: WAL journal unavailable (%v); using TRUNCATE. Put the data directory on a local disk for WAL", err))
+		if sdb, err = openSQL(path, "TRUNCATE"); err != nil {
+			return nil, err
+		}
 	}
 	if err := migrate(sdb); err != nil {
 		sdb.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
-	db := &DB{DB: sdb, Secrets: box, SecretsSource: src}
+	db := &DB{DB: sdb, Secrets: box, SecretsSource: src, JournalMode: mode, Warnings: warnings}
 	if err := db.SealSettings(SealedSettings...); err != nil {
 		sdb.Close()
 		return nil, fmt.Errorf("seal secrets: %w", err)
@@ -125,6 +131,41 @@ func OpenWith(path, secretsKey string) (*DB, error) {
 		return nil, fmt.Errorf("seal secrets: %w", err)
 	}
 	return db, nil
+}
+
+// journalOverride forces openSQL to fail for a journal mode (tests only).
+var journalOverride func(mode string) error
+
+// openSQL opens the database with the given journal mode and applies the schema. It fails when
+// SQLite does not end up in that mode.
+func openSQL(path, mode string) (*sql.DB, error) {
+	if journalOverride != nil {
+		if err := journalOverride(mode); err != nil {
+			return nil, err
+		}
+	}
+	dsn := "file:" + path + "?" + url.Values{"_pragma": {"busy_timeout(5000)", "journal_mode(" + mode + ")", "foreign_keys(1)"}}.Encode()
+	sdb, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, err
+	}
+	// A single connection keeps SQLite simple and avoids lock contention; callers must not
+	// hold rows open while issuing another query.
+	sdb.SetMaxOpenConns(1)
+	var got string
+	if err := sdb.QueryRow(`PRAGMA journal_mode`).Scan(&got); err != nil {
+		sdb.Close()
+		return nil, err
+	}
+	if !strings.EqualFold(got, mode) && !strings.EqualFold(got, "memory") {
+		sdb.Close()
+		return nil, fmt.Errorf("journal mode is %s", got)
+	}
+	if _, err := sdb.Exec(schema); err != nil {
+		sdb.Close()
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
+	return sdb, nil
 }
 
 // SealedSettings are the settings holding credentials; they are stored sealed (see GetSecret).
