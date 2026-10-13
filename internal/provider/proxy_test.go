@@ -282,7 +282,7 @@ func TestModelListOrderWithAliases(t *testing.T) {
 	// with no aliases the list is untouched
 	r.set.DeleteAlias("fake", "fast")
 	r.set.DeleteAlias("fake", "smart")
-	if _, body, _ := r.do(t, "GET", "/models", ""); body != upModels {
+	if _, body, _ := r.do(t, "GET", "/models", ""); strings.Join(ids(t, body), ",") != "real-a,real-b" {
 		t.Fatalf("unmodified list expected, got %s", body)
 	}
 }

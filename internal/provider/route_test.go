@@ -178,3 +178,30 @@ func TestHelperCallsRouteLikeRequests(t *testing.T) {
 		t.Fatal("unknown provider must fail")
 	}
 }
+
+func TestModelListMergesEveryReadyProvider(t *testing.T) {
+	r := newRig(t, nil)
+	s, _ := withSecond(t, r, "KEY-2", nil)
+	if err := r.set.SetPrefix("other", "other"); err != nil {
+		t.Fatal(err)
+	}
+	_, body, _ := r.do(t, "GET", "/v1/models", "")
+	if got := strings.Join(ids(t, body), ","); got != "real-a,real-b,other_other-1,other_other-2" {
+		t.Fatalf("merged list: %s", got)
+	}
+	if c, _, _ := r.proxy.Models.Get("other"); strings.Join(c, ",") != "other-1,other-2" {
+		t.Fatalf("second provider cache: %v", c)
+	}
+	// the second provider goes down: its cached list is served
+	s.base = "http://127.0.0.1:1/v1"
+	_, body, _ = r.do(t, "GET", "/v1/models", "")
+	if got := strings.Join(ids(t, body), ","); got != "real-a,real-b,other_other-1,other_other-2" {
+		t.Fatalf("cached list: %s", got)
+	}
+	// a provider that is not ready is left out
+	s.ready = false
+	_, body, _ = r.do(t, "GET", "/v1/models", "")
+	if got := strings.Join(ids(t, body), ","); got != "real-a,real-b" {
+		t.Fatalf("not ready: %s", got)
+	}
+}

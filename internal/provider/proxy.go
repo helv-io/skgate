@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/helv-io/skgate/internal/httputil"
@@ -138,6 +139,13 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	rest := Normalize(r.URL.EscapedPath())
 	list := r.Method == http.MethodGet && strings.TrimRight(rest, "/") == "/models"
+	if list {
+		if raw, ok := p.listAll(r.Context(), r.URL.RawQuery, r.Header); ok {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(injectAliases(raw, p.allAliases()))
+			return
+		}
+	}
 	be, rest, body := p.route(r.Method, rest, body)
 	resp, err := p.sendTo(r.Context(), be, r.Method, rest, r.URL.RawQuery, r.Header, body)
 	if err != nil {
@@ -331,6 +339,91 @@ func (p *Proxy) adoptHelper(id string, ids []string) {
 		}
 	}
 	_ = p.Set.SetModel(owner, Expose(prefix, helper))
+}
+
+// listTimeout bounds each provider's answer to a merged model list; a slower one is served from the cache.
+var listTimeout = 10 * time.Second
+
+// listAll merges the model lists of every ready provider, in provider order, each id with its
+// provider's prefix. Each provider is asked at once; one that fails or is slow contributes its
+// cached list (ids only). ok is false when no ready provider has a list, so the caller falls back to
+// forwarding the request and the client sees that provider's error.
+func (p *Proxy) listAll(ctx context.Context, rawQuery string, hdr http.Header) ([]byte, bool) {
+	var ready []Backend
+	for _, b := range p.Pool() {
+		if isReady(b) {
+			ready = append(ready, b)
+		}
+	}
+	if len(ready) == 0 {
+		return nil, false
+	}
+	parts := make([][]map[string]json.RawMessage, len(ready))
+	var wg sync.WaitGroup
+	for i, be := range ready {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			parts[i] = p.listOf(ctx, be, rawQuery, hdr)
+		}()
+	}
+	wg.Wait()
+	seen := map[string]bool{}
+	merged := []map[string]json.RawMessage{}
+	for _, part := range parts {
+		for _, e := range part {
+			var id string
+			if json.Unmarshal(e["id"], &id) != nil || id == "" || seen[id] {
+				continue
+			}
+			seen[id] = true
+			merged = append(merged, e)
+		}
+	}
+	if len(merged) == 0 {
+		return nil, false
+	}
+	out, err := json.Marshal(map[string]any{"object": "list", "data": merged})
+	return out, err == nil
+}
+
+// listOf returns one provider's model entries with prefixed ids: fresh when it answers, else from the cache.
+func (p *Proxy) listOf(ctx context.Context, be Backend, rawQuery string, hdr http.Header) []map[string]json.RawMessage {
+	prefix := p.Set.Prefix(be.ID())
+	ctx, cancel := context.WithTimeout(ctx, listTimeout)
+	defer cancel()
+	h := http.Header{"Accept": {"application/json"}}
+	if ua := hdr.Get("User-Agent"); ua != "" {
+		h.Set("User-Agent", ua)
+	}
+	if resp, err := p.sendTo(ctx, be, http.MethodGet, "/models", rawQuery, h, nil); err == nil {
+		raw, rerr := io.ReadAll(io.LimitReader(resp.Body, maxList))
+		resp.Body.Close()
+		if rerr == nil && resp.StatusCode == http.StatusOK {
+			if f, ok := be.(ListFilter); ok {
+				raw = f.FilterModels(raw)
+			}
+			if ids := ModelIDs(raw); len(ids) > 0 {
+				p.Models.Set(be.ID(), ids)
+				p.adoptHelper(be.ID(), ids)
+				var top struct {
+					Data []map[string]json.RawMessage `json:"data"`
+				}
+				if json.Unmarshal(prefixModelList(raw, prefix), &top) == nil && len(top.Data) > 0 {
+					return top.Data
+				}
+			}
+		}
+	}
+	ids, _, _ := p.Models.Get(be.ID())
+	out := make([]map[string]json.RawMessage, 0, len(ids))
+	for _, id := range ids {
+		e := map[string]json.RawMessage{"object": json.RawMessage(`"model"`), "created": json.RawMessage(`0`)}
+		e["id"], _ = json.Marshal(Expose(prefix, id))
+		e["owned_by"], _ = json.Marshal(be.ID())
+		out = append(out, e)
+	}
+	return out
 }
 
 // prefixModelList rewrites each model id in an OpenAI-style list to prefix_id.
