@@ -636,7 +636,7 @@ func (s *Server) grantRefresh(w http.ResponseWriter, r *http.Request, c Client, 
 		resource = res
 	}
 	if req := strings.TrimSpace(r.PostFormValue("scope")); req != "" {
-		scope = req
+		scope = narrowScope(scope, req)
 	}
 	if err := s.consumeRefresh(hash, rotated, now); err != nil {
 		reqlog.Reject(r, "invalid_grant: refresh token is unknown or already used")
@@ -771,4 +771,25 @@ func (s *Server) mintTokens(w http.ResponseWriter, r *http.Request, c Client, re
 		"access_token": access, "token_type": "Bearer", "expires_in": int(AccessTTL.Seconds()),
 		"refresh_token": refresh, "scope": scope,
 	})
+}
+
+// narrowScope is the scope of a refreshed token: the requested scopes that the refresh token was granted
+// (RFC 6749 section 6 lets a refresh narrow the scope, never widen it). A request with none of them keeps
+// the granted scope, so a client that asks for something else still gets a working token.
+func narrowScope(granted, requested string) string {
+	have := map[string]bool{}
+	for _, g := range strings.Fields(granted) {
+		have[g] = true
+	}
+	var out []string
+	for _, q := range strings.Fields(requested) {
+		if have[q] {
+			out = append(out, q)
+			delete(have, q)
+		}
+	}
+	if len(out) == 0 {
+		return granted
+	}
+	return strings.Join(out, " ")
 }
