@@ -54,13 +54,65 @@ func TestKeyFromString(t *testing.T) {
 		raw[i] = byte(i)
 	}
 	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawURLEncoding} {
-		if got := KeyFromString(enc.EncodeToString(raw)); string(got) != string(raw) {
+		if got, pass := KeyFromString(enc.EncodeToString(raw)); string(got) != string(raw) || pass {
 			t.Fatal("base64 key must be used as is")
 		}
 	}
-	a, c := KeyFromString("passphrase one"), KeyFromString("passphrase two")
-	if len(a) != 32 || string(a) == string(c) || string(a) != string(KeyFromString("passphrase one")) {
-		t.Fatal("passphrase must hash deterministically to 32 bytes")
+	a, pass := KeyFromString("passphrase one")
+	c, _ := KeyFromString("passphrase two")
+	again, _ := KeyFromString("passphrase one")
+	if !pass || len(a) != 32 || string(a) == string(c) || string(a) != string(again) {
+		t.Fatal("passphrase must stretch deterministically to 32 bytes")
+	}
+	if string(a) == string(legacyPassphraseKey("passphrase one")) {
+		t.Fatal("v2 passphrase key must not be the v1 hash")
+	}
+}
+
+// v1sealed seals plain the way releases before enc:v2 did.
+func v1sealed(t *testing.T, key []byte, plain string) string {
+	g, err := gcm(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &Box{aead: g, v1: g}
+	return prefixV1 + strings.TrimPrefix(b.Seal(plain), prefix)
+}
+
+func TestPassphraseOpensV1AndResealsAsV2(t *testing.T) {
+	b, err := FromString("correct horse battery staple")
+	if err != nil || !b.Passphrase {
+		t.Fatalf("passphrase box: %v %v", err, b)
+	}
+	old := v1sealed(t, legacyPassphraseKey("correct horse battery staple"), "tok")
+	if !IsSealed(old) || !Legacy(old) {
+		t.Fatal("v1 value must read as sealed legacy")
+	}
+	if got, err := b.Open(old); err != nil || got != "tok" {
+		t.Fatalf("v1 open: %q %v", got, err)
+	}
+	nv, err := b.Reseal(old)
+	if err != nil || !strings.HasPrefix(nv, "enc:v2:") || Legacy(nv) {
+		t.Fatalf("reseal: %q %v", nv, err)
+	}
+	if got, _ := b.Open(nv); got != "tok" {
+		t.Fatal("v2 open")
+	}
+	if same, _ := b.Reseal(nv); same != nv {
+		t.Fatal("reseal of a v2 value must be a no-op")
+	}
+	// a v2 value does not open with the legacy key
+	g, _ := gcm(legacyPassphraseKey("correct horse battery staple"))
+	if _, err := (&Box{aead: g, v1: g}).Open(nv); err == nil {
+		t.Fatal("v2 must use the scrypt key")
+	}
+	raw := make([]byte, 32)
+	kb, _ := FromString(base64.StdEncoding.EncodeToString(raw))
+	if kb.Passphrase {
+		t.Fatal("base64 key is not a passphrase")
+	}
+	if got, err := kb.Open(v1sealed(t, raw, "x")); err != nil || got != "x" {
+		t.Fatalf("raw key v1 open: %q %v", got, err)
 	}
 }
 

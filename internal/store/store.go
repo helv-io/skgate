@@ -130,6 +130,13 @@ func OpenWith(path, secretsKey string) (*DB, error) {
 		sdb.Close()
 		return nil, fmt.Errorf("seal secrets: %w", err)
 	}
+	if err := db.resealAll(); err != nil {
+		sdb.Close()
+		return nil, fmt.Errorf("seal secrets: %w", err)
+	}
+	if box.Passphrase {
+		db.Warnings = append(db.Warnings, "secrets: SECRETS_KEY is a passphrase; a random 32-byte key is stronger (openssl rand -base64 32). Changing it needs a fresh database or the old key")
+	}
 	return db, nil
 }
 
@@ -203,7 +210,7 @@ func (d *DB) SealSettings(keys ...string) error {
 // sealLegacy encrypts upstream credentials stored as plaintext by older releases. It is
 // idempotent: sealed values are skipped.
 func (d *DB) sealLegacy() error {
-	rows, err := d.Query(`SELECT alias,auth_value FROM upstreams WHERE auth_value<>'' AND auth_value NOT LIKE 'enc:v1:%'`)
+	rows, err := d.Query(`SELECT alias,auth_value FROM upstreams WHERE auth_value<>'' AND auth_value NOT LIKE 'enc:v_:%'`)
 	if err != nil {
 		return err
 	}
@@ -224,6 +231,80 @@ func (d *DB) sealLegacy() error {
 		}
 	}
 	return nil
+}
+
+// resealAll seals every value written by an older release ("enc:v1:") again in the current form,
+// in any text column of any table, in one transaction. A value that does not open is left as is
+// (its reader reports the wrong key, as before).
+func (d *DB) resealAll() error {
+	type cell struct{ table, col string }
+	var cells []cell
+	tables, err := d.Query(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`)
+	if err != nil {
+		return err
+	}
+	var names []string
+	for tables.Next() {
+		var n string
+		if err := tables.Scan(&n); err != nil {
+			tables.Close()
+			return err
+		}
+		names = append(names, n)
+	}
+	tables.Close()
+	for _, t := range names {
+		cols, err := d.Query(`SELECT name, type FROM pragma_table_info(?)`, t)
+		if err != nil {
+			return err
+		}
+		for cols.Next() {
+			var n, typ string
+			if err := cols.Scan(&n, &typ); err != nil {
+				cols.Close()
+				return err
+			}
+			if strings.EqualFold(typ, "TEXT") {
+				cells = append(cells, cell{t, n})
+			}
+		}
+		cols.Close()
+	}
+	tx, err := d.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, c := range cells {
+		q := fmt.Sprintf(`SELECT rowid, %q FROM %q WHERE %q LIKE 'enc:v1:%%'`, c.col, c.table, c.col)
+		rows, err := tx.Query(q)
+		if err != nil {
+			continue // WITHOUT ROWID tables hold no sealed values
+		}
+		type upd struct {
+			id  int64
+			val string
+		}
+		var todo []upd
+		for rows.Next() {
+			var u upd
+			if err := rows.Scan(&u.id, &u.val); err != nil {
+				rows.Close()
+				return err
+			}
+			if v, err := d.Secrets.Reseal(u.val); err == nil {
+				u.val = v
+				todo = append(todo, u)
+			}
+		}
+		rows.Close()
+		for _, u := range todo {
+			if _, err := tx.Exec(fmt.Sprintf(`UPDATE %q SET %q=? WHERE rowid=?`, c.table, c.col), u.val, u.id); err != nil {
+				return err
+			}
+		}
+	}
+	return tx.Commit()
 }
 
 // migrate adds columns that older databases lack. Columns are nullable or defaulted so existing rows stay valid.

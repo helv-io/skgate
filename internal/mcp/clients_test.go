@@ -81,7 +81,7 @@ func TestUpstreamCredentialsEncryptedAtRest(t *testing.T) {
 	}
 	var raw string
 	e.db.QueryRow(`SELECT auth_value FROM upstreams WHERE alias='enc'`).Scan(&raw)
-	if raw == "tok-very-secret" || strings.Contains(raw, "very-secret") || !strings.HasPrefix(raw, "enc:v1:") {
+	if raw == "tok-very-secret" || strings.Contains(raw, "very-secret") || !strings.HasPrefix(raw, "enc:v2:") {
 		t.Fatalf("stored plaintext: %q", raw)
 	}
 	if u, _ := e.srv.Upstreams.Get("enc"); u.AuthValue != "tok-very-secret" || u.SecretErr {

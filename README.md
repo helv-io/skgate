@@ -331,7 +331,7 @@ Set these under `environment:` or in an `env_file`. Placeholders are in [`.env.e
 | `OIDC_REDIRECT_URL` | `PUBLIC_URL/admin/oidc/callback` | Callback registered at the provider. |
 | `OIDC_ALLOWED_EMAILS`, `OIDC_ALLOWED_GROUPS` | empty | Comma lists limiting who is admin. |
 | `MCP_OAUTH_REQUIRE_CONSENT` | `true` | Approve/Deny page after login at `/authorize`. |
-| `SECRETS_KEY` | random `secrets.key` file | Encrypts stored upstream secrets. 32-byte base64 or a passphrase. |
+| `SECRETS_KEY` | random `secrets.key` file | Encrypts stored upstream secrets. 32-byte base64 (`openssl rand -base64 32`), or a passphrase, stretched with scrypt. |
 | `GITHUB_TOKEN` | empty | Optional GitHub token for **Suggest** when it reads a repository. An upstream's own access token takes precedence. Raises GitHub's rate limit. |
 | `UPDATE_CHECK` | `true` | The version in the header turns yellow when a newer release exists; `false` turns the check off. |
 | `LISTEN_ADDR` | `:8080` | Listen address. |
