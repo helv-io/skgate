@@ -61,8 +61,8 @@ func (s *Clients) Create(c Client, secret string) (Client, error) {
 	_, err := s.db.Exec(`INSERT INTO oauth_clients(client_id,secret_hash,name,redirect_uris,auth_method,source,created_at) VALUES(?,?,?,?,?,?,?)`,
 		c.ID, c.SecretHash, c.Name, string(uris), c.AuthMethod, c.Source, c.CreatedAt.Unix())
 	if err == nil && c.Source == "dcr" {
-		// Bound growth from anonymous registrations: keep the newest 500.
-		_, _ = s.db.Exec(`DELETE FROM oauth_clients WHERE source='dcr' AND client_id NOT IN (SELECT client_id FROM oauth_clients WHERE source='dcr' ORDER BY created_at DESC, rowid DESC LIMIT 500)`)
+		// Bound growth from anonymous registrations to 500, see evictClients.
+		s.evict("dcr", c.ID, 500)
 	}
 	return c, err
 }
@@ -79,9 +79,19 @@ func (s *Clients) PutMetadataClient(c Client) error {
 		ON CONFLICT(client_id) DO UPDATE SET name=excluded.name, redirect_uris=excluded.redirect_uris, auth_method=excluded.auth_method, jwks_uri=excluded.jwks_uri WHERE source=excluded.source`,
 		c.ID, "", c.Name, string(uris), c.AuthMethod, c.JWKSURI, cimdSource, time.Now().Unix())
 	if err == nil {
-		_, _ = s.db.Exec(`DELETE FROM oauth_clients WHERE source=? AND client_id NOT IN (SELECT client_id FROM oauth_clients WHERE source=? ORDER BY created_at DESC, rowid DESC LIMIT ?)`, cimdSource, cimdSource, cimdKeep)
+		s.evict(cimdSource, c.ID, cimdKeep)
 	}
 	return err
+}
+
+// evict keeps at most keep clients of source: the one just stored, then the ones used most recently, then the
+// newest. A flood of registrations that are never used therefore only pushes out other unused ones, never a client
+// that is signed in (review PROD-02).
+func (s *Clients) evict(source, justStored string, keep int) {
+	_, _ = s.db.Exec(`DELETE FROM oauth_clients WHERE source=? AND client_id<>? AND client_id NOT IN (
+		SELECT client_id FROM oauth_clients WHERE source=? AND client_id<>?
+		ORDER BY (last_used_at>0) DESC, last_used_at DESC, created_at DESC, rowid DESC LIMIT ?)`,
+		source, justStored, source, justStored, keep-1)
 }
 
 func scanClient(sc interface{ Scan(...any) error }) (Client, error) {

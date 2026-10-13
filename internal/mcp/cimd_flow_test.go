@@ -310,3 +310,38 @@ func TestMetadataClientFetchIsSharedAndBounded(t *testing.T) {
 		t.Errorf("12 concurrent requests fetched %d times", n)
 	}
 }
+
+// A flood of registrations that are never used does not push out clients in use (review PROD-02; the review's
+// verify_dcr_eviction simulation, against the real registry).
+func TestRegistrationFloodKeepsClientsInUse(t *testing.T) {
+	e := newEnv(t, nil)
+	var used []string
+	for i := 0; i < 5; i++ {
+		c, err := e.srv.Clients.Create(Client{ID: fmt.Sprintf("skc-legit-%d", i), Source: "dcr", AuthMethod: "none"}, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.srv.Clients.Touch(c.ID)
+		used = append(used, c.ID)
+	}
+	last := ""
+	for i := 0; i < 600; i++ {
+		last = fmt.Sprintf("skc-flood-%d", i)
+		if _, err := e.srv.Clients.Create(Client{ID: last, Source: "dcr", AuthMethod: "none"}, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range used {
+		if _, ok := e.srv.Clients.Get(id); !ok {
+			t.Errorf("%s was evicted by unused registrations", id)
+		}
+	}
+	if _, ok := e.srv.Clients.Get(last); !ok {
+		t.Error("the client just registered must be kept")
+	}
+	var n int
+	e.srv.DB.QueryRow(`SELECT COUNT(*) FROM oauth_clients WHERE source='dcr'`).Scan(&n)
+	if n != 500 {
+		t.Errorf("kept %d registrations, want 500", n)
+	}
+}
