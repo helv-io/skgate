@@ -89,7 +89,7 @@ What skgate is, in one wording used everywhere it is described (README, registry
 
 - Secrets are never logged, never put in URLs, never sent to a model.
 - Process output keeps the current and the previous run only, at most `LOG_LINES` (1000) lines or 512 KB, with lines cut at about 4 KB. Values of environment variables not marked plain, and the git token, are masked before a line is stored in memory or in `<MANAGED_DIR>/.logs/`. No cross-upstream search, no long-term storage.
-- Never run `uv` or `npm` as root in the container. Managed servers run as `nobody` (65534), which owns the cache directory.
+- Never run `uv` or `npm` as root in the container. Managed servers run as their upstream's own runner uid (61000-64999, `managed.runner`), which owns that upstream's cache directory.
 - Never edit stack YAML in docs or automation. Suggest the change instead.
 
 ## Code

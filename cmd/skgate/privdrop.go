@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/helv-io/skgate/internal/managed"
+
 	"errors"
 	"fmt"
 	"io/fs"
@@ -29,8 +31,19 @@ func refuseNobody(uid, gid int) error {
 	if uid == nobodyID || gid == nobodyID {
 		return fmt.Errorf("running as uid=%d gid=%d: %s", uid, gid, nobodyWhy)
 	}
+	if runnerID(uid) || runnerID(gid) {
+		return fmt.Errorf("running as uid=%d gid=%d: %s", uid, gid, runnerWhy)
+	}
 	return nil
 }
+
+// runnerID reports whether n is in the range of ids managed servers run as (one per upstream).
+func runnerID(n int) bool {
+	return n >= managed.RunnerIDBase && n < managed.RunnerIDBase+managed.RunnerIDCount
+}
+
+var runnerWhy = fmt.Sprintf("ids %d-%d are the ones managed servers run as; skgate needs access to SECRETS_KEY and the database, which they must not have",
+	managed.RunnerIDBase, managed.RunnerIDBase+managed.RunnerIDCount-1)
 
 // targetIDs computes the uid:gid the server must run as from PUID / PGID.
 // Empty values fall back to 1000. Root (0) is rejected: skgate never serves as root.
@@ -60,6 +73,9 @@ func parseID(name, val string, def int) (int, error) {
 	}
 	if n == nobodyID {
 		return 0, fmt.Errorf("%s=%d refused: %s", name, n, nobodyWhy)
+	}
+	if runnerID(n) {
+		return 0, fmt.Errorf("%s=%d refused: %s", name, n, runnerWhy)
 	}
 	return n, nil
 }

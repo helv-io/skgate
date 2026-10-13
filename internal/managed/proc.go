@@ -456,7 +456,7 @@ func (p *Proc) dirs(spec Spec) (work, home, tmp string, err error) {
 		return "", "", "", fmt.Errorf("creating the working directory: %w", err)
 	}
 	for _, d := range owned {
-		if err = p.m.handOver(d); err != nil {
+		if err = p.m.handOver(d, p.alias); err != nil {
 			return "", "", "", fmt.Errorf("preparing %s: %w", filepath.Base(d), err)
 		}
 	}
@@ -532,7 +532,7 @@ func (p *Proc) runOnce(ctx context.Context, h startHint) error {
 		cmd = exec.Command(bin, spec.Args...)
 	}
 	cmd.Dir, cmd.Env = work, env
-	p.m.confine(cmd)
+	p.m.confine(cmd, p.alias)
 	cmd.WaitDelay = 2 * time.Second
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

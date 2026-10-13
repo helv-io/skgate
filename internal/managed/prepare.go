@@ -53,7 +53,7 @@ func (p *Proc) runStep(ctx context.Context, src, dir string, env []string, name 
 	}
 	cmd := exec.Command(bin, args...)
 	cmd.Dir, cmd.Env = dir, env
-	p.m.confine(cmd)
+	p.m.confine(cmd, p.alias)
 	w := &lineWriter{fn: func(s string) {
 		s = p.redactLine(s)
 		p.ring.Add(src, s)

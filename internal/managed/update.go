@@ -89,7 +89,7 @@ func (p *Proc) gitOutput(ctx context.Context, spec Spec, timeout time.Duration, 
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir, cmd.Env = base, env
-	p.m.confine(cmd)
+	p.m.confine(cmd, p.alias)
 	cmd.WaitDelay = 2 * time.Second
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &limitedBuffer{b: &stderr, max: 4096}
@@ -553,8 +553,8 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 	p.lifeMu.Unlock()
 	aside := filepath.Join(filepath.Dir(cache), ".old-"+spec.Alias)
 	tmpAside := filepath.Join(base, ".old-tmp")
-	_ = p.m.removeAll(aside)
-	_ = p.m.removeAll(tmpAside)
+	_ = p.m.removeAll(aside, p.alias)
+	_ = p.m.removeAll(tmpAside, p.alias)
 	if _, e := os.Stat(cache); e == nil {
 		if err := os.Rename(cache, aside); err != nil {
 			return "", fmt.Errorf("clearing the package cache: %w", err)
@@ -567,12 +567,12 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 	p.mu.Lock()
 	p.forceSync = true // the install step, if any, runs again
 	p.mu.Unlock()
-	if err := p.m.handOver(cache); err != nil {
+	if err := p.m.handOver(cache, p.alias); err != nil {
 		return "", err
 	}
 	if !up {
-		_ = p.m.removeAll(aside)
-		_ = p.m.removeAll(tmpAside)
+		_ = p.m.removeAll(aside, p.alias)
+		_ = p.m.removeAll(tmpAside, p.alias)
 		return "", nil
 	}
 	if err := p.startAndWait(ctx, spec); err != nil {
@@ -581,13 +581,13 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 		p.lifeMu.Unlock()
 		msg := ""
 		if _, e := os.Stat(aside); e == nil {
-			_ = p.m.removeAll(cache)
+			_ = p.m.removeAll(cache, p.alias)
 			if e := os.Rename(aside, cache); e != nil {
 				msg = "; restoring the package cache failed: " + e.Error()
 			}
 		}
 		if _, e := os.Stat(tmpAside); e == nil {
-			_ = p.m.removeAll(tmp)
+			_ = p.m.removeAll(tmp, p.alias)
 			_ = os.Rename(tmpAside, tmp)
 		}
 		if e := p.startAndWait(ctx, spec); e != nil {
@@ -595,8 +595,8 @@ func (p *Proc) updateCommand(ctx context.Context, spec Spec, oldVer string) (str
 		}
 		return "", fmt.Errorf("%v; the previous version is kept%s", err, msg)
 	}
-	_ = p.m.removeAll(tmpAside)
-	_ = p.m.removeAll(aside)
+	_ = p.m.removeAll(tmpAside, p.alias)
+	_ = p.m.removeAll(aside, p.alias)
 	p.mu.Lock()
 	v := p.serverVer
 	p.mu.Unlock()

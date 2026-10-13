@@ -105,6 +105,8 @@ type Manager struct {
 	wg     sync.WaitGroup
 	ctx    context.Context // ends at Shutdown; background updates and checks use it
 	cancel context.CancelFunc
+	idMu   sync.Mutex
+	ids    map[string]int // runner uid per alias (see runner)
 }
 
 // NewManager returns a manager. It starts a small janitor goroutine; call Shutdown to end it.
@@ -114,9 +116,9 @@ func NewManager(o Options) *Manager {
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	if o.Enabled {
 		if o.RunAs != nil {
-			o.Logf("managed: servers run as uid=%d gid=%d, each with its own writable directories", o.RunAs.UID, o.RunAs.GID)
+			o.Logf("managed: each server runs as its own uid and gid (%d-%d), with private writable directories", RunnerIDBase, RunnerIDBase+RunnerIDCount-1)
 		} else {
-			o.Logf("managed: WARNING cannot switch users (not root, no CAP_SETUID): servers run as skgate itself (uid=%d) and can read its database and key file; start the container as root so they run as nobody", os.Geteuid())
+			o.Logf("managed: WARNING cannot switch users (not root, no CAP_SETUID): servers run as skgate itself (uid=%d) and can read its database and key file; start the container as root so each runs as its own user", os.Geteuid())
 		}
 	}
 	m.wg.Add(1)

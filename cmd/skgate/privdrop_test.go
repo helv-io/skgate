@@ -122,13 +122,13 @@ func TestPrepareAndDropSkipsWhenNotRoot(t *testing.T) {
 }
 
 func TestRefuseNobody(t *testing.T) {
-	for _, c := range [][2]int{{65534, 65534}, {65534, 1000}, {1000, 65534}} {
+	for _, c := range [][2]int{{65534, 65534}, {65534, 1000}, {1000, 65534}, {61000, 1000}, {1000, 64999}} {
 		err := refuseNobody(c[0], c[1])
 		if err == nil || !strings.Contains(err.Error(), "SECRETS_KEY") || strings.Contains(err.Error(), "\n") {
 			t.Errorf("%v: %v", c, err)
 		}
 	}
-	for _, c := range [][2]int{{1000, 1000}, {0, 0}, {65532, 65532}} {
+	for _, c := range [][2]int{{1000, 1000}, {0, 0}, {65532, 65532}, {60999, 65000}} {
 		if err := refuseNobody(c[0], c[1]); err != nil {
 			t.Errorf("%v: %v", c, err)
 		}

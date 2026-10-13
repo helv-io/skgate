@@ -95,7 +95,7 @@ func (p *Proc) gitRevFull(work string) string {
 	}
 	cmd := exec.Command(bin, "rev-parse", "HEAD")
 	cmd.Dir, cmd.Env = work, env
-	p.m.confine(cmd)
+	p.m.confine(cmd, p.alias)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""

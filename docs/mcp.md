@@ -199,7 +199,7 @@ Replies are JSON, or an SSE stream when the client asks for progress or supports
 ### Safety
 
 - **Command execution is an admin capability.** Anyone who is admin can run commands in the container. Admin access is OIDC-protected and POST actions are CSRF-checked; restrict it accordingly.
-- Children (servers, install and git steps) run as `nobody` (65534), never root, each with its own writable directories. If skgate cannot switch users (started with `user:`), they run as skgate's own user and a warning is logged.
+- Children (servers, install and git steps) run as a uid of their own per upstream (61000-64999), never root, each with its own private writable directories. If skgate cannot switch users (started with `user:`), they run as skgate's own user and a warning is logged.
 - Children get an allow-listed environment only: `PATH`, `LANG`, `LC_*`, `TZ`, CA and proxy variables, package cache variables, a per-alias `HOME` and `TMPDIR`, and the upstream's own env. skgate's `OIDC_*`, `SECRETS_KEY` and other settings are not passed.
 - Commands are validated (non-empty, no control characters). No shell unless Shell mode is chosen.
 - Stored secrets (env, headers, tokens, bearer/header auth values) are AES-256-GCM encrypted with `SECRETS_KEY`, or with `secrets.key` next to the database. Back the key up with the database; without it the secrets cannot be read.

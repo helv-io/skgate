@@ -339,7 +339,7 @@ Set these under `environment:` or in an `env_file`. Placeholders are in [`.env.e
 | `LOG_LEVEL` | `info` | `info` or `debug`. |
 | `LOG_LINES` | `1000` | Lines of output kept per managed process (its current and previous run, at most 512 KB). |
 | `TZ` | `UTC` | Time zone for the UI and logs, for example `America/New_York`. |
-| `PUID`, `PGID` | `1000` | Run-as ids; never `0` or `65534`. |
+| `PUID`, `PGID` | `1000` | Run-as ids; never `0`, `65534` or 61000-64999 (managed servers use those). |
 | `MANAGED_DIR` | `/data/managed` | Work dirs and clones of managed upstreams. |
 | `MANAGED_MAX_PROCS` | `0` | Concurrent managed processes; `0` is unlimited. |
 
