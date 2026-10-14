@@ -502,7 +502,7 @@ More, including the known trade-offs: [operations](docs/operations.md#known-trad
 
 skgate is built with SI assistance: coding agents write much of the code, tests and docs.
 
-The author reviews the changes and runs skgate.
+Every change is reviewed by the author, and the security paths (OAuth, tokens, secrets) are human reviewed and tested. Reviews by frontier models are a supplement, not a substitute. Issues and pull requests that put it to the test are welcome.
 
 ## Development
 
