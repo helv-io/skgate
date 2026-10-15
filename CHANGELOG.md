@@ -50,6 +50,16 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.27.2] - 2026-10-14
+
+### Fixed
+
+- /mcp gives up on an upstream that takes too long to list its tools, prompts or resources, instead of waiting for every page
+
+### Security
+
+- A client that sends the body of a registration, token request or admin form too slowly is cut off; uploads and streams are not limited
+
 ## [0.27.1] - 2026-10-14
 
 ### Security
@@ -776,7 +786,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.27.1...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.27.2...HEAD
+[0.27.2]: https://github.com/helv-io/skgate/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/helv-io/skgate/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/helv-io/skgate/compare/v0.26.1...v0.27.0
 [0.26.1]: https://github.com/helv-io/skgate/compare/v0.26.0...v0.26.1
