@@ -345,3 +345,36 @@ func TestRegistrationFloodKeepsClientsInUse(t *testing.T) {
 		t.Errorf("kept %d registrations, want 500", n)
 	}
 }
+
+// A client signed in before last_used_at existed has no recorded use, but its token is live: a flood of
+// registrations does not evict it (re-audit PROD-02). Without a live token it is as unused as the flood.
+func TestRegistrationFloodKeepsClientsWithALiveToken(t *testing.T) {
+	e := newEnv(t, nil)
+	mk := func(id string) {
+		if _, err := e.srv.Clients.Create(Client{ID: id, Source: "dcr", AuthMethod: "none"}, ""); err != nil {
+			t.Fatal(err)
+		}
+		e.srv.DB.Exec(`UPDATE oauth_clients SET created_at=created_at-3600 WHERE client_id=?`, id) // older than the flood
+	}
+	for _, id := range []string{"skc-live", "skc-expired", "skc-none"} {
+		mk(id)
+	}
+	now := time.Now()
+	e.srv.DB.Exec(`INSERT INTO oauth_tokens(hash,kind,client_id,expires_at) VALUES('t-live','refresh','skc-live',?)`, now.Add(RefreshTTL).Unix())
+	e.srv.DB.Exec(`INSERT INTO oauth_tokens(hash,kind,client_id,expires_at) VALUES('t-old','refresh','skc-expired',?)`, now.Add(-time.Hour).Unix())
+	for i := 0; i < 600; i++ {
+		if _, err := e.srv.Clients.Create(Client{ID: fmt.Sprintf("skc-flood-%d", i), Source: "dcr", AuthMethod: "none"}, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for id, want := range map[string]bool{"skc-live": true, "skc-expired": false, "skc-none": false} {
+		if _, ok := e.srv.Clients.Get(id); ok != want {
+			t.Errorf("%s kept = %v, want %v", id, ok, want)
+		}
+	}
+	var n int
+	e.srv.DB.QueryRow(`SELECT COUNT(*) FROM oauth_clients WHERE source='dcr'`).Scan(&n)
+	if n != 501 { // the limit, plus the one signed-in client outside it
+		t.Errorf("kept %d registrations, want 501", n)
+	}
+}

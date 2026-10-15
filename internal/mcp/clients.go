@@ -86,12 +86,16 @@ func (s *Clients) PutMetadataClient(c Client) error {
 
 // evict keeps at most keep clients of source: the one just stored, then the ones used most recently, then the
 // newest. A flood of registrations that are never used therefore only pushes out other unused ones, never a client
-// that is signed in (review PROD-02).
+// that is signed in (review PROD-02). A client holding a token that has not expired is signed in even when it has no
+// recorded use (a row from before last_used_at existed, until its next call), so it is never evicted either. Only
+// someone who passed the sign-in can hold one, so the number kept past the limit is bounded by the people using skgate.
 func (s *Clients) evict(source, justStored string, keep int) {
-	_, _ = s.db.Exec(`DELETE FROM oauth_clients WHERE source=? AND client_id<>? AND client_id NOT IN (
-		SELECT client_id FROM oauth_clients WHERE source=? AND client_id<>?
-		ORDER BY (last_used_at>0) DESC, last_used_at DESC, created_at DESC, rowid DESC LIMIT ?)`,
-		source, justStored, source, justStored, keep-1)
+	_, _ = s.db.Exec(`DELETE FROM oauth_clients WHERE source=? AND client_id<>?
+		AND client_id NOT IN (SELECT client_id FROM oauth_tokens WHERE expires_at>?)
+		AND client_id NOT IN (
+			SELECT client_id FROM oauth_clients WHERE source=? AND client_id<>?
+			ORDER BY (last_used_at>0) DESC, last_used_at DESC, created_at DESC, rowid DESC LIMIT ?)`,
+		source, justStored, time.Now().Unix(), source, justStored, keep-1)
 }
 
 func scanClient(sc interface{ Scan(...any) error }) (Client, error) {
