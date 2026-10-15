@@ -126,6 +126,10 @@ func OpenWith(path, secretsKey string) (*DB, error) {
 		sdb.Close()
 		return nil, fmt.Errorf("seal secrets: %w", err)
 	}
+	if err := db.SealSettings(SessionSecretSetting); err != nil { // the admin cookie key, sealed at start rather than at the first sign-in
+		sdb.Close()
+		return nil, fmt.Errorf("seal secrets: %w", err)
+	}
 	if err := db.sealLegacy(); err != nil {
 		sdb.Close()
 		return nil, fmt.Errorf("seal secrets: %w", err)
@@ -174,6 +178,10 @@ func openSQL(path, mode string) (*sql.DB, error) {
 	}
 	return sdb, nil
 }
+
+// SessionSecretSetting is the setting holding the admin cookie key. It is sealed like SealedSettings, but is not in
+// that list: the Grok client reads the list by position, and the admin code reads this one itself.
+const SessionSecretSetting = "session_secret"
 
 // SealedSettings are the settings holding credentials; they are stored sealed (see GetSecret).
 var SealedSettings = []string{"provider.grok.access", "provider.grok.refresh", "provider.grok.id"}

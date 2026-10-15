@@ -49,3 +49,37 @@ func TestSessionSecretIsSealed(t *testing.T) {
 		t.Fatal("a new secret must be stored sealed")
 	}
 }
+
+// The key is sealed when the database opens, not at the first admin request, and the cookies signed with the
+// plaintext key before the upgrade still verify afterwards, so no admin is signed out by the migration.
+func TestSessionSecretIsSealedAtOpenAndKeepsCookiesValid(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "skgate.db")
+	db, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := bytes.Repeat([]byte{9}, 48)
+	if err := db.SetSetting(store.SessionSecretSetting, base64.RawStdEncoding.EncodeToString(legacy)); err != nil {
+		t.Fatal(err)
+	}
+	before := (&Admin{DB: db}).sign("msg") // signed by the key as an older release stored it
+	db.Close()
+
+	db, err = store.Open(path) // the upgrade: no admin request has happened yet
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if raw, _ := db.GetSetting(store.SessionSecretSetting); !secrets.IsSealed(raw) {
+		t.Fatalf("session_secret is still plaintext after open: %q", raw)
+	}
+	if got := (&Admin{DB: db}).sign("msg"); got != before {
+		t.Fatal("sealing the key must not change it: admins would be signed out")
+	}
+	// the Grok token list is read by position and must not have grown
+	for _, k := range store.SealedSettings {
+		if k == store.SessionSecretSetting {
+			t.Fatal("session_secret must stay out of SealedSettings")
+		}
+	}
+}

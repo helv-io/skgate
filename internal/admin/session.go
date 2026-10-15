@@ -15,6 +15,7 @@ import (
 	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/oidcauth"
 	"github.com/helv-io/skgate/internal/secrets"
+	"github.com/helv-io/skgate/internal/store"
 )
 
 const (
@@ -95,7 +96,7 @@ func (a *Admin) secret() []byte {
 	if a.secretKey != nil {
 		return a.secretKey
 	}
-	raw, ok, err := a.DB.LookupSetting("session_secret")
+	raw, ok, err := a.DB.LookupSetting(store.SessionSecretSetting)
 	if err != nil { // cannot tell whether one exists: use a throwaway key for this call and decide later
 		return []byte(httputil.RandString(48))
 	}
@@ -106,7 +107,7 @@ func (a *Admin) secret() []byte {
 		if v, oerr := a.DB.Secrets.Open(raw); oerr == nil {
 			if b, err := base64.RawStdEncoding.DecodeString(v); err == nil && len(b) >= 32 {
 				if !secrets.IsSealed(raw) {
-					_ = a.DB.SetSecret("session_secret", v)
+					_ = a.DB.SetSecret(store.SessionSecretSetting, v)
 				}
 				a.secretKey = b
 				return b
@@ -114,7 +115,7 @@ func (a *Admin) secret() []byte {
 		}
 	}
 	b := []byte(httputil.RandString(48))
-	if a.DB.SetSecret("session_secret", base64.RawStdEncoding.EncodeToString(b)) != nil {
+	if a.DB.SetSecret(store.SessionSecretSetting, base64.RawStdEncoding.EncodeToString(b)) != nil {
 		return b // not stored: do not keep it either, so the next call tries again
 	}
 	a.secretKey = b
