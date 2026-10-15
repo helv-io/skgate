@@ -237,9 +237,16 @@ func (a *Admin) guard(h http.HandlerFunc) http.HandlerFunc {
 			if strings.HasPrefix(r.URL.Path, "/admin/upstreams") || strings.HasPrefix(r.URL.Path, "/admin/openapi") {
 				limit = oaBodyLimit // a pasted OpenAPI description can be large
 			}
+			if r.ContentLength >= 0 && r.ContentLength <= 1<<20 {
+				httputil.LimitBodyTime(w) // a small form: a client that dribbles it in does not hold the connection
+			}
 			r.Body = http.MaxBytesReader(w, r.Body, limit)
 			if err := r.ParseForm(); err != nil {
 				var tooBig *http.MaxBytesError
+				if httputil.IsTimeout(err) {
+					http.Error(w, "the form took too long to arrive", http.StatusRequestTimeout)
+					return
+				}
 				if errors.As(err, &tooBig) {
 					http.Error(w, "the form is too large, give an OpenAPI description as an address", http.StatusRequestEntityTooLarge)
 					return

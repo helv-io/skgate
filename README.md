@@ -494,6 +494,7 @@ Hints for Authelia, Authentik, Keycloak, Zitadel and Pocket ID: [docs/oidc.md](d
 - Virtual keys are stored as SHA-256 hashes; upstream credentials are AES-256-GCM encrypted.
 - `/authorize` needs an admin session.
 - Managed upstreams run admin-supplied commands; use the `slim` image to disable them.
+- `/register`, `/token`, `/authorize` and admin forms cut off a request body that arrives too slowly. Uploads and streams (`/v1`, `/mcp`) have no such limit.
 - A key can be allowed in the URL (`?key=`) for clients that cannot send headers. It is off per key by default, because URLs leak into logs, history and referrers.
 
 More, including the known trade-offs: [operations](docs/operations.md#known-trade-offs).

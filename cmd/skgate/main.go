@@ -16,6 +16,7 @@ import (
 
 	"github.com/helv-io/skgate/internal/app"
 	"github.com/helv-io/skgate/internal/config"
+	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/store"
 	"github.com/helv-io/skgate/internal/timefmt"
 )
@@ -65,7 +66,7 @@ func main() {
 	go a.Keys.RunPurge(ctx, 24*time.Hour)
 	go a.Keys.RunUsage(ctx, 5*time.Second)
 	defer func() { _ = a.Keys.FlushUsage() }() // totals of the last seconds before exit
-	srv := &http.Server{Addr: cfg.Listen, Handler: a.Handler(), ReadHeaderTimeout: 15 * time.Second, IdleTimeout: 120 * time.Second}
+	srv := &http.Server{Addr: cfg.Listen, Handler: a.Handler(), ReadHeaderTimeout: httputil.HeaderReadTimeout, IdleTimeout: 120 * time.Second}
 	go func() {
 		<-ctx.Done()
 		sctx, c := context.WithTimeout(context.Background(), 10*time.Second)
