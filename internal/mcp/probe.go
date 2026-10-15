@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/helv-io/skgate/internal/config"
+	"github.com/helv-io/skgate/internal/httputil"
 )
 
 const (
@@ -50,6 +51,12 @@ func (s *Server) rpcPost(ctx context.Context, up Upstream, body []byte, wantID i
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, up.URL, bytes.NewReader(body))
 	if err != nil {
 		return nil, errors.New("invalid upstream URL")
+	}
+	if err := httputil.CheckScheme(req.URL); err != nil { // a saved address from before the rule: edit it to https
+		if up.Alias == "" {
+			return nil, err
+		}
+		return nil, fmt.Errorf("upstream %s: %w", up.Alias, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")

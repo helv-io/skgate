@@ -207,3 +207,25 @@ func TestMCPRateLimitAnswers429(t *testing.T) {
 		t.Fatal("another key must not be limited")
 	}
 }
+
+// Every outbound MCP request follows the address rule, including the /mcp aggregator and the port probe, not only
+// /mcp/{alias} and the Test page (re-audit SEC-05): a saved plain-http public address is not called.
+func TestRPCPostRefusesPlainHTTPOnTheInternet(t *testing.T) {
+	e := newEnv(t, nil)
+	for _, up := range []Upstream{{Alias: "old", URL: "http://8.8.8.8/mcp"}, {URL: "http://mcp.example.com/mcp"}} {
+		rep, err := e.srv.rpcPost(t.Context(), up, initBody(), 1, "", "", time.Second)
+		if rep != nil || err == nil || !strings.Contains(err.Error(), "use https") {
+			t.Fatalf("%s: want a clear https error and no request, got %v %v", up.URL, rep, err)
+		}
+		if up.Alias != "" && !strings.Contains(err.Error(), up.Alias) {
+			t.Errorf("the error names the upstream: %v", err)
+		}
+	}
+	// a LAN or loopback address over http still works
+	f := newAggUp(t, "none", "t")
+	defer f.Close()
+	rep, err := e.srv.rpcPost(t.Context(), Upstream{Alias: "lan", URL: f.URL, AuthKind: AuthNone}, initBody(), 1, "", "", 5*time.Second)
+	if err != nil || rep == nil || rep.Status != 200 {
+		t.Fatalf("http on a private address must still work: %v %+v", err, rep)
+	}
+}
