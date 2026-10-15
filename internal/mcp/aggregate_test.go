@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // aggUp is a fake MCP server with sessions, tools, prompts and resources. It accepts one auth
@@ -481,5 +482,90 @@ func TestAggregateCallToDeadUpstreamNamesNoAddress(t *testing.T) {
 	host, port, _ := net.SplitHostPort(addr)
 	if er == nil || !strings.Contains(msg, "connection refused") || strings.Contains(msg, host) || strings.Contains(msg, port) {
 		t.Fatalf("client-facing error: %v", m)
+	}
+}
+
+// One list from one upstream has one overall deadline, not a per-page one for every page (re-audit INT-06): a stalled
+// or endlessly paging upstream is given up on in time and skipped, and a healthy one is not affected.
+func TestAggregateListHasOneOverallDeadline(t *testing.T) {
+	old := aggListTimeout
+	aggListTimeout = 600 * time.Millisecond
+	t.Cleanup(func() { aggListTimeout = old })
+	e := newEnv(t, nil)
+
+	type behavior struct{ stall, slowPages bool }
+	var mu sync.Mutex
+	modes := map[string]*behavior{"stall": {stall: true}, "slow": {slowPages: true}, "ok": {}}
+	serve := func(name string) *httptest.Server {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			b, _ := io.ReadAll(r.Body)
+			var m struct {
+				Method string          `json:"method"`
+				ID     json.RawMessage `json:"id"`
+				Params map[string]any  `json:"params"`
+			}
+			_ = json.Unmarshal(b, &m)
+			mu.Lock()
+			bh := modes[name]
+			mu.Unlock()
+			reply := func(result any) {
+				j, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": json.RawMessage(m.ID), "result": result})
+				w.Header().Set("Content-Type", "application/json")
+				w.Write(j)
+			}
+			switch m.Method {
+			case "initialize":
+				w.Header().Set("Mcp-Session-Id", "s-"+name)
+				reply(map[string]any{"protocolVersion": "2025-06-18", "serverInfo": map[string]any{"name": name}, "capabilities": map[string]any{"tools": map[string]any{}}})
+			case "notifications/initialized":
+				w.WriteHeader(202)
+			case "tools/list":
+				switch {
+				case bh.stall:
+					select { // never answers
+					case <-r.Context().Done():
+					case <-time.After(30 * time.Second):
+					}
+				case bh.slowPages:
+					time.Sleep(200 * time.Millisecond)
+					reply(map[string]any{"tools": []any{map[string]any{"name": "t"}}, "nextCursor": fmt.Sprint(time.Now().UnixNano())})
+				default:
+					reply(map[string]any{"tools": []any{map[string]any{"name": "fine"}}})
+				}
+			}
+		}))
+		t.Cleanup(ts.Close)
+		return ts
+	}
+	for name := range modes {
+		e.srv.Upstreams.Create(Upstream{Alias: name, URL: serve(name).URL, AuthKind: AuthNone, Enabled: true, IncludeInMCP: true})
+	}
+	for _, name := range []string{"stall", "slow"} {
+		up, _ := e.srv.Upstreams.Get(name)
+		start := time.Now()
+		_, err := e.srv.fetchAll(t.Context(), up, "tools/list", "tools")
+		took := time.Since(start)
+		if err == nil || !strings.Contains(err.Error(), "did not finish the list") {
+			t.Errorf("%s: want the overall deadline error, got %v", name, err)
+		}
+		if took > 3*aggListTimeout {
+			t.Errorf("%s took %v, the deadline is %v", name, took, aggListTimeout)
+		}
+	}
+	up, _ := e.srv.Upstreams.Get("ok")
+	items, err := e.srv.fetchAll(t.Context(), up, "tools/list", "tools")
+	if err != nil || len(items) != 1 {
+		t.Fatalf("a healthy upstream is unaffected: %v %v", items, err)
+	}
+	// through the aggregated endpoint: the stalled ones are skipped, the healthy one is still listed, and it all takes
+	// about one deadline, since upstreams are asked at the same time
+	key, _, _ := e.keys.Create("t")
+	start := time.Now()
+	st, m := e.rpc(key, "/mcp", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
+	if st != 200 || strings.Join(toolNames(t, m), ",") != "ok-fine" {
+		t.Fatalf("aggregate: %d %v", st, m)
+	}
+	if took := time.Since(start); took > 3*aggListTimeout {
+		t.Errorf("aggregate took %v", took)
 	}
 }

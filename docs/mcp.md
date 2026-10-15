@@ -232,7 +232,7 @@ Deleting or disabling an upstream stops its process; its directory under `MANAGE
 
 - `initialize` is answered by skgate (`serverInfo.name` = `skgate`).
 - Tools, prompts and resources are prefixed: `<alias>-<name>`; resource URIs use `<alias>+<uri>`. Prefixes are stripped on `tools/call`, `prompts/get` and `resources/read`; the longest matching alias wins.
-- Each call uses the upstream's own effective auth and host override. `nextCursor` is followed (20 pages max).
+- Each call uses the upstream's own effective auth and host override. `nextCursor` is followed (20 pages max, and the whole list must arrive within the time one call may take; an upstream that is slower is skipped for that list and the reason is logged).
 - An upstream that is down or errors is skipped in lists and logged (`aggregate alias=... skipped=true reason=...`); the rest still answer. Unknown prefix: JSON-RPC `-32602`.
 - One session (`Mcp-Session-Id`) per upstream is kept in memory and re-created if the upstream forgets it or its settings change.
 - `GET /mcp` (Accept: text/event-stream) is an event stream that carries only `notifications/tools/list_changed`; `DELETE /mcp` is a no-op.

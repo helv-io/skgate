@@ -239,12 +239,18 @@ func (s *Server) aggList(ctx context.Context, r *http.Request, method, key, fiel
 func (s *Server) fetchAll(ctx context.Context, up Upstream, method, key string) ([]json.RawMessage, error) {
 	var all []json.RawMessage
 	cursor := ""
+	parent := ctx
+	ctx, cancel := context.WithTimeout(ctx, aggListTimeout)
+	defer cancel()
 	for page := 0; page < aggMaxPages; page++ {
 		params := map[string]any{}
 		if cursor != "" {
 			params["cursor"] = cursor
 		}
 		res, rerr, err := s.up.call(s, ctx, up, method, params, aggTimeout)
+		if ctx.Err() != nil && parent.Err() == nil { // the list as a whole ran out of time, not the caller's request
+			return nil, fmt.Errorf("%s: the upstream did not finish the list within %s", method, aggListTimeout)
+		}
 		if err != nil {
 			return nil, err
 		}

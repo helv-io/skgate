@@ -46,6 +46,11 @@ func fingerprint(u Upstream) string {
 const aggTimeout = 30 * time.Second // per upstream request for list style calls
 const aggCallTimeout = 2 * time.Minute
 
+// aggListTimeout is the whole of one list (every page of tools/list and the like) from one upstream: the same time a
+// single call may take. Without it a slow upstream could take up aggMaxPages times aggTimeout. A variable so a test can
+// shorten it.
+var aggListTimeout = aggCallTimeout
+
 // upError is a failed upstream call. Text is plain and never contains credentials or URLs.
 type upError struct {
 	Status int
