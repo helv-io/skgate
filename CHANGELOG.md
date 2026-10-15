@@ -50,6 +50,14 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.27.1] - 2026-10-14
+
+### Security
+
+- A registration flood can no longer evict an OAuth client that is still signed in
+- A saved plain-http address on the internet is refused on /mcp too, with the same clear error
+- The admin cookie signing key is sealed when skgate starts, not at the first sign-in
+
 ## [0.27.0] - 2026-10-13
 
 ### Changed
@@ -768,7 +776,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/helv-io/skgate/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/helv-io/skgate/compare/v0.26.1...v0.27.0
 [0.26.1]: https://github.com/helv-io/skgate/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/helv-io/skgate/compare/v0.25.3...v0.26.0
