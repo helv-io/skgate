@@ -116,7 +116,7 @@ The default branch is `master`. Raw links, templates and docs point at `master`,
 
 ## Rules and what enforces them
 
-A rule that nothing enforces is a wish. Before you push, run `tools/chk.sh` and `.agent-checks/bin/agent-checks local` (shared `agent-checks` repo on Helvio's own git server, pinned copy in `.agent-checks/`).
+A rule that nothing enforces is a wish. Before you push, run `tools/chk.sh` and `.agent-checks/bin/agent-checks local` (shared [`agent-checks`](https://github.com/helv-io/agent-checks) repo, pinned copy in `.agent-checks/`).
 
 | Rule | Enforced by |
 |---|---|
