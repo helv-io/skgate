@@ -45,8 +45,29 @@ env:
   VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('ci-test-{0}', github.run_id) }}
 
 jobs:
+  # First, before anything is built or published: the files that repeat the version must match the tag (v0.26.0 and the first v0.27.0
+  # were published with the old number; the registry job caught it only after the images were out). Same check as tools/release.
+  version-gate:
+    name: version matches the tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: python3 .agent-checks/bin/agent-checks release-version "$GITHUB_REF_NAME"
+
+  # The one place a known vulnerability blocks: nothing is published with one.
+  vulncheck:
+    name: govulncheck
+    needs: [version-gate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/go
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+
   test:
     name: test (shard ${{ matrix.shard }}/3)
+    needs: [version-gate]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -60,6 +81,7 @@ jobs:
 
   build:
     name: build ${{ matrix.variant }} ${{ matrix.arch }}
+    needs: [version-gate]
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -122,7 +144,7 @@ jobs:
 
   merge:
     name: tag ${{ matrix.variant }}
-    needs: [test, build]
+    needs: [test, build, vulncheck]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -202,9 +224,21 @@ jobs:
           name: ${{ github.ref_name }}
           generate_release_notes: true
 
+  # After the GitHub Release is created, prove its page exists.
+  release-page:
+    name: release page exists
+    needs: [github-release]
+    if: ${{ startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 .agent-checks/bin/agent-checks release-assets "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # After the images are tagged, list this version in the official MCP registry (server.json). GitHub OIDC proves the
   # repository owner, which grants io.github.helv-io/*; no secret and no user token. Stable tags only, never a manual run.
-  # The job fails when server.json does not match the tag, and skips when the registry already has the version.
+  # server.json was already checked against the tag by version-gate. This job skips when the registry already has the version.
   # Pinned mcp-publisher: to move it, take the version and the linux_amd64 tarball's sha256 from
   # https://github.com/modelcontextprotocol/registry/releases and change both below.
   mcp-registry:
@@ -220,20 +254,6 @@ jobs:
       MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
     steps:
       - uses: actions/checkout@v7
-
-      - name: server.json matches the tag
-        run: |
-          want="${GITHUB_REF_NAME#v}"
-          have="$(jq -r .version server.json)"
-          if [ "$have" != "$want" ]; then
-            echo "::error file=server.json::version is $have but the tag is $GITHUB_REF_NAME; bump server.json with Version and tag again"
-            exit 1
-          fi
-          bad="$(jq -r --arg v "$want" '.packages[].identifier | select((endswith(":" + $v) or endswith(":" + $v + "-slim")) | not)' server.json)"
-          if [ -n "$bad" ]; then
-            echo "::error file=server.json::package identifiers must end in :$want or :$want-slim, found: $bad"
-            exit 1
-          fi
 
       - id: listed
         name: Is this version already in the registry

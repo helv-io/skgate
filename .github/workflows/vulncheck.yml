@@ -1,0 +1,35 @@
+# Known vulnerabilities in the dependencies and the standard library that the code actually calls.
+# Advisories appear on their own schedule, so they are checked every night and before a release, not on unrelated commits
+# (three red runs on 2026-10-12 and 13 were advisories, not code). A failing night opens one issue.
+
+name: Vulnerability check
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/go
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+
+  alert:
+    name: open an issue when it fails
+    if: ${{ always() && github.event_name == 'schedule' }}
+    needs: [govulncheck]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 .agent-checks/bin/agent-checks nightly-alert "${{ needs.govulncheck.result == 'success' && 'ok' || 'fail' }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

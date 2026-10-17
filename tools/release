@@ -1,0 +1,27 @@
+#!/bin/bash
+# The one way to cut a release: bump every place that repeats the version in ONE commit, prove they agree, run the full checks, tag that commit.
+#   tools/release 0.27.3            commit "Version 0.27.3" and tag v0.27.3 (does not push)
+#   tools/release 0.27.3 --dry-run  show what would change, change nothing
+# Why: v0.26.0 and the first v0.27.0 were tagged with the old number in config.go and server.json, and the images went out under the wrong version.
+set -euo pipefail
+v=${1:?usage: tools/release X.Y.Z [--dry-run]}; dry=${2:-}
+[[ $v =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "error: version must look like 1.2.3 (no v, no suffix)"; exit 1; }
+cd "$(git rev-parse --show-toplevel)"
+if [ "$dry" != --dry-run ]; then
+  [ "$(git rev-parse --abbrev-ref HEAD)" = master ] || { echo "error: release from master"; exit 1; }
+  git diff --quiet && git diff --cached --quiet || { echo "error: commit or stash your changes first"; exit 1; }
+  git fetch -q origin master
+  [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/master)" ] || { echo "error: master is not the same as origin/master; pull or push first"; exit 1; }
+fi
+git diff --quiet -- internal/config/config.go server.json || { echo "error: config.go or server.json has uncommitted changes"; exit 1; }
+old=$(sed -n 's/.*const Version = "\(.*\)".*/\1/p' internal/config/config.go)
+[ -n "$old" ] || { echo "error: could not find Version in internal/config/config.go"; exit 1; }
+[ "$old" != "$v" ] || { echo "error: Version is already $v"; exit 1; }
+sed -i "s/const Version = \"$old\"/const Version = \"$v\"/" internal/config/config.go
+sed -i "s/\"version\": \"$old\"/\"version\": \"$v\"/; s/:$old\"/:$v\"/; s/:$old-slim\"/:$v-slim\"/" server.json
+python3 .agent-checks/bin/agent-checks release-version "v$v" || { git checkout -- internal/config/config.go server.json; exit 1; }
+if [ "$dry" = --dry-run ]; then git diff --stat; git checkout -- internal/config/config.go server.json; echo "dry run: nothing changed"; exit 0; fi
+tools/chk.sh
+git commit -q -am "Version $v"
+git tag -a "v$v" -m "v$v"
+echo "Committed and tagged v$v. Write the changelog and docs, then push: git push origin master v$v"
