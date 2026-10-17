@@ -40,12 +40,13 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     window.scrollTo(0, Math.max(0, window.scrollY + r.top - 200));
     return window.scrollY;
   }, sel);
-  const settled = async () => {
-    for (let i = 0; i < 100; i++) {
-      if (!(await pg.evaluate(() => !!document.querySelector("form[data-saving]")))) break;
-      await wait(50);
-    }
-    await wait(250);
+  const settled = require("./idle.js")(pg);
+  // opens a dialog and waits for what opening starts (a provider dialog reads its model list and redraws): a click that
+  // lands before the redraw lands on a button that is replaced a moment later
+  const openDialog = async (sel, ready) => {
+    await pg.click(sel);
+    await pg.waitForSelector(ready, { visible: true });
+    await settled();
   };
   const stayed = async (tag, y) => {
     const s = await pg.evaluate(() => ({ stay: window.__stay === 1, y: window.scrollY, max: document.documentElement.scrollHeight - window.innerHeight }));
@@ -94,7 +95,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     }).join(" ");
     const before = box();
     document.querySelector(s).click();
-    return { before, during: box() };
+    return { before, during: box(), busy: document.documentElement.hasAttribute("data-busy") };
   }, sel, sels);
 
   for (const w of [390, 1280]) {
@@ -108,7 +109,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok(y > 300, w + ": the list is scrolled down " + y);
     const before = await pg.$eval(en, b => b.getAttribute("aria-checked"));
     let m = await clickMeasured(en, around);
+    ok(m.busy, w + ": the page is marked busy while the switch posts (idle.js waits on that mark)");
     await settled();
+    ok(!(await pg.evaluate(() => document.documentElement.hasAttribute("data-busy"))), w + ": the mark is gone once it is saved");
     await stayed(w + " enabled switch", y);
     ok(m.during === m.before, w + ": nothing moves while the switch posts: " + m.before + " -> " + m.during);
     let after = await boxes(around);
@@ -153,8 +156,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
     // Detect in the details dialog: the dialog stays open and shows what was found; no toast
     if (w === 1280) {
-      await pg.click('#up-det [data-dialog-open="#upstream-det"]');
-      await pg.waitForSelector("[data-modal][open] form[action$='/redetect'] button", { visible: true });
+      await openDialog('#up-det [data-dialog-open="#upstream-det"]', "[data-modal][open] form[action$='/redetect'] button");
       y = await pg.evaluate(() => window.scrollY);
       const auth = () => pg.evaluate(() => { const c = [...document.querySelectorAll("[data-modal][open] [data-modal-body] th")].find(t => t.textContent === "outbound auth"); return c ? c.nextElementSibling.textContent.trim() : ""; });
       ok((await auth()) === "auto: pending", w + ": before Detect the dialog says " + (await auth()));
@@ -165,7 +167,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       const now = await auth();
       ok(!!(await pg.$("[data-modal][open] form[action$='/redetect']")) && now.startsWith("auto: ") && now !== "auto: pending", w + ": the dialog stays open and shows what was detected: " + now);
       await pg.click("[data-modal][open] [data-modal-close]");
-      await wait(150);
+      await pg.waitForFunction(() => !document.querySelector("[data-modal][open]"));
     }
 
     // Process page: Start, then Stop (confirmed), then Clear logs, in place
@@ -190,8 +192,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     y = await scrollTo(krow);
     const kd = await pg.$eval(krow + " [data-dialog-open]", e => e.getAttribute("data-dialog-open"));
     const kbtn = '#key-rows [data-dialog-open="' + kd + '"]';
-    await pg.click(kbtn);
-    await pg.waitForSelector("[data-modal][open] input[name=label]", { visible: true });
+    await openDialog(kbtn, "[data-modal][open] input[name=label]");
     y = await pg.evaluate(() => window.scrollY);
     const label = "renamed " + w;
     await pg.$eval("[data-modal][open] input[name=label]", (e, v) => { e.value = v; e.dispatchEvent(new Event("input", { bubbles: true })); }, label);
@@ -201,8 +202,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await quiet(w + " key save");
     ok(!(await pg.$("[data-modal][open]")), w + ": the dialog closed after the save");
     ok((await pg.$eval(krow + " td.primary", e => e.textContent.trim())) === label && (await server("/admin/keys")).includes(label), w + ": the new name shows and was saved");
-    await pg.click(kbtn);
-    await pg.waitForSelector("[data-modal][open] form[action='/admin/keys/revoke'] button", { visible: true });
+    await openDialog(kbtn, "[data-modal][open] form[action='/admin/keys/revoke'] button");
     await pg.click("[data-modal][open] form[action='/admin/keys/revoke'] button");
     await confirm();
     await settled();
@@ -239,8 +239,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     // Status: Add provider in its dialog, then Remove provider (confirmed)
     await open("/admin", w);
     y = await pg.evaluate(() => window.scrollY);
-    await pg.click('[data-dialog-open="#add-provider"]');
-    await pg.waitForSelector("[data-modal][open] form[action='/admin/providers/add']", { visible: true });
+    await openDialog('[data-dialog-open="#add-provider"]', "[data-modal][open] form[action='/admin/providers/add']");
     y = await pg.evaluate(() => window.scrollY);
     await pg.select("[data-modal][open] select[name=preset]", "openai");
     await pg.$eval("[data-modal][open] input[name=base]", (e, v) => { e.value = v; }, provBase);
@@ -250,8 +249,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await stayed(w + " add provider", y);
     await quiet(w + " add provider");
     ok(!(await pg.$("[data-modal][open]")) && !!(await pg.$("#other-providers #openai")), w + ": the dialog closed and the card is there");
-    await pg.click('[data-dialog-open="#provider-openai"]');
-    await pg.waitForSelector("[data-modal][open] form[action$='/remove'] button", { visible: true });
+    await openDialog('[data-dialog-open="#provider-openai"]', "[data-modal][open] form[action$='/remove'] button");
     y = await pg.evaluate(() => window.scrollY);
     await pg.click("[data-modal][open] form[action$='/remove'] button");
     await confirm();

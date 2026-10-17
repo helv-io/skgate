@@ -31,13 +31,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     window.scrollTo(0, Math.max(0, window.scrollY + r.top - 200));
     return window.scrollY;
   }, sel);
-  const settled = async () => {
-    for (let i = 0; i < 200; i++) {
-      if (!(await pg.evaluate(() => !!document.querySelector("form[data-saving]")))) break;
-      await wait(50);
-    }
-    await wait(300);
-  };
+  const settled = require("./idle.js")(pg);
   const stayed = async (tag, y) => {
     const s = await pg.evaluate(() => ({ stay: window.__stay === 1, y: window.scrollY, max: document.documentElement.scrollHeight - window.innerHeight }));
     ok(s.stay && navs === 0, tag + ": no navigation (navs " + navs + ")");
@@ -86,12 +80,13 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   }), secret);
   const waitDialog = async sel => {
     await pg.waitForSelector("[data-modal][open] [data-modal-body] " + sel, { visible: true, timeout: 15000 });
-    await wait(150);
+    await settled();
   };
   const closeDialog = async () => {
     await pg.click("[data-modal][open] [data-modal-close]");
-    for (let i = 0; i < 40 && (await pg.$("[data-modal][open]")); i++) await wait(50);
-    await wait(300); // the close goes back in history: let it land
+    // the close goes back in history: wait until the dialog and its address are gone (the checks that follow say what is wrong when not)
+    await pg.waitForFunction(() => !document.querySelector("[data-modal][open]") && location.hash === "", { timeout: 5000 }).catch(() => {});
+    await settled();
   };
   // the secret is gone with its dialog: not in the page, not in its address, not on the server's page
   const gone = async (tag, id, secret, path) => {
@@ -221,7 +216,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await pg.waitForSelector("[data-modal][open] [data-modal-ok]", { visible: true });
     ok((await pg.$eval("[data-modal][open] [data-modal-title]", t => t.textContent)) === "Unsaved changes", w + ": a link asks first while an edit is unsaved");
     await pg.click("[data-modal][open] [data-modal-ok]"); // Stay
-    await wait(200);
+    await settled();
     ok(navs === 0 && (await pg.$eval(row("GET /items3") + " input[name=desc]", i => i.value)) === "edited " + w, w + ": Stay keeps the page and the edit");
 
     // Update: the review is a dialog; Confirm applies in place and keeps the unsaved edit
@@ -237,7 +232,6 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok((await server("/admin/upstreams/big/tools")).includes(facts.includes("31 operations") ? "/items29" : "/extra"), w + ": the review stored nothing");
     await pg.click("[data-modal][open] form[action$='/spec/apply'] button");
     await settled();
-    await wait(300);
     await stayed(w + " update confirm", y);
     await quiet(w + " update confirm");
     const facts2 = await pg.$eval("#oa-facts", p => p.textContent);

@@ -1,3 +1,12 @@
+// working counts the in-place saves and posts under way, each until the page shows its answer (the read-again
+// included). While any runs, <html> carries data-busy: the one signal a test (or anything else) can wait on, since
+// the form itself leaves the page when its dialog closes or its row goes.
+var working = 0;
+function trackWork(by) {
+  working = Math.max(0, working + by);
+  document.documentElement.toggleAttribute("data-busy", working > 0);
+}
+
 // Polls the device sign-in state ([data-poll] holds the URL) and, when it changes, reads the status page again in
 // place (window.skgateRefresh), so the card shows the account or the error without a reload. Cancel posts in place
 // and takes the panel away, which ends the polling. The panel carries the verification address ([data-device-url],
@@ -247,10 +256,13 @@
     // A dialog that picks a helper model reloads that provider's list when it opens. Deferred so the save
     // listener is already registered when a fragment opens the dialog during the first load. file: snapshots
     // have no server, so they skip the reload.
+    trackWork(1); // busy from the open, not only from the post: the dialog is redrawn when the list arrives
     setTimeout(function () {
-      if (location.protocol === "file:") return;
-      var f = bodyEl.querySelector('form[action$="/models/reload"]');
-      if (f) submitForm(f);
+      try {
+        if (location.protocol === "file:") return;
+        var f = bodyEl.querySelector('form[action$="/models/reload"]');
+        if (f) submitForm(f); // a save in the same task: it is busy before this is released
+      } finally { trackWork(-1); }
     }, 0);
   }
   // showAlias marks the alias row named on the dialog body, and focuses it when the dialog has just opened.
@@ -525,6 +537,7 @@ function submitForm(form) {
 }
 function beginSave(form) {
   if (form._saving) { form._again = true; return false; }
+  trackWork(1);
   form._saving = true;
   form._again = false;
   form._inBody = !!(form.closest && form.closest("[data-modal-body]"));
@@ -552,6 +565,7 @@ function formTwin(form) {
   return hit;
 }
 function endSave(form, ok) {
+  trackWork(-1);
   form._saving = false;
   form.removeAttribute("data-saving");
   var again = form._again;
@@ -807,7 +821,9 @@ function bodyBusy(dlg, self) {
     var dlgId = form.closest("[data-modal-body]") ? hashId() : "";
     if (btn && !undo) btn.disabled = true;
     form.setAttribute("data-saving", "");
+    trackWork(1);
     function done() {
+      trackWork(-1);
       form._posting = false;
       form.removeAttribute("data-saving");
       if (btn && btn.isConnected && !undo) btn.disabled = false;

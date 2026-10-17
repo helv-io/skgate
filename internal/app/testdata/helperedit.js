@@ -5,7 +5,6 @@ const [url, chrome, pp, cookiesJSON, ...paths] = process.argv.slice(2);
 const puppeteer = require(pp);
 const bad = [];
 const ok = (c, m) => { if (!c) { bad.push(m); console.log("FAIL", m); } else console.log("ok  ", m); };
-const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const b = await puppeteer.launch({ executablePath: chrome, args: ["--no-sandbox", "--headless=new"] });
   const pg = await b.newPage();
@@ -18,7 +17,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     if (!f) return null;
     return { model: f.querySelector('[name=model]').value, effort: f.querySelector('[name=effort]').value, timeout: f.querySelector('[name=timeout]').value };
   }, body);
-  const idle = async () => { for (let i = 0; i < 50; i++) { if (!(await pg.evaluate(() => !!document.querySelector("form[data-saving]")))) break; await wait(100); } await wait(300); };
+  const idle = require("./idle.js")(pg);
   // the dialog reloads the model list when it opens (deferred, then posted): pick only once that has answered and
   // the dialog was drawn again from it, as a person would see the list first
   const open = async () => {
@@ -33,7 +32,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await pg.waitForFunction(() => window.__reload && !window.__reload._saving, { timeout: 10000 });
     await idle();
   };
-  const close = async () => { await pg.click("[data-modal] [data-modal-close]"); await wait(150); };
+  const close = async () => { await pg.click("[data-modal] [data-modal-close]"); await pg.waitForFunction(() => !document.querySelector("[data-modal][open]")); await idle(); };
   const setSel = async (name, v) => { await pg.select(body + ` [name=${name}]`, v); await idle(); };
   const setNum = async (v) => {
     const sel = body + " [name=timeout]";

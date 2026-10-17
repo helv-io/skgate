@@ -124,6 +124,7 @@ A rule that nothing enforces is a wish. Before you push, run `tools/chk.sh` and 
 | No em dashes, no marketing words in text people read | `voice` check on added lines, whole tree weekly; `TestAdminTemplatesUseThePlainVoice` for admin screens |
 | README and CHANGELOG move with every user-facing change; otherwise `Docs: skip <reason>` in a commit message | `docs` check |
 | No house names in shipped files | `private` check |
+| A browser test waits on what the page shows, never on a fixed sleep: after a save or post it waits for `<html data-busy>` to clear (`testdata/idle.js`) | `TestBrowserScriptsWaitOnWhatTheyCheck`: a script may not read `data-saving`, and its count of fixed waits can only go down |
 | Local test run equals CI: browser tests on, a skipped test fails | `tools/chk.sh`, `tools/test-shard.sh` and `tools/browser-env.sh` |
 | Version, `server.json` and the tag agree, in one commit | `tools/release` and the `version-gate` job, which runs before anything is built |
 | The GitHub Release page exists after a tag | `release-page` job |

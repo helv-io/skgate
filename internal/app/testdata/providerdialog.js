@@ -1,6 +1,5 @@
 const [url, chrome, pp, cookiesJSON] = process.argv.slice(2);
 const puppeteer = require(pp);
-const wait = ms => new Promise(r => setTimeout(r, ms));
 const bad = [];
 const ok = (c, m) => { if (!c) bad.push(m); };
 (async () => {
@@ -12,6 +11,12 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await pg.waitForSelector("dialog[open] [data-section=aliases]");
   await pg.evaluate(() => { window.__same = 1; document.body.style.minHeight = "2400px"; window.scrollTo(0, 480); });
   const dlg = "dialog[open] ";
+  const idle = require("./idle.js")(pg);
+  // a dialog is closed when it says so, or when it asked first; no fixed wait for either
+  const closeDlg = async () => {
+    await pg.click(dlg + "[data-modal-close]");
+    await pg.waitForFunction(() => !document.querySelector("dialog").open || document.querySelector("[data-modal-title]").textContent === "Discard changes");
+  };
   await pg.type(dlg + "input[type=text][name=name]", "fast");
   await pg.click(dlg + "form[action$='/aliases/put'] button.btn");
   await pg.waitForFunction(() => /fast/.test(document.querySelector("dialog [data-section=aliases] tbody").textContent)
@@ -30,25 +35,20 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   ok(st.toast === "alias saved", "toast: " + st.toast);
   ok(/1 alias/.test(st.card), "the card behind shows the alias: " + st.card);
   ok(st.scroll > 400, "the page keeps its scroll position: " + st.scroll);
-  await pg.click(dlg + "[data-modal-close]");
-  await wait(200);
+  await closeDlg();
   ok(!(await pg.evaluate(() => document.querySelector("dialog").open)), "a clean dialog closes at once");
   await pg.click("[data-dialog-open='#aliases-grok']");
-  await wait(150);
+  await pg.waitForSelector("dialog[open] [data-section=aliases]");
+  await idle();
   let q = await pg.evaluate(() => /fast/.test(document.querySelector("dialog [data-section=aliases]").textContent));
   ok(q, "reopened with the saved alias");
-  await pg.click(dlg + "[data-modal-close]");
-  await wait(150);
+  await closeDlg();
   await pg.click("[data-dialog-open='#helper-model']");
-  await pg.waitForFunction(() => document.querySelector("dialog[open] select[name=model]") && !document.querySelector("[data-saving]"), { timeout: 5000 });
-  // Opening the dialog reloads the model list in the background, which redraws the select; on a busy machine a
-  // pick made before that redraw is lost, so pick again until the card shows it.
-  for (let i = 0; i < 20; i++) {
-    if (await pg.evaluate(() => /grok-mini/.test(document.querySelector("#grok").textContent))) break;
-    await pg.waitForFunction(() => document.querySelector("dialog[open] select[name=model]") && !document.querySelector("[data-saving]"), { timeout: 5000 });
-    if (await pg.evaluate(() => document.querySelector("dialog[open] select[name=model]").value !== "grok-mini")) await pg.select("dialog[open] select[name=model]", "grok-mini");
-    await wait(500);
-  }
+  await pg.waitForSelector("dialog[open] select[name=model]");
+  // opening the dialog reads the model list and redraws the select: pick once that is done, as a person would
+  await idle();
+  await pg.select("dialog[open] select[name=model]", "grok-mini");
+  await idle();
   await pg.waitForFunction(() => /grok-mini/.test(document.querySelector("#grok").textContent), { timeout: 5000 });
   await pg.evaluate(() => {
     const el = document.querySelector("dialog[open] input[name=timeout]");
@@ -58,17 +58,17 @@ const ok = (c, m) => { if (!c) bad.push(m); };
   await pg.waitForFunction(() => Array.prototype.some.call(document.querySelectorAll(".toast"), n => /timeout 240/.test(n.textContent)), { timeout: 5000 });
   q = await pg.evaluate(() => ({ open: document.querySelector("dialog").open, title: document.querySelector("[data-modal-title]").textContent }));
   ok(q.open && q.title === "MCP helper model", "the helper dialog stays open: " + JSON.stringify(q));
-  await pg.click(dlg + "[data-modal-close]");
-  await wait(200);
+  await idle();
+  await closeDlg();
   q = await pg.evaluate(() => ({ open: document.querySelector("dialog").open, title: document.querySelector("[data-modal-title]").textContent }));
   ok(!q.open && q.title !== "Discard changes", "a saved helper closes without asking: " + JSON.stringify(q));
   await pg.click("[data-dialog-open='#helper-model']");
   await pg.waitForFunction(() => {
     const el = document.querySelector("dialog[open] input[name=timeout]");
-    return el && el.value === "240" && !document.querySelector("[data-saving]");
+    return el && el.value === "240";
   }, { timeout: 5000 });
-  await pg.click(dlg + "[data-modal-close]");
-  await wait(200);
+  await idle();
+  await closeDlg();
   await pg.click("#alias-overview a.name");
   await pg.waitForSelector("dialog[open] tr[data-current]");
   q = await pg.evaluate(() => ({
@@ -76,11 +76,10 @@ const ok = (c, m) => { if (!c) bad.push(m); };
     row: document.querySelector("dialog[open] tr[data-current]").textContent,
   }));
   ok(q.title === "Model aliases" && /fast/.test(q.row), "the alias name opens its row: " + JSON.stringify(q));
-  await pg.click(dlg + "[data-modal-close]");
-  await wait(200);
+  await closeDlg();
   // Toasts sit in front of the page and leave after a click. Clear them so Delete can be clicked.
   await pg.evaluate(() => document.querySelectorAll(".toast").forEach(t => t.click()));
-  await wait(400);
+  await pg.waitForFunction(() => !document.querySelector(".toast"));
   await pg.click("#alias-overview button.danger");
   await pg.waitForFunction(() => !/fast/.test(document.querySelector("#alias-overview").textContent)
     && /no aliases/.test(document.querySelector("#grok").textContent), { timeout: 5000 });

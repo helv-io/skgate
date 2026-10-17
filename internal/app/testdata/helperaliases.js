@@ -12,7 +12,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await pg.setCookie(...JSON.parse(cookiesJSON));
   await pg.setViewport({ width: 1280, height: 900 });
   const sel = 'dialog[open] [data-modal-body] select[name="model"]';
-  const idle = async () => { for (let i = 0; i < 50; i++) { if (!(await pg.evaluate(() => !!document.querySelector("form[data-saving]")))) break; await wait(100); } await wait(300); };
+  const idle = require("./idle.js")(pg);
   const read = () => pg.evaluate(s => {
     const el = document.querySelector(s);
     if (!el) return null;
