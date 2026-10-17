@@ -95,7 +95,7 @@ What skgate is, in one wording used everywhere it is described (README, registry
 ## Code
 
 - Small, meaningful commits with a message body. One concern per commit.
-- Tests are required. Run `go test -race ./...`; `tools/chk.sh` (build, vet, tests of the staged tree) must pass for every commit. CI runs the same checks with the browser tests on (the `browser-tools` action sets up Chrome, jsdom and puppeteer) and `govulncheck` as its own job.
+- Tests are required. Run `go test -race ./...`; `tools/chk.sh` (build, vet, tests of the staged tree, browser tests on, a skipped test fails) must pass for every commit. It sets up Chrome, jsdom and puppeteer through `tools/browser-env.sh`, the same script the CI `browser-tools` action runs, so a green local run means a green CI run. `govulncheck` runs every night (a failing night opens an issue) and as a gate before a release, not on every push.
 - README is for user-visible things only (features, runtimes, env variables, setup). Logging, timeouts, streaming, retries, TZ plumbing and the effort selector stay out of the front page; details go in `docs/` or the code. README edits go in their own small commits.
 - Update README and `.env.example` in the same change. A test keeps their variables in sync with the code.
 - Runtimes of the full image: Node.js (`npx`), pnpm, Bun (`bunx`), Deno, Python (`uv`, `uvx`), Go, .NET and git. A runtime added or removed changes, in one release: `Dockerfile` (binary, cache variables under `/data/cache`), `managed/env.go` (inherited keys and the per-upstream `CacheEnv`, so Update clears it), `managed/commands.go`, `managed/package.go` when it runs packages, the Suggest prompt and `checkPackage`, README (image tags, runner table), `docs/operations.md` and `docs/mcp.md`. Prove it in a built image: each runner starts a real MCP server as the unprivileged child user.
@@ -106,10 +106,28 @@ What skgate is, in one wording used everywhere it is described (README, registry
 
 The default branch is `master`. Raw links, templates and docs point at `master`, never `main`.
 
-1. Bump `Version` in `internal/config/config.go` (semver only, no suffixes) and the version and image tags in `server.json` (the MCP registry entry; `TestRegistryFilesAgreeWithTheVersion` checks they match).
-2. Full test run, then tag `vX.Y.Z` on the final commit.
-3. Push `master` and the tag to GitHub. The Release workflow builds the images (`vX.Y.Z`, `X.Y.Z`, `latest`, slim variants) for amd64 and arm64 and pushes them to `ghcr.io/helv-io/skgate`. Pushing the tag also creates the GitHub Release page (notes auto-generated). Then its `mcp-registry` job lists `server.json` in the official MCP registry through GitHub OIDC (stable tags only). It fails if `server.json` does not match the tag and skips a version the registry already has. Watch it: a failure there does not undo the images. The pinned `mcp-publisher` version and sha256 are in `release.yml`.
+1. Run `tools/release X.Y.Z` (semver only, no suffixes). It bumps `Version` in `internal/config/config.go` and the version and image tags in `server.json`, proves they agree, runs `tools/chk.sh`, commits `Version X.Y.Z` and tags `vX.Y.Z`. Do not bump or tag by hand: the `version-gate` job fails a tag whose files disagree, before anything is built.
+2. Write the docs for the release, then push as below.
+3. Push `master` and the tag to GitHub. The Release workflow builds the images (`vX.Y.Z`, `X.Y.Z`, `latest`, slim variants) for amd64 and arm64 and pushes them to `ghcr.io/helv-io/skgate`. Pushing the tag also creates the GitHub Release page (notes auto-generated), and `release-page` fails if it is not there. Then its `mcp-registry` job lists `server.json` in the official MCP registry through GitHub OIDC (stable tags only) and skips a version the registry already has. Watch it: a failure there does not undo the images. The pinned `mcp-publisher` version and sha256 are in `release.yml`.
 4. Deploy: `docker compose pull skgate && docker compose up -d skgate`.
 - `CHANGELOG.md` is written by `tools/changelog` (workflow `Changelog` on each stable tag; details in docs/development.md). Never reword a section by hand-running `-all`; edit the file in a normal commit. To steer a generated entry, put `Changelog: <Section>: <text>` or `Changelog: skip` in the commit message. The wording rule above applies.
 - Structured text fields (OpenAPI description, MCP import JSON) use the one vendored editor, CodeMirror 6 (`internal/admin/static/codemirror.js`, built from `tools/codemirror`, MIT; notices in `THIRD_PARTY_NOTICES.md`): put `data-code="json|yaml|toml|auto"` on the textarea, which stays the field of record. Do not write another editor, and do not add anything that needs `unsafe-inline`: the editor lives in a shadow root so its styles are constructed stylesheets, and the CSP stays `default-src 'self'; style-src 'self'; script-src 'self'`. To change or update it, follow docs/development.md ("Code box"). Script that sets such a field's value sends an `input` event.
 - An affordance appears only when the click does something. The dotted underline (and a pointer, and `role=button`) belongs to a `<details>` that has content to reveal, or to a `.desc-line` while app.js finds its text cut off (`.expands`). Text that fits, or a `<details>` with nothing inside, is plain text: render it without `<summary>` (see the `tooldesc` component) and test that a row with nothing to expand has no dotted underline. Lists of names and descriptions use `.table.split` (about 30/70).
+
+## Rules and what enforces them
+
+A rule that nothing enforces is a wish. Before you push, run `tools/chk.sh` and `.agent-checks/bin/agent-checks local` (shared `agent-checks` repo on Helvio's own git server, pinned copy in `.agent-checks/`).
+
+| Rule | Enforced by |
+|---|---|
+| Every commit is Helvio Pedreschi <helvio88@gmail.com>, nobody else | git refuses to guess an identity on the box; `identity` check on every push |
+| No em dashes, no marketing words in text people read | `voice` check on added lines, whole tree weekly; `TestAdminTemplatesUseThePlainVoice` for admin screens |
+| README and CHANGELOG move with every user-facing change; otherwise `Docs: skip <reason>` in a commit message | `docs` check |
+| No house names in shipped files | `private` check |
+| Local test run equals CI: browser tests on, a skipped test fails | `tools/chk.sh`, `tools/test-shard.sh` and `tools/browser-env.sh` |
+| Version, `server.json` and the tag agree, in one commit | `tools/release` and the `version-gate` job, which runs before anything is built |
+| The GitHub Release page exists after a tag | `release-page` job |
+| No known vulnerability ships; a new advisory is seen without blocking unrelated work | `govulncheck` nightly with an issue on failure, and as a gate in `release.yml` |
+| Workflow files are valid | `actionlint` inside the `agent-checks` job |
+| Work on a branch. Never push to master, never open a pull request unless asked | branch protection on master; Helvio or Rook merges |
+| Public drafts are short and human; what to build next | judgment, not enforceable |

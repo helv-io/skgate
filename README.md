@@ -296,14 +296,14 @@ How each provider signs in elsewhere, and how skgate connects to it:
 | --- | --- | --- |
 | xAI Grok \* | OpenCode; more planned [1] | Subscription |
 | Anthropic Claude | Not offered to third parties [2] | API key |
-| DeepSeek | — | API key |
+| DeepSeek | None | API key |
 | Google Gemini \* | CLI login not for reuse [3] | API key |
-| Groq \* | — | API key |
-| Mistral \* | — | API key |
+| Groq \* | None | API key |
+| Mistral \* | None | API key |
 | OpenAI | Sign in with ChatGPT [4] | API key |
-| OpenRouter \* | — | API key |
-| LM Studio | — | No key (local) |
-| Ollama | — | No key (local) |
+| OpenRouter \* | None | API key |
+| LM Studio | None | No key (local) |
+| Ollama | None | No key (local) |
 
 \* Free tier available.
 
