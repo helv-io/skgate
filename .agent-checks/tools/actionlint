@@ -17,8 +17,12 @@ if [ ! -x "$D/actionlint" ]; then
   echo "$S  $f" | sha256sum -c - >/dev/null 2>&1 || echo "$S  $f" | shasum -a 256 -c - >/dev/null 2>&1 || { echo "error: actionlint download does not match its pinned checksum"; rm -f "$f"; exit 2; }
   tar -xzf "$f" -C "$D" actionlint; rm -f "$f"
 fi
+# shellcheck and pyflakes are switched off on purpose: they are used when installed, so a runner that has them and a laptop that
+# does not would disagree (skgate went red in CI on style hints that the box never showed). This checks workflow structure and
+# expressions, which is where the real failures were (secrets in a job `if`).
+FLAGS=(-color=false -shellcheck= -pyflakes=)
 if [ $# -eq 0 ]; then
   [ -d .github/workflows ] || { echo "no .github/workflows here"; exit 0; }
-  exec "$D/actionlint" -color=false
+  exec "$D/actionlint" "${FLAGS[@]}"
 fi
-exec "$D/actionlint" "$@"
+exec "$D/actionlint" "${FLAGS[@]}" "$@"

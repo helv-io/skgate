@@ -14,8 +14,9 @@ TEXT = (".md", ".qml", ".html", ".tmpl", ".txt", ".json", ".yml", ".yaml")
 SKIP = re.compile(r"(^|/)(\.agent-checks/|AGENTS?\.md|CLAUDE\.md|CONTRIBUTING\.md|LICENSE|THIRD_PARTY_NOTICES\.md|package(-lock)?\.json|go\.sum|\.agent-checks\.toml|\.github/|\.gitea/|translations/|testdata/|node_modules/)")
 
 
-def banned_for(extra):
-    return BANNED + [(e["pattern"], e["why"], e["fix"]) for e in extra]
+def banned_for(extra, path=""):
+    """Built-in list plus the repo's own words. An extra may carry `paths` (a regex): it then applies only to matching files."""
+    return BANNED + [(e["pattern"], e["why"], e["fix"]) for e in extra if re.search(e.get("paths", ""), path)]
 
 
 def scan(path, numbered, extra):
@@ -23,7 +24,7 @@ def scan(path, numbered, extra):
     for no, line in numbered:
         if exception_ok(line, "voice-ok"):
             continue
-        for pat, what, fix in banned_for(extra):
+        for pat, what, fix in banned_for(extra, path):
             if re.search(pat, line):
                 error(f"{what}; {fix}", path, no)
                 bad += 1
