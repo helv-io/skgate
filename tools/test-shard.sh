@@ -5,11 +5,13 @@
 # `go test ./...` runs.
 set -euo pipefail
 shard=${1:?shard}; total=${2:?total}
+# A skipped test did not run; every shard fails on one (set SKGATE_ALLOW_SKIP=1 only on a machine with no browser).
+gotest() { AGENT_CHECKS_ALLOW_SKIP=${SKGATE_ALLOW_SKIP:-} .agent-checks/bin/agent-checks no-skips --hide '^(=== |--- PASS|\s+--- PASS|PASS$|ok\s)' -- go test -v "$@"; }
 if [ "$shard" = 1 ]; then
   go build ./...
   go vet ./...
-  go test $(go list ./... | grep -v '/internal/app$')
+  gotest $(go list ./... | grep -v '/internal/app$')
 fi
 tests=$(go test -list '.*' ./internal/app | grep -E '^(Test|Example)' | awk -v s="$shard" -v n="$total" '(NR - 1) % n == s - 1' | paste -sd'|')
 [ -n "$tests" ] || { echo "no tests in shard $shard"; exit 0; }
-go test ./internal/app -run "^($tests)\$"
+gotest ./internal/app -run "^($tests)\$"
