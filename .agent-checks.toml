@@ -1,0 +1,31 @@
+# Settings for the shared checks (the pinned copy is in .agent-checks/).
+[docs]
+user-facing = "^(cmd|internal)/"
+require = ["README.md", "CHANGELOG.md"]
+
+[model-ids]
+exempt = []
+
+[private]
+patterns = ['helv\.io']
+hashes = [
+  "befa156f0283eb0062beb9b86e16a413e1cf8c5135e5518d5c4fa321ce0c7b6b",
+  "ae50ad81a2d4006e372c0bd3220f24c377345455d0e980c3f0d94f0e5faf2561",
+]
+
+# Every file that repeats the version. tools/release writes them; this check proves it before anything is published.
+[[release.version]]
+file = "internal/config/config.go"
+pattern = 'const Version = "([^"]+)"'
+
+[[release.version]]
+file = "server.json"
+pattern = '(?m)^  "version": "([^"]+)"'
+
+[[release.version]]
+file = "server.json"
+pattern = '"identifier": "[^"]*:([0-9][^"]*?)(?:-slim)?"'
+
+# Skips that are the same in CI: these need root or a runtime that is installed only in the image. Anything else that skips fails the run.
+[no-skips]
+allow = ['SKIP: (TestChownTreeAsRoot|TestRunnersAreSeparatedAsRoot|TestE2E\w*)']
