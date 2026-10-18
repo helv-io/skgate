@@ -16,6 +16,7 @@ import (
 
 	"github.com/helv-io/skgate/internal/app"
 	"github.com/helv-io/skgate/internal/config"
+	"github.com/helv-io/skgate/internal/directory"
 	"github.com/helv-io/skgate/internal/httputil"
 	"github.com/helv-io/skgate/internal/store"
 	"github.com/helv-io/skgate/internal/timefmt"
@@ -24,6 +25,13 @@ import (
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(healthcheck())
+	}
+	if len(os.Args) > 1 && os.Args[1] == "stdio" {
+		// Directory mode: read-only MCP on stdin and stdout. No settings, port, database or network.
+		if err := directory.Run(os.Stdin, os.Stdout); err != nil {
+			log.Fatalf("stdio: %v", err)
+		}
+		return
 	}
 	if err := refuseNobody(os.Geteuid(), os.Getegid()); err != nil {
 		log.Fatalf("refusing to start: %v", err)
