@@ -236,3 +236,13 @@ Deleting or disabling an upstream stops its process; its directory under `MANAGE
 - An upstream that is down or errors is skipped in lists and logged (`aggregate alias=... skipped=true reason=...`); the rest still answer. Unknown prefix: JSON-RPC `-32602`.
 - One session (`Mcp-Session-Id`) per upstream is kept in memory and re-created if the upstream forgets it or its settings change.
 - `GET /mcp` (Accept: text/event-stream) is an event stream that carries only `notifications/tools/list_changed`; `DELETE /mcp` is a no-op.
+
+## Directory mode
+
+`skgate stdio` runs a read-only MCP server over stdin and stdout, for directories and scanners that start a server to see what it offers. It is not the gateway and is not meant for real use.
+
+- It reads no environment variable, opens no port, makes no network call and writes no file. OIDC settings are not needed.
+- Three tools, all read-only: `about` (version, edition, licence, links), `list_features` (what skgate does, optionally one area) and `config_help` (the settings table of the README, optionally one variable).
+- One message per line, JSON-RPC 2.0. Stdout carries protocol messages only.
+- Try it: `npx -y mcp-proxy -- skgate stdio`, or pipe an `initialize` request to the binary.
+- `TestSettingsMatchTheREADME` keeps `config_help` equal to the README table, and `TestStdioModeAnswersWithAnEmptyEnvironment` runs the built binary with an empty environment.

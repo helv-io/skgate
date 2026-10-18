@@ -276,6 +276,12 @@ Clients tested by the author against a live skgate. Status is what happened, not
 | Windsurf | Untested | |
 | Zed | Untested | |
 
+## Directory mode
+
+`skgate stdio` starts a small read-only MCP server on stdin and stdout. It exists so MCP directories and scanners, which start a server and ask what it offers, can look at skgate. It is not for real use: to run skgate, use the Docker image above.
+
+It needs no settings, opens no port, reads no database and uses no network. It has three tools: `about`, `list_features` and `config_help`. They describe skgate and nothing else. More in [docs/mcp.md](docs/mcp.md#directory-mode).
+
 ## How skgate compares
 
 A rough guide from each project's docs as of 2026-10-13. Check them for current features.
