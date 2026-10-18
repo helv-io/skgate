@@ -8,7 +8,6 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 ### Added
 
-- `skgate stdio`, a read-only MCP server on stdin and stdout for MCP directories and scanners. It has the tools about, list_features and config_help, and needs no settings, port, database or network
 - Connected MCP clients are told when an upstream's tools change (notifications/tools/list_changed), after an update, a reinstall, a restart or a tool selection change. Every endpoint skgate answers advertises listChanged, and /mcp and OpenAPI upstreams have a GET event stream for it
 - README: Star History chart
 - README: model aliases are opened from the provider card
@@ -50,6 +49,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Technical details, manual refresh and sign-in controls from provider details
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
+
+## [0.28.0] - 2026-10-17
+
+### Added
+
+- `skgate stdio`, a read-only MCP server on stdin and stdout for MCP directories and scanners. It has the tools about, list_features and config_help, and needs no settings, port, database or network
 
 ## [0.27.2] - 2026-10-14
 
@@ -787,7 +792,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.27.2...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/helv-io/skgate/compare/v0.27.2...v0.28.0
 [0.27.2]: https://github.com/helv-io/skgate/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/helv-io/skgate/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/helv-io/skgate/compare/v0.26.1...v0.27.0
