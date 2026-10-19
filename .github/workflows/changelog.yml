@@ -1,18 +1,23 @@
-# Adds the section for a new version tag to CHANGELOG.md and commits it to master.
+# Adds the section for a new version tag to CHANGELOG.md and opens a pull request.
 #
 # The same program, tools/changelog, wrote the backfilled file (go run ./tools/changelog -all), so the format is the same.
 # It sorts the commits since the previous tag into Added, Changed, Fixed, Security and Removed. See docs/development.md.
 #
-# Why this cannot loop or disturb a release:
-#   - A push made with the built-in GITHUB_TOKEN does not start other workflows, so the commit does not run CI or this
-#     workflow again; it also carries no tag, so Release (which runs on tags) is untouched.
-#   - It is a separate workflow from Release: if it fails, nothing is published or unpublished.
-#   - The job is skipped for the bot's own commits and for tags that are not stable versions (vX.Y.Z).
+# Why this does not push to master, loop, or disturb a release:
+#   - Branch protection requires a pull request and status checks. A direct push of CHANGELOG.md to master is rejected
+#     (v0.28.0, "Protected branch update failed").
+#   - The job pushes changelog/<tag> and opens a pull request with the built-in GITHUB_TOKEN. It never updates master itself.
+#   - A pull request or branch push made with that token starts no other workflow, so this cannot loop and Release (tags only)
+#     is untouched. The job starts CI and agent-checks with workflow_dispatch, the one event that token may start, so the
+#     required checks still run. CI's path filter does not apply to workflow_dispatch.
+#   - It turns on auto-merge when the repository allows it. When that setting is off, the pull request stays open.
+#   - The job is skipped for the bot's own tag pushes and for tags that are not stable versions (vX.Y.Z).
 #   - The program adds a version once, so a re-run changes nothing.
-# The commit lands after the tag, so the tagged source has no entry for its own version, and a version bump stays the
+# The pull request lands after the tag, so the tagged source has no entry for its own version, and a version bump stays the
 # last commit a person makes for a release.
 #
-# Uses the built-in GITHUB_TOKEN with contents: write; no other secret is needed.
+# Token: contents: write (push the branch), pull-requests: write (open the pull request), actions: write (workflow_dispatch
+# of the required checks). No other secret is needed.
 
 name: Changelog
 
@@ -27,6 +32,8 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
+  actions: write
 
 # One at a time, and never cancelled: two quick tags both get their entry.
 concurrency:
@@ -39,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Stable tags only
         id: stable
@@ -55,17 +63,69 @@ jobs:
       - name: Add the section
         if: steps.stable.outputs.ok == 'true'
         run: go run ./tools/changelog -tag "$TAG"
-      - name: Commit to master
+      - name: Open a pull request
         if: steps.stable.outputs.ok == 'true'
         run: |
-          if git diff --quiet -- CHANGELOG.md; then echo "CHANGELOG.md already has $TAG"; exit 0; fi
+          set -euo pipefail
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "CHANGELOG.md already has $TAG"
+            exit 0
+          fi
+
+          branch="changelog/${TAG}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
           git add CHANGELOG.md
           git commit -m "Changelog for $TAG" -m "Written by tools/changelog from the commits since the previous tag. Not a release: no tag, no image."
+          git show --stat -- CHANGELOG.md
+
+          # This branch holds only the generated changelog. A re-run replaces it.
+          pushed=0
           for i in 1 2 3; do
-            git push origin HEAD:master && exit 0
-            git pull --rebase origin master
+            if git push origin "HEAD:refs/heads/${branch}" || git push --force origin "HEAD:refs/heads/${branch}"; then
+              pushed=1
+              break
+            fi
+            sleep $((i * 2))
           done
-          echo "could not push CHANGELOG.md to master" >&2
-          exit 1
+          if [[ "$pushed" -ne 1 ]]; then
+            echo "could not push ${branch}" >&2
+            exit 1
+          fi
+
+          title="Changelog for ${TAG}"
+          body="Written by tools/changelog from the commits since the previous tag.
+
+          Not a release: no tag and no image. The pull request is the changelog update, so branch protection on master stays in place."
+
+          head="${GITHUB_REPOSITORY_OWNER}:${branch}"
+          number=$(gh pr list --base master --head "$head" --state open --json number --jq '.[0].number // empty')
+          if [[ -z "$number" ]]; then
+            url=$(gh pr create --base master --head "$branch" --title "$title" --body "$body")
+            number=$(gh pr view "$url" --json number --jq .number)
+          else
+            gh pr edit "$number" --title "$title" --body "$body"
+          fi
+
+          # GITHUB_TOKEN does not start workflows on its own pull request. workflow_dispatch does, and these two
+          # jobs are the checks master requires (agent-checks and the three CI shards).
+          dispatch() {
+            local wf="$1" i
+            for i in 1 2 3 4 5; do
+              if gh workflow run "$wf" --ref "$branch"; then
+                return 0
+              fi
+              sleep $((i * 2))
+            done
+            echo "could not start ${wf} on ${branch}" >&2
+            return 1
+          }
+          dispatch ci.yml
+          dispatch agent-checks.yml
+
+          if gh pr merge "$number" --auto --squash; then
+            echo "Auto-merge is on for #${number}"
+          else
+            echo "::warning::Pull request #${number} is open. Auto-merge was not turned on (the repository may not allow it). Merge it after the checks pass."
+          fi
