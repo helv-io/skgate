@@ -27,12 +27,14 @@ One program writes it, `tools/changelog`, for the backfill and for new versions 
 - To choose the wording or section yourself, add a line to the commit message: `Changelog: Fixed: Saving a key no longer fails after a restart` (sections: Added, Changed, Fixed, Security, Removed) or `Changelog: skip`.
 - `tools/changelog/folded.txt` lists tags that were never released (v0.12.2). Their commits go into the next release.
 
-The `Changelog` workflow runs the program on every stable `vX.Y.Z` tag and pushes one commit, "Changelog for vX.Y.Z", to `master` with the built-in `GITHUB_TOKEN` (`contents: write`). Why it is safe:
+The `Changelog` workflow runs the program on every stable `vX.Y.Z` tag and opens a pull request, "Changelog for vX.Y.Z", onto `master`. It uses the built-in `GITHUB_TOKEN` with `contents: write` (the branch), `pull-requests: write` (the pull request) and `actions: write` (start the checks). It does not push to `master`.
 
-- A push made with `GITHUB_TOKEN` starts no other workflow, so it cannot loop, and it runs no CI. The job is also skipped when the actor is `github-actions[bot]`.
+- Branch protection stays as it is: the update merges only through that pull request, after the required checks pass.
+- A pull request or push made with `GITHUB_TOKEN` starts no other workflow, so this cannot loop. The job starts CI and agent-checks with `workflow_dispatch`, the one event that token may start, so those checks still run on the pull request commit. CI's path filter does not apply to that event.
+- It turns on auto-merge when the repository allows it (Settings, General, Allow auto-merge). When that is off, the pull request stays open for a person to merge. The job is skipped when the actor is `github-actions[bot]`.
 - It is separate from Release and carries no tag, so images and the registry entry are unaffected, and a failure there publishes nothing. Pushing the tag also creates the GitHub Release page (notes auto-generated).
-- It lands after the tag. The tagged source therefore does not list its own version, and the version bump is still the last commit a person makes for a release. Pull before the next change.
-- Fix the wording of a generated section by editing `CHANGELOG.md` in an ordinary commit (CI ignores that file). The program never rewrites an existing section.
+- It lands after the tag. The tagged source therefore does not list its own version, and the version bump is still the last commit a person makes for a release.
+- Fix the wording of a generated section by editing `CHANGELOG.md` in an ordinary commit (CI ignores that file on push and pull_request). The program never rewrites an existing section.
 - A manual run (Actions, Changelog, Run workflow) takes a tag if an entry is missing.
 
 ## Underlines mean "opens"

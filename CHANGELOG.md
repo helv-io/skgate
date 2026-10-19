@@ -2,7 +2,7 @@
 
 All notable changes to skgate are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-This file is written by `tools/changelog`: when a version tag is pushed, a workflow adds that version's section and commits it to master. See docs/development.md.
+This file is written by `tools/changelog`: when a version tag is pushed, a workflow adds that version's section and opens a pull request. See docs/development.md.
 
 ## [Unreleased]
 
