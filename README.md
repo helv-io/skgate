@@ -262,10 +262,10 @@ Clients tested by the author against a live skgate. Status is what happened, not
 | --- | --- | --- |
 | ChatGPT | OK | |
 | Claude | OK | |
+| Gemini | OK | |
 | Grok | OK | |
 | Hermes | OK | |
 | Open WebUI | OK | Use OAuth 2.1; register and authorize the client. |
-| Gemini | Warning | Connects, but never calls tools. |
 | Home Assistant | Warning | Needs a manual OAuth client ID and secret. Only one MCP upstream can be used. |
 | Cline | Untested | |
 | Continue | Untested | |
