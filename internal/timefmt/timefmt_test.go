@@ -24,8 +24,12 @@ func TestHelpersUseLocalZone(t *testing.T) {
 			t.Errorf("%s: %q, want %q", name, got, want)
 		}
 	}
-	if z := Zone(); z != "America/New_York (EDT)" {
-		t.Errorf("zone %q", z)
+	// Zone reports the abbreviation of the current moment, which is EST after the
+	// first Sunday in November and EDT before it. October 2 above stays EDT.
+	abbr, _ := time.Now().In(ny).Zone()
+	wantZone := "America/New_York (" + abbr + ")"
+	if z := Zone(); z != wantZone {
+		t.Errorf("zone %q, want %q", z, wantZone)
 	}
 }
 
