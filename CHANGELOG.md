@@ -50,6 +50,12 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 - Sign out on the provider card
 - Provider details no longer edit upstream URLs
 
+## [0.28.1] - 2026-11-12
+
+### Security
+
+- Go 1.26.11 fixes an HTTP/1 server crash in net/http (GO-2026-6859). golang.org/x/net v0.62.0 and golang.org/x/crypto v0.59.0 clear GO-2026-6866, GO-2026-6860 and GO-2026-5932
+
 ## [0.28.0] - 2026-10-17
 
 ### Added
@@ -792,7 +798,8 @@ This file is written by `tools/changelog`: when a version tag is pushed, a workf
 
 - Requires Go 1.24
 
-[Unreleased]: https://github.com/helv-io/skgate/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/helv-io/skgate/compare/v0.28.1...HEAD
+[0.28.1]: https://github.com/helv-io/skgate/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/helv-io/skgate/compare/v0.27.2...v0.28.0
 [0.27.2]: https://github.com/helv-io/skgate/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/helv-io/skgate/compare/v0.27.0...v0.27.1
